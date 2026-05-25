@@ -127,7 +127,17 @@ from ..interfaces.types import (
     RevnumT,
 )
 from ..node import hex, nullrev
+from ..revlogutils.constants import (
+    STR_SPLIT,
+)
 from .. import ancestor
+
+
+def split_encode(splits):
+    """
+    encode a list of pairs for storage
+    """
+    return b''.join(STR_SPLIT.pack(*s) for s in splits)
 
 
 def _sorted_parents(idx, p1, p2):
@@ -191,7 +201,7 @@ def _parents(idx, rev: RevnumT) -> tuple[RevnumT, RevnumT]:
     return _sorted_parents(idx, p1, p2)
 
 
-def stable_tail_sort(cl, head_rev):
+def stable_tail_sort(cl, head_rev) -> Iterator[RevnumT]:
     """
     Naive topological iterator of the ancestors given by the stable-tail sort.
 
@@ -204,25 +214,52 @@ def stable_tail_sort(cl, head_rev):
 
     As such, this implementation exists mainly as a defining reference.
     """
-    cursor_rev = head_rev
-    while cursor_rev != nullrev:
-        yield cursor_rev
 
-        pt, px = _parents(cl.index, cursor_rev)
-        if px != nullrev:
-            tail_ancestors = ancestor.lazyancestors(
-                cl.parentrevs, (pt,), inclusive=True
-            )
-            exclusive_ancestors = (
-                a for a in stable_tail_sort(cl, px) if a not in tail_ancestors
-            )
+    current = head_rev
+    while current != nullrev:
+        yield current
+        # If there current revision has an exclusive part, yield from each of
+        # its exclusive split to cover the exclusive part iteration.
+        splits = cl._inner.sts_splits(current)
+        for range_head, range_length in splits:
+            assert range_head != nullrev
+            assert range_head < current
+            assert range_length > 0
+            range_iter = stable_tail_sort(cl, range_head)
+            yield from itertools.islice(range_iter, range_length)
+        # then, delegate to the tail parent.
+        current = _parents(cl.index, current)[0]
 
-            # Notice that excl(cur) is disjoint from ancestors(pt),
-            # so there is no double-counting:
-            # rank(cur) = len([cur]) + len(excl(cur)) + rank(pt)
-            excl_part_size = cl.fast_rank(cursor_rev) - cl.fast_rank(pt) - 1
-            yield from itertools.islice(exclusive_ancestors, excl_part_size)
-        cursor_rev = pt
+
+def compute_stable_tail_data(
+    revlog,
+    p1: RevnumT,
+    p2: RevnumT,
+) -> tuple[int, list[tuple[RevnumT, int]]]:
+    """Compute stable tail information when adding a new revision
+
+    returns (rank, exclusive_splits)
+
+    See module documentation for details about these values
+    """
+    index = revlog.index
+    parent_tail, parent_excl = _sorted_parents(revlog.index, p1, p2)
+    splits = []
+    if p1 == nullrev:
+        assert p2 == nullrev
+        rank = 1
+    else:
+        # the rank value might change if there is an
+        # exclusive part. So this value is not final
+        rank = 1 + index.rank(parent_tail)
+
+    if parent_excl != nullrev:
+        splits_iter = _compute_excl_splits(revlog, parent_excl, parent_tail)
+        for u, length in splits_iter:
+            splits.append((u, length))
+            rank += length
+
+    return rank, splits
 
 
 def computed_excl_splits(revlog, rev: RevnumT) -> list[tuple[RevnumT, int]]:
@@ -481,7 +518,13 @@ def _format_rev(index, rev: RevnumT) -> bytes:
     return b"%d" % rev
 
 
-def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
+def debug_info(
+    ui,
+    revlog,
+    rev: RevnumT,
+    naive: bool = False,
+    display_revs: bool = False,
+):
     """display various stable-tail information for a given revision
 
     (We could make this templatable for flexibility, but having it exist at all
@@ -501,7 +544,11 @@ def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
     canon_anc = _find_canon_ancestor(index, rank, parent_tail)
     canon_rank = index.rank(canon_anc)
     canon_size = rank - canon_rank
-    rev_sts = stable_tail_sort_naive(revlog, rev)
+    if naive:
+        rev_sts = stable_tail_sort_naive(revlog, rev)
+    else:
+        rev_sts = stable_tail_sort(revlog, rev)
+
     canon_part = itertools.islice(rev_sts, canon_size)
     min_rank = min(index.rank(r) for r in canon_part)
 
@@ -520,7 +567,11 @@ def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
         excl_size = index.rank(rev) - index.rank(parent_tail) - 1
         ui.writenoi18n(b"  - size: %d\n" % excl_size)
         ui.writenoi18n(b"  - splits:\n")
-        for head, length in computed_excl_splits(revlog, rev):
+        if naive:
+            excl_splits = computed_excl_splits(revlog, rev)
+        else:
+            excl_splits = revlog._inner.sts_splits(rev)
+        for head, length in excl_splits:
             ui.writenoi18n(b"    - head:   %s\n" % display(index, head))
             ui.writenoi18n(b"      length: %d\n" % length)
     if parent_tail != nullrev:

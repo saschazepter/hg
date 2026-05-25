@@ -784,6 +784,12 @@ class BaseIndex(abc.ABC):
         """
         raise error.ProgrammingError("lacking support for ChangedFiles data")
 
+    def sts_split_offset(self, rev: RevnumT) -> int:
+        raise error.ProgrammingError("lacking stable-tail support")
+
+    def sts_split_count(self, rev: RevnumT) -> int:
+        raise error.ProgrammingError("lacking stable-tail support")
+
     def children(self, rev: RevnumT) -> None | list[RevnumT]:
         c1 = self.child_p1(rev)
         if c1 is None:
@@ -1542,6 +1548,8 @@ class IndexChangelogV2(Index2):
             changed_files_length=items[
                 revlog_constants.INDEX_ENTRY_V2_IDX_CGF_LENGTH
             ],
+            sts_split_offset=items[16],
+            sts_split_count=items[17],
         )
 
     @classmethod
@@ -1576,8 +1584,20 @@ class IndexChangelogV2(Index2):
                 entry.changed_files_offset,
                 entry.changed_files_length,
             ),
+            (
+                entry.sts_split_offset,
+                entry.sts_split_count,
+            ),
         )
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
+
+    def sts_split_offset(self, rev: RevnumT) -> int:
+        return self._rich_entry(rev).sts_split_offset
+
+    def sts_split_count(self, rev: RevnumT) -> int:
+        if rev == nullrev:
+            return 0
+        return self._rich_entry(rev).sts_split_count
 
     def update_changed_files(
         self,
@@ -1609,7 +1629,7 @@ class IndexChangelogV2(Index2):
         e.changed_files_length = length
         # first piece hold the flag that might change
         # second piece hold the offset and size
-        mask = (has_copies_info, True)
+        mask = (has_copies_info, True, False)
         return self._update(rev, e, mask)
 
     def child_p1(self, rev: RevnumT) -> RevnumT | None:
@@ -1698,7 +1718,7 @@ class IndexChangelogV2(Index2):
     def _update_children_attr(self, rev: RevnumT, attr: str, value: RevnumT):
         e = self._rich_entry(rev)
         setattr(e, attr, value)
-        return self._update(rev, e, (True, False))
+        return self._update(rev, e, (True, False, False))
 
     def update_child_p1(self, rev: RevnumT, child: RevnumT):
         """update the "child_p1" field of a revision

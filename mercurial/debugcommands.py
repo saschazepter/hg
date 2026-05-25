@@ -3847,6 +3847,12 @@ def debug_stable_tail_sort(ui, repo, revspec, template, naive=False, **opts):
     b'debug::stable-tail-info',
     [
         (
+            b'',
+            b'naive',
+            False,
+            _(b'Use a naive and (very) slow implementation'),
+        ),
+        (
             b"",
             b'display-revs',
             False,
@@ -3855,13 +3861,21 @@ def debug_stable_tail_sort(ui, repo, revspec, template, naive=False, **opts):
     ],
     b'REVS',
 )
-def debug_stable_tail_info(ui, repo, *revs, display_revs=False, **opts):
+def debug_stable_tail_info(
+    ui,
+    repo,
+    *revs,
+    naive=False,
+    display_revs=False,
+    **opts,
+):
     """display stable tail related information for a revision"""
     for r in logcmdutil.revrange(repo, revs):
         stabletailsort.debug_info(
             ui,
             repo.changelog,
             r,
+            naive=naive,
             display_revs=display_revs,
         )
 
@@ -3876,14 +3890,30 @@ def debug_stable_tail_info(ui, repo, *revs, display_revs=False, **opts):
             _(b'display with template'),
             _(b'TEMPLATE'),
         ),
+        (
+            b'',
+            b'naive',
+            False,
+            _(b'Use a naive a (very) slow implementation'),
+        ),
     ],
     b'REV',
 )
-def debug_stable_tail_sort_splits(ui, repo, rspec, template, **opts):
+def debug_stable_tail_sort_splits(
+    ui,
+    repo,
+    rspec,
+    template,
+    naive=False,
+    **opts,
+):
     """display the exclusive splits of a revision, one per line"""
     rev = logcmdutil.revsingle(repo, rspec).rev()
 
-    get_splits = stabletailsort.computed_excl_splits
+    if naive:
+        get_splits = stabletailsort.computed_excl_splits
+    else:
+        get_splits = lambda rl, rev: rl._inner.sts_splits(rev)
 
     displayer = logcmdutil.maketemplater(ui, repo, template)
     for range_head, size in get_splits(repo.changelog, rev):

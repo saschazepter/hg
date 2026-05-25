@@ -92,6 +92,8 @@ class RevlogEntry:
         default=COMP_MODE_INLINE,
     )
     rank = attr.ib(type=int, default=RANK_UNKNOWN)
+    sts_split_offset = attr.ib(type=int, default=None)
+    sts_split_count = attr.ib(type=int, default=0)
 
     changed_files_offset = attr.ib(type=int, default=None)
     """The byte offset of the serialized ChangedFiles data in the dedicated file

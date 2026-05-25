@@ -7,6 +7,7 @@ Test for stable ordering capabilities
   $ cat << EOF >> $HGRCPATH
   > [defaults]
   > debug::stable-tail-sort=--naive
+  > debug::stable-tail-info=--naive
   > EOF
 #endif
 

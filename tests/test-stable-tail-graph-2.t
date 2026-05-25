@@ -8,6 +8,8 @@ Check that we can compute and exchange rank and stable tail sort properly
   $ cat << EOF >> $HGRCPATH
   > [defaults]
   > debug::stable-tail-sort=--naive
+  > debug::stable-tail-sort-excl-splits=--naive
+  > debug::stable-tail-info=--naive
   > EOF
 #endif
 

@@ -88,7 +88,7 @@ from .revlogutils.constants import (
 from .thirdparty import attr
 from .interfaces import compression as i_comp
 from .pure import parsers as pure_parsers
-
+from .stabletailgraph import stabletailsort
 
 # Force pytype to use the non-vendored package
 if typing.TYPE_CHECKING:
@@ -2486,19 +2486,10 @@ class revlog:
         )
 
         if self.configs.feature.compute_rank:
-            if (p1r, p2r) == (nullrev, nullrev):
-                rank = 1
-            elif p1r != nullrev and p2r == nullrev:
-                rank = 1 + self.fast_rank(p1r)
-            elif p1r == nullrev and p2r != nullrev:
-                rank = 1 + self.fast_rank(p2r)
-            else:  # merge node
-                if rustdagop is not None and self.index.rust_ext_compat:
-                    rank = rustdagop.rank(self.index, p1r, p2r)
-                else:
-                    pmin, pmax = sorted((p1r, p2r))
-                    rank = 1 + self.fast_rank(pmax)
-                    rank += sum(1 for _ in self.findmissingrevs([pmax], [pmin]))
+            st_data = stabletailsort.compute_stable_tail_data(self, p1r, p2r)
+            rank, splits = st_data
+            encoded_split = stabletailsort.split_encode(splits)
+            other_data[V2FileType.STS_SPLIT] = encoded_split
             e.rank = rank
 
         self._inner.add_entry(

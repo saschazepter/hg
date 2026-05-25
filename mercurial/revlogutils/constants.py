@@ -239,12 +239,17 @@ assert INDEX_ENTRY_V2[1].size == 32, INDEX_ENTRY_V2[1].size
 #   *  4 bytes: changeset rank (i.e. `len(::REV)`)
 #   * 8 bytes: changing-files offset
 #   * 4 bytes: changing-files length
+# Part 3:
+#   *  8 bytes: stable tail sort : split data offset
+#   *  4 bytes: stable tail sort : split data count (number of split data)
 INDEX_ENTRY_CL_V2: tuple[struct.Struct, ...] = (
     struct.Struct(b">Qiiii20siiiiB3x"),
     struct.Struct(b"QiiQi4x"),
+    struct.Struct(b"Qi20x"),
 )
 assert INDEX_ENTRY_CL_V2[0].size == 32 * 2, INDEX_ENTRY_CL_V2[0].size
 assert INDEX_ENTRY_CL_V2[1].size == 32, INDEX_ENTRY_CL_V2[1].size
+assert INDEX_ENTRY_CL_V2[2].size == 32, INDEX_ENTRY_CL_V2[2].size
 INDEX_ENTRY_V2_IDX_OFFSET = 0
 INDEX_ENTRY_V2_IDX_COMPRESSED_LENGTH = 1
 INDEX_ENTRY_V2_IDX_UNCOMPRESSED_LENGTH = 2
@@ -261,6 +266,11 @@ INDEX_ENTRY_V2_IDX_SIDEDATA_COMPRESSED_LENGTH = 12
 INDEX_ENTRY_V2_IDX_RANK = 13
 INDEX_ENTRY_V2_IDX_CGF_OFFSET = 14
 INDEX_ENTRY_V2_IDX_CGF_LENGTH = 15
+
+# Stable Tail Range split encoding
+# * 4 bytes: range start
+# * 4 bytes: range size
+STR_SPLIT: struct.Struct = struct.Struct(b">ii")
 
 # revlog index flags
 
@@ -359,9 +369,11 @@ def _from_flag(flag):
 class V2FileType(enum.IntEnum):
     INDEX1 = 1
     INDEX2 = 2
+    INDEX_STR = 3
     DATA = 64
     SIDEDATA = 65
     CHANGED_FILES = 66
+    STS_SPLIT = 68
 
     @property
     def is_index(self) -> bool:
@@ -381,9 +393,11 @@ class V2FileType(enum.IntEnum):
 V2_FILE_TYPE_EXT = {
     V2FileType.INDEX1: b'i01',
     V2FileType.INDEX2: b'i02',
+    V2FileType.INDEX_STR: b'ist',
     V2FileType.DATA: b'dat',
     V2FileType.SIDEDATA: b'sda',
     V2FileType.CHANGED_FILES: b'cgf',
+    V2FileType.STS_SPLIT: b'str',
 }
 
 
@@ -452,9 +466,11 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'active_file_types': (
             V2FileType.INDEX1,
             V2FileType.INDEX2,
+            V2FileType.INDEX_STR,
             V2FileType.DATA,
             V2FileType.SIDEDATA,
             V2FileType.CHANGED_FILES,
+            V2FileType.STS_SPLIT,
         ),
     },
 }

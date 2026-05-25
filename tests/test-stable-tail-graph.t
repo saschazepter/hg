@@ -25,6 +25,8 @@ exclusive part choice (made on a min rank condition).
   $ cat << EOF >> $HGRCPATH
   > [defaults]
   > debug::stable-tail-sort=--naive
+  > debug::stable-tail-sort-excl-splits=--naive
+  > debug::stable-tail-info=--naive
   > EOF
 #endif
 

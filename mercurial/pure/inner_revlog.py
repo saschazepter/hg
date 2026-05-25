@@ -38,6 +38,7 @@ from ..revlogutils.constants import (
     KIND_FILELOG,
     KIND_MANIFESTLOG,
     REVIDX_DELTA_IS_SNAPSHOT,
+    STR_SPLIT,
     V2FileType,
 )
 from ..interfaces import compression as i_comp
@@ -670,6 +671,9 @@ class BaseInnerRevlog(abc.ABC):
         serialization of an empty ChangedFiles.
         """
         return b""
+
+    def sts_splits(self, rev: RevnumT) -> list[tuple[RevnumT, int]]:
+        raise error.ProgrammingError("lacking stable-tail support")
 
     def add_changed_files(
         self,
@@ -1594,6 +1598,12 @@ class InnerRevlogV2(BaseInnerRevlog):
                 other_data.get(self.docket.FT.CHANGED_FILES, b"")
             )
 
+        if docket.FT.STS_SPLIT in self._active_fts:
+            entry.sts_split_offset = docket.get_end(self.docket.FT.STS_SPLIT)
+            split_data_size = len(other_data.get(self.docket.FT.STS_SPLIT, b""))
+            assert (split_data_size % STR_SPLIT.size) == 0
+            entry.sts_split_count = split_data_size // STR_SPLIT.size
+
         for ft, fh in sorted(self._writinghandles.items()):
             pos = docket.get_end(ft)
             fh.seek(pos, os.SEEK_SET)
@@ -1836,6 +1846,9 @@ class InnerRevlogV2(BaseInnerRevlog):
             cgf_cutoff = index.changed_files_offset(first_excl_rev)
 
             cutoffs[docket.FT.CHANGED_FILES] = cgf_cutoff
+        if docket.FT.INDEX_STR in self._active_fts:
+            sts_cutoff = index.sts_split_offset(first_excl_rev)
+            cutoffs[docket.FT.STS_SPLIT] = sts_cutoff
         return cutoffs
 
     def rewrite_data(
@@ -1930,3 +1943,18 @@ class InnerRevlogV2(BaseInnerRevlog):
                 self.changed_files_bytes(rev),
                 cfg_bin,
             )
+
+    def sts_splits(self, rev: RevnumT) -> list[tuple[RevnumT, int]]:
+        count = self.index.sts_split_count(rev)
+        if count == 0:
+            return []
+        offset = self.index.sts_split_offset(rev)
+        assert offset is not None
+        fh = self._segment_files[self.docket.FT.STS_SPLIT]
+        size = STR_SPLIT.size * count
+        raw = fh.read_chunk(offset, size)
+        splits = []
+        for idx in range(count):
+            start = idx * STR_SPLIT.size
+            splits.append(STR_SPLIT.unpack(raw[start : start + STR_SPLIT.size]))
+        return splits
