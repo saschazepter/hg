@@ -17,13 +17,64 @@ reuse and incrementality for example.
 
 This module and implementation are experimental. Most functions are not yet
 optimised to operate on large production graphs.
+
+General Definition
+==================
+
+For readability, we will refer to stable-tail-sort through the STS acronym.
+
+For clarity, the definition of the STS of a revision can be split into three
+cases depending of its parents.
+
+For a root revision, with no parents::
+
+    sts(rev) == [rev]
+
+For a linear revision, with a single parent::
+
+    sts(rev) == [rev] + STS(parent)
+
+For a merge, with two parents, we pick a "tail" parent and an "exclusive"
+parent. The STS is then defined as::
+
+    sts(REV) == [REV] + [sts(p_exclusive) - ancestors(p_tail)] sts(p_tail)
+
+
+Definitions
+===========
+
+Revision Rank:
+    The size of the subgraph defined by a revision. Or in other terms, the
+    number of ancestors a revision has, itself included.
+
+Exclusive Parent:
+    The parent of a revision we iterate over first (after that revision) in the
+    stable sort order. While some of its stable sort will be reused, most of it
+    is typically not reused.
+
+Exclusive Part:
+    The part of a revision ancestry that isn't part of the "Tail Parent"
+    ancestry (tail parent included). In the stable sort, all revisions in the
+    exclusive part are iterated over before the "Tail parent".
+
+    For linear revisions (and Oedipus merges), the exclusive part is empty and
+    can be ignored.
+
+Tail Parent:
+    The parent of a revision we iterate over after the revision itself and its
+    exclusive part. From that point, the STS of the initial revision and the
+    STS of the "Tail Parent" will be identical.
+
+Tail Part:
+    The part of the revision ancestry that is also part of the "Tail Parent"
+    ancestor.
 """
 
 from __future__ import annotations
 
 import itertools
 
-from typing import Iterator
+from typing import Container, Iterator
 
 from ..interfaces.types import (
     RevnumT,
@@ -126,7 +177,11 @@ def stable_tail_sort(cl, head_rev):
             cursor_rev = pt
 
 
-def _exclusive_part_iter(revlog, exclusive_head, tail) -> Iterator[RevnumT]:
+def _exclusive_part_iter(
+    revlog,
+    exclusive_head: RevnumT,
+    tail: Container[RevnumT],
+) -> Iterator[RevnumT]:
     """yield the stable-tail-sort of exclusive_head, excluding tail
 
     This is equivalent to the following generator::
