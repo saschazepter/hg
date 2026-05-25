@@ -61,23 +61,30 @@ Test minimal rank computation with merge
   $ hg debug::stable-tail-info 'all()' --display-revs
   0
   - rank: 1
+  - pow2: 0
   1
   - rank: 2
+  - pow2: 1
   - tail-part:
     - parent: 0
       - rank: 1
+      - pow2: 0
       - pidx: p1
   2
   - rank: 2
+  - pow2: 1
   - tail-part:
     - parent: 0
       - rank: 1
+      - pow2: 0
       - pidx: p1
   3
   - rank: 4
+  - pow2: 2
   - exclusive-part:
     - parent: 2
       - rank: 2
+      - pow2: 1
       - pidx: p1
     - size: 1
     - splits:
@@ -86,12 +93,15 @@ Test minimal rank computation with merge
   - tail-part:
     - parent: 1
       - rank: 2
+      - pow2: 1
       - pidx: p2
   4
   - rank: 5
+  - pow2: 2
   - tail-part:
     - parent: 3
       - rank: 4
+      - pow2: 2
       - pidx: p1
 
   $ check_merges_splits
@@ -584,9 +594,11 @@ test the split are properly computed
   $ hg debug::stable-tail-info 'merge()' --display-revs
   8
   - rank: 9
+  - pow2: 3
   - exclusive-part:
     - parent: 7
       - rank: 5
+      - pow2: 2
       - pidx: p2
     - size: 2
     - splits:
@@ -595,12 +607,15 @@ test the split are properly computed
   - tail-part:
     - parent: 5
       - rank: 6
+      - pow2: 2
       - pidx: p1
   9
   - rank: 9
+  - pow2: 3
   - exclusive-part:
     - parent: 7
       - rank: 5
+      - pow2: 2
       - pidx: p1
     - size: 2
     - splits:
@@ -609,12 +624,15 @@ test the split are properly computed
   - tail-part:
     - parent: 5
       - rank: 6
+      - pow2: 2
       - pidx: p2
   10
   - rank: 11
+  - pow2: 1
   - exclusive-part:
     - parent: 9
       - rank: 9
+      - pow2: 3
       - pidx: p2
     - size: 1
     - splits:
@@ -623,24 +641,31 @@ test the split are properly computed
   - tail-part:
     - parent: 8
       - rank: 9
+      - pow2: 3
       - pidx: p1
   12
   - rank: 13
+  - pow2: 3
   - tail-part:
     - parent: 11
       - rank: 12
+      - pow2: 3
       - pidx: p1
   13
   - rank: 13
+  - pow2: 3
   - tail-part:
     - parent: 11
       - rank: 12
+      - pow2: 3
       - pidx: p2
   14
   - rank: 15
+  - pow2: 1
   - exclusive-part:
     - parent: 12
       - rank: 13
+      - pow2: 3
       - pidx: p1
     - size: 1
     - splits:
@@ -649,12 +674,15 @@ test the split are properly computed
   - tail-part:
     - parent: 13
       - rank: 13
+      - pow2: 3
       - pidx: p2
   15
   - rank: 15
+  - pow2: 1
   - exclusive-part:
     - parent: 12
       - rank: 13
+      - pow2: 3
       - pidx: p2
     - size: 1
     - splits:
@@ -663,12 +691,15 @@ test the split are properly computed
   - tail-part:
     - parent: 13
       - rank: 13
+      - pow2: 3
       - pidx: p1
   16
   - rank: 17
+  - pow2: 4
   - exclusive-part:
     - parent: 14
       - rank: 15
+      - pow2: 1
       - pidx: p1
     - size: 1
     - splits:
@@ -677,12 +708,15 @@ test the split are properly computed
   - tail-part:
     - parent: 15
       - rank: 15
+      - pow2: 1
       - pidx: p2
   27
   - rank: 21
+  - pow2: 2
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -691,12 +725,15 @@ test the split are properly computed
   - tail-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p2
   35
   - rank: 20
+  - pow2: 2
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -705,12 +742,15 @@ test the split are properly computed
   - tail-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p2
   36
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -719,12 +759,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p2
   38
   - rank: 20
+  - pow2: 2
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -733,12 +776,15 @@ test the split are properly computed
   - tail-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p2
   39
   - rank: 21
+  - pow2: 2
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -747,12 +793,15 @@ test the split are properly computed
   - tail-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p1
   42
   - rank: 21
+  - pow2: 2
   - exclusive-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -761,12 +810,15 @@ test the split are properly computed
   - tail-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p1
   43
   - rank: 25
+  - pow2: 3
   - exclusive-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p1
     - size: 2
     - splits:
@@ -775,12 +827,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p2
   45
   - rank: 21
+  - pow2: 2
   - exclusive-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -789,12 +844,15 @@ test the split are properly computed
   - tail-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p1
   46
   - rank: 20
+  - pow2: 2
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -803,12 +861,15 @@ test the split are properly computed
   - tail-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p1
   48
   - rank: 21
+  - pow2: 2
   - exclusive-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -817,12 +878,15 @@ test the split are properly computed
   - tail-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p2
   49
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -831,12 +895,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p2
   55
   - rank: 20
+  - pow2: 2
   - exclusive-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -845,12 +912,15 @@ test the split are properly computed
   - tail-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p2
   58
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -859,12 +929,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p1
   59
   - rank: 25
+  - pow2: 3
   - exclusive-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p2
     - size: 2
     - splits:
@@ -873,12 +946,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p1
   63
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -887,12 +963,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p1
   64
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -901,12 +980,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p1
   65
   - rank: 20
+  - pow2: 2
   - exclusive-part:
     - parent: 17
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -915,12 +997,15 @@ test the split are properly computed
   - tail-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p1
   66
   - rank: 21
+  - pow2: 2
   - exclusive-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -929,12 +1014,15 @@ test the split are properly computed
   - tail-part:
     - parent: 19
       - rank: 19
+      - pow2: 4
       - pidx: p2
   69
   - rank: 20
+  - pow2: 2
   - exclusive-part:
     - parent: 20
       - rank: 18
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -943,12 +1031,15 @@ test the split are properly computed
   - tail-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p1
   71
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 26
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -957,12 +1048,15 @@ test the split are properly computed
   - tail-part:
     - parent: 25
       - rank: 22
+      - pow2: 4
       - pidx: p2
   72
   - rank: 36
+  - pow2: 5
   - exclusive-part:
     - parent: 44
       - rank: 26
+      - pow2: 4
       - pidx: p2
     - size: 7
     - splits:
@@ -973,12 +1067,15 @@ test the split are properly computed
   - tail-part:
     - parent: 34
       - rank: 28
+      - pow2: 4
       - pidx: p1
   73
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 35
       - rank: 20
+      - pow2: 2
       - pidx: p1
     - size: 2
     - splits:
@@ -987,12 +1084,15 @@ test the split are properly computed
   - tail-part:
     - parent: 42
       - rank: 21
+      - pow2: 2
       - pidx: p2
   74
   - rank: 31
+  - pow2: 3
   - exclusive-part:
     - parent: 41
       - rank: 23
+      - pow2: 4
       - pidx: p2
     - size: 5
     - splits:
@@ -1003,12 +1103,15 @@ test the split are properly computed
   - tail-part:
     - parent: 37
       - rank: 25
+      - pow2: 4
       - pidx: p1
   75
   - rank: 24
+  - pow2: 3
   - exclusive-part:
     - parent: 38
       - rank: 20
+      - pow2: 2
       - pidx: p1
     - size: 2
     - splits:
@@ -1017,12 +1120,15 @@ test the split are properly computed
   - tail-part:
     - parent: 45
       - rank: 21
+      - pow2: 2
       - pidx: p2
   76
   - rank: 29
+  - pow2: 3
   - exclusive-part:
     - parent: 47
       - rank: 21
+      - pow2: 4
       - pidx: p2
     - size: 4
     - splits:
@@ -1031,12 +1137,15 @@ test the split are properly computed
   - tail-part:
     - parent: 71
       - rank: 24
+      - pow2: 3
       - pidx: p1
   77
   - rank: 25
+  - pow2: 3
   - exclusive-part:
     - parent: 48
       - rank: 21
+      - pow2: 2
       - pidx: p2
     - size: 3
     - splits:
@@ -1047,12 +1156,15 @@ test the split are properly computed
   - tail-part:
     - parent: 70
       - rank: 21
+      - pow2: 4
       - pidx: p1
   78
   - rank: 36
+  - pow2: 5
   - exclusive-part:
     - parent: 68
       - rank: 23
+      - pow2: 4
       - pidx: p1
     - size: 6
     - splits:
@@ -1061,12 +1173,15 @@ test the split are properly computed
   - tail-part:
     - parent: 54
       - rank: 29
+      - pow2: 4
       - pidx: p2
   79
   - rank: 25
+  - pow2: 3
   - exclusive-part:
     - parent: 65
       - rank: 20
+      - pow2: 2
       - pidx: p1
     - size: 2
     - splits:
@@ -1075,12 +1190,15 @@ test the split are properly computed
   - tail-part:
     - parent: 57
       - rank: 22
+      - pow2: 4
       - pidx: p2
   80
   - rank: 27
+  - pow2: 1
   - exclusive-part:
     - parent: 58
       - rank: 24
+      - pow2: 3
       - pidx: p2
     - size: 2
     - splits:
@@ -1089,12 +1207,15 @@ test the split are properly computed
   - tail-part:
     - parent: 64
       - rank: 24
+      - pow2: 3
       - pidx: p1
   81
   - rank: 31
+  - pow2: 2
   - exclusive-part:
     - parent: 63
       - rank: 24
+      - pow2: 3
       - pidx: p1
     - size: 2
     - splits:
@@ -1103,12 +1224,15 @@ test the split are properly computed
   - tail-part:
     - parent: 62
       - rank: 28
+      - pow2: 4
       - pidx: p2
   82
   - rank: 31
+  - pow2: 2
   - exclusive-part:
     - parent: 63
       - rank: 24
+      - pow2: 3
       - pidx: p1
     - size: 2
     - splits:
@@ -1117,12 +1241,15 @@ test the split are properly computed
   - tail-part:
     - parent: 62
       - rank: 28
+      - pow2: 4
       - pidx: p2
   83
   - rank: 49
+  - pow2: 4
   - exclusive-part:
     - parent: 78
       - rank: 36
+      - pow2: 5
       - pidx: p2
     - size: 12
     - splits:
@@ -1133,12 +1260,15 @@ test the split are properly computed
   - tail-part:
     - parent: 72
       - rank: 36
+      - pow2: 5
       - pidx: p1
   84
   - rank: 31
+  - pow2: 2
   - exclusive-part:
     - parent: 73
       - rank: 24
+      - pow2: 3
       - pidx: p1
     - size: 5
     - splits:
@@ -1151,12 +1281,15 @@ test the split are properly computed
   - tail-part:
     - parent: 79
       - rank: 25
+      - pow2: 3
       - pidx: p2
   85
   - rank: 36
+  - pow2: 5
   - exclusive-part:
     - parent: 80
       - rank: 27
+      - pow2: 1
       - pidx: p2
     - size: 4
     - splits:
@@ -1167,12 +1300,15 @@ test the split are properly computed
   - tail-part:
     - parent: 74
       - rank: 31
+      - pow2: 3
       - pidx: p1
   86
   - rank: 37
+  - pow2: 5
   - exclusive-part:
     - parent: 75
       - rank: 24
+      - pow2: 3
       - pidx: p1
     - size: 5
     - splits:
@@ -1181,12 +1317,15 @@ test the split are properly computed
   - tail-part:
     - parent: 81
       - rank: 31
+      - pow2: 2
       - pidx: p2
   87
   - rank: 38
+  - pow2: 5
   - exclusive-part:
     - parent: 76
       - rank: 29
+      - pow2: 3
       - pidx: p1
     - size: 6
     - splits:
@@ -1197,12 +1336,15 @@ test the split are properly computed
   - tail-part:
     - parent: 82
       - rank: 31
+      - pow2: 2
       - pidx: p2
   88
   - rank: 43
+  - pow2: 5
   - exclusive-part:
     - parent: 77
       - rank: 25
+      - pow2: 3
       - pidx: p1
     - size: 6
     - splits:
@@ -1213,12 +1355,15 @@ test the split are properly computed
   - tail-part:
     - parent: 72
       - rank: 36
+      - pow2: 5
       - pidx: p2
   89
   - rank: 55
+  - pow2: 4
   - exclusive-part:
     - parent: 88
       - rank: 43
+      - pow2: 5
       - pidx: p2
     - size: 5
     - splits:
@@ -1227,12 +1372,15 @@ test the split are properly computed
   - tail-part:
     - parent: 83
       - rank: 49
+      - pow2: 4
       - pidx: p1
   90
   - rank: 48
+  - pow2: 5
   - exclusive-part:
     - parent: 84
       - rank: 31
+      - pow2: 2
       - pidx: p1
     - size: 9
     - splits:
@@ -1245,12 +1393,15 @@ test the split are properly computed
   - tail-part:
     - parent: 87
       - rank: 38
+      - pow2: 5
       - pidx: p2
   91
   - rank: 48
+  - pow2: 4
   - exclusive-part:
     - parent: 85
       - rank: 36
+      - pow2: 5
       - pidx: p1
     - size: 10
     - splits:
@@ -1263,12 +1414,15 @@ test the split are properly computed
   - tail-part:
     - parent: 86
       - rank: 37
+      - pow2: 5
       - pidx: p2
   92
   - rank: 77
+  - pow2: 6
   - exclusive-part:
     - parent: 90
       - rank: 48
+      - pow2: 5
       - pidx: p2
     - size: 21
     - splits:
@@ -1283,12 +1437,15 @@ test the split are properly computed
   - tail-part:
     - parent: 89
       - rank: 55
+      - pow2: 4
       - pidx: p1
   93
   - rank: 65
+  - pow2: 6
   - exclusive-part:
     - parent: 91
       - rank: 48
+      - pow2: 4
       - pidx: p1
     - size: 16
     - splits:
@@ -1301,12 +1458,15 @@ test the split are properly computed
   - tail-part:
     - parent: 90
       - rank: 48
+      - pow2: 5
       - pidx: p2
   94
   - rank: 95
+  - pow2: 4
   - exclusive-part:
     - parent: 93
       - rank: 65
+      - pow2: 6
       - pidx: p2
     - size: 17
     - splits:
@@ -1315,6 +1475,7 @@ test the split are properly computed
   - tail-part:
     - parent: 92
       - rank: 77
+      - pow2: 6
       - pidx: p1
 
   $ cd ..
@@ -1419,9 +1580,11 @@ Check overall data
   $ hg debug::stable-tail-info 'merge()' --display-revs
   16
   - rank: 17
+  - pow2: 4
   - exclusive-part:
     - parent: 5
       - rank: 6
+      - pow2: 2
       - pidx: p2
     - size: 5
     - splits:
@@ -1430,12 +1593,15 @@ Check overall data
   - tail-part:
     - parent: 15
       - rank: 11
+      - pow2: 3
       - pidx: p1
   22
   - rank: 19
+  - pow2: 4
   - exclusive-part:
     - parent: 21
       - rank: 8
+      - pow2: 3
       - pidx: p1
     - size: 7
     - splits:
@@ -1444,12 +1610,15 @@ Check overall data
   - tail-part:
     - parent: 15
       - rank: 11
+      - pow2: 3
       - pidx: p2
   38
   - rank: 22
+  - pow2: 4
   - exclusive-part:
     - parent: 5
       - rank: 6
+      - pow2: 2
       - pidx: p2
     - size: 6
     - splits:
@@ -1458,6 +1627,7 @@ Check overall data
   - tail-part:
     - parent: 37
       - rank: 15
+      - pow2: 3
       - pidx: p1
 
 

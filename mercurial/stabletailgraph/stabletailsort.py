@@ -87,6 +87,13 @@ Exclusive Splits:
     Tail Range". It offers a compact way of expressing the discontinuity of the
     order of revisions from the exclusive part created by the exclusion of
     ancestors common with the "Tail".
+
+Revision's Power:
+    Each revision has a "Power" based on its rank and the rank of its parent's
+    tail.
+
+    The maximum power value a revision can have is log_2(rank). And the
+    distribution of the power value follows a logarithmic rule.
 """
 
 from __future__ import annotations
@@ -111,7 +118,7 @@ def _sorted_parents(idx, p1, p2):
     "pt" denotes the parent starting the "Tail" part.
 
     "px" is chosen as the parent with the lowest rank with the goal of
-    minimising the size of the exclusive part and maximise the size of the
+    minimizing the size of the exclusive part and maximize the size of the
     tail part, hopefully reducing the overall complexity of the stable-tail
     sort.
 
@@ -335,6 +342,21 @@ def _group_by_range(
         yield (current_head, current_length)
 
 
+def _power2_rev(index, rev: RevnumT) -> int:
+    """The power of two associated with a revision.
+
+    It is computed a the index of the highest bit that different from the
+    revision rank and the parent_tail rank. The maximum power value a revision
+    can have is log_2(rank). And the distribution of the power value follow a
+    logarithmic rule.
+    """
+    rank = index.rank(rev)
+    parent_tail = _parents(index, rev)[1]
+    tail_rank = index.rank(parent_tail)
+    assert (rank > tail_rank) and (tail_rank >= 0), (rank, tail_rank)
+    return int.bit_length(rank ^ tail_rank) - 1
+
+
 def stable_tail_sort_naive(cl, head_rev):
     """
     Naive topological iterator of the ancestors given by the stable-tail sort.
@@ -391,10 +413,12 @@ def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
 
     ui.writenoi18n(b"%s\n" % display(index, rev))
     ui.writenoi18n(b"- rank: %d\n" % index.rank(rev))
+    ui.writenoi18n(b"- pow2: %d\n" % _power2_rev(index, rev))
     if parent_excl != nullrev:
         ui.writenoi18n(b"- exclusive-part:\n")
         ui.writenoi18n(b"  - parent: %s\n" % display(index, parent_excl))
         ui.writenoi18n(b"    - rank: %d\n" % index.rank(parent_excl))
+        ui.writenoi18n(b"    - pow2: %d\n" % _power2_rev(index, parent_excl))
         if parent_excl == p1:
             ui.writenoi18n(b"    - pidx: p1\n")
         if parent_excl == p2:
@@ -409,6 +433,7 @@ def debug_info(ui, revlog, rev: RevnumT, display_revs: bool = False):
         ui.writenoi18n(b"- tail-part:\n")
         ui.writenoi18n(b"  - parent: %s\n" % display(index, parent_tail))
         ui.writenoi18n(b"    - rank: %d\n" % index.rank(parent_tail))
+        ui.writenoi18n(b"    - pow2: %d\n" % _power2_rev(index, parent_tail))
         if parent_tail == p1:
             ui.writenoi18n(b"    - pidx: p1\n")
         if parent_tail == p2:

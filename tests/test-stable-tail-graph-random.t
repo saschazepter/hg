@@ -757,37 +757,49 @@ Test some fixed random graph to verify things are stable
   $ hg debug::stable-tail-info 'all()'
   1ea73414a91b0920940797d8fc6a11e447f8ea1e
   - rank: 1
+  - pow2: 0
   66f7d451a68b85ed82ff5fcc254daf50c74144bd
   - rank: 2
+  - pow2: 1
   - tail-part:
     - parent: 1ea73414a91b0920940797d8fc6a11e447f8ea1e
       - rank: 1
+      - pow2: 0
       - pidx: p1
   01241442b3c2bf3211e593b549c655ea65b295e3
   - rank: 3
+  - pow2: 1
   - tail-part:
     - parent: 66f7d451a68b85ed82ff5fcc254daf50c74144bd
       - rank: 2
+      - pow2: 1
       - pidx: p1
   bba5c37726674198f4e829f7299857cea585cd74
   - rank: 1
+  - pow2: 0
   d7d6ebe62ed18f3f98443fefd33096f09263275f
   - rank: 2
+  - pow2: 1
   - tail-part:
     - parent: bba5c37726674198f4e829f7299857cea585cd74
       - rank: 1
+      - pow2: 0
       - pidx: p1
   f1feac4710452408961403857874e84ee499d612
   - rank: 3
+  - pow2: 1
   - tail-part:
     - parent: d7d6ebe62ed18f3f98443fefd33096f09263275f
       - rank: 2
+      - pow2: 1
       - pidx: p1
   edf1dcf4112e2dc435130273a89bc79b0e1d5c54
   - rank: 7
+  - pow2: 2
   - exclusive-part:
     - parent: 01241442b3c2bf3211e593b549c655ea65b295e3
       - rank: 3
+      - pow2: 1
       - pidx: p2
     - size: 3
     - splits:
@@ -796,108 +808,143 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: f1feac4710452408961403857874e84ee499d612
       - rank: 3
+      - pow2: 1
       - pidx: p1
   d5276c657dd4ce6cba86c3fa1b54091191199af1
   - rank: 8
+  - pow2: 3
   - tail-part:
     - parent: edf1dcf4112e2dc435130273a89bc79b0e1d5c54
       - rank: 7
+      - pow2: 2
       - pidx: p1
   718fe5ed1bdc09561df3322ed2fc485c365a5f4f
   - rank: 9
+  - pow2: 3
   - tail-part:
     - parent: d5276c657dd4ce6cba86c3fa1b54091191199af1
       - rank: 8
+      - pow2: 3
       - pidx: p1
   498a7cb60b1c99ed7ebabf45133a0f9c48d45256
   - rank: 9
+  - pow2: 3
   - tail-part:
     - parent: d5276c657dd4ce6cba86c3fa1b54091191199af1
       - rank: 8
+      - pow2: 3
       - pidx: p2
   576bb3fae99693efd88d76805640decf4a9288a1
   - rank: 10
+  - pow2: 3
   - tail-part:
     - parent: 718fe5ed1bdc09561df3322ed2fc485c365a5f4f
       - rank: 9
+      - pow2: 3
       - pidx: p1
   d9f1450bbe72f6faaa2b2bef124fd71a98eba006
   - rank: 11
+  - pow2: 3
   - tail-part:
     - parent: 576bb3fae99693efd88d76805640decf4a9288a1
       - rank: 10
+      - pow2: 3
       - pidx: p1
   a21909d6f1771083f270002d9d08240ca57d13f3
   - rank: 12
+  - pow2: 3
   - tail-part:
     - parent: d9f1450bbe72f6faaa2b2bef124fd71a98eba006
       - rank: 11
+      - pow2: 3
       - pidx: p1
   ba7771308fddad5d465d87902414e53780e2f11a
   - rank: 13
+  - pow2: 3
   - tail-part:
     - parent: a21909d6f1771083f270002d9d08240ca57d13f3
       - rank: 12
+      - pow2: 3
       - pidx: p1
   3af91bb40b48e190633750b68bb4ac5655cc1809
   - rank: 14
+  - pow2: 3
   - tail-part:
     - parent: ba7771308fddad5d465d87902414e53780e2f11a
       - rank: 13
+      - pow2: 3
       - pidx: p1
   d5b4874a1968e677624e4e7bbf61b7bc7f352eec
   - rank: 15
+  - pow2: 3
   - tail-part:
     - parent: 3af91bb40b48e190633750b68bb4ac5655cc1809
       - rank: 14
+      - pow2: 3
       - pidx: p1
   2188c1c88ca15e7a7ef63ec17ea95fa4d653c609
   - rank: 16
+  - pow2: 4
   - tail-part:
     - parent: d5b4874a1968e677624e4e7bbf61b7bc7f352eec
       - rank: 15
+      - pow2: 3
       - pidx: p1
   780d921ece85647a80aacf68e34f584969738c2e
   - rank: 17
+  - pow2: 4
   - tail-part:
     - parent: 2188c1c88ca15e7a7ef63ec17ea95fa4d653c609
       - rank: 16
+      - pow2: 4
       - pidx: p1
   fd254943d119847896f7fca0a6cc64bc40444936
   - rank: 18
+  - pow2: 4
   - tail-part:
     - parent: 780d921ece85647a80aacf68e34f584969738c2e
       - rank: 17
+      - pow2: 4
       - pidx: p1
   c96f0d2a40e73b06583b172159c3e5db86c8870e
   - rank: 19
+  - pow2: 4
   - tail-part:
     - parent: fd254943d119847896f7fca0a6cc64bc40444936
       - rank: 18
+      - pow2: 4
       - pidx: p1
   654357ef5f772fac8d73ab72fd9c2ec7070f2790
   - rank: 20
+  - pow2: 4
   - tail-part:
     - parent: c96f0d2a40e73b06583b172159c3e5db86c8870e
       - rank: 19
+      - pow2: 4
       - pidx: p1
   48a1fe6db80d8eaf2dbbee4dac03cbe72677ba44
   - rank: 21
+  - pow2: 4
   - tail-part:
     - parent: 654357ef5f772fac8d73ab72fd9c2ec7070f2790
       - rank: 20
+      - pow2: 4
       - pidx: p1
   8cfaed50a9f76fd2fea689c94883f31c681558f2
   - rank: 22
+  - pow2: 4
   - tail-part:
     - parent: 48a1fe6db80d8eaf2dbbee4dac03cbe72677ba44
       - rank: 21
+      - pow2: 4
       - pidx: p1
   cb55c2c3ad49db7dcdcd708f5ac2a7fbb34b8f65
   - rank: 24
+  - pow2: 4
   - exclusive-part:
     - parent: 498a7cb60b1c99ed7ebabf45133a0f9c48d45256
       - rank: 9
+      - pow2: 3
       - pidx: p2
     - size: 1
     - splits:
@@ -906,78 +953,103 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 8cfaed50a9f76fd2fea689c94883f31c681558f2
       - rank: 22
+      - pow2: 4
       - pidx: p1
   a11f12579cfda8c85a3edee03e6330689dd6b015
   - rank: 21
+  - pow2: 4
   - tail-part:
     - parent: 654357ef5f772fac8d73ab72fd9c2ec7070f2790
       - rank: 20
+      - pow2: 4
       - pidx: p2
   3c66608c9dc58b85f47a0257cff33c170e2cd0fe
   - rank: 22
+  - pow2: 4
   - tail-part:
     - parent: a11f12579cfda8c85a3edee03e6330689dd6b015
       - rank: 21
+      - pow2: 4
       - pidx: p1
   5b8f70ee8d39bf2b46d6770dfdf4b65bee86efd1
   - rank: 23
+  - pow2: 4
   - tail-part:
     - parent: 3c66608c9dc58b85f47a0257cff33c170e2cd0fe
       - rank: 22
+      - pow2: 4
       - pidx: p1
   93807da159b1db7650df3a2ecb2c95a0ab3c00cc
   - rank: 24
+  - pow2: 4
   - tail-part:
     - parent: 5b8f70ee8d39bf2b46d6770dfdf4b65bee86efd1
       - rank: 23
+      - pow2: 4
       - pidx: p1
   01121b9c333a010e92b361d9a794e251fa828c61
   - rank: 25
+  - pow2: 4
   - tail-part:
     - parent: 93807da159b1db7650df3a2ecb2c95a0ab3c00cc
       - rank: 24
+      - pow2: 4
       - pidx: p1
   ffc68943423bc83efb8deb209e3697d6b21dc995
   - rank: 26
+  - pow2: 4
   - tail-part:
     - parent: 01121b9c333a010e92b361d9a794e251fa828c61
       - rank: 25
+      - pow2: 4
       - pidx: p1
   9a7ac2b7fc95c002f5d30ec470db25b6166a63d1
   - rank: 27
+  - pow2: 4
   - tail-part:
     - parent: ffc68943423bc83efb8deb209e3697d6b21dc995
       - rank: 26
+      - pow2: 4
       - pidx: p1
   52822546c80d8b66378a9a3da200941387f7a421
   - rank: 12
+  - pow2: 3
   - tail-part:
     - parent: d9f1450bbe72f6faaa2b2bef124fd71a98eba006
       - rank: 11
+      - pow2: 3
       - pidx: p2
   ca17eec1df0cc8f92aac4e3b990108bfb531a2ea
   - rank: 13
+  - pow2: 3
   - tail-part:
     - parent: 52822546c80d8b66378a9a3da200941387f7a421
       - rank: 12
+      - pow2: 3
       - pidx: p1
   5cbcd732ca63790f43d7f16e64d4a32e5a4cc643
   - rank: 14
+  - pow2: 3
   - tail-part:
     - parent: ca17eec1df0cc8f92aac4e3b990108bfb531a2ea
       - rank: 13
+      - pow2: 3
       - pidx: p1
   472f8aa3e7270537e3f942f6d6d5823ea91ec4a6
   - rank: 11
+  - pow2: 3
   - tail-part:
     - parent: 576bb3fae99693efd88d76805640decf4a9288a1
       - rank: 10
+      - pow2: 3
       - pidx: p1
   78f941955665881d87db6964f407bb287252aca1
   - rank: 27
+  - pow2: 4
   - exclusive-part:
     - parent: 472f8aa3e7270537e3f942f6d6d5823ea91ec4a6
       - rank: 11
+      - pow2: 3
       - pidx: p1
     - size: 1
     - splits:
@@ -986,12 +1058,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 01121b9c333a010e92b361d9a794e251fa828c61
       - rank: 25
+      - pow2: 4
       - pidx: p2
   a41efbec0430497c99d1372cdb30de0d44107c41
   - rank: 30
+  - pow2: 4
   - exclusive-part:
     - parent: ca17eec1df0cc8f92aac4e3b990108bfb531a2ea
       - rank: 13
+      - pow2: 3
       - pidx: p2
     - size: 2
     - splits:
@@ -1000,18 +1075,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 78f941955665881d87db6964f407bb287252aca1
       - rank: 27
+      - pow2: 4
       - pidx: p1
   985a9972cb79250888a25a651d13b60c85b39bef
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: a41efbec0430497c99d1372cdb30de0d44107c41
       - rank: 30
+      - pow2: 4
       - pidx: p1
   40d2765486c3f8cc8ad507698e351d967ab04b07
   - rank: 34
+  - pow2: 5
   - exclusive-part:
     - parent: 9a7ac2b7fc95c002f5d30ec470db25b6166a63d1
       - rank: 27
+      - pow2: 4
       - pidx: p2
     - size: 2
     - splits:
@@ -1020,54 +1100,71 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 985a9972cb79250888a25a651d13b60c85b39bef
       - rank: 31
+      - pow2: 4
       - pidx: p1
   5bd52b41fb8a728c4ea6690bcf5f09c208329ee1
   - rank: 35
+  - pow2: 5
   - tail-part:
     - parent: 40d2765486c3f8cc8ad507698e351d967ab04b07
       - rank: 34
+      - pow2: 5
       - pidx: p1
   5c8dc2356f6c768ccd6e8f5c42f27b7b2e581cc4
   - rank: 21
+  - pow2: 4
   - tail-part:
     - parent: 654357ef5f772fac8d73ab72fd9c2ec7070f2790
       - rank: 20
+      - pow2: 4
       - pidx: p1
   8b2f2efcfc90c8a7aee135d78c343c6945b1d04c
   - rank: 22
+  - pow2: 4
   - tail-part:
     - parent: 5c8dc2356f6c768ccd6e8f5c42f27b7b2e581cc4
       - rank: 21
+      - pow2: 4
       - pidx: p1
   15d3de69b3aaeba96c66bc45de6ecb3112288af9
   - rank: 23
+  - pow2: 4
   - tail-part:
     - parent: 8b2f2efcfc90c8a7aee135d78c343c6945b1d04c
       - rank: 22
+      - pow2: 4
       - pidx: p1
   3eb22b537e45765dbbee831738817cf78401bdf6
   - rank: 24
+  - pow2: 4
   - tail-part:
     - parent: 15d3de69b3aaeba96c66bc45de6ecb3112288af9
       - rank: 23
+      - pow2: 4
       - pidx: p1
   8ef3869d3cffd0b7c87327e4fa71007a0f88f9bf
   - rank: 25
+  - pow2: 4
   - tail-part:
     - parent: 3eb22b537e45765dbbee831738817cf78401bdf6
       - rank: 24
+      - pow2: 4
       - pidx: p1
   33aa2d92bb78186667d46eda5931e40a52b45331
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: a41efbec0430497c99d1372cdb30de0d44107c41
       - rank: 30
+      - pow2: 4
       - pidx: p1
   0ed830b0c59ea10914623b0a636cf969a3849550
   - rank: 23
+  - pow2: 4
   - exclusive-part:
     - parent: ca17eec1df0cc8f92aac4e3b990108bfb531a2ea
       - rank: 13
+      - pow2: 3
       - pidx: p1
     - size: 2
     - splits:
@@ -1076,54 +1173,71 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 654357ef5f772fac8d73ab72fd9c2ec7070f2790
       - rank: 20
+      - pow2: 4
       - pidx: p2
   8d3bdad49698f41e0c707c8052ec644de11b46d6
   - rank: 24
+  - pow2: 4
   - tail-part:
     - parent: 0ed830b0c59ea10914623b0a636cf969a3849550
       - rank: 23
+      - pow2: 4
       - pidx: p1
   e177bfc133a6c5179450f10b5e09a4fa92950650
   - rank: 27
+  - pow2: 4
   - tail-part:
     - parent: ffc68943423bc83efb8deb209e3697d6b21dc995
       - rank: 26
+      - pow2: 4
       - pidx: p2
   59e601c675c3f2dd3dfefd637da506dc387aea5a
   - rank: 28
+  - pow2: 4
   - tail-part:
     - parent: e177bfc133a6c5179450f10b5e09a4fa92950650
       - rank: 27
+      - pow2: 4
       - pidx: p1
   db9a62db4ea040c033d8412c66c8e83da2295e0a
   - rank: 29
+  - pow2: 4
   - tail-part:
     - parent: 59e601c675c3f2dd3dfefd637da506dc387aea5a
       - rank: 28
+      - pow2: 4
       - pidx: p1
   578b243b510ac58a93180118a28338afdce7225d
   - rank: 23
+  - pow2: 4
   - tail-part:
     - parent: 3c66608c9dc58b85f47a0257cff33c170e2cd0fe
       - rank: 22
+      - pow2: 4
       - pidx: p1
   793a9ee1c9adee50647c0aeb2114f356caded85c
   - rank: 24
+  - pow2: 4
   - tail-part:
     - parent: 578b243b510ac58a93180118a28338afdce7225d
       - rank: 23
+      - pow2: 4
       - pidx: p1
   7ce7a2809de9baf1f0bd1a8dea8dd3ae65d92372
   - rank: 25
+  - pow2: 4
   - tail-part:
     - parent: 793a9ee1c9adee50647c0aeb2114f356caded85c
       - rank: 24
+      - pow2: 4
       - pidx: p1
   b72b33dd3c1c40c07287bb65f5d2b915f4681ca4
   - rank: 30
+  - pow2: 2
   - exclusive-part:
     - parent: 7ce7a2809de9baf1f0bd1a8dea8dd3ae65d92372
       - rank: 25
+      - pow2: 4
       - pidx: p1
     - size: 3
     - splits:
@@ -1132,72 +1246,95 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: ffc68943423bc83efb8deb209e3697d6b21dc995
       - rank: 26
+      - pow2: 4
       - pidx: p2
   5af88ef1a2f161b119e27668a274036df9ad6d09
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: b72b33dd3c1c40c07287bb65f5d2b915f4681ca4
       - rank: 30
+      - pow2: 2
       - pidx: p1
   9e0b048aacb27f2b437683da84465e54ee91ff14
   - rank: 32
+  - pow2: 5
   - tail-part:
     - parent: 5af88ef1a2f161b119e27668a274036df9ad6d09
       - rank: 31
+      - pow2: 4
       - pidx: p1
   3c0d256e0d62a02f4afab40fa3e963b6fe6f1273
   - rank: 33
+  - pow2: 5
   - tail-part:
     - parent: 9e0b048aacb27f2b437683da84465e54ee91ff14
       - rank: 32
+      - pow2: 5
       - pidx: p1
   0659fd628c490c33a74ca42ee5a99acc0894e763
   - rank: 34
+  - pow2: 5
   - tail-part:
     - parent: 3c0d256e0d62a02f4afab40fa3e963b6fe6f1273
       - rank: 33
+      - pow2: 5
       - pidx: p1
   12cb25997ef47903126c820f435b950ad065c67d
   - rank: 35
+  - pow2: 5
   - tail-part:
     - parent: 0659fd628c490c33a74ca42ee5a99acc0894e763
       - rank: 34
+      - pow2: 5
       - pidx: p1
   27f76d7763c64cc69bd8ce272e9bcb8b54a73f00
   - rank: 36
+  - pow2: 5
   - tail-part:
     - parent: 12cb25997ef47903126c820f435b950ad065c67d
       - rank: 35
+      - pow2: 5
       - pidx: p1
   aa497d6272a127509bbcb5cf216c98ef213262d2
   - rank: 37
+  - pow2: 5
   - tail-part:
     - parent: 27f76d7763c64cc69bd8ce272e9bcb8b54a73f00
       - rank: 36
+      - pow2: 5
       - pidx: p1
   9f0f49e38e7592f1adc0a3bdbfc4e6192cfeeb61
   - rank: 38
+  - pow2: 5
   - tail-part:
     - parent: aa497d6272a127509bbcb5cf216c98ef213262d2
       - rank: 37
+      - pow2: 5
       - pidx: p1
   0cd2412f892b7a9c344bc827578d924372db8530
   - rank: 39
+  - pow2: 5
   - tail-part:
     - parent: 9f0f49e38e7592f1adc0a3bdbfc4e6192cfeeb61
       - rank: 38
+      - pow2: 5
       - pidx: p1
   c24837a5715e9c53a8cdd3eb59fff100af4e0be5
   - rank: 40
+  - pow2: 5
   - tail-part:
     - parent: 0cd2412f892b7a9c344bc827578d924372db8530
       - rank: 39
+      - pow2: 5
       - pidx: p1
   2d44320bb7b9b5ebfcf32808a43e3d1b18b2a7ae
   - rank: 33
+  - pow2: 5
   - exclusive-part:
     - parent: 8d3bdad49698f41e0c707c8052ec644de11b46d6
       - rank: 24
+      - pow2: 4
       - pidx: p2
     - size: 2
     - splits:
@@ -1206,25 +1343,32 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: a41efbec0430497c99d1372cdb30de0d44107c41
       - rank: 30
+      - pow2: 4
       - pidx: p1
   350850bd547828f975ccf1f3be1cbeaa52e6e326
   - rank: 34
+  - pow2: 5
   - tail-part:
     - parent: 2d44320bb7b9b5ebfcf32808a43e3d1b18b2a7ae
       - rank: 33
+      - pow2: 5
       - pidx: p1
   65c27252db6c3ba3630e392a15a2a7f0f6961c9c
   - rank: 10
+  - pow2: 3
   - tail-part:
     - parent: 498a7cb60b1c99ed7ebabf45133a0f9c48d45256
       - rank: 9
+      - pow2: 3
       - pidx: p1
       - pidx: p2
   7dadfac0360886932ef2b0c9d2c132c418414708
   - rank: 36
+  - pow2: 5
   - exclusive-part:
     - parent: 8ef3869d3cffd0b7c87327e4fa71007a0f88f9bf
       - rank: 25
+      - pow2: 4
       - pidx: p2
     - size: 5
     - splits:
@@ -1233,18 +1377,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: b72b33dd3c1c40c07287bb65f5d2b915f4681ca4
       - rank: 30
+      - pow2: 2
       - pidx: p1
   43e20ec82d9aa2325a025c128fb35e74a667799e
   - rank: 37
+  - pow2: 5
   - tail-part:
     - parent: 7dadfac0360886932ef2b0c9d2c132c418414708
       - rank: 36
+      - pow2: 5
       - pidx: p1
   bc1c76f8cca0299f2a20f740c5acbcdd0515f51f
   - rank: 44
+  - pow2: 3
   - exclusive-part:
     - parent: 27f76d7763c64cc69bd8ce272e9bcb8b54a73f00
       - rank: 36
+      - pow2: 5
       - pidx: p2
     - size: 6
     - splits:
@@ -1253,18 +1402,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 43e20ec82d9aa2325a025c128fb35e74a667799e
       - rank: 37
+      - pow2: 5
       - pidx: p1
   a27d92a39a14b9974df10b4e9d02356cae4a7c10
   - rank: 45
+  - pow2: 5
   - tail-part:
     - parent: bc1c76f8cca0299f2a20f740c5acbcdd0515f51f
       - rank: 44
+      - pow2: 3
       - pidx: p1
   6d63df1b563c03d73972f8253357fc6b5bf88fa5
   - rank: 50
+  - pow2: 4
   - exclusive-part:
     - parent: 5bd52b41fb8a728c4ea6690bcf5f09c208329ee1
       - rank: 35
+      - pow2: 5
       - pidx: p1
     - size: 9
     - splits:
@@ -1275,18 +1429,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: c24837a5715e9c53a8cdd3eb59fff100af4e0be5
       - rank: 40
+      - pow2: 5
       - pidx: p2
   3cd6d19ee9dc0d7b3d06acc7d5d9d6939620fb19
   - rank: 51
+  - pow2: 5
   - tail-part:
     - parent: 6d63df1b563c03d73972f8253357fc6b5bf88fa5
       - rank: 50
+      - pow2: 4
       - pidx: p1
   ab34c551d951e666e3c130eae79e036ca529282e
   - rank: 58
+  - pow2: 4
   - exclusive-part:
     - parent: 7dadfac0360886932ef2b0c9d2c132c418414708
       - rank: 36
+      - pow2: 5
       - pidx: p2
     - size: 6
     - splits:
@@ -1295,12 +1454,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 3cd6d19ee9dc0d7b3d06acc7d5d9d6939620fb19
       - rank: 51
+      - pow2: 5
       - pidx: p1
   cb1ecce986004435f1df251381fa5bcc8a8f8f32
   - rank: 37
+  - pow2: 5
   - exclusive-part:
     - parent: 498a7cb60b1c99ed7ebabf45133a0f9c48d45256
       - rank: 9
+      - pow2: 3
       - pidx: p2
     - size: 1
     - splits:
@@ -1309,18 +1471,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 5bd52b41fb8a728c4ea6690bcf5f09c208329ee1
       - rank: 35
+      - pow2: 5
       - pidx: p1
   f8ae038b55b4c80517c65e31762303a3467fd226
   - rank: 25
+  - pow2: 4
   - tail-part:
     - parent: 3eb22b537e45765dbbee831738817cf78401bdf6
       - rank: 24
+      - pow2: 4
       - pidx: p1
   46c1b2ed9ec3f4c76f782cbc60345aa22d719f62
   - rank: 49
+  - pow2: 4
   - exclusive-part:
     - parent: 40d2765486c3f8cc8ad507698e351d967ab04b07
       - rank: 34
+      - pow2: 5
       - pidx: p2
     - size: 8
     - splits:
@@ -1331,48 +1498,63 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: c24837a5715e9c53a8cdd3eb59fff100af4e0be5
       - rank: 40
+      - pow2: 5
       - pidx: p1
   2e7b9da3ac9bbef7c67affafa2a3d98d4d0c73b0
   - rank: 50
+  - pow2: 5
   - tail-part:
     - parent: 46c1b2ed9ec3f4c76f782cbc60345aa22d719f62
       - rank: 49
+      - pow2: 4
       - pidx: p1
   89ab62e821a54fa924ab86eb89bc4461dca81614
   - rank: 51
+  - pow2: 5
   - tail-part:
     - parent: 2e7b9da3ac9bbef7c67affafa2a3d98d4d0c73b0
       - rank: 50
+      - pow2: 5
       - pidx: p1
   e4249e019206dcbd0a3734392f70f63dc7c69b83
   - rank: 32
+  - pow2: 5
   - tail-part:
     - parent: 33aa2d92bb78186667d46eda5931e40a52b45331
       - rank: 31
+      - pow2: 4
       - pidx: p2
   095e8c504c346b154d35f7df3694cbf7aab00568
   - rank: 33
+  - pow2: 5
   - tail-part:
     - parent: e4249e019206dcbd0a3734392f70f63dc7c69b83
       - rank: 32
+      - pow2: 5
       - pidx: p1
   33767a2b279a2e0d280377efe077109cc27e635d
   - rank: 25
+  - pow2: 4
   - tail-part:
     - parent: 793a9ee1c9adee50647c0aeb2114f356caded85c
       - rank: 24
+      - pow2: 4
       - pidx: p2
   278f25e2bdd083f95bdd6489921e12f23f668a9c
   - rank: 26
+  - pow2: 4
   - tail-part:
     - parent: 33767a2b279a2e0d280377efe077109cc27e635d
       - rank: 25
+      - pow2: 4
       - pidx: p1
   fe01f46baf611efdbe385521f2b8d67c0698b7e5
   - rank: 36
+  - pow2: 5
   - exclusive-part:
     - parent: 578b243b510ac58a93180118a28338afdce7225d
       - rank: 23
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -1381,36 +1563,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 40d2765486c3f8cc8ad507698e351d967ab04b07
       - rank: 34
+      - pow2: 5
       - pidx: p2
   e7a0917037d1f4574fa52df81b98a2b44c0e1bac
   - rank: 37
+  - pow2: 5
   - tail-part:
     - parent: fe01f46baf611efdbe385521f2b8d67c0698b7e5
       - rank: 36
+      - pow2: 5
       - pidx: p1
   cb223085fc764099ee95504f5efda9e117262d4c
   - rank: 38
+  - pow2: 5
   - tail-part:
     - parent: e7a0917037d1f4574fa52df81b98a2b44c0e1bac
       - rank: 37
+      - pow2: 5
       - pidx: p1
   9a4cbabd14ea2bc556a7deb817d65894dfed37a6
   - rank: 39
+  - pow2: 5
   - tail-part:
     - parent: cb223085fc764099ee95504f5efda9e117262d4c
       - rank: 38
+      - pow2: 5
       - pidx: p1
   471284650e1f903ea552a2a06492a80cf0e8c833
   - rank: 40
+  - pow2: 5
   - tail-part:
     - parent: 9a4cbabd14ea2bc556a7deb817d65894dfed37a6
       - rank: 39
+      - pow2: 5
       - pidx: p1
   ec033c5cc28bef1be9ff58eeee45f15486eb975f
   - rank: 36
+  - pow2: 5
   - exclusive-part:
     - parent: 8b2f2efcfc90c8a7aee135d78c343c6945b1d04c
       - rank: 22
+      - pow2: 4
       - pidx: p1
     - size: 2
     - splits:
@@ -1419,96 +1612,127 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 2d44320bb7b9b5ebfcf32808a43e3d1b18b2a7ae
       - rank: 33
+      - pow2: 5
       - pidx: p2
   08c3e726f1f2608b2d7993fe890cdc3f503baad1
   - rank: 37
+  - pow2: 5
   - tail-part:
     - parent: ec033c5cc28bef1be9ff58eeee45f15486eb975f
       - rank: 36
+      - pow2: 5
       - pidx: p1
   1e1cd3dd915d964a5f6ac14a6f19a77f88400170
   - rank: 38
+  - pow2: 5
   - tail-part:
     - parent: 43e20ec82d9aa2325a025c128fb35e74a667799e
       - rank: 37
+      - pow2: 5
       - pidx: p2
   f5b7254c974d1ad5901cb23850137814cdbdb1c0
   - rank: 39
+  - pow2: 5
   - tail-part:
     - parent: 1e1cd3dd915d964a5f6ac14a6f19a77f88400170
       - rank: 38
+      - pow2: 5
       - pidx: p1
   982f82539462f244e0c677c360c10288ec66ca4b
   - rank: 40
+  - pow2: 5
   - tail-part:
     - parent: f5b7254c974d1ad5901cb23850137814cdbdb1c0
       - rank: 39
+      - pow2: 5
       - pidx: p1
   dd47a22fbcff61fc9cc36b8583a3cc4fa3896262
   - rank: 41
+  - pow2: 5
   - tail-part:
     - parent: 982f82539462f244e0c677c360c10288ec66ca4b
       - rank: 40
+      - pow2: 5
       - pidx: p1
   935a8c5403fff12ebe356516c5d8c4710ab95eef
   - rank: 52
+  - pow2: 5
   - tail-part:
     - parent: 3cd6d19ee9dc0d7b3d06acc7d5d9d6939620fb19
       - rank: 51
+      - pow2: 5
       - pidx: p2
   5ab8d989a9686643ee3fcb395884f5d3829f4808
   - rank: 53
+  - pow2: 5
   - tail-part:
     - parent: 935a8c5403fff12ebe356516c5d8c4710ab95eef
       - rank: 52
+      - pow2: 5
       - pidx: p1
   fe3ff8a684db9824d686c3547011eb223cb77e0b
   - rank: 54
+  - pow2: 5
   - tail-part:
     - parent: 5ab8d989a9686643ee3fcb395884f5d3829f4808
       - rank: 53
+      - pow2: 5
       - pidx: p1
   a841275171c4b1e898e6fa77016c594121a8287d
   - rank: 55
+  - pow2: 5
   - tail-part:
     - parent: fe3ff8a684db9824d686c3547011eb223cb77e0b
       - rank: 54
+      - pow2: 5
       - pidx: p1
   faf2c89a5363b070d504f9717db3e612dffd5d36
   - rank: 56
+  - pow2: 5
   - tail-part:
     - parent: a841275171c4b1e898e6fa77016c594121a8287d
       - rank: 55
+      - pow2: 5
       - pidx: p1
   3bad3b2864ea67039b8a0c7c51b87b6ffbd9e930
   - rank: 57
+  - pow2: 5
   - tail-part:
     - parent: faf2c89a5363b070d504f9717db3e612dffd5d36
       - rank: 56
+      - pow2: 5
       - pidx: p1
   176d1bd3fc6c2583c6be7fb8da37d94bb438efc0
   - rank: 34
+  - pow2: 5
   - tail-part:
     - parent: 3c0d256e0d62a02f4afab40fa3e963b6fe6f1273
       - rank: 33
+      - pow2: 5
       - pidx: p1
   f701b7316820f9b2d7b9bfd62f3f2d050e6fe0e9
   - rank: 35
+  - pow2: 5
   - tail-part:
     - parent: 176d1bd3fc6c2583c6be7fb8da37d94bb438efc0
       - rank: 34
+      - pow2: 5
       - pidx: p1
   48687380ae5ff1b03d120e8fec5289a8a3e50afb
   - rank: 36
+  - pow2: 5
   - tail-part:
     - parent: f701b7316820f9b2d7b9bfd62f3f2d050e6fe0e9
       - rank: 35
+      - pow2: 5
       - pidx: p1
   0f720122ea7218916a997ed9947f92e5799bed1f
   - rank: 35
+  - pow2: 5
   - exclusive-part:
     - parent: 33767a2b279a2e0d280377efe077109cc27e635d
       - rank: 25
+      - pow2: 4
       - pidx: p2
     - size: 3
     - splits:
@@ -1517,36 +1741,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 33aa2d92bb78186667d46eda5931e40a52b45331
       - rank: 31
+      - pow2: 4
       - pidx: p1
   a84216cf8ba29c09e75454dfa309b97bf7c326ce
   - rank: 36
+  - pow2: 5
   - tail-part:
     - parent: 0f720122ea7218916a997ed9947f92e5799bed1f
       - rank: 35
+      - pow2: 5
       - pidx: p1
   49ec20da9ed2d30dcc8a2d6a6c67ce2fe5ce41dd
   - rank: 37
+  - pow2: 5
   - tail-part:
     - parent: a84216cf8ba29c09e75454dfa309b97bf7c326ce
       - rank: 36
+      - pow2: 5
       - pidx: p1
   29a7f26af195fcd774df2644c828e4f1d91f2ee9
   - rank: 38
+  - pow2: 5
   - tail-part:
     - parent: 49ec20da9ed2d30dcc8a2d6a6c67ce2fe5ce41dd
       - rank: 37
+      - pow2: 5
       - pidx: p1
   75f4eea0601e644e93b9b4428111265823a328f2
   - rank: 39
+  - pow2: 5
   - tail-part:
     - parent: 29a7f26af195fcd774df2644c828e4f1d91f2ee9
       - rank: 38
+      - pow2: 5
       - pidx: p1
   8101b6ee4b92318808d3b319730443b201d5448c
   - rank: 23
+  - pow2: 4
   - exclusive-part:
     - parent: ca17eec1df0cc8f92aac4e3b990108bfb531a2ea
       - rank: 13
+      - pow2: 3
       - pidx: p1
     - size: 2
     - splits:
@@ -1555,48 +1790,63 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 654357ef5f772fac8d73ab72fd9c2ec7070f2790
       - rank: 20
+      - pow2: 4
       - pidx: p2
   f3b0793530ccdfbfb8b92dc4bc93e664b0098d47
   - rank: 24
+  - pow2: 4
   - tail-part:
     - parent: 8101b6ee4b92318808d3b319730443b201d5448c
       - rank: 23
+      - pow2: 4
       - pidx: p1
   5332dbd68139e81a65c3973b1833b25277fdb898
   - rank: 25
+  - pow2: 4
   - tail-part:
     - parent: f3b0793530ccdfbfb8b92dc4bc93e664b0098d47
       - rank: 24
+      - pow2: 4
       - pidx: p1
   25611f8a1a8f0bdd64da43183c33e0c62c3acfab
   - rank: 26
+  - pow2: 4
   - tail-part:
     - parent: 5332dbd68139e81a65c3973b1833b25277fdb898
       - rank: 25
+      - pow2: 4
       - pidx: p1
   6395de93f9d8851064af5fdfa697b535dfe999b0
   - rank: 27
+  - pow2: 4
   - tail-part:
     - parent: 25611f8a1a8f0bdd64da43183c33e0c62c3acfab
       - rank: 26
+      - pow2: 4
       - pidx: p1
   d6aa229dc34403d928b3bde79b52eebd2a280144
   - rank: 28
+  - pow2: 4
   - tail-part:
     - parent: 6395de93f9d8851064af5fdfa697b535dfe999b0
       - rank: 27
+      - pow2: 4
       - pidx: p1
   3a08476777a9b66423f0b91c06a76054ef24564d
   - rank: 29
+  - pow2: 4
   - tail-part:
     - parent: d6aa229dc34403d928b3bde79b52eebd2a280144
       - rank: 28
+      - pow2: 4
       - pidx: p1
   0364d932e3cdb0bb433040a7ba10a2a4d5c8961a
   - rank: 40
+  - pow2: 5
   - exclusive-part:
     - parent: 3a08476777a9b66423f0b91c06a76054ef24564d
       - rank: 29
+      - pow2: 4
       - pidx: p1
     - size: 9
     - splits:
@@ -1605,12 +1855,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: b72b33dd3c1c40c07287bb65f5d2b915f4681ca4
       - rank: 30
+      - pow2: 2
       - pidx: p2
   59f30008fd08746357e85bd9bf4237f977202c28
   - rank: 41
+  - pow2: 5
   - exclusive-part:
     - parent: 33767a2b279a2e0d280377efe077109cc27e635d
       - rank: 25
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -1619,42 +1872,55 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: f5b7254c974d1ad5901cb23850137814cdbdb1c0
       - rank: 39
+      - pow2: 5
       - pidx: p2
   0d52cb74a9d5a2f4b2ea59db654ee1695e74169f
   - rank: 42
+  - pow2: 5
   - tail-part:
     - parent: 59f30008fd08746357e85bd9bf4237f977202c28
       - rank: 41
+      - pow2: 5
       - pidx: p1
   b55caac8d3b82a0b96723923890e12eca6b3dcde
   - rank: 15
+  - pow2: 3
   - tail-part:
     - parent: 5cbcd732ca63790f43d7f16e64d4a32e5a4cc643
       - rank: 14
+      - pow2: 3
       - pidx: p1
   5cadf263f046735ad7524154bf7d2768824cfe67
   - rank: 16
+  - pow2: 4
   - tail-part:
     - parent: b55caac8d3b82a0b96723923890e12eca6b3dcde
       - rank: 15
+      - pow2: 3
       - pidx: p1
   45d6888c0a153201c6f366009e16daa97a08034e
   - rank: 17
+  - pow2: 4
   - tail-part:
     - parent: 5cadf263f046735ad7524154bf7d2768824cfe67
       - rank: 16
+      - pow2: 4
       - pidx: p1
   28d738bc46bf6be445a45e16b2a900c1326245dd
   - rank: 18
+  - pow2: 4
   - tail-part:
     - parent: 45d6888c0a153201c6f366009e16daa97a08034e
       - rank: 17
+      - pow2: 4
       - pidx: p1
   624649088d62ebd02a1301233d6502e309a9b442
   - rank: 61
+  - pow2: 5
   - exclusive-part:
     - parent: 28d738bc46bf6be445a45e16b2a900c1326245dd
       - rank: 18
+      - pow2: 4
       - pidx: p1
     - size: 5
     - splits:
@@ -1663,66 +1929,87 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: a841275171c4b1e898e6fa77016c594121a8287d
       - rank: 55
+      - pow2: 5
       - pidx: p2
   11c82c7d7d7af8f5eff4789cfb0fd1561f7d46ca
   - rank: 62
+  - pow2: 5
   - tail-part:
     - parent: 624649088d62ebd02a1301233d6502e309a9b442
       - rank: 61
+      - pow2: 5
       - pidx: p1
   358febd7ea29d3ffeb7090e00635a1fa2920506c
   - rank: 63
+  - pow2: 5
   - tail-part:
     - parent: 11c82c7d7d7af8f5eff4789cfb0fd1561f7d46ca
       - rank: 62
+      - pow2: 5
       - pidx: p1
   9b0ac770f40c76adcfde18c02b531600ca2d58ae
   - rank: 64
+  - pow2: 6
   - tail-part:
     - parent: 358febd7ea29d3ffeb7090e00635a1fa2920506c
       - rank: 63
+      - pow2: 5
       - pidx: p1
   194605eb3db1715b3bd51231629a7c05ae8eafbb
   - rank: 65
+  - pow2: 6
   - tail-part:
     - parent: 9b0ac770f40c76adcfde18c02b531600ca2d58ae
       - rank: 64
+      - pow2: 6
       - pidx: p1
   d835c84a0e3df5a2881c890ed66827e125259409
   - rank: 66
+  - pow2: 6
   - tail-part:
     - parent: 194605eb3db1715b3bd51231629a7c05ae8eafbb
       - rank: 65
+      - pow2: 6
       - pidx: p1
   75a89343cd2c362b69079ee0cfef2725c312dbcf
   - rank: 67
+  - pow2: 6
   - tail-part:
     - parent: d835c84a0e3df5a2881c890ed66827e125259409
       - rank: 66
+      - pow2: 6
       - pidx: p1
   f60b8c65729b1c384140c80dbeb6fcba5f469faf
   - rank: 68
+  - pow2: 6
   - tail-part:
     - parent: 75a89343cd2c362b69079ee0cfef2725c312dbcf
       - rank: 67
+      - pow2: 6
       - pidx: p1
   cbe225a4b14efb78bbe7fee289b14d1344c38f10
   - rank: 69
+  - pow2: 6
   - tail-part:
     - parent: f60b8c65729b1c384140c80dbeb6fcba5f469faf
       - rank: 68
+      - pow2: 6
       - pidx: p1
   5e84fb2b9746ad8f3ebd6ea2dda70d17854166d1
   - rank: 70
+  - pow2: 6
   - tail-part:
     - parent: cbe225a4b14efb78bbe7fee289b14d1344c38f10
       - rank: 69
+      - pow2: 6
       - pidx: p1
   e4f738583458dbf87faf3aa730ff09d6c91d9bb6
   - rank: 74
+  - pow2: 6
   - exclusive-part:
     - parent: 5332dbd68139e81a65c3973b1833b25277fdb898
       - rank: 25
+      - pow2: 4
       - pidx: p2
     - size: 3
     - splits:
@@ -1731,54 +2018,71 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 5e84fb2b9746ad8f3ebd6ea2dda70d17854166d1
       - rank: 70
+      - pow2: 6
       - pidx: p1
   f7afec39009f0cb3bf70b8f0d4ef4926a083442f
   - rank: 75
+  - pow2: 6
   - tail-part:
     - parent: e4f738583458dbf87faf3aa730ff09d6c91d9bb6
       - rank: 74
+      - pow2: 6
       - pidx: p1
   f0f1aeeb816b19de5349a5678982a386f5bc80f1
   - rank: 76
+  - pow2: 6
   - tail-part:
     - parent: f7afec39009f0cb3bf70b8f0d4ef4926a083442f
       - rank: 75
+      - pow2: 6
       - pidx: p1
   dd0c72e82929105619fd0352a5cc526714e10744
   - rank: 77
+  - pow2: 6
   - tail-part:
     - parent: f0f1aeeb816b19de5349a5678982a386f5bc80f1
       - rank: 76
+      - pow2: 6
       - pidx: p1
   ba3173300629b40a45b26ededfad28c0727c512e
   - rank: 78
+  - pow2: 6
   - tail-part:
     - parent: dd0c72e82929105619fd0352a5cc526714e10744
       - rank: 77
+      - pow2: 6
       - pidx: p1
   74fb5b54aea5a937dfeea28859f7d3fabee158b2
   - rank: 79
+  - pow2: 6
   - tail-part:
     - parent: ba3173300629b40a45b26ededfad28c0727c512e
       - rank: 78
+      - pow2: 6
       - pidx: p1
   961a91f2ef5e07e44c6b717106c79a535e4bb7cc
   - rank: 80
+  - pow2: 6
   - tail-part:
     - parent: 74fb5b54aea5a937dfeea28859f7d3fabee158b2
       - rank: 79
+      - pow2: 6
       - pidx: p1
   2b9bf4243e960d16123f86c0de045161014346dd
   - rank: 81
+  - pow2: 6
   - tail-part:
     - parent: 961a91f2ef5e07e44c6b717106c79a535e4bb7cc
       - rank: 80
+      - pow2: 6
       - pidx: p1
   51a9f9f5366bee84172dd2bff840233dc5d1de2e
   - rank: 61
+  - pow2: 5
   - exclusive-part:
     - parent: 6395de93f9d8851064af5fdfa697b535dfe999b0
       - rank: 27
+      - pow2: 4
       - pidx: p2
     - size: 5
     - splits:
@@ -1787,12 +2091,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: a841275171c4b1e898e6fa77016c594121a8287d
       - rank: 55
+      - pow2: 5
       - pidx: p1
   fd85b159cdc5fb7e4643dfbc1dc9e96a4892aa3d
   - rank: 50
+  - pow2: 4
   - exclusive-part:
     - parent: cb1ecce986004435f1df251381fa5bcc8a8f8f32
       - rank: 37
+      - pow2: 5
       - pidx: p2
     - size: 11
     - splits:
@@ -1803,36 +2110,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 9f0f49e38e7592f1adc0a3bdbfc4e6192cfeeb61
       - rank: 38
+      - pow2: 5
       - pidx: p1
   333a772b6d3c263646a15628878c3b1c9c30bccb
   - rank: 51
+  - pow2: 5
   - tail-part:
     - parent: fd85b159cdc5fb7e4643dfbc1dc9e96a4892aa3d
       - rank: 50
+      - pow2: 4
       - pidx: p1
   a9e6aa04ff072cc9d5ef93fafef0eb6244553dbd
   - rank: 52
+  - pow2: 5
   - tail-part:
     - parent: 333a772b6d3c263646a15628878c3b1c9c30bccb
       - rank: 51
+      - pow2: 5
       - pidx: p1
   814f1b3e74d4da983a9687538623d62530ee5380
   - rank: 53
+  - pow2: 5
   - tail-part:
     - parent: a9e6aa04ff072cc9d5ef93fafef0eb6244553dbd
       - rank: 52
+      - pow2: 5
       - pidx: p1
   4b2ed4dfa61e0131b9726aeedc87fab7032bd096
   - rank: 54
+  - pow2: 5
   - tail-part:
     - parent: 814f1b3e74d4da983a9687538623d62530ee5380
       - rank: 53
+      - pow2: 5
       - pidx: p1
   7bc2bcafe75b3afbbc379a1a5f8b735d723af51f
   - rank: 31
+  - pow2: 3
   - exclusive-part:
     - parent: 45d6888c0a153201c6f366009e16daa97a08034e
       - rank: 17
+      - pow2: 4
       - pidx: p1
     - size: 6
     - splits:
@@ -1841,12 +2159,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 793a9ee1c9adee50647c0aeb2114f356caded85c
       - rank: 24
+      - pow2: 4
       - pidx: p2
   c116e354a1ef9f201bf9273078b6cf3d2eaf2e61
   - rank: 36
+  - pow2: 5
   - exclusive-part:
     - parent: cb55c2c3ad49db7dcdcd708f5ac2a7fbb34b8f65
       - rank: 24
+      - pow2: 4
       - pidx: p2
     - size: 4
     - splits:
@@ -1855,18 +2176,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 7bc2bcafe75b3afbbc379a1a5f8b735d723af51f
       - rank: 31
+      - pow2: 3
       - pidx: p1
   f54bdba0b22b09a87957d00ff0ceb0bc488118d1
   - rank: 37
+  - pow2: 5
   - tail-part:
     - parent: c116e354a1ef9f201bf9273078b6cf3d2eaf2e61
       - rank: 36
+      - pow2: 5
       - pidx: p1
   9f836fccbd857f2dbc5042a010fad69e6d9794e3
   - rank: 43
+  - pow2: 5
   - exclusive-part:
     - parent: 78f941955665881d87db6964f407bb287252aca1
       - rank: 27
+      - pow2: 4
       - pidx: p2
     - size: 5
     - splits:
@@ -1875,18 +2201,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: f54bdba0b22b09a87957d00ff0ceb0bc488118d1
       - rank: 37
+      - pow2: 5
       - pidx: p1
   ebc2162879fc8882a2a33e2b59c678578f4ed3ba
   - rank: 44
+  - pow2: 5
   - tail-part:
     - parent: 9f836fccbd857f2dbc5042a010fad69e6d9794e3
       - rank: 43
+      - pow2: 5
       - pidx: p1
   43de3f2c9f7847be7835ac7c63c9392bf093c80c
   - rank: 29
+  - pow2: 4
   - exclusive-part:
     - parent: b55caac8d3b82a0b96723923890e12eca6b3dcde
       - rank: 15
+      - pow2: 3
       - pidx: p2
     - size: 4
     - splits:
@@ -1895,54 +2226,71 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: cb55c2c3ad49db7dcdcd708f5ac2a7fbb34b8f65
       - rank: 24
+      - pow2: 4
       - pidx: p1
   c6cb31a7a535cdc966acc02310734cdefca6bb49
   - rank: 30
+  - pow2: 4
   - tail-part:
     - parent: 43de3f2c9f7847be7835ac7c63c9392bf093c80c
       - rank: 29
+      - pow2: 4
       - pidx: p1
   4dfdfaefe3a384f6ef25ce6b91a3699a8dfc0e93
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: c6cb31a7a535cdc966acc02310734cdefca6bb49
       - rank: 30
+      - pow2: 4
       - pidx: p1
   0a2b2a711f43330c9260fcf39edf6c06c0c12f65
   - rank: 32
+  - pow2: 5
   - tail-part:
     - parent: 4dfdfaefe3a384f6ef25ce6b91a3699a8dfc0e93
       - rank: 31
+      - pow2: 4
       - pidx: p1
   7b9cd0ae5bd366ef88614e5da23992530c3da421
   - rank: 33
+  - pow2: 5
   - tail-part:
     - parent: 0a2b2a711f43330c9260fcf39edf6c06c0c12f65
       - rank: 32
+      - pow2: 5
       - pidx: p1
   321d44de9dbb315fb2cf60e86292761e9ad644a6
   - rank: 34
+  - pow2: 5
   - tail-part:
     - parent: 7b9cd0ae5bd366ef88614e5da23992530c3da421
       - rank: 33
+      - pow2: 5
       - pidx: p1
   9bf89974d98f7e5f483b16c885ff4247fd3eea7a
   - rank: 35
+  - pow2: 5
   - tail-part:
     - parent: 321d44de9dbb315fb2cf60e86292761e9ad644a6
       - rank: 34
+      - pow2: 5
       - pidx: p1
   c119ffb54295448a0158e85494d038297b371a5e
   - rank: 36
+  - pow2: 5
   - tail-part:
     - parent: 9bf89974d98f7e5f483b16c885ff4247fd3eea7a
       - rank: 35
+      - pow2: 5
       - pidx: p1
   1c7a0e6ab58f2ad8bae009735474cb6ce32fb6a2
   - rank: 53
+  - pow2: 4
   - exclusive-part:
     - parent: c119ffb54295448a0158e85494d038297b371a5e
       - rank: 36
+      - pow2: 5
       - pidx: p2
     - size: 14
     - splits:
@@ -1953,30 +2301,39 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 29a7f26af195fcd774df2644c828e4f1d91f2ee9
       - rank: 38
+      - pow2: 5
       - pidx: p1
   0e45dfb9c9222ab4543cd10cc5b636c614527796
   - rank: 52
+  - pow2: 5
   - tail-part:
     - parent: 89ab62e821a54fa924ab86eb89bc4461dca81614
       - rank: 51
+      - pow2: 5
       - pidx: p2
   e69a79552292aa5971400fb084391fd1fd1b7dfa
   - rank: 53
+  - pow2: 5
   - tail-part:
     - parent: 0e45dfb9c9222ab4543cd10cc5b636c614527796
       - rank: 52
+      - pow2: 5
       - pidx: p1
   5c81c8dc904d7786bcde3048c4fd60b7d5123646
   - rank: 26
+  - pow2: 4
   - tail-part:
     - parent: f8ae038b55b4c80517c65e31762303a3467fd226
       - rank: 25
+      - pow2: 4
       - pidx: p2
   e510e061b3c99ce56fbf6de88e853aa70c0f6231
   - rank: 34
+  - pow2: 5
   - exclusive-part:
     - parent: 5c81c8dc904d7786bcde3048c4fd60b7d5123646
       - rank: 26
+      - pow2: 4
       - pidx: p1
     - size: 6
     - splits:
@@ -1985,18 +2342,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 6395de93f9d8851064af5fdfa697b535dfe999b0
       - rank: 27
+      - pow2: 4
       - pidx: p2
   ea46243e7a349769e9b4eaa9f2c3f9fcc3633de4
   - rank: 35
+  - pow2: 5
   - tail-part:
     - parent: e510e061b3c99ce56fbf6de88e853aa70c0f6231
       - rank: 34
+      - pow2: 5
       - pidx: p1
   27a74a0377eaecf7347a2973174950c832f82676
   - rank: 43
+  - pow2: 5
   - exclusive-part:
     - parent: 43de3f2c9f7847be7835ac7c63c9392bf093c80c
       - rank: 29
+      - pow2: 4
       - pidx: p2
     - size: 7
     - splits:
@@ -2007,36 +2369,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: ea46243e7a349769e9b4eaa9f2c3f9fcc3633de4
       - rank: 35
+      - pow2: 5
       - pidx: p1
   3cfdc399ab3ead1094c6c472519b995b78bbcd59
   - rank: 44
+  - pow2: 5
   - tail-part:
     - parent: 27a74a0377eaecf7347a2973174950c832f82676
       - rank: 43
+      - pow2: 5
       - pidx: p1
   70ecb3acfa848c83687816cb6f0ceedbd10fc05d
   - rank: 45
+  - pow2: 5
   - tail-part:
     - parent: 3cfdc399ab3ead1094c6c472519b995b78bbcd59
       - rank: 44
+      - pow2: 5
       - pidx: p1
   be3b987823eb883a98a74afa60c90f8029c28bfb
   - rank: 46
+  - pow2: 5
   - tail-part:
     - parent: 70ecb3acfa848c83687816cb6f0ceedbd10fc05d
       - rank: 45
+      - pow2: 5
       - pidx: p1
   cdf62c8f7a7e473420f620d17ba5de8727a80285
   - rank: 47
+  - pow2: 5
   - tail-part:
     - parent: be3b987823eb883a98a74afa60c90f8029c28bfb
       - rank: 46
+      - pow2: 5
       - pidx: p1
   ac7499ef80818496dd2e712aaf288fe6582f1ff1
   - rank: 88
+  - pow2: 6
   - exclusive-part:
     - parent: cdf62c8f7a7e473420f620d17ba5de8727a80285
       - rank: 47
+      - pow2: 5
       - pidx: p1
     - size: 23
     - splits:
@@ -2049,24 +2422,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 9b0ac770f40c76adcfde18c02b531600ca2d58ae
       - rank: 64
+      - pow2: 6
       - pidx: p2
   3830f75fac79f9db0fbb14abb813a40f60852b49
   - rank: 89
+  - pow2: 6
   - tail-part:
     - parent: ac7499ef80818496dd2e712aaf288fe6582f1ff1
       - rank: 88
+      - pow2: 6
       - pidx: p1
   69f8712ecd44f507e54c9629b182363dfb90ae06
   - rank: 90
+  - pow2: 6
   - tail-part:
     - parent: 3830f75fac79f9db0fbb14abb813a40f60852b49
       - rank: 89
+      - pow2: 6
       - pidx: p1
   30029d4076322e78259b478fda748b383cc23adb
   - rank: 50
+  - pow2: 4
   - exclusive-part:
     - parent: ea46243e7a349769e9b4eaa9f2c3f9fcc3633de4
       - rank: 35
+      - pow2: 5
       - pidx: p2
     - size: 13
     - splits:
@@ -2075,48 +2455,63 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: fe01f46baf611efdbe385521f2b8d67c0698b7e5
       - rank: 36
+      - pow2: 5
       - pidx: p1
   2b74ac105e84cbc40ae546ca6b4ec5fa95982206
   - rank: 51
+  - pow2: 5
   - tail-part:
     - parent: 30029d4076322e78259b478fda748b383cc23adb
       - rank: 50
+      - pow2: 4
       - pidx: p1
   6c3fce4f4d205eddad157bc7f6a55d15dd65429c
   - rank: 52
+  - pow2: 5
   - tail-part:
     - parent: 2b74ac105e84cbc40ae546ca6b4ec5fa95982206
       - rank: 51
+      - pow2: 5
       - pidx: p1
   052bb6d938a886eb389a4b2b225163977c5a249d
   - rank: 53
+  - pow2: 5
   - tail-part:
     - parent: 6c3fce4f4d205eddad157bc7f6a55d15dd65429c
       - rank: 52
+      - pow2: 5
       - pidx: p1
   6bb5708e6e9facb5fa734d120b82228da22364bd
   - rank: 54
+  - pow2: 5
   - tail-part:
     - parent: 052bb6d938a886eb389a4b2b225163977c5a249d
       - rank: 53
+      - pow2: 5
       - pidx: p1
   eff1d77ce5fd8bd049d8b3a3c73fdd6629dd3416
   - rank: 55
+  - pow2: 5
   - tail-part:
     - parent: 6bb5708e6e9facb5fa734d120b82228da22364bd
       - rank: 54
+      - pow2: 5
       - pidx: p1
   584ce92aa8f2e7b4d72145b6643bc18c720c81e7
   - rank: 56
+  - pow2: 5
   - tail-part:
     - parent: eff1d77ce5fd8bd049d8b3a3c73fdd6629dd3416
       - rank: 55
+      - pow2: 5
       - pidx: p1
   c080e4fee2a6fd1d9db411bd572116b03aeb8c7f
   - rank: 55
+  - pow2: 4
   - exclusive-part:
     - parent: 0f720122ea7218916a997ed9947f92e5799bed1f
       - rank: 35
+      - pow2: 5
       - pidx: p2
     - size: 3
     - splits:
@@ -2127,30 +2522,39 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 333a772b6d3c263646a15628878c3b1c9c30bccb
       - rank: 51
+      - pow2: 5
       - pidx: p1
   e659c67a82db64c97d0f7cf17715fb3c5f9ebc40
   - rank: 56
+  - pow2: 5
   - tail-part:
     - parent: c080e4fee2a6fd1d9db411bd572116b03aeb8c7f
       - rank: 55
+      - pow2: 4
       - pidx: p1
   417d8c173327f533b31efc63486f30f2e10ded9b
   - rank: 57
+  - pow2: 5
   - tail-part:
     - parent: e659c67a82db64c97d0f7cf17715fb3c5f9ebc40
       - rank: 56
+      - pow2: 5
       - pidx: p1
   afd6317fd124362e614e72eed106944d00c4abab
   - rank: 58
+  - pow2: 5
   - tail-part:
     - parent: 417d8c173327f533b31efc63486f30f2e10ded9b
       - rank: 57
+      - pow2: 5
       - pidx: p1
   e4ce5ff8e48c360c993e6babb4bd2caba0fd06d7
   - rank: 66
+  - pow2: 6
   - exclusive-part:
     - parent: c6cb31a7a535cdc966acc02310734cdefca6bb49
       - rank: 30
+      - pow2: 4
       - pidx: p2
     - size: 7
     - splits:
@@ -2163,18 +2567,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: afd6317fd124362e614e72eed106944d00c4abab
       - rank: 58
+      - pow2: 5
       - pidx: p1
   b8b702cfe3b07c89c2d126c81305940ace9bd38f
   - rank: 67
+  - pow2: 6
   - tail-part:
     - parent: e4ce5ff8e48c360c993e6babb4bd2caba0fd06d7
       - rank: 66
+      - pow2: 6
       - pidx: p1
   4047a69438a22f26108f35c94b4060f3f23ea8a6
   - rank: 30
+  - pow2: 2
   - exclusive-part:
     - parent: 3eb22b537e45765dbbee831738817cf78401bdf6
       - rank: 24
+      - pow2: 4
       - pidx: p1
     - size: 4
     - splits:
@@ -2183,24 +2592,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 33767a2b279a2e0d280377efe077109cc27e635d
       - rank: 25
+      - pow2: 4
       - pidx: p2
   a22bf32f0f6cdb30eec11ba4b78d05bb0f6eafc0
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: 4047a69438a22f26108f35c94b4060f3f23ea8a6
       - rank: 30
+      - pow2: 2
       - pidx: p1
   545b0fd9bb27055a3753931f78f782bc566b10ef
   - rank: 32
+  - pow2: 5
   - tail-part:
     - parent: a22bf32f0f6cdb30eec11ba4b78d05bb0f6eafc0
       - rank: 31
+      - pow2: 4
       - pidx: p1
   495af9dd94c7806e02d623e8969e15f9b5b84d17
   - rank: 31
+  - pow2: 3
   - exclusive-part:
     - parent: 578b243b510ac58a93180118a28338afdce7225d
       - rank: 23
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -2209,36 +2625,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: db9a62db4ea040c033d8412c66c8e83da2295e0a
       - rank: 29
+      - pow2: 4
       - pidx: p1
   3731ddf4b5c940b59c97e572a24554004fbb84a1
   - rank: 32
+  - pow2: 5
   - tail-part:
     - parent: 495af9dd94c7806e02d623e8969e15f9b5b84d17
       - rank: 31
+      - pow2: 3
       - pidx: p1
   4d6e685ca922cea0497d53de54570d9f65a8eb1c
   - rank: 62
+  - pow2: 5
   - tail-part:
     - parent: 51a9f9f5366bee84172dd2bff840233dc5d1de2e
       - rank: 61
+      - pow2: 5
       - pidx: p1
   717f03a53e0e9e03240a1b834dd42aff26d57ddd
   - rank: 34
+  - pow2: 5
   - tail-part:
     - parent: 2d44320bb7b9b5ebfcf32808a43e3d1b18b2a7ae
       - rank: 33
+      - pow2: 5
       - pidx: p2
   6bd48f68cda8ea5730e35d8e65171ceccbd4ccda
   - rank: 35
+  - pow2: 5
   - tail-part:
     - parent: 717f03a53e0e9e03240a1b834dd42aff26d57ddd
       - rank: 34
+      - pow2: 5
       - pidx: p1
   0ff3cb765cfaabab368095e3564e0a20ea3cb4c6
   - rank: 59
+  - pow2: 4
   - exclusive-part:
     - parent: 6bd48f68cda8ea5730e35d8e65171ceccbd4ccda
       - rank: 35
+      - pow2: 5
       - pidx: p1
     - size: 5
     - splits:
@@ -2247,12 +2674,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: e69a79552292aa5971400fb084391fd1fd1b7dfa
       - rank: 53
+      - pow2: 5
       - pidx: p2
   1ea4c895732ae0144a1c4ced3a32c5f7fe0ab20b
   - rank: 81
+  - pow2: 6
   - exclusive-part:
     - parent: 0ff3cb765cfaabab368095e3564e0a20ea3cb4c6
       - rank: 59
+      - pow2: 4
       - pidx: p1
     - size: 11
     - splits:
@@ -2261,12 +2691,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: cbe225a4b14efb78bbe7fee289b14d1344c38f10
       - rank: 69
+      - pow2: 6
       - pidx: p2
   c8a4c14d9c3af8f562f8f582749953c0ceed4bc1
   - rank: 71
+  - pow2: 6
   - exclusive-part:
     - parent: 1e1cd3dd915d964a5f6ac14a6f19a77f88400170
       - rank: 38
+      - pow2: 5
       - pidx: p2
     - size: 8
     - splits:
@@ -2275,24 +2708,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 11c82c7d7d7af8f5eff4789cfb0fd1561f7d46ca
       - rank: 62
+      - pow2: 5
       - pidx: p1
   b950e603bc30531a2266b49a19701f3a18a8689a
   - rank: 72
+  - pow2: 6
   - tail-part:
     - parent: c8a4c14d9c3af8f562f8f582749953c0ceed4bc1
       - rank: 71
+      - pow2: 6
       - pidx: p1
   81689c13867411aa60974605b56af61dc3c8f930
   - rank: 73
+  - pow2: 6
   - tail-part:
     - parent: b950e603bc30531a2266b49a19701f3a18a8689a
       - rank: 72
+      - pow2: 6
       - pidx: p1
   6cb9aaee38d9b7b75d8086973b103f5124e11ab7
   - rank: 28
+  - pow2: 4
   - exclusive-part:
     - parent: 65c27252db6c3ba3630e392a15a2a7f0f6961c9c
       - rank: 10
+      - pow2: 3
       - pidx: p2
     - size: 2
     - splits:
@@ -2301,12 +2741,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 8ef3869d3cffd0b7c87327e4fa71007a0f88f9bf
       - rank: 25
+      - pow2: 4
       - pidx: p1
   5343745189ef7b75af2a74948bb5642d0b38b184
   - rank: 62
+  - pow2: 5
   - exclusive-part:
     - parent: 6cb9aaee38d9b7b75d8086973b103f5124e11ab7
       - rank: 28
+      - pow2: 4
       - pidx: p1
     - size: 7
     - splits:
@@ -2317,24 +2760,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 4b2ed4dfa61e0131b9726aeedc87fab7032bd096
       - rank: 54
+      - pow2: 5
       - pidx: p2
   1784f5aebabe73805719c5d47ffb51e24f5ff78f
   - rank: 63
+  - pow2: 5
   - tail-part:
     - parent: 5343745189ef7b75af2a74948bb5642d0b38b184
       - rank: 62
+      - pow2: 5
       - pidx: p1
   0e0b66095d537357d3a0040d069a7735a39c6427
   - rank: 64
+  - pow2: 6
   - tail-part:
     - parent: 1784f5aebabe73805719c5d47ffb51e24f5ff78f
       - rank: 63
+      - pow2: 5
       - pidx: p1
   80359e2b64d2fb34d1d8ea14d72a84e197d3e720
   - rank: 67
+  - pow2: 6
   - exclusive-part:
     - parent: 5c81c8dc904d7786bcde3048c4fd60b7d5123646
       - rank: 26
+      - pow2: 4
       - pidx: p2
     - size: 2
     - splits:
@@ -2343,12 +2793,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 0e0b66095d537357d3a0040d069a7735a39c6427
       - rank: 64
+      - pow2: 6
       - pidx: p1
   da96d19b6df725f8f078340468719019db32fe7b
   - rank: 71
+  - pow2: 6
   - exclusive-part:
     - parent: cb55c2c3ad49db7dcdcd708f5ac2a7fbb34b8f65
       - rank: 24
+      - pow2: 4
       - pidx: p2
     - size: 3
     - splits:
@@ -2359,36 +2812,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 80359e2b64d2fb34d1d8ea14d72a84e197d3e720
       - rank: 67
+      - pow2: 6
       - pidx: p1
   f5eb5e6102ccaab973cb3d47c497bd4b14476cea
   - rank: 72
+  - pow2: 6
   - tail-part:
     - parent: da96d19b6df725f8f078340468719019db32fe7b
       - rank: 71
+      - pow2: 6
       - pidx: p1
   d80bc85158f4e041e0c1b5746fc57f489d1fed9b
   - rank: 80
+  - pow2: 6
   - tail-part:
     - parent: 74fb5b54aea5a937dfeea28859f7d3fabee158b2
       - rank: 79
+      - pow2: 6
       - pidx: p2
   999ad93ab7806d1de8c85706c257274d11972f70
   - rank: 81
+  - pow2: 6
   - tail-part:
     - parent: d80bc85158f4e041e0c1b5746fc57f489d1fed9b
       - rank: 80
+      - pow2: 6
       - pidx: p1
   d473c8e1ed99a49ee5af0419136fda70d657928e
   - rank: 82
+  - pow2: 6
   - tail-part:
     - parent: 999ad93ab7806d1de8c85706c257274d11972f70
       - rank: 81
+      - pow2: 6
       - pidx: p1
   c13821c9d1c08e3f36aa90be5dbf033c8c03bf43
   - rank: 91
+  - pow2: 6
   - exclusive-part:
     - parent: c080e4fee2a6fd1d9db411bd572116b03aeb8c7f
       - rank: 55
+      - pow2: 4
       - pidx: p2
     - size: 8
     - splits:
@@ -2397,48 +2861,63 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: d473c8e1ed99a49ee5af0419136fda70d657928e
       - rank: 82
+      - pow2: 6
       - pidx: p1
   47d8e0bf182561b4306b77b9a43d04a434badb4a
   - rank: 92
+  - pow2: 6
   - tail-part:
     - parent: c13821c9d1c08e3f36aa90be5dbf033c8c03bf43
       - rank: 91
+      - pow2: 6
       - pidx: p1
   008565eded19558711484ad25ef36b4d8f51dff5
   - rank: 93
+  - pow2: 6
   - tail-part:
     - parent: 47d8e0bf182561b4306b77b9a43d04a434badb4a
       - rank: 92
+      - pow2: 6
       - pidx: p1
   28543356b5a6c65f8d8ea11213206df7fec8ab28
   - rank: 52
+  - pow2: 5
   - tail-part:
     - parent: 89ab62e821a54fa924ab86eb89bc4461dca81614
       - rank: 51
+      - pow2: 5
       - pidx: p2
   5f5aa44da842fd6e9721332c9c3a9d0e0257b66a
   - rank: 53
+  - pow2: 5
   - tail-part:
     - parent: 28543356b5a6c65f8d8ea11213206df7fec8ab28
       - rank: 52
+      - pow2: 5
       - pidx: p1
   125c7541abe9905adfbcb07ad01815d850c53d16
   - rank: 54
+  - pow2: 5
   - tail-part:
     - parent: 5f5aa44da842fd6e9721332c9c3a9d0e0257b66a
       - rank: 53
+      - pow2: 5
       - pidx: p1
   58e63ecbf5f0c31ceb8c4725e579d5a9b59a7a57
   - rank: 55
+  - pow2: 5
   - tail-part:
     - parent: 125c7541abe9905adfbcb07ad01815d850c53d16
       - rank: 54
+      - pow2: 5
       - pidx: p1
   fddc9a0f8101f3fd3f2dfbee6cc49f10f8221ff7
   - rank: 64
+  - pow2: 6
   - exclusive-part:
     - parent: f701b7316820f9b2d7b9bfd62f3f2d050e6fe0e9
       - rank: 35
+      - pow2: 5
       - pidx: p2
     - size: 8
     - splits:
@@ -2447,36 +2926,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: eff1d77ce5fd8bd049d8b3a3c73fdd6629dd3416
       - rank: 55
+      - pow2: 5
       - pidx: p1
   1289f8436a77f3ba0ac9442e13e41494a9ad6e69
   - rank: 65
+  - pow2: 6
   - tail-part:
     - parent: fddc9a0f8101f3fd3f2dfbee6cc49f10f8221ff7
       - rank: 64
+      - pow2: 6
       - pidx: p1
   e9ebc1654bf418453a51d1b398fdca1ff3a767d8
   - rank: 66
+  - pow2: 6
   - tail-part:
     - parent: 1289f8436a77f3ba0ac9442e13e41494a9ad6e69
       - rank: 65
+      - pow2: 6
       - pidx: p1
   2e64a44e2b3a08a29568d5733547534405a78ab0
   - rank: 67
+  - pow2: 6
   - tail-part:
     - parent: e9ebc1654bf418453a51d1b398fdca1ff3a767d8
       - rank: 66
+      - pow2: 6
       - pidx: p1
   2c00e51ffe34f1ad62888dc6fac17930732bec3f
   - rank: 68
+  - pow2: 6
   - tail-part:
     - parent: 2e64a44e2b3a08a29568d5733547534405a78ab0
       - rank: 67
+      - pow2: 6
       - pidx: p1
   b6f38d4c074008d32b1d723fd86df13c7c1c1ce1
   - rank: 71
+  - pow2: 6
   - exclusive-part:
     - parent: 4047a69438a22f26108f35c94b4060f3f23ea8a6
       - rank: 30
+      - pow2: 2
       - pidx: p2
     - size: 2
     - splits:
@@ -2487,12 +2977,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 2c00e51ffe34f1ad62888dc6fac17930732bec3f
       - rank: 68
+      - pow2: 6
       - pidx: p1
   69ea5d9ed1b08b230ffe39b0fd38358016068f51
   - rank: 73
+  - pow2: 6
   - exclusive-part:
     - parent: 584ce92aa8f2e7b4d72145b6643bc18c720c81e7
       - rank: 56
+      - pow2: 5
       - pidx: p2
     - size: 1
     - splits:
@@ -2501,24 +2994,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: b6f38d4c074008d32b1d723fd86df13c7c1c1ce1
       - rank: 71
+      - pow2: 6
       - pidx: p1
   eb1708c36864f546337127fae6702cb46cd6fa4f
   - rank: 74
+  - pow2: 6
   - tail-part:
     - parent: 69ea5d9ed1b08b230ffe39b0fd38358016068f51
       - rank: 73
+      - pow2: 6
       - pidx: p1
   feb471ad71bfadfbec15a4cb3dc33a6fc718f9c2
   - rank: 75
+  - pow2: 6
   - tail-part:
     - parent: eb1708c36864f546337127fae6702cb46cd6fa4f
       - rank: 74
+      - pow2: 6
       - pidx: p1
   5044bdbc332f801c1c130ac6416957d507b35646
   - rank: 87
+  - pow2: 6
   - exclusive-part:
     - parent: 28543356b5a6c65f8d8ea11213206df7fec8ab28
       - rank: 52
+      - pow2: 5
       - pidx: p2
     - size: 11
     - splits:
@@ -2529,42 +3029,55 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: feb471ad71bfadfbec15a4cb3dc33a6fc718f9c2
       - rank: 75
+      - pow2: 6
       - pidx: p1
   93e9ebec58eb7d710f20f55a736a71819945c79c
   - rank: 88
+  - pow2: 6
   - tail-part:
     - parent: 5044bdbc332f801c1c130ac6416957d507b35646
       - rank: 87
+      - pow2: 6
       - pidx: p1
   73d2f61488d0e151ebb8b332d6f6961f2fbd44a3
   - rank: 89
+  - pow2: 6
   - tail-part:
     - parent: 93e9ebec58eb7d710f20f55a736a71819945c79c
       - rank: 88
+      - pow2: 6
       - pidx: p1
   fac5043b21c06e50a377c162881ba54ce1d977c2
   - rank: 90
+  - pow2: 6
   - tail-part:
     - parent: 73d2f61488d0e151ebb8b332d6f6961f2fbd44a3
       - rank: 89
+      - pow2: 6
       - pidx: p1
   16a896f87a7e48f3f93150b5100caa49c17af831
   - rank: 91
+  - pow2: 6
   - tail-part:
     - parent: fac5043b21c06e50a377c162881ba54ce1d977c2
       - rank: 90
+      - pow2: 6
       - pidx: p1
   e0af04354497af4661e7aa14fac5601bd85450de
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: b72b33dd3c1c40c07287bb65f5d2b915f4681ca4
       - rank: 30
+      - pow2: 2
       - pidx: p2
   80f8bba91a30500c7256bce8bf658d5049301cfa
   - rank: 42
+  - pow2: 5
   - exclusive-part:
     - parent: 8d3bdad49698f41e0c707c8052ec644de11b46d6
       - rank: 24
+      - pow2: 4
       - pidx: p2
     - size: 4
     - splits:
@@ -2573,12 +3086,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 43e20ec82d9aa2325a025c128fb35e74a667799e
       - rank: 37
+      - pow2: 5
       - pidx: p1
   42388c6f134a7da1a1b4593a452283f8bcf8dfdb
   - rank: 76
+  - pow2: 6
   - exclusive-part:
     - parent: 80f8bba91a30500c7256bce8bf658d5049301cfa
       - rank: 42
+      - pow2: 5
       - pidx: p1
     - size: 3
     - splits:
@@ -2587,12 +3103,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: b950e603bc30531a2266b49a19701f3a18a8689a
       - rank: 72
+      - pow2: 6
       - pidx: p2
   35d163dfa76a4ddfa422f7836b97bded747c3a9c
   - rank: 92
+  - pow2: 6
   - exclusive-part:
     - parent: 6bb5708e6e9facb5fa734d120b82228da22364bd
       - rank: 54
+      - pow2: 5
       - pidx: p2
     - size: 15
     - splits:
@@ -2605,42 +3124,55 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 42388c6f134a7da1a1b4593a452283f8bcf8dfdb
       - rank: 76
+      - pow2: 6
       - pidx: p1
   b5a0fb36aebabaf0db2c8d66ff47a5f9b9c247e5
   - rank: 93
+  - pow2: 6
   - tail-part:
     - parent: 35d163dfa76a4ddfa422f7836b97bded747c3a9c
       - rank: 92
+      - pow2: 6
       - pidx: p1
   6035b897b358db20fb97f237580caa5fe3b4e7a6
   - rank: 94
+  - pow2: 6
   - tail-part:
     - parent: b5a0fb36aebabaf0db2c8d66ff47a5f9b9c247e5
       - rank: 93
+      - pow2: 6
       - pidx: p1
   5cc5f26f7ec6065331ff90730c0e12aab5b9b8fd
   - rank: 95
+  - pow2: 6
   - tail-part:
     - parent: 6035b897b358db20fb97f237580caa5fe3b4e7a6
       - rank: 94
+      - pow2: 6
       - pidx: p1
   a6ba213de8b3de2cff07ba14d64d5e129d6a809b
   - rank: 96
+  - pow2: 6
   - tail-part:
     - parent: 5cc5f26f7ec6065331ff90730c0e12aab5b9b8fd
       - rank: 95
+      - pow2: 6
       - pidx: p1
   f439c706464e197f85894f096474970ab5709fd7
   - rank: 97
+  - pow2: 6
   - tail-part:
     - parent: a6ba213de8b3de2cff07ba14d64d5e129d6a809b
       - rank: 96
+      - pow2: 6
       - pidx: p1
   a0fe132ea58c00e38cf805fb6c37a96798421faf
   - rank: 101
+  - pow2: 6
   - exclusive-part:
     - parent: 08c3e726f1f2608b2d7993fe890cdc3f503baad1
       - rank: 37
+      - pow2: 5
       - pidx: p2
     - size: 3
     - splits:
@@ -2651,24 +3183,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: f439c706464e197f85894f096474970ab5709fd7
       - rank: 97
+      - pow2: 6
       - pidx: p1
   995c836862f696a337df5004c625649903fdc26a
   - rank: 102
+  - pow2: 6
   - tail-part:
     - parent: a0fe132ea58c00e38cf805fb6c37a96798421faf
       - rank: 101
+      - pow2: 6
       - pidx: p1
   f3d433b7624979de09223f80978435f28020fdb0
   - rank: 103
+  - pow2: 6
   - tail-part:
     - parent: 995c836862f696a337df5004c625649903fdc26a
       - rank: 102
+      - pow2: 6
       - pidx: p1
   b36650fc65332d1e5e1c91326b55376302051f9d
   - rank: 55
+  - pow2: 5
   - exclusive-part:
     - parent: 59e601c675c3f2dd3dfefd637da506dc387aea5a
       - rank: 28
+      - pow2: 4
       - pidx: p1
     - size: 2
     - splits:
@@ -2677,18 +3216,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 935a8c5403fff12ebe356516c5d8c4710ab95eef
       - rank: 52
+      - pow2: 5
       - pidx: p2
   6eaa21056d0979e3de2e0571a439a7bdd650f70e
   - rank: 96
+  - pow2: 6
   - tail-part:
     - parent: 5cc5f26f7ec6065331ff90730c0e12aab5b9b8fd
       - rank: 95
+      - pow2: 6
       - pidx: p1
   c3378c4576b2cf50b74d59dd23def80c99e1cb02
   - rank: 38
+  - pow2: 5
   - exclusive-part:
     - parent: 9a7ac2b7fc95c002f5d30ec470db25b6166a63d1
       - rank: 27
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -2697,48 +3241,63 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 7dadfac0360886932ef2b0c9d2c132c418414708
       - rank: 36
+      - pow2: 5
       - pidx: p2
   2332bc465d1a6c3875a9a4a0bab01e34960ea472
   - rank: 39
+  - pow2: 5
   - tail-part:
     - parent: c3378c4576b2cf50b74d59dd23def80c99e1cb02
       - rank: 38
+      - pow2: 5
       - pidx: p1
   11247a20fb5ccc106223c55b4a61b802eab93b37
   - rank: 40
+  - pow2: 5
   - tail-part:
     - parent: 2332bc465d1a6c3875a9a4a0bab01e34960ea472
       - rank: 39
+      - pow2: 5
       - pidx: p1
   d1c96fe5b6bf69066ec309f16f260582a54a25da
   - rank: 82
+  - pow2: 6
   - tail-part:
     - parent: 1ea4c895732ae0144a1c4ced3a32c5f7fe0ab20b
       - rank: 81
+      - pow2: 6
       - pidx: p1
   3ff06022cb5c87ce3c93e1be512c0ec1ca1b518a
   - rank: 83
+  - pow2: 6
   - tail-part:
     - parent: d1c96fe5b6bf69066ec309f16f260582a54a25da
       - rank: 82
+      - pow2: 6
       - pidx: p1
   842b4935d2705c3a96f0db5fa0ec3c514a862368
   - rank: 84
+  - pow2: 6
   - tail-part:
     - parent: 3ff06022cb5c87ce3c93e1be512c0ec1ca1b518a
       - rank: 83
+      - pow2: 6
       - pidx: p1
   bb8d7b9e9da9b5e7b46bffead38c9dfce1c828d4
   - rank: 85
+  - pow2: 6
   - tail-part:
     - parent: 842b4935d2705c3a96f0db5fa0ec3c514a862368
       - rank: 84
+      - pow2: 6
       - pidx: p1
   2b9f27914f8f6819cd17c4066eabd22f20177450
   - rank: 75
+  - pow2: 6
   - exclusive-part:
     - parent: f8ae038b55b4c80517c65e31762303a3467fd226
       - rank: 25
+      - pow2: 4
       - pidx: p2
     - size: 5
     - splits:
@@ -2747,12 +3306,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: cbe225a4b14efb78bbe7fee289b14d1344c38f10
       - rank: 69
+      - pow2: 6
       - pidx: p1
   13ff19e0954be5d04c894de9852b866eba85cd5e
   - rank: 29
+  - pow2: 3
   - exclusive-part:
     - parent: 3c66608c9dc58b85f47a0257cff33c170e2cd0fe
       - rank: 22
+      - pow2: 4
       - pidx: p2
     - size: 2
     - splits:
@@ -2761,24 +3323,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 25611f8a1a8f0bdd64da43183c33e0c62c3acfab
       - rank: 26
+      - pow2: 4
       - pidx: p1
   178fcb366cead48edea07f8f6c0db227c607bb4b
   - rank: 30
+  - pow2: 4
   - tail-part:
     - parent: 13ff19e0954be5d04c894de9852b866eba85cd5e
       - rank: 29
+      - pow2: 3
       - pidx: p1
   bd69e2e19c736e19480dfb6fd7253c4785b1ecb1
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: 178fcb366cead48edea07f8f6c0db227c607bb4b
       - rank: 30
+      - pow2: 4
       - pidx: p1
   654dbac24e0b7102728621b4b58756eb44acde8c
   - rank: 42
+  - pow2: 5
   - exclusive-part:
     - parent: bd69e2e19c736e19480dfb6fd7253c4785b1ecb1
       - rank: 31
+      - pow2: 4
       - pidx: p1
     - size: 7
     - splits:
@@ -2789,18 +3358,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 717f03a53e0e9e03240a1b834dd42aff26d57ddd
       - rank: 34
+      - pow2: 5
       - pidx: p2
   ebe821c9121f025d2e8e4fe065e3846bb4836fb2
   - rank: 92
+  - pow2: 6
   - tail-part:
     - parent: 16a896f87a7e48f3f93150b5100caa49c17af831
       - rank: 91
+      - pow2: 6
       - pidx: p2
   583e209c0aab55585cbaae1d88109f7b748e158a
   - rank: 99
+  - pow2: 6
   - exclusive-part:
     - parent: a9e6aa04ff072cc9d5ef93fafef0eb6244553dbd
       - rank: 52
+      - pow2: 5
       - pidx: p2
     - size: 6
     - splits:
@@ -2809,12 +3383,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: ebe821c9121f025d2e8e4fe065e3846bb4836fb2
       - rank: 92
+      - pow2: 6
       - pidx: p1
   3a6259d1557ac88580542bba81bfc5ce6dfc9846
   - rank: 135
+  - pow2: 7
   - exclusive-part:
     - parent: 583e209c0aab55585cbaae1d88109f7b748e158a
       - rank: 99
+      - pow2: 6
       - pidx: p1
     - size: 31
     - splits:
@@ -2829,24 +3406,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: f3d433b7624979de09223f80978435f28020fdb0
       - rank: 103
+      - pow2: 6
       - pidx: p2
   fa28f5ae84978f9457db4a5ef0a20e7f5af0f084
   - rank: 136
+  - pow2: 7
   - tail-part:
     - parent: 3a6259d1557ac88580542bba81bfc5ce6dfc9846
       - rank: 135
+      - pow2: 7
       - pidx: p1
   b866df3a4be37c1551477cba29b4f721e2bd73f3
   - rank: 74
+  - pow2: 6
   - tail-part:
     - parent: 69ea5d9ed1b08b230ffe39b0fd38358016068f51
       - rank: 73
+      - pow2: 6
       - pidx: p2
   b56fa9de83d1bda7dfe67cd8865d60c6ac871fad
   - rank: 89
+  - pow2: 6
   - exclusive-part:
     - parent: 58e63ecbf5f0c31ceb8c4725e579d5a9b59a7a57
       - rank: 55
+      - pow2: 5
       - pidx: p2
     - size: 14
     - splits:
@@ -2857,36 +3441,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: b866df3a4be37c1551477cba29b4f721e2bd73f3
       - rank: 74
+      - pow2: 6
       - pidx: p1
   9b72e262598fd55e6008a761947247c0f1cc3d42
   - rank: 90
+  - pow2: 6
   - tail-part:
     - parent: b56fa9de83d1bda7dfe67cd8865d60c6ac871fad
       - rank: 89
+      - pow2: 6
       - pidx: p1
   58a95ce42b172a94d32cc75d98940782c7e0e292
   - rank: 91
+  - pow2: 6
   - tail-part:
     - parent: 9b72e262598fd55e6008a761947247c0f1cc3d42
       - rank: 90
+      - pow2: 6
       - pidx: p1
   12eb8caeda306ca5a84b675334cfacd8ecc5b7ac
   - rank: 92
+  - pow2: 6
   - tail-part:
     - parent: 58a95ce42b172a94d32cc75d98940782c7e0e292
       - rank: 91
+      - pow2: 6
       - pidx: p1
   e1e90abdcb07c31e52cdcd9da66b4b22aae29523
   - rank: 93
+  - pow2: 6
   - tail-part:
     - parent: 12eb8caeda306ca5a84b675334cfacd8ecc5b7ac
       - rank: 92
+      - pow2: 6
       - pidx: p1
   86d4c52c14dc8a6c811ff999526edb16b42c1a46
   - rank: 105
+  - pow2: 5
   - exclusive-part:
     - parent: 0e0b66095d537357d3a0040d069a7735a39c6427
       - rank: 64
+      - pow2: 6
       - pidx: p2
     - size: 14
     - splits:
@@ -2897,24 +3492,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 9b72e262598fd55e6008a761947247c0f1cc3d42
       - rank: 90
+      - pow2: 6
       - pidx: p1
   ebb8a970955a30bb1f5c0620aeaf14016af7e89a
   - rank: 106
+  - pow2: 6
   - tail-part:
     - parent: 86d4c52c14dc8a6c811ff999526edb16b42c1a46
       - rank: 105
+      - pow2: 5
       - pidx: p1
   f7eb9f922d4bfe453c9bda2d761706d7479ac305
   - rank: 41
+  - pow2: 5
   - tail-part:
     - parent: 471284650e1f903ea552a2a06492a80cf0e8c833
       - rank: 40
+      - pow2: 5
       - pidx: p2
   2c22a196d3a05c93015bd50a4d41b985867fbc71
   - rank: 88
+  - pow2: 6
   - exclusive-part:
     - parent: f7eb9f922d4bfe453c9bda2d761706d7479ac305
       - rank: 41
+      - pow2: 5
       - pidx: p1
     - size: 6
     - splits:
@@ -2923,12 +3525,15 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 1ea4c895732ae0144a1c4ced3a32c5f7fe0ab20b
       - rank: 81
+      - pow2: 6
       - pidx: p2
   9ae16f1e65667ab7d4a3270e41ac69aea26c664f
   - rank: 74
+  - pow2: 6
   - exclusive-part:
     - parent: 052bb6d938a886eb389a4b2b225163977c5a249d
       - rank: 53
+      - pow2: 5
       - pidx: p2
     - size: 18
     - splits:
@@ -2937,36 +3542,47 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 58e63ecbf5f0c31ceb8c4725e579d5a9b59a7a57
       - rank: 55
+      - pow2: 5
       - pidx: p1
   753ffdc4cdad8090da6adf84e87ac5332851854a
   - rank: 75
+  - pow2: 6
   - tail-part:
     - parent: 9ae16f1e65667ab7d4a3270e41ac69aea26c664f
       - rank: 74
+      - pow2: 6
       - pidx: p1
   b96b1b50998435adc5be8cec0943c663aac0350e
   - rank: 76
+  - pow2: 6
   - tail-part:
     - parent: 753ffdc4cdad8090da6adf84e87ac5332851854a
       - rank: 75
+      - pow2: 6
       - pidx: p1
   6cb5698507fc54a85592460b7f94e582b9d006e3
   - rank: 77
+  - pow2: 6
   - tail-part:
     - parent: b96b1b50998435adc5be8cec0943c663aac0350e
       - rank: 76
+      - pow2: 6
       - pidx: p1
   472e71bedca020fb230d9098d47c5851a4645a71
   - rank: 78
+  - pow2: 6
   - tail-part:
     - parent: 6cb5698507fc54a85592460b7f94e582b9d006e3
       - rank: 77
+      - pow2: 6
       - pidx: p1
   a92497325e3c8238cb27afacf6d3e5d83d843a01
   - rank: 70
+  - pow2: 6
   - exclusive-part:
     - parent: d6aa229dc34403d928b3bde79b52eebd2a280144
       - rank: 28
+      - pow2: 4
       - pidx: p1
     - size: 6
     - splits:
@@ -2975,18 +3591,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 1784f5aebabe73805719c5d47ffb51e24f5ff78f
       - rank: 63
+      - pow2: 5
       - pidx: p2
   7b8d41d7201cb7d3f342053c5b75c48a74462fe2
   - rank: 71
+  - pow2: 6
   - tail-part:
     - parent: a92497325e3c8238cb27afacf6d3e5d83d843a01
       - rank: 70
+      - pow2: 6
       - pidx: p1
   28308f3f2aee90c36b85432c1baef699fd52fecd
   - rank: 48
+  - pow2: 5
   - exclusive-part:
     - parent: 6395de93f9d8851064af5fdfa697b535dfe999b0
       - rank: 27
+      - pow2: 4
       - pidx: p1
     - size: 5
     - splits:
@@ -2995,18 +3616,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 80f8bba91a30500c7256bce8bf658d5049301cfa
       - rank: 42
+      - pow2: 5
       - pidx: p2
   4cb1d9faafc8887e59eb986fa0bb8f14f1a8ed50
   - rank: 31
+  - pow2: 4
   - tail-part:
     - parent: a41efbec0430497c99d1372cdb30de0d44107c41
       - rank: 30
+      - pow2: 4
       - pidx: p1
   c8ab3f9e34188a7a232105dbb439f54f48a0bf3b
   - rank: 66
+  - pow2: 6
   - exclusive-part:
     - parent: 4cb1d9faafc8887e59eb986fa0bb8f14f1a8ed50
       - rank: 31
+      - pow2: 4
       - pidx: p1
     - size: 1
     - splits:
@@ -3015,24 +3641,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: fddc9a0f8101f3fd3f2dfbee6cc49f10f8221ff7
       - rank: 64
+      - pow2: 6
       - pidx: p2
   41af53fd6c405dd774f45df8c00b033f83aa0d28
   - rank: 67
+  - pow2: 6
   - tail-part:
     - parent: c8ab3f9e34188a7a232105dbb439f54f48a0bf3b
       - rank: 66
+      - pow2: 6
       - pidx: p1
   05c510bc53b5a8a4c7e81d316994060ef827ed80
   - rank: 68
+  - pow2: 6
   - tail-part:
     - parent: 41af53fd6c405dd774f45df8c00b033f83aa0d28
       - rank: 67
+      - pow2: 6
       - pidx: p1
   ca764b95f91c881f920bd9b3f95a80bd9c21e764
   - rank: 73
+  - pow2: 6
   - exclusive-part:
     - parent: 350850bd547828f975ccf1f3be1cbeaa52e6e326
       - rank: 34
+      - pow2: 5
       - pidx: p2
     - size: 4
     - splits:
@@ -3041,24 +3674,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 05c510bc53b5a8a4c7e81d316994060ef827ed80
       - rank: 68
+      - pow2: 6
       - pidx: p1
   28fc6747af558195dafea4fb329a668f3258a029
   - rank: 74
+  - pow2: 6
   - tail-part:
     - parent: ca764b95f91c881f920bd9b3f95a80bd9c21e764
       - rank: 73
+      - pow2: 6
       - pidx: p1
   3d3cb1d307a9a742377c6c304303e6ac03b4375e
   - rank: 75
+  - pow2: 6
   - tail-part:
     - parent: 28fc6747af558195dafea4fb329a668f3258a029
       - rank: 74
+      - pow2: 6
       - pidx: p1
   2642de3b2db4e2b4c4a2e24cb493f41c29b1af0d
   - rank: 69
+  - pow2: 6
   - exclusive-part:
     - parent: 7bc2bcafe75b3afbbc379a1a5f8b735d723af51f
       - rank: 31
+      - pow2: 3
       - pidx: p1
     - size: 1
     - splits:
@@ -3067,18 +3707,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 75a89343cd2c362b69079ee0cfef2725c312dbcf
       - rank: 67
+      - pow2: 6
       - pidx: p2
   fcb169933811402058ad08f7ee564f3178c823ee
   - rank: 70
+  - pow2: 6
   - tail-part:
     - parent: 2642de3b2db4e2b4c4a2e24cb493f41c29b1af0d
       - rank: 69
+      - pow2: 6
       - pidx: p1
   14eea60c07c171681c328a4810879c74728e7a2f
   - rank: 94
+  - pow2: 4
   - exclusive-part:
     - parent: 753ffdc4cdad8090da6adf84e87ac5332851854a
       - rank: 75
+      - pow2: 6
       - pidx: p1
     - size: 2
     - splits:
@@ -3087,24 +3732,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 58a95ce42b172a94d32cc75d98940782c7e0e292
       - rank: 91
+      - pow2: 6
       - pidx: p2
   6d9a67799b9f96c5eabc64fec14dea93ad65a022
   - rank: 91
+  - pow2: 6
   - tail-part:
     - parent: 69f8712ecd44f507e54c9629b182363dfb90ae06
       - rank: 90
+      - pow2: 6
       - pidx: p2
   7aed618f0eb802d729eed73a2eb1d4d01e908cf3
   - rank: 92
+  - pow2: 6
   - tail-part:
     - parent: 6d9a67799b9f96c5eabc64fec14dea93ad65a022
       - rank: 91
+      - pow2: 6
       - pidx: p1
   ac76fad8b3e5b1dfd9bb895ba8dabb72ae06aa9a
   - rank: 47
+  - pow2: 3
   - exclusive-part:
     - parent: 6bd48f68cda8ea5730e35d8e65171ceccbd4ccda
       - rank: 35
+      - pow2: 5
       - pidx: p1
     - size: 10
     - splits:
@@ -3113,42 +3765,55 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 48687380ae5ff1b03d120e8fec5289a8a3e50afb
       - rank: 36
+      - pow2: 5
       - pidx: p2
   89ce28864ff4c46e736bbb98c2100ae5ec28c2df
   - rank: 41
+  - pow2: 5
   - tail-part:
     - parent: 0364d932e3cdb0bb433040a7ba10a2a4d5c8961a
       - rank: 40
+      - pow2: 5
       - pidx: p2
   2a2e211044c11919e1b1737479847206f2c4bd7f
   - rank: 42
+  - pow2: 5
   - tail-part:
     - parent: 89ce28864ff4c46e736bbb98c2100ae5ec28c2df
       - rank: 41
+      - pow2: 5
       - pidx: p1
   6dc64421bda513ae6dc803acda7a4517c4fe9481
   - rank: 43
+  - pow2: 5
   - tail-part:
     - parent: 2a2e211044c11919e1b1737479847206f2c4bd7f
       - rank: 42
+      - pow2: 5
       - pidx: p1
   6641d1d2589e71f4566c6303decb5b32b3249d67
   - rank: 44
+  - pow2: 5
   - tail-part:
     - parent: 6dc64421bda513ae6dc803acda7a4517c4fe9481
       - rank: 43
+      - pow2: 5
       - pidx: p1
   e3e718484db028e575d406f91b1f9771f937ce57
   - rank: 45
+  - pow2: 5
   - tail-part:
     - parent: 6641d1d2589e71f4566c6303decb5b32b3249d67
       - rank: 44
+      - pow2: 5
       - pidx: p1
   39411957b6b6d43d7110c00b6cf9b24779870064
   - rank: 57
+  - pow2: 5
   - exclusive-part:
     - parent: 48a1fe6db80d8eaf2dbbee4dac03cbe72677ba44
       - rank: 21
+      - pow2: 4
       - pidx: p2
     - size: 1
     - splits:
@@ -3157,24 +3822,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: c080e4fee2a6fd1d9db411bd572116b03aeb8c7f
       - rank: 55
+      - pow2: 4
       - pidx: p1
   fbd3e8696fcb7d6cc30c4a3cb71df4b015d7e8cf
   - rank: 58
+  - pow2: 5
   - tail-part:
     - parent: 39411957b6b6d43d7110c00b6cf9b24779870064
       - rank: 57
+      - pow2: 5
       - pidx: p1
   31b051c47cff10233070cc827b16ccd76a5cd923
   - rank: 59
+  - pow2: 5
   - tail-part:
     - parent: fbd3e8696fcb7d6cc30c4a3cb71df4b015d7e8cf
       - rank: 58
+      - pow2: 5
       - pidx: p1
   ab287ff4cca2762cf69578d55fef188cad635fd4
   - rank: 65
+  - pow2: 6
   - exclusive-part:
     - parent: 6395de93f9d8851064af5fdfa697b535dfe999b0
       - rank: 27
+      - pow2: 4
       - pidx: p2
     - size: 5
     - splits:
@@ -3183,18 +3855,23 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 31b051c47cff10233070cc827b16ccd76a5cd923
       - rank: 59
+      - pow2: 5
       - pidx: p1
   90fff752374b805e69514ce448271bce7226db6a
   - rank: 66
+  - pow2: 6
   - tail-part:
     - parent: ab287ff4cca2762cf69578d55fef188cad635fd4
       - rank: 65
+      - pow2: 6
       - pidx: p1
   eadd44938cc6c8e78e6726e255019048914c5d7d
   - rank: 74
+  - pow2: 6
   - exclusive-part:
     - parent: c116e354a1ef9f201bf9273078b6cf3d2eaf2e61
       - rank: 36
+      - pow2: 5
       - pidx: p2
     - size: 6
     - splits:
@@ -3203,24 +3880,31 @@ Test some fixed random graph to verify things are stable
   - tail-part:
     - parent: 75a89343cd2c362b69079ee0cfef2725c312dbcf
       - rank: 67
+      - pow2: 6
       - pidx: p1
   fb13a3b37d8c4cb4c42668234ffef461cdeb1bfa
   - rank: 75
+  - pow2: 6
   - tail-part:
     - parent: eadd44938cc6c8e78e6726e255019048914c5d7d
       - rank: 74
+      - pow2: 6
       - pidx: p1
   e88ad7edc98dc818cae0297ca525bd336ff15a8a
   - rank: 76
+  - pow2: 6
   - tail-part:
     - parent: fb13a3b37d8c4cb4c42668234ffef461cdeb1bfa
       - rank: 75
+      - pow2: 6
       - pidx: p1
   6468242cab3ee2fb045d4e007c4af0337902714f
   - rank: 77
+  - pow2: 6
   - tail-part:
     - parent: e88ad7edc98dc818cae0297ca525bd336ff15a8a
       - rank: 76
+      - pow2: 6
       - pidx: p1
 
   $ for head in `hg script::revs 'heads(all())'`; do
