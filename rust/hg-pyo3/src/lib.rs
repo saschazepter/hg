@@ -1,3 +1,5 @@
+//! PyO3 Python bindings for the `hg-core` crate.
+
 use pyo3::prelude::*;
 
 mod ancestors;
@@ -8,6 +10,7 @@ mod deltas;
 mod diff;
 mod dirstate;
 mod discovery;
+mod docs;
 mod exceptions;
 mod file_index;
 mod matchers;
