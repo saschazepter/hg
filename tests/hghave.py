@@ -951,7 +951,7 @@ def has_pure():
     return any(
         [
             os.environ.get("HGMODULEPOLICY") == "py",
-            os.environ.get("HGTEST_RUN_TESTS_PURE") == "--pure",
+            os.environ.get("HGTEST_RUN_TESTS_FLAVOR") == "--pure",
         ]
     )
 

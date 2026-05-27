@@ -34,7 +34,7 @@ Define a helper to avoid the install step
   $ rt()
   > {
   >     "$PYTHON" $TESTDIR/run-tests.py \
-  >         $HGTEST_RUN_TESTS_PURE \
+  >         $HGTEST_RUN_TESTS_FLAVOR \
   >         --with-hg=$HGTEST_REAL_HG \
   >         --jobs 1 "$@"
   > }
