@@ -1,3 +1,41 @@
+## # Heptapod CI
+##
+## This file configures CI for the Mercurial project.
+##
+## ## Terminology
+##
+## A **pipeline** runs a number of **jobs** grouped into **stages**. See
+## https://docs.gitlab.com/ci/pipelines/ for more information.
+##
+## ## Running CI
+##
+## CI runs automatically when you push to a merge request. To start a manual
+## run, go to https://foss.heptapod.net/mercurial/mercurial-devel/-/pipelines,
+## click "New pipeline", and choose a branch. Leave the variables section empty.
+##
+## ## Configuration
+##
+## CI is configured in this file, contrib/heptapod-ci.yml. The YAML schema is
+## documented at https://docs.gitlab.com/ci/yaml/. Jobs that start with a dot do
+## not execute and are only used for `extends:` in other jobs.
+##
+## # Important files
+##
+## Here are some other files to look at when debugging CI issues:
+##
+## * setup.py, pyproject.toml
+##     * almost all jobs end up installing hg this way
+## * Makefile
+##     * some jobs directly invoke `make`, e.g. the `rust-cargo-test` job
+## * tests/run-tests.py
+##     * entry point for most jobs; they all extend the `.runtests` job which
+##       does some setup and then calls run-tests.py
+##
+## # Docker images
+##
+## CI jobs use images from https://foss.heptapod.net/mercurial/ci-images. See
+## the comments on `HG_CI_REG` and `HG_CI_IMAGE_TAG` below for more information.
+
 # Don't run pipelines on branch "merge", since we're fast-forward only.
 # Gitlab sees a new branch (since e.g. `topic/stable/my-topic` becomes
 # `branch/stable`), but the hash hasn't changed. There is no reason to
@@ -47,8 +85,15 @@ variables:
     RE_TOPIC: '/^topic/.+/.+$/'
     WHEEL_MACOS_TAG: "macos"
     WHEEL_WINDOWS_TAG: "windows"
+    # This controls how jobs invoke Python.
+    # Jobs that need to test specific versions of Python override it.
     PYTHON: python
+    # CI jobs use images from the ci-images repo's container registry:
+    # https://foss.heptapod.net/mercurial/ci-images/container_registry.
     HG_CI_REG: "registry.heptapod.net/mercurial/ci-images"
+    # Images are tagged with the name of the ci-images branch that built them.
+    # For example, the v3.4 images are defined here:
+    # https://foss.heptapod.net/mercurial/ci-images/-/blob/branch/v3.4/images.pkl
     HG_CI_IMAGE_TAG: "v3.4"
     # a directory dedicated to creating files and temporary clone
     # with shell runner, its content is not cleaned from one call to the next,
