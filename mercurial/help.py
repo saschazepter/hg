@@ -423,6 +423,11 @@ internalstable: list[_HelpEntryNoCategory] = sorted(
             loaddoc(b'mergestate', subdir=b'internals'),
         ),
         (
+            [b'output'],
+            _(b'Output'),
+            loaddoc(b'output', subdir=b'internals'),
+        ),
+        (
             [b'requirements'],
             _(b'Repository Requirements'),
             loaddoc(b'requirements', subdir=b'internals'),

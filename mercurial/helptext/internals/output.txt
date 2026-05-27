@@ -1,0 +1,95 @@
+Mercurial has several ways of printing output to the console.
+It works differently in Python and Rust.
+
+Python
+======
+
+In Python, all output goes through the ``ui`` class.
+
+Stdout
+------
+
+* ``ui.write``: print to stdout
+* ``ui.status``: print to stdout (unless ``--quiet``)
+* ``ui.note``: print to stdout (if ``--verbose``)
+* ``ui.debug``: print to stdout (if ``ui.debug`` is enabled)
+    * also logs an event (see "Logging" below)
+
+Stderr
+------
+
+* ``ui.write_err``: print to stderr
+* ``ui.warn``: print to stderr with warning label
+* ``ui.error``: print to stderr with error label
+* ``ui.traceback``: print traceback to stderr (if ``ui.traceback`` is enabled)
+
+Internationalization
+--------------------
+
+test-check-code.t complains if messages aren't internationalized with the
+underscore function, like ``ui.write(_(b"..."))``. There are ``noi18n`` methods
+like ``ui.writenoi18n`` to work around this when it doesn't make sense.
+
+Logging
+-------
+
+These methods write to one or more configured logging destinations. They include
+an event and a free-form message that loggers can filter on:
+
+* ``ui.log``: write to loggers as a given event
+* ``ui.debug``: log a debug event (if ``ui.debug`` is enabled)
+    * also prints to stdout (see "Stdout" above)
+* ``ui.develwarn``: log a develwarn event (if ``devel.all-warnings`` is enabled)
+    * Notably, ``devel.all-warnings`` is enabled in tests
+
+These loggers exist in core:
+
+* ``debug``
+    * if the configs ``ui.debug`` and ``devel.debug.extensions`` are both set,
+      this logs all ``extension`` events to stderr
+* ``cmdserver``
+    * logs events from the list ``cmdserver.track-log`` to the path
+      ``cmdserver.log``, if both configs are set
+
+These loggers exist in bundled extensions:
+
+* ``blackbox``
+    * if the blackbox extension is enabled, logs events from the list
+      ``blackbox.track`` to the blackbox file
+
+Tracing
+-------
+
+Python code uses ``util.rust_tracing_span`` to call into the Rust tracing logic.
+See the Rust tracing section below for more information.
+
+Rust
+====
+
+Stdout and stderr
+-----------------
+
+rhg has a ``Ui`` class, but it currently much simpler than the Python ``ui``.
+It only provides direct access to stdout and stderr.
+
+Internationalization
+--------------------
+
+Currently rhg does not do any internationalization.
+
+Logging and tracing
+-------------------
+
+In Rust we use macros from https://docs.rs/tracing/latest/tracing/ such as
+``tracing::info!(...)``. This is used both for logging events and for recording
+tracing spans. These logs do not appear by default. They go to stderr if you set
+the ``RUST_LOG`` environment variable, for example ``RUST_LOG=info``. See
+https://docs.rs/env_logger/latest/env_logger/ for more information.
+
+When built with the ``full-tracing`` feature, Rust logs are written in a JSON
+format to ``HG_TRACE_PATH``. See rust/README.md for more information.
+
+Blackbox
+--------
+
+Rhg explicitly writes to the blackbox file in ``main``.

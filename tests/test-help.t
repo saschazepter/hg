@@ -1193,6 +1193,7 @@ internals topic renders index of available sub-topics
        extensions    Extension API
        file-index    File Index
        mergestate    Mergestate
+       output        Output
        requirements  Repository Requirements
        revlogs       Revision Logs
        wireprotocol  Wire Protocol
@@ -3770,6 +3771,13 @@ Sub-topic indexes rendered properly
   </a>
   </td><td>
   Mergestate
+  </td></tr>
+  <tr><td>
+  <a href="/help/internals.output">
+  output
+  </a>
+  </td><td>
+  Output
   </td></tr>
   <tr><td>
   <a href="/help/internals.requirements">
