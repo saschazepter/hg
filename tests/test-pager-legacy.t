@@ -11,6 +11,7 @@ pager was running.
   > [ui]
   > formatted = yes
   > color = no
+  > interactive = yes
   > [extensions]
   > pager=
   > [pager]

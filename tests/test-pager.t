@@ -15,6 +15,7 @@ pager was running.
   > [ui]
   > formatted = yes
   > color = no
+  > interactive = yes
   > [pager]
   > pager = "$PYTHON" $TESTTMP/fakepager.py
   > EOF

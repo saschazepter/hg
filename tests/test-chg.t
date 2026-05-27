@@ -112,6 +112,8 @@ enable pager extension globally, but spawns the master server with no tty:
   $ cat >> $HGRCPATH <<EOF
   > [extensions]
   > pager =
+  > [ui]
+  > interactive = yes
   > [pager]
   > pager = "$PYTHON" $TESTTMP/fakepager.py
   > EOF
@@ -200,6 +202,10 @@ in this test.
   paged! 'going to write massive data\n'
   killed! (?)
   [255]
+  $ cat >> $HGRCPATH <<EOF
+  > [ui]
+  > interactive = no
+  > EOF
 
   $ cd ..
 
