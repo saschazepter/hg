@@ -145,7 +145,9 @@ class url(int_misc.IUrl):
     """
 
     _safechars = b"!~*'()+"
-    _safepchars = b"/!~*'()+:\\"
+    # Safe characters for paths
+    # '@' is allowed unencoded in path/fragment per RFC 3986 (pchar)
+    _safepchars = b"/!@~*'()+:\\"
     _matchscheme = remod.compile(b'^[a-zA-Z0-9+.\\-]+:').match
 
     def __init__(
@@ -302,6 +304,8 @@ class url(int_misc.IUrl):
         'http://user:pw@host:80/?foo=bar%3dbaz'
         >>> bytes(url(b'ssh://user:pw@[::1]:2200//home/joe#'))
         'ssh://user:pw@[::1]:2200//home/joe#'
+        >>> bytes(url(b'ssh://hg.test.NetBSD.org/src@draft'))
+        'ssh://hg.test.NetBSD.org/src@draft'
         >>> bytes(url(b'http://localhost:80//'))
         'http://localhost:80//'
         >>> bytes(url(b'http://localhost:80/'))
