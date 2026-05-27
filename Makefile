@@ -31,8 +31,15 @@ PYOXIDIZER?=pyoxidizer
 
 $(eval HGROOT := $(shell pwd))
 HGPYTHONS ?= $(HGROOT)/build/pythons
-PURE=
 OFFLINE=
+
+ifdef FLAVOR
+	ifdef PURE
+	X := $(warning ignoring PURE value in favor of FLAVOR)
+	endif
+else
+FLAVOR := $(PURE)
+endif
 
 ifeq ($(OFFLINE),1)
 OFFLINE_UV_OPTION=--offline
@@ -42,7 +49,7 @@ OFFLINE_UV_OPTION=
 CARGO_NET_OFFLINE?=false
 endif
 
-PIP_OPTIONS_PURE=--config-settings --global-option="$(PURE)"
+PIP_OPTIONS_FLAVOR=--config-settings --global-option="$(FLAVOR)"
 PIP_OPTIONS_INSTALL=--no-deps --ignore-installed --no-build-isolation
 PIP_PREFIX=$(PREFIX)
 PYFILESCMD=find mercurial hgext doc -name '*.py'
@@ -93,7 +100,7 @@ local:
 	uv venv -p $(PYTHON_FOR_UV) .local-venv --clear --system-site-packages
 	env CARGO_NET_OFFLINE=$(CARGO_NET_OFFLINE) uv pip install -e . $(OFFLINE_UV_OPTION) \
 	  -p .local-venv/$(PYBINDIRNAME)/python$(EXE) \
-	  -C=--global-option="$(PURE)"
+	  -C=--global-option="$(FLAVOR)"
 	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg$(EXE) version
 	test -e .local-venv/$(PYBINDIRNAME)/hg$(EXE) && ln -s -f .local-venv/$(PYBINDIRNAME)/hg$(EXE) hg-local$(EXE)
 
@@ -107,7 +114,7 @@ build-rhg:
 
 .PHONY: wheel
 wheel:
-	$(PYTHON) -m build --config-setting=--global-option="$(PURE)"
+	$(PYTHON) -m build --config-setting=--global-option="$(FLAVOR)"
 .PHONY: doc
 doc:
 	$(MAKE) -C doc
@@ -137,7 +144,7 @@ install: install-bin install-doc
 
 .PHONY: install-bin
 install-bin:
-	$(PYTHON) -m pip install . --prefix="$(PIP_PREFIX)" --force -v $(PIP_OPTIONS_PURE) $(PIP_OPTIONS_INSTALL)
+	$(PYTHON) -m pip install . --prefix="$(PIP_PREFIX)" --force -v $(PIP_OPTIONS_FLAVOR) $(PIP_OPTIONS_INSTALL)
 
 .PHONY: install-chg
 install-chg: build-chg
@@ -152,7 +159,7 @@ install-home: install-home-bin install-home-doc
 
 .PHONY: install-home-bin
 install-home-bin:
-	$(PYTHON) -m pip install . --user --force -v $(PIP_OPTIONS_PURE) $(PIP_OPTIONS_INSTALL)
+	$(PYTHON) -m pip install . --user --force -v $(PIP_OPTIONS_FLAVOR) $(PIP_OPTIONS_INSTALL)
 
 .PHONY: install-home-doc
 install-home-doc:
