@@ -329,7 +329,168 @@ Test that patterns from ui.ignore options are read:
 empty out testhgignore
   $ echo > .hg/testhgignore
 
+Test nested `include` and `subinclude`
+======================================
+
+
+We create a file tree with the following structure:
+
+# .hgignore (variable content)
+# bar/
+#    | .hgignore (drop1)
+#    | drop1
+#    | drop2
+#
+# foo/
+#    | .hgignore (variable content)
+#    | drop1
+#    | drop2
+#    | bar/
+#    |    | .hgignore (drop2)
+#    |    | drop1
+#    |    | drop2
+
+  $ cd "$TESTTMP"
+  $ hg init nested
+  $ cd nested
+  $ mkdir foo bar foo/bar
+  $ touch foo/drop1 bar/drop1 foo/bar/drop1 foo/drop2 bar/drop2 foo/bar/drop2
+  $ echo 'drop1' > bar/.hgignore
+  $ echo 'drop2' > foo/bar/.hgignore
+
+Chained include
+---------------
+
+Chain of include :
+# /.hgignore include /foo/.hgignore
+# /foo/.hgignore include /bar/.hgignore
+# /bar/.hgignore ignore's `drop1`
+
+Expected result:
+# ignore the `drop1` pattern in all path
+
+include -> include: reads bar/.hgignore and drops anything matching regex `drop1` anywhere
+
+  $ echo 'include:foo/.hgignore' > .hgignore
+  $ echo 'include:bar/.hgignore' > foo/.hgignore
+  $ hg status -i
+  I bar/drop1
+  I foo/bar/drop1
+  I foo/drop1
+
+Chaining an include with a subinclude
+-------------------------------------
+
+Chain of include :
+
+# /.hgignore include /foo/.hgignore
+# /foo/.hgignore sub-include /bar/.hgignore
+# /bar/.hgignore ignore's `drop1`
+
+Current result:
+- Python raises an error.
+- Rust reads /foo/bar/.hgignore instead ignoring `.drop2` within `/foo/bar/` only.
+
+Expected result:
+- Python should not raise
+- /bar/.ignore/ should be read, ignoring `.drop2` within `/bar/` only
+
+  $ echo 'include:foo/.hgignore' > .hgignore
+  $ echo 'subinclude:bar/.hgignore' > foo/.hgignore
+#if no-rust no-rhg
+  $ hg status -i 2>&1 | tail -1
+  AssertionError (known-bad-output !)
+#else
+  $ hg status -i
+  I foo/bar/drop2 (known-bad-output !)
+  I bar/drop1 (missing-correct-output !)
+#endif
+
+
+Chaining a subinclude with an include
+-------------------------------------
+
+Chain of include:
+# /.hgignore sub-include /foo/.hgignore
+# /foo/.hgignore include /foo/bar/.hgignore
+# /foo/bar/.hgignore ignore's `drop2`
+
+Current result:
+drops anything matching regex `drop2` under `foo/`
+
+Expected result:
+`include:` inside a subincluded file is disallowed; filter nothing
+TODO: warn instead of silently skipping
+
+  $ echo 'subinclude:foo/.hgignore' > .hgignore
+  $ echo 'include:bar/.hgignore' > foo/.hgignore
+  $ hg status -i
+  I foo/bar/drop2
+  I foo/drop2
+
+Chaining subincludes
+--------------------
+
+Chain of include:
+# /.hgignore sub-include /foo/.hgignore
+# /foo/.hgignore sub-include /foo/bar/.hgignore
+# /foo/bar/.hgignore ignore's `drop2`
+
+Expected result:
+- nested subinclude resolves DIR-relative;
+- drops anything matching regex `drop2` under `foo/bar/`
+
+  $ echo 'subinclude:foo/.hgignore' > .hgignore
+  $ echo 'subinclude:bar/.hgignore' > foo/.hgignore
+  $ hg status -i
+  I foo/bar/drop2
+
+Subincluding a file in the same directory
+-----------------------------------------
+
+Chain of include:
+# /.hgignore sub-include /sibling.hgignore
+# /sibling.hgignore ignore's `drop1`
+
+Expected result:
+- behaves like an include (scope is the root), dropping `drop1` anywhere.
+
+  $ echo 'subinclude:sibling.hgignore' > .hgignore
+  $ echo 'drop1' > sibling.hgignore
+  $ hg status -i
+  I bar/drop1
+  I foo/bar/drop1
+  I foo/drop1
+
+Subinclude outside the current scope
+------------------------------------
+
+Using ../ to escape scope in a nested subinclude is not allowed
+
+
+# /.hgignore sub-include /foo/.hgignore
+# /foo/.hgignore sub-include /bar/.hgignore
+# bar/.hgignore ignore's `drop1`
+
+Expected result:
+- backward subinclude should be disallowed
+
+TODO: warn instead of fail and make Rust match Python
+
+  $ echo 'subinclude:foo/.hgignore' > .hgignore
+  $ echo 'subinclude:''../bar/.hgignore' > foo/.hgignore
+#if no-rust no-rhg
+  $ hg status -i
+  abort: $TESTTMP/nested/foo/../bar not under root '$TESTTMP/nested/foo'
+  [255]
+#else
+  $ hg status -i
+#endif
+
+  $ cd "$TESTTMP/ignorerepo"
+
 Test relative ignore path (issue4473):
+======================================
 
   $ cat >> $HGRCPATH << EOF
   > [ui]
