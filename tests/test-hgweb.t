@@ -338,6 +338,7 @@ static file
   200 Script output follows
   content-length: 9074
   content-type: text/css
+  last-modified: * GMT (glob)
   
   body { font-family: sans-serif; font-size: 12px; border:solid #d9d8d1; border-width:1px; margin:10px; background: white; color: black; }
   a { color:#0000cc; }
@@ -960,6 +961,7 @@ HTTP 304 works with hgwebdir (issue5844)
   200 Script output follows
   content-length: 2677
   content-type: text/css
+  last-modified: * GMT (glob)
   304 Not Modified
 
   $ killdaemons.py

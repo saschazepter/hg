@@ -21,10 +21,12 @@ manifest
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'file/tip/?style=raw' - date etag server
   200 Script output follows
   content-type: text/plain; charset=ascii
+  last-modified: * GMT (glob)
   
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'file/tip/da?style=raw' - date etag server
   200 Script output follows
   content-type: text/plain; charset=ascii
+  last-modified: * GMT (glob)
   
 
 plain file
@@ -34,6 +36,7 @@ plain file
   content-disposition: inline; filename="foo"
   content-length: 4
   content-type: application/binary
+  last-modified: * GMT (glob)
   
 
 should give a 404 - static file that does not exist
@@ -41,6 +44,7 @@ should give a 404 - static file that does not exist
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'static/bogus' - date etag server
   404 Not Found
   content-type: text/html; charset=ascii
+  last-modified: * GMT (glob)
   
   [1]
 
@@ -49,6 +53,7 @@ should give a 404 - bad revision
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'file/spam/foo?style=raw' - date etag server
   404 Not Found
   content-type: text/plain; charset=ascii
+  last-modified: * GMT (glob)
   
   [1]
 
@@ -57,6 +62,7 @@ should give a 400 - bad command
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'file/tip/foo?cmd=spam&style=raw' - date etag server
   400* (glob)
   content-type: text/plain; charset=ascii
+  last-modified: * GMT (glob)
   
   [1]
 
@@ -65,6 +71,7 @@ should give a 404 - file does not exist
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'file/tip/bork?style=raw' - date etag server
   404 Not Found
   content-type: text/plain; charset=ascii
+  last-modified: * GMT (glob)
   
   [1]
 
@@ -73,6 +80,7 @@ try bad style
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'file/tip/?style=foobar' - date etag server
   200 Script output follows
   content-type: text/html; charset=ascii
+  last-modified: * GMT (glob)
   
 
 log
@@ -80,6 +88,7 @@ log
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'log?style=raw' - date etag server
   200 Script output follows
   content-type: text/plain; charset=ascii
+  last-modified: * GMT (glob)
   
 
 access bookmarks
@@ -87,6 +96,7 @@ access bookmarks
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'rev/@?style=paper' - date etag server
   200 Script output follows
   content-type: text/html; charset=ascii
+  last-modified: * GMT (glob)
   
 
 static file
@@ -95,6 +105,7 @@ static file
   200 Script output follows
   content-length: 9074
   content-type: text/css
+  last-modified: * GMT (glob)
   
 
   $ killdaemons.py

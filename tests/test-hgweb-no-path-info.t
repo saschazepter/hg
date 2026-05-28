@@ -78,7 +78,7 @@ should be used from d74fc8dec2b4 onward to route the request.
   ---- STATUS
   200 Script output follows
   ---- HEADERS
-  [('Content-Type', 'application/atom+xml; charset=ascii')]
+  [('Last-Modified', '* GMT'), ('Content-Type', 'application/atom+xml; charset=ascii')] (glob)
   ---- DATA
   <?xml version="1.0" encoding="ascii"?>
   <feed xmlns="http://www.w3.org/2005/Atom">

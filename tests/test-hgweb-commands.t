@@ -2284,6 +2284,7 @@ bookmarks view doesn't choke on bookmarks on secret changesets (issue3774)
   $ QUERY_STRING='style=raw'
   $ "$PYTHON" hgweb.cgi | grep -v ETag:
   Status: 200 Script output follows\r (esc)
+  Last-Modified: * GMT\r (glob) (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
 
@@ -2323,6 +2324,7 @@ proper status for filtered revision
   $ "$PYTHON" hgweb.cgi #> search
   Status: 404 Not Found\r (esc)
   ETag: W/"*"\r (glob) (esc)
+  Last-Modified: * GMT\r (glob) (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
   
@@ -2337,6 +2339,7 @@ proper status for filtered revision
   $ "$PYTHON" hgweb.cgi #> search
   Status: 404 Not Found\r (esc)
   ETag: W/"*"\r (glob) (esc)
+  Last-Modified: * GMT\r (glob) (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
   
@@ -2368,6 +2371,7 @@ filtered '0' changeset
   $ QUERY_STRING='style=raw'
   $ "$PYTHON" hgweb.cgi | grep -v ETag
   Status: 200 Script output follows\r (esc)
+  Last-Modified: * GMT\r (glob) (esc)
   Content-Type: text/plain; charset=ascii\r (esc)
   \r (esc)
   

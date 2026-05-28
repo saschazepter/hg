@@ -83,7 +83,7 @@ by the WSGI standard and strictly implemented by mod_wsgi.
   ---- STATUS
   200 Script output follows
   ---- HEADERS
-  [('Content-Type', 'text/html; charset=ascii')]
+  [('Last-Modified', '*'), ('Content-Type', 'text/html; charset=ascii')] (glob)
   ---- DATA
   ---- ERRORS
   

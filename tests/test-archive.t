@@ -128,6 +128,7 @@ check http return codes
   content-type: application/x-gzip
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -138,6 +139,7 @@ check http return codes
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -146,6 +148,7 @@ check http return codes
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -157,6 +160,7 @@ check http return codes
   content-type: application/x-bzip2
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -167,6 +171,7 @@ check http return codes
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -175,6 +180,7 @@ check http return codes
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -186,6 +192,7 @@ check http return codes
   content-type: application/zip
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -195,6 +202,7 @@ check http return codes
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -203,6 +211,7 @@ check http return codes
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -217,6 +226,7 @@ check http return codes (with deprecated option)
   content-type: application/x-gzip
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -227,6 +237,7 @@ check http return codes (with deprecated option)
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -235,6 +246,7 @@ check http return codes (with deprecated option)
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -246,6 +258,7 @@ check http return codes (with deprecated option)
   content-type: application/x-bzip2
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -256,6 +269,7 @@ check http return codes (with deprecated option)
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -264,6 +278,7 @@ check http return codes (with deprecated option)
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -275,6 +290,7 @@ check http return codes (with deprecated option)
   content-type: application/zip
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -284,6 +300,7 @@ check http return codes (with deprecated option)
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   
@@ -292,6 +309,7 @@ check http return codes (with deprecated option)
   content-type: text/html; charset=ascii
   date: $HTTP_DATE$
   etag: W/"*" (glob)
+  last-modified: * GMT (glob)
   server: testing stub value
   transfer-encoding: chunked
   

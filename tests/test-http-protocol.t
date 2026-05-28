@@ -431,6 +431,7 @@ Now test a variation where we strip the query string from the redirect URL.
   s>     Server: testing stub value\r\n
   s>     Date: $HTTP_DATE$\r\n
   s>     ETag: W/"*"\r\n (glob)
+  s>     Last-Modified: * GMT\r\n (glob)
   s>     Content-Type: text/html; charset=ascii\r\n
   s>     Transfer-Encoding: chunked\r\n
   s>     \r\n
@@ -590,6 +591,7 @@ Now test a variation where we strip the query string from the redirect URL.
   s>     Server: testing stub value\r\n
   s>     Date: $HTTP_DATE$\r\n
   s>     ETag: W/"*"\r\n (glob)
+  s>     Last-Modified: * GMT\r\n (glob)
   s>     Content-Type: text/html; charset=ascii\r\n
   s>     Transfer-Encoding: chunked\r\n
   s>     \r\n

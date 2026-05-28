@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import contextlib
+import email.utils
 import os
 
 from ..interfaces.types import (
@@ -472,6 +473,9 @@ class hgweb:
                     return res.sendresponse()
 
                 res.headers[b'ETag'] = tag
+
+                last_modified = email.utils.formatdate(self.mtime, usegmt=True)
+                res.headers[b'Last-Modified'] = pycompat.sysbytes(last_modified)
 
             if pycompat.sysstr(cmd) not in webcommands.__all__:
                 msg = b'method not found'
