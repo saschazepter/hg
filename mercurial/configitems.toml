@@ -16,14 +16,31 @@
 #
 # - section: string (required)
 # - name: string (required)
-# - default-type: boolean, changes how `default` is read
+# - default-type: string, changes if/how `default` is read
+#     - "list_type": the default is an empty list
+#     - "lambda": `default` is a list of strings
+#     - "dynamic": no static default, must use `ui.config(..., default=...)`
+#     - "lazy_module": a special case for `encoding.encoding`
 # - default: any
+#     - if `default-type` and `default` are unset, the default is None, False,
+#       0, `""`, or `[]`, depending on how the config option is read
 # - generic: boolean
+#     - if true, `name` is a regular expression matching many config names
 # - priority: integer, only if `generic` is true
+#     - when multiple generic configs match, the smallest `priority` wins
+#     - the default priority is 0
 # - alias: list of 2-tuples of strings
+#     - other [section, name] locations to read as a fallback
+#     - these are tried in the order given for every config layer; for example,
+#       an alias in repo hgrc wins over the main config name in user hgrc
 # - experimental: boolean
+#     - True if this config option is experimental and subject to change
 # - documentation: string
+#     - documentation for the config option in reStructuredText format
+#     - do not use section headings, since it gets included in
+#       mercurial/helptext/config.txt with ``:config-doc:``
 # - in_core_extension: string
+#     - name of the extension, if the config option is for a core extension
 #
 # ## Template
 #
