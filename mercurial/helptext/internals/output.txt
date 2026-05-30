@@ -40,7 +40,17 @@ an event and a free-form message that loggers can filter on:
 * ``ui.debug``: log a debug event (if ``ui.debug`` is enabled)
     * also prints to stdout (see "Stdout" above)
 * ``ui.develwarn``: log a develwarn event (if ``devel.all-warnings`` is enabled)
-    * Notably, ``devel.all-warnings`` is enabled in tests
+
+    Development warning are issued about situation that requires a code change
+    to be fixed. They are typically used for API deprecation, or to flag usage
+    that might create a problem without requiring a hard abort (e.g. taking
+    locks in the wrong order).
+
+    These message are not issued by default as users are not expected to be able
+    to act on them directly. Instead they are enable by default during tests
+    run, and it is recommended to turn it on if you work on Mercurial and its
+    extensions.
+
 
 These loggers exist in core:
 
