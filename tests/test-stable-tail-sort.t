@@ -522,9 +522,11 @@ changeset that are not heads
   fdb60cb32f2b13554087dfb9c882502f  B.non-heads.order
   fdb60cb32f2b13554087dfb9c882502f  C.non-heads.order
   fdb60cb32f2b13554087dfb9c882502f  D.non-heads.order
-  $ "$PYTHON" "$RUNTESTDIR/md5sum.py" *.non-heads.orderhead
-  *.non-heads.orderhead: Can't open: [Errno 2] $ENOENT$: '*.non-heads.orderhead'
-  [1]
+  $ "$PYTHON" "$RUNTESTDIR/md5sum.py" *.non-heads.order
+  fdb60cb32f2b13554087dfb9c882502f  A.non-heads.order
+  fdb60cb32f2b13554087dfb9c882502f  B.non-heads.order
+  fdb60cb32f2b13554087dfb9c882502f  C.non-heads.order
+  fdb60cb32f2b13554087dfb9c882502f  D.non-heads.order
 
 Check with different subset
 
