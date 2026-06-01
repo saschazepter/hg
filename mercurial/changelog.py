@@ -605,15 +605,17 @@ class changelog(revlog.revlog):
             assert start >= 0, start
             tr = repo.currenttransaction()
             with self._writing(tr):
-                data_iter = (
-                    (rev, files.has_copies_info, metadata.encode_files(files))
-                    for (rev, files) in (
-                        (rev, metadata.compute_all_files_changes(repo[rev]))
-                        for rev in self.revs(start)
-                    )
-                )
 
-                self._inner.add_changed_files(tr, data_iter)
+                def data_iter():
+                    for rev in self.revs(start):
+                        files = metadata.compute_all_files_changes(repo[rev])
+                        yield (
+                            rev,
+                            files.has_copies_info,
+                            metadata.encode_files(files),
+                        )
+
+                self._inner.add_changed_files(tr, data_iter())
                 self._missing_changed_files_start = None
 
     def branchinfo(self, rev):
