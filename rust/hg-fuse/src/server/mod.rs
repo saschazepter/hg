@@ -219,6 +219,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         )?;
         let revision_arc = Arc::new(revision_data);
         self.revisions.insert(changeset, Arc::clone(&revision_arc));
+        tracing::debug!("total revisions loaded: {}", self.revisions.len());
 
         let preload = self.store.server_config().preload_structure;
         if preload {
