@@ -1120,6 +1120,16 @@ class revlog:
     def linkrev(self, rev):
         return self.index.linkrev(rev)
 
+    def link_revs(self, rev: RevnumT) -> None | list[RevnumT]:
+        """list of all changelog rev introducing this revision
+
+        Return None if the feature is unsupported by this revlog.
+        """
+        if self.configs.feature.link_revs:
+            assert hasattr(self._inner, "link_revs")
+            return self._inner.link_revs(rev)
+        return None
+
     def parentrevs(self, rev):
         try:
             parents = self.index.parents(rev)

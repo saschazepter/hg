@@ -1121,6 +1121,17 @@ class basefilectx(abc.ABC):
             memberanc = iteranc = cl.ancestors(revs, lkr, inclusive=inclusive)
         # check if this linkrev is an ancestor of srcrev
         if lkr not in memberanc:
+            # If the revlog support storing all link_revs, use that list
+            # directly
+            link_revs = self._filelog._revlog.link_revs(self._filerev)
+            if link_revs is not None:
+                for r in link_revs:
+                    if r in memberanc:
+                        return r
+                # We should have found a suitable ancestors here, something is
+                # off.
+                assert False, "should have found a valid linkrev"
+            # otherwise we need to manually search for a suitable value.
             if iteranc is None:
                 iteranc = cl.ancestors(revs, lkr, inclusive=inclusive)
             fnode = self._filenode
