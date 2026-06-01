@@ -876,30 +876,31 @@ def filelog(repo: RepoT, subset, x):
                 s.add(known[fn])
                 continue
 
-            lr = fl.linkrev(fr)
-            if lr in cl:
-                s.add(lr)
-            elif scanpos is not None:
-                # lowest matching changeset is filtered, scan further
-                # ahead in changelog
-                start = max(lr, scanpos) + 1
-                scanpos = None
-                for r in cl.revs(start):
-                    # minimize parsing of non-matching entries
-                    if f in cl.revision(r) and f in cl.readfiles(r):
-                        try:
-                            # try to use manifest delta fastpath
-                            n = repo[r].filenode(f)
-                            if n not in known:
-                                if n == fn:
-                                    s.add(r)
-                                    scanpos = r
-                                    break
-                                else:
-                                    known[n] = r
-                        except error.ManifestLookupError:
-                            # deletion in changelog
-                            continue
+            if True:
+                lr = fl.linkrev(fr)
+                if lr in cl:
+                    s.add(lr)
+                elif scanpos is not None:
+                    # lowest matching changeset is filtered, scan further
+                    # ahead in changelog
+                    start = max(lr, scanpos) + 1
+                    scanpos = None
+                    for r in cl.revs(start):
+                        # minimize parsing of non-matching entries
+                        if f in cl.revision(r) and f in cl.readfiles(r):
+                            try:
+                                # try to use manifest delta fastpath
+                                n = repo[r].filenode(f)
+                                if n not in known:
+                                    if n == fn:
+                                        s.add(r)
+                                        scanpos = r
+                                        break
+                                    else:
+                                        known[n] = r
+                            except error.ManifestLookupError:
+                                # deletion in changelog
+                                continue
 
     return subset & s
 
