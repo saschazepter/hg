@@ -98,7 +98,7 @@ def _docensor(ui, repo, path, revs=(), tombstone=b'', check_heads=True, **opts):
         raise error.Abort(_(b'can only specify an explicit filename'))
     path = m.files()[0]
     with repo.transaction(b'censor') as tr:
-        flog = repo.file(path)
+        flog = repo.file(path, writable=True)
         if not len(flog):
             raise error.Abort(_(b'cannot censor file with no history'))
 
