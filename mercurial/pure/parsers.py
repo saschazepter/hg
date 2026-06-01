@@ -687,6 +687,12 @@ class BaseIndex(abc.ABC):
         """return the length of the data chunk of a rev"""
         return self._entry(rev)[1]
 
+    def data_chunk_uncompressed_length(self, rev):
+        """return the length of the uncompressed data chunk of a rev"""
+        return self._entry(rev)[
+            revlog_constants.INDEX_ENTRY_V2_IDX_UNCOMPRESSED_LENGTH
+        ]
+
     def data_chunk_compression_mode(self, rev):
         """the type of compression used a revision data chunk"""
         return self._entry(rev)[10]
