@@ -243,7 +243,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 for exclude in excludes:
                     fm.startitem()
                     # compatibility with questionable old choices
-                    fm.data(included=False, path=include)
+                    fm.data(included=False, path=exclude)
                     exclude = exclude if exclude else b"."
                     fm.plain(b"path:%s\n" % exclude)
             return

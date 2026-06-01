@@ -163,7 +163,7 @@ Test the legacy narrow patterns option
    },
    {
     "included": false,
-    "path": "foo/bar/other-secret"
+    "path": ""
    }
   ]
 
