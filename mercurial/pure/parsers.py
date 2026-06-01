@@ -1311,6 +1311,53 @@ class MultiBlockIndex(BaseIndex):
                     data[offset : offset + size] = bin
         return updated_bins
 
+    def update_data(
+        self,
+        rev: RevnumT,
+        offset: int,
+        chunk_size: int,
+        uncompressed_chunk_size: int,
+        compression: revlogutils.CompModeT,
+        censored: bool,
+        delta_base: RevnumT | None,
+    ) -> tuple[bytes | None, ...]:
+        """update field related to the revision data
+
+        Used when censoring revision.
+
+        The API might evolve in the future. For example, to "track delta
+        quality" information.  Or if we starts using it to "re-encode" delta
+        tree in the future.
+        """
+        entry = self._rich_entry(rev)
+        entry.data_offset = offset
+        entry.data_compressed_length = chunk_size
+        entry.data_uncompressed_length = uncompressed_chunk_size
+        entry.data_compression_mode = compression
+        flags = entry.flags
+        if censored:
+            flags |= revlog_constants.REVIDX_ISCENSORED
+            # the censored revison are expected to be full snapshot
+            #
+            # NOTE: this may change in the future
+            assert delta_base is None
+
+        if delta_base is None:
+            entry.data_delta_base = rev
+        else:
+            entry.data_delta_base = delta_base
+
+        # for now we don't expect this to be used on a revlog with delta
+        # quality information, this might change in the future.
+        assert not flags & revlog_constants.REVIDX_DELTA_IS_SNAPSHOT
+        assert not flags & revlog_constants.FLAG_FILELOG_META
+        assert not flags & revlog_constants.REVIDX_DELTA_QUALITY
+        assert not flags & revlog_constants.REVIDX_DELTA_GOOD
+        assert not flags & revlog_constants.REVIDX_DELTA_P1_SMALL
+        assert not flags & revlog_constants.REVIDX_DELTA_P2_SMALL
+        entry.flags = flags
+        return self._update(rev, entry, (True, True))
+
 
 class Index2(MultiBlockIndex):
     _index_formats = revlog_constants.INDEX_ENTRY_V2

@@ -1789,6 +1789,51 @@ class InnerRevlogV2(BaseInnerRevlog):
             cutoffs[docket.FT.CHANGED_FILES] = cgf_cutoff
         return cutoffs
 
+    def rewrite_data(
+        self,
+        transaction: TransactionT,
+        rev: RevnumT,
+        delta_data: bytes,
+        delta_u_size: int,
+        delta_base: RevnumT | None,
+        compression: revlogutils.CompModeT,
+        censored=True,
+    ):
+        """record new data chunk for a revision
+
+        Used when censoring revision, assume the data storage have been
+        truncated up to that revision.
+
+        The API might evolve in the future. For example, to "track delta
+        quality" information.  Or if we starts using it to "re-encode" delta
+        tree in the future.
+        """
+
+        index = self.index
+        docket = self.docket
+        offset = docket.get_end(docket.FT.DATA)
+        if rev == 0:
+            assert offset == 0
+        else:
+            expected = index.data_chunk_start(rev - 1)
+            expected += index.data_chunk_length(rev - 1)
+            assert expected == offset, (offset, expected)
+
+        fh = self._writinghandles[docket.FT.DATA]
+        fh.seek(offset, os.SEEK_SET)
+        fh.write(delta_data)
+        docket.set_end(docket.FT.DATA, offset + len(delta_data))
+        idx_bin = index.update_data(
+            rev=rev,
+            offset=offset,
+            chunk_size=len(delta_data),
+            uncompressed_chunk_size=delta_u_size,
+            compression=compression,
+            censored=censored,
+            delta_base=delta_base,
+        )
+        self._rewrite_index(transaction, rev, idx_bin)
+
     def add_changed_files(
         self,
         transaction: TransactionT,

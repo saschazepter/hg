@@ -14,6 +14,10 @@ import os
 
 from typing import cast
 
+from ..interfaces.types import (
+    RevnumT,
+)
+
 from ..node import (
     nullrev,
 )
@@ -30,7 +34,6 @@ from ..i18n import _
 from .. import (
     error,
     mdiff,
-    pycompat,
     revlogutils,
     util,
 )
@@ -145,63 +148,104 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
 
     General principle
 
-    We create new revlog files (index/data/sidedata) to copy the content of
-    the existing data without the censored data.
+    We create a new data file for the revlog to copy the content of the
+    existing data without the censored data.
 
     We need to recompute new delta for any revision that used the censored
     revision as delta base. As the cumulative size of the new delta may be
-    large, we store them in a temporary file until they are stored in their
-    final destination.
+    larger, we cannot overwrite the file in place.
 
     All data before the censored data can be blindly copied. The rest needs
     to be copied as we go and the associated index entry needs adjustement.
     """
+    assert revlog._writable
+    assert not revlog.configs.data.delta_info
     assert revlog._format_version != REVLOGV0, revlog._format_version
     assert revlog._format_version != REVLOGV1, revlog._format_version
 
-    old_index = revlog.index
+    index = revlog.index
     docket = revlog._docket
 
     tombstone = storageutil.packmeta({b'censored': tombstone}, b'')
 
     first_excl_rev = min(censor_revs)
 
-    file_cutoffs = revlog._inner.file_cutoffs(first_excl_rev)
+    data_cutoff = revlog.index.data_chunk_start(first_excl_rev)
+    vfs = revlog.opener
 
-    with pycompat.unnamedtempfile(mode=b"w+b") as tmp_storage:
-        # rev → (new_base, data_start, data_end, compression_mode)
+    if True:
+        # compute affected revision first.
+        #
+        # Since we still have the file with the old data around, and the index
+        # still point to it before it get updated, we could compute these data
+        # on the fly instead of pre-compute it. It would make things simpler
+        # overall.
         rewritten_entries = _precompute_rewritten_delta(
             revlog,
-            old_index,
+            index,
             censor_revs,
-            tmp_storage,
         )
 
-        all_files = _setup_new_files(revlog, file_cutoffs)
+        # Get a new filename for the data block and copy the untouched data
+        old_data = docket.filepath(docket.FT.DATA)
+        old_data_path = vfs.join(old_data)
+        new_data = docket.new_filepath(docket.FT.DATA)
+        new_data_path = vfs.join(new_data)
+        util.copyfile(old_data_path, new_data_path, nb_bytes=data_cutoff)
+        tr.add(new_data, 0)
+        docket.set_end(docket.FT.DATA, data_cutoff)
 
-        # we dont need to open the old index file since its content already
-        # exist in a usable form in `old_index`.
-        with all_files() as open_files:
-            # writing the censored revision
-
+        # open the new file and start writing the missing data.
+        with revlog._writing(tr), vfs(old_data) as old_data_fh:
             # Writing all subsequent revisions
-            for rev in range(first_excl_rev, len(old_index)):
+            for rev in range(first_excl_rev, len(index)):
                 if rev in censor_revs:
-                    _rewrite_censor(
-                        revlog,
-                        old_index,
-                        open_files,
+                    # The revision is censored, we need to write the tomstone
+                    # instead of the data we censor.
+                    revlog._inner.rewrite_data(
+                        tr,
                         rev,
-                        tombstone,
+                        delta_data=tombstone,
+                        delta_u_size=len(tombstone),
+                        delta_base=None,
+                        compression=COMP_MODE_PLAIN,
+                        censored=True,
+                    )
+                elif rev in rewritten_entries:
+                    # We can't reuse the stored delta, use the pre-computed
+                    # value
+                    delta, compression = rewritten_entries[rev]
+                    assert delta.u_data is not None
+                    delta_data = b''.join(delta.data)
+                    revlog._inner.rewrite_data(
+                        tr,
+                        rev,
+                        delta_data=delta_data,
+                        delta_u_size=len(delta.u_data),
+                        delta_base=delta.base,
+                        compression=compression,
+                        censored=False,
                     )
                 else:
-                    _rewrite_simple(
-                        revlog,
-                        old_index,
-                        open_files,
+                    # Reuse the old delta as is.
+                    #
+                    # This might create unorthodox chain, but we don't really
+                    # care about this yet.
+                    chunk_start = index.data_chunk_start(rev)
+                    chunk_size = index.data_chunk_length(rev)
+                    old_data_fh.seek(chunk_start, os.SEEK_SET)
+                    rev_data = old_data_fh.read(chunk_size)
+                    rev_u_size = index.data_chunk_uncompressed_length(rev)
+                    rev_base = index.delta_base(rev)
+                    rev_compression = index.data_chunk_compression_mode(rev)
+                    revlog._inner.rewrite_data(
+                        tr,
                         rev,
-                        rewritten_entries,
-                        tmp_storage,
+                        delta_data=rev_data,
+                        delta_u_size=rev_u_size,
+                        delta_base=rev_base,
+                        compression=rev_compression,
+                        censored=False,
                     )
     docket.write(transaction=None, stripping=True)
 
@@ -209,31 +253,45 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
 def _precompute_rewritten_delta(
     revlog,
     old_index,
-    excluded_revs,
-    tmp_storage,
-):
+    excluded_revs: set[RevnumT],
+) -> dict[RevnumT, tuple[deltas._DeltaInfo, revlogutils.CompModeT]]:
     """Compute new delta for revisions whose delta is based on revision that
     will not survive as is.
 
-    Return a mapping: {rev → (new_base, data_start, data_end, compression_mode)}
+    Return a mapping: {rev → (delta_info, compressionmode)}
+
+    The delta of rewritten entries are kept in memory, storing them in a
+    temporary file would avoid potential memory usage issue.
+
+    This function rely on precomputing new delta before doing any change to the
+    revlog. However, since this function is only used for revlog-v2, it would
+    be better to just get some logic able to dynamically re-encode the stored
+    delta on the fly. This would work in more case and would not requires
+    pre-computation.
+
+    For now, we have this function.
     """
     dc = deltas.deltacomputer(revlog)
     rewritten_entries = {}
     first_excl_rev = min(excluded_revs)
+    # /!\ When revlog-v2 start storing delta_info
+    # (which it should before the format is finalized)
+    #
+    # We need to properly calculate or pass over the snapshot information and
+    # quality information.
+    #
+    # However, the function might no longer be there by then. See the docstring
+    # for details.
+    assert not revlog.configs.data.delta_info
     with revlog.reading():
         for rev in range(first_excl_rev, len(old_index)):
             if rev in excluded_revs:
                 # this revision will be preserved as is, so we don't need to
                 # consider recomputing a delta.
                 continue
-            if old_index.delta_base(rev) not in excluded_revs:
-                continue
-            # This is a revision that use the censored revision as the base
-            # for its delta. We need a need new deltas
-            if old_index.raw_size(rev) == 0:
-                # this revision is empty, we can delta against nullrev
-                rewritten_entries[rev] = (nullrev, 0, 0, COMP_MODE_PLAIN)
-            else:
+            if old_index.delta_base(rev) in excluded_revs:
+                # This is a revision that use the censored revision as the base
+                # for its delta. We need a need new deltas
                 text = revlog.rawdata(rev)
                 p1, p2 = old_index.parents(rev)
                 info = revlogutils.revisioninfo(
@@ -250,195 +308,8 @@ def _precompute_rewritten_delta(
                 )
                 default_comp = revlog._docket.default_compression_header
                 comp_mode, d = deltas.delta_compression(default_comp, d)
-                # using `tell` is a bit lazy, but we are not here for speed
-                start = tmp_storage.tell()
-                tmp_storage.write(d.data[1])
-                end = tmp_storage.tell()
-                rewritten_entries[rev] = (d.base, start, end, comp_mode)
+                rewritten_entries[rev] = (d, comp_mode)
     return rewritten_entries
-
-
-def _setup_new_files(revlog, file_cutoffs: dict[constants.V2FileType, int]):
-    """
-
-    return a context manager to open all the relevant files:
-    - old_data_file,
-    - old_sidedata_file,
-    - new_index_file,
-    - new_data_file,
-    - new_sidedata_file,
-
-    The old_index_file is not here because it is accessed through the
-    `old_index` object if the caller function.
-    """
-    docket = revlog._docket
-    vfs = revlog.opener
-
-    old_file_paths = {}
-    for ft, _cutoff in sorted(file_cutoffs.items()):
-        old_file_paths[ft] = vfs.join(docket.filepath(ft))
-
-    new_file_paths = {}
-    for ft, _cutoff in sorted(file_cutoffs.items()):
-        new_file_paths[ft] = vfs.join(docket.new_filepath(ft))
-
-    for ft, cutoff in sorted(file_cutoffs.items()):
-        old_path = old_file_paths[ft]
-        new_path = new_file_paths[ft]
-        util.copyfile(old_path, new_path, nb_bytes=cutoff)
-        docket.set_end(ft, cutoff)
-
-    # reload the revlog internal information
-    revlog.refresh(docket=docket)
-
-    @contextlib.contextmanager
-    def all_files_opener():
-        # hide opening in an helper function to please check-code, black
-        # and various python version at the same time
-        files = []
-        old_files = {}
-        new_files = {}
-        try:
-            for ft, _cutoff in sorted(file_cutoffs.items()):
-                path = old_file_paths[ft]
-                f = open(path, 'rb')
-                files.append(f)
-                old_files[ft] = f
-            for ft, cutoff in sorted(file_cutoffs.items()):
-                path = new_file_paths[ft]
-                f = open(path, 'r+b')
-                files.append(f)
-                f.seek(cutoff, os.SEEK_SET)
-                assert f.tell() == cutoff
-                new_files[ft] = f
-            yield old_files, new_files
-        finally:
-            while files:
-                f = files.pop()
-                f.close()
-
-    return all_files_opener
-
-
-def _rewrite_simple(
-    revlog,
-    old_index,
-    all_files,
-    rev,
-    rewritten_entries,
-    tmp_storage,
-):
-    """append a normal revision to the index after the rewritten one(s)"""
-    old_files, new_files = all_files
-    old_data_file = old_files[constants.V2FileType.DATA]
-    old_sidedata_file = old_files[constants.V2FileType.SIDEDATA]
-    new_data_file = new_files[constants.V2FileType.DATA]
-    new_sidedata_file = new_files[constants.V2FileType.SIDEDATA]
-
-    if rev not in rewritten_entries:
-        old_data_file.seek(old_index.data_chunk_start(rev))
-        new_data_size = old_index.data_chunk_length(rev)
-        new_data = old_data_file.read(new_data_size)
-        data_delta_base = old_index.raw_delta_base(rev)
-        d_comp_mode = old_index.data_chunk_compression_mode(rev)
-    else:
-        (
-            data_delta_base,
-            start,
-            end,
-            d_comp_mode,
-        ) = rewritten_entries[rev]
-        new_data_size = end - start
-        tmp_storage.seek(start)
-        new_data = tmp_storage.read(new_data_size)
-
-    # It might be faster to group continuous read/write operation,
-    # however, this is censor, an operation that is not focussed
-    # around stellar performance. So I have not written this
-    # optimisation yet.
-    new_data_offset = new_data_file.tell()
-    new_data_file.write(new_data)
-
-    sidedata_size = old_index.sidedata_chunk_length(rev)
-    new_sidedata_offset = new_sidedata_file.tell()
-    if 0 < sidedata_size:
-        old_sidedata_offset = old_index.sidedata_chunk_offset(rev)
-        old_sidedata_file.seek(old_sidedata_offset)
-        new_sidedata = old_sidedata_file.read(sidedata_size)
-        new_sidedata_file.write(new_sidedata)
-
-    data_uncompressed_length = old_index.raw_size(rev)
-    sd_com_mode = old_index.sidedata_chunk_compression_mode(rev)
-    assert data_delta_base <= rev, (data_delta_base, rev)
-
-    p1, p2 = old_index.parents(rev)
-
-    new_entry = revlogutils.RevlogEntry(
-        flags=old_index.flags(rev),
-        data_offset=new_data_offset,
-        data_compressed_length=new_data_size,
-        data_uncompressed_length=data_uncompressed_length,
-        data_delta_base=data_delta_base,
-        link_rev=old_index.linkrev(rev),
-        parent_rev_1=p1,
-        parent_rev_2=p2,
-        node_id=old_index.node(rev),
-        sidedata_offset=new_sidedata_offset,
-        sidedata_compressed_length=sidedata_size,
-        data_compression_mode=d_comp_mode,
-        sidedata_compression_mode=sd_com_mode,
-    )
-    revlog.index.add_entry(new_entry)
-    entry_bin = revlog.index.entry_binaries(rev)
-    for ft, bin_piece in zip(revlog._inner._index_fts, entry_bin):
-        new_files[ft].write(bin_piece)
-
-    for ft, f in sorted(new_files.items()):
-        revlog._docket.set_end(ft, f.tell())
-
-
-def _rewrite_censor(
-    revlog,
-    old_index,
-    all_files,
-    rev,
-    tombstone,
-):
-    """rewrite and append a censored revision"""
-    old_files, new_files = all_files
-    new_data_file = new_files[constants.V2FileType.DATA]
-
-    # XXX consider trying the default compression too
-    new_data_size = len(tombstone)
-    new_data_offset = new_data_file.tell()
-    new_data_file.write(tombstone)
-
-    # we are not adding any sidedata as they might leak info about the censored version
-
-    p1, p2 = old_index.parents(rev)
-
-    new_entry = revlogutils.RevlogEntry(
-        flags=constants.REVIDX_ISCENSORED,
-        data_offset=new_data_offset,
-        data_compressed_length=new_data_size,
-        data_uncompressed_length=new_data_size,
-        data_delta_base=rev,
-        link_rev=old_index.linkrev(rev),
-        parent_rev_1=p1,
-        parent_rev_2=p2,
-        node_id=old_index.node(rev),
-        sidedata_offset=0,
-        sidedata_compressed_length=0,
-        data_compression_mode=COMP_MODE_PLAIN,
-        sidedata_compression_mode=COMP_MODE_PLAIN,
-    )
-    revlog.index.add_entry(new_entry)
-    entry_bin = revlog.index.entry_binaries(rev)
-    for ft, bin_piece in zip(revlog._inner._index_fts, entry_bin):
-        fh = new_files[ft]
-        fh.write(bin_piece)
-        revlog._docket.set_end(ft, fh.tell())
-    revlog._docket.set_end(revlog._docket.FT.DATA, new_data_file.tell())
 
 
 def _get_filename_from_filelog_index(path):
