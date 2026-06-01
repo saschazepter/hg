@@ -97,49 +97,52 @@ def _docensor(ui, repo, path, revs=(), tombstone=b'', check_heads=True, **opts):
     if m.anypats() or len(m.files()) != 1:
         raise error.Abort(_(b'can only specify an explicit filename'))
     path = m.files()[0]
-    flog = repo.file(path)
-    if not len(flog):
-        raise error.Abort(_(b'cannot censor file with no history'))
+    if True:
+        flog = repo.file(path)
+        if not len(flog):
+            raise error.Abort(_(b'cannot censor file with no history'))
 
-    revs = scmutil.revrange(repo, revs)
-    if not revs:
-        raise error.Abort(_(b'no matching revisions'))
-    file_nodes = set()
-    for r in revs:
-        try:
-            ctx = repo[r]
-            file_nodes.add(ctx.filectx(path).filenode())
-        except error.LookupError:
-            raise error.Abort(_(b'file does not exist at revision %s') % ctx)
+        revs = scmutil.revrange(repo, revs)
+        if not revs:
+            raise error.Abort(_(b'no matching revisions'))
+        file_nodes = set()
+        for r in revs:
+            try:
+                ctx = repo[r]
+                file_nodes.add(ctx.filectx(path).filenode())
+            except error.LookupError:
+                raise error.Abort(
+                    _(b'file does not exist at revision %s') % ctx
+                )
 
-    if check_heads:
-        heads = []
-        repo_heads = repo.heads()
-        msg = b'checking for the censored content in %d heads\n'
-        msg %= len(repo_heads)
+        if check_heads:
+            heads = []
+            repo_heads = repo.heads()
+            msg = b'checking for the censored content in %d heads\n'
+            msg %= len(repo_heads)
+            ui.status(msg)
+            for headnode in repo_heads:
+                hc = repo[headnode]
+                if path in hc and hc.filenode(path) in file_nodes:
+                    heads.append(hc)
+            if heads:
+                headlist = b', '.join([short(c.node()) for c in heads])
+                raise error.Abort(
+                    _(b'cannot censor file in heads (%s)') % headlist,
+                    hint=_(b'clean/delete and commit first'),
+                )
+
+        msg = b'checking for the censored content in the working directory\n'
         ui.status(msg)
-        for headnode in repo_heads:
-            hc = repo[headnode]
-            if path in hc and hc.filenode(path) in file_nodes:
-                heads.append(hc)
-        if heads:
-            headlist = b', '.join([short(c.node()) for c in heads])
+        wp = wctx.parents()
+        if ctx.node() in [p.node() for p in wp]:
             raise error.Abort(
-                _(b'cannot censor file in heads (%s)') % headlist,
-                hint=_(b'clean/delete and commit first'),
+                _(b'cannot censor working directory'),
+                hint=_(b'clean/delete/update first'),
             )
 
-    msg = b'checking for the censored content in the working directory\n'
-    ui.status(msg)
-    wp = wctx.parents()
-    if ctx.node() in [p.node() for p in wp]:
-        raise error.Abort(
-            _(b'cannot censor working directory'),
-            hint=_(b'clean/delete/update first'),
-        )
-
-    msg = b'censoring %d file revisions\n'
-    msg %= len(file_nodes)
-    ui.status(msg)
+        msg = b'censoring %d file revisions\n'
+        msg %= len(file_nodes)
+        ui.status(msg)
     with repo.transaction(b'censor') as tr:
         flog.censorrevision(tr, file_nodes, tombstone=tombstone)
