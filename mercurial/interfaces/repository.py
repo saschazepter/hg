@@ -951,6 +951,10 @@ class ifileindex(Protocol):
         """Obtain the changeset revision number a revision is linked to."""
 
     @abc.abstractmethod
+    def link_revs(self, rev) -> list[RevnumT] | None:
+        """Obtain the list of changelog revisions a revision is linked to."""
+
+    @abc.abstractmethod
     def iscensored(self, rev):
         """Return whether a revision's content has been censored."""
 

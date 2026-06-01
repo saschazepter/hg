@@ -135,6 +135,10 @@ class filelog(repository.ifilestorage):
     def linkrev(self, rev):
         return self._revlog.linkrev(rev)
 
+    def link_revs(self, rev):
+        """Obtain the list of changelog revisions a revision is linked to."""
+        return self._revlog.link_revs(rev)
+
     def commonancestorsheads(self, node1, node2):
         return self._revlog.commonancestorsheads(node1, node2)
 

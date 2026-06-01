@@ -1941,6 +1941,10 @@ class manifestrevlog(repository.imanifeststorage):
     def linkrev(self, rev):
         return self._revlog.linkrev(rev)
 
+    def link_revs(self, rev):
+        """Obtain the list of changelog revisions a revision is linked to."""
+        return self._revlog.link_revs(rev)
+
     def checksize(self):
         return self._revlog.checksize()
 
