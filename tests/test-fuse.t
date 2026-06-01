@@ -88,7 +88,7 @@ We can access the contents of each revision
   total 1
   drwx------ * dir (glob)
   -rw------- 1 * file (glob)
-  lrw------- 1 * symlink1 -> ../file1 (glob)
+  lrwxrwxrwx 1 * symlink1 -> ../file1 (glob)
 
 
 We can access contents of files

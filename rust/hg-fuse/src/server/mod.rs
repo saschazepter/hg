@@ -289,7 +289,9 @@ fn permissions_for_file(flags: ManifestFlags) -> u16 {
     if flags.is_exec() {
         0o700
     } else if flags.is_link() {
-        0o120600
+        // According to https://man7.org/linux/man-pages/man7/symlink.7.html,
+        // symlinks should always have 0777 permissions.
+        0o120777
     } else {
         0o600
     }
