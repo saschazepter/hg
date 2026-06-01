@@ -1,3 +1,32 @@
+#testcases revlogv1 revlogv2
+
+
+
+#if revlogv2
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-changelog-v2=enable-unstable-format-and-corrupt-my-data
+  > [experimental]
+  > revlogv2 = enable-unstable-format-and-corrupt-my-data
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+
+#endif
+
+#if revlogv1
+
+  $ cat << EOF >> $HGRCPATH
+  > [format]
+  > exp-use-changelog-v2 = no
+  > [experimental]
+  > revlogv2 = no
+  > EOF
+
+#endif
+
+
   $ HGENCODING=utf-8
   $ export HGENCODING
   $ cat > testrevset.py << EOF
