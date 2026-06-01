@@ -876,7 +876,18 @@ def filelog(repo: RepoT, subset, x):
                 s.add(known[fn])
                 continue
 
-            if True:
+            if (link_revs := fl.link_revs(fr)) is not None:
+                for lr in sorted(link_revs):
+                    if lr in cl:
+                        s.add(lr)
+                        # the predicate documentation specify it only return
+                        # the first entry, it seems better to preserve that
+                        # documentation behavior in all cases at least for now.
+                        #
+                        # We could add a predicate parameter to return all
+                        # entry (but delete).
+                        break
+            else:
                 lr = fl.linkrev(fr)
                 if lr in cl:
                     s.add(lr)
