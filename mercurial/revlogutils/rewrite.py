@@ -173,80 +173,79 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
     data_cutoff = revlog.index.data_chunk_start(first_excl_rev)
     vfs = revlog.opener
 
-    if True:
-        # compute affected revision first.
-        #
-        # Since we still have the file with the old data around, and the index
-        # still point to it before it get updated, we could compute these data
-        # on the fly instead of pre-compute it. It would make things simpler
-        # overall.
-        rewritten_entries = _precompute_rewritten_delta(
-            revlog,
-            index,
-            censor_revs,
-        )
+    # compute affected revision first.
+    #
+    # Since we still have the file with the old data around, and the index
+    # still point to it before it get updated, we could compute these data
+    # on the fly instead of pre-compute it. It would make things simpler
+    # overall.
+    rewritten_entries = _precompute_rewritten_delta(
+        revlog,
+        index,
+        censor_revs,
+    )
 
-        # Get a new filename for the data block and copy the untouched data
-        old_data = docket.filepath(docket.FT.DATA)
-        old_data_path = vfs.join(old_data)
-        new_data = docket.new_filepath(docket.FT.DATA)
-        new_data_path = vfs.join(new_data)
-        util.copyfile(old_data_path, new_data_path, nb_bytes=data_cutoff)
-        tr.add(new_data, 0)
-        docket.set_end(docket.FT.DATA, data_cutoff)
+    # Get a new filename for the data block and copy the untouched data
+    old_data = docket.filepath(docket.FT.DATA)
+    old_data_path = vfs.join(old_data)
+    new_data = docket.new_filepath(docket.FT.DATA)
+    new_data_path = vfs.join(new_data)
+    util.copyfile(old_data_path, new_data_path, nb_bytes=data_cutoff)
+    tr.add(new_data, 0)
+    docket.set_end(docket.FT.DATA, data_cutoff)
 
-        # open the new file and start writing the missing data.
-        with revlog._writing(tr), vfs(old_data) as old_data_fh:
-            # Writing all subsequent revisions
-            for rev in range(first_excl_rev, len(index)):
-                if rev in censor_revs:
-                    # The revision is censored, we need to write the tomstone
-                    # instead of the data we censor.
-                    revlog._inner.rewrite_data(
-                        tr,
-                        rev,
-                        delta_data=tombstone,
-                        delta_u_size=len(tombstone),
-                        delta_base=None,
-                        compression=COMP_MODE_PLAIN,
-                        censored=True,
-                    )
-                elif rev in rewritten_entries:
-                    # We can't reuse the stored delta, use the pre-computed
-                    # value
-                    delta, compression = rewritten_entries[rev]
-                    assert delta.u_data is not None
-                    delta_data = b''.join(delta.data)
-                    revlog._inner.rewrite_data(
-                        tr,
-                        rev,
-                        delta_data=delta_data,
-                        delta_u_size=len(delta.u_data),
-                        delta_base=delta.base,
-                        compression=compression,
-                        censored=False,
-                    )
-                else:
-                    # Reuse the old delta as is.
-                    #
-                    # This might create unorthodox chain, but we don't really
-                    # care about this yet.
-                    chunk_start = index.data_chunk_start(rev)
-                    chunk_size = index.data_chunk_length(rev)
-                    old_data_fh.seek(chunk_start, os.SEEK_SET)
-                    rev_data = old_data_fh.read(chunk_size)
-                    rev_u_size = index.data_chunk_uncompressed_length(rev)
-                    rev_base = index.delta_base(rev)
-                    rev_compression = index.data_chunk_compression_mode(rev)
-                    revlog._inner.rewrite_data(
-                        tr,
-                        rev,
-                        delta_data=rev_data,
-                        delta_u_size=rev_u_size,
-                        delta_base=rev_base,
-                        compression=rev_compression,
-                        censored=False,
-                    )
+    # open the new file and start writing the missing data.
+    with revlog._writing(tr), vfs(old_data) as old_data_fh:
+        # Writing all subsequent revisions
+        for rev in range(first_excl_rev, len(index)):
+            if rev in censor_revs:
+                # The revision is censored, we need to write the tomstone
+                # instead of the data we censor.
+                revlog._inner.rewrite_data(
+                    tr,
+                    rev,
+                    delta_data=tombstone,
+                    delta_u_size=len(tombstone),
+                    delta_base=None,
+                    compression=COMP_MODE_PLAIN,
+                    censored=True,
+                )
+            elif rev in rewritten_entries:
+                # We can't reuse the stored delta, use the pre-computed
+                # value
+                delta, compression = rewritten_entries[rev]
+                assert delta.u_data is not None
+                delta_data = b''.join(delta.data)
+                revlog._inner.rewrite_data(
+                    tr,
+                    rev,
+                    delta_data=delta_data,
+                    delta_u_size=len(delta.u_data),
+                    delta_base=delta.base,
+                    compression=compression,
+                    censored=False,
+                )
+            else:
+                # Reuse the old delta as is.
+                #
+                # This might create unorthodox chain, but we don't really
+                # care about this yet.
+                chunk_start = index.data_chunk_start(rev)
+                chunk_size = index.data_chunk_length(rev)
+                old_data_fh.seek(chunk_start, os.SEEK_SET)
+                rev_data = old_data_fh.read(chunk_size)
+                rev_u_size = index.data_chunk_uncompressed_length(rev)
+                rev_base = index.delta_base(rev)
+                rev_compression = index.data_chunk_compression_mode(rev)
+                revlog._inner.rewrite_data(
+                    tr,
+                    rev,
+                    delta_data=rev_data,
+                    delta_u_size=rev_u_size,
+                    delta_base=rev_base,
+                    compression=rev_compression,
+                    censored=False,
+                )
     docket.write(transaction=None, stripping=True)
 
 
