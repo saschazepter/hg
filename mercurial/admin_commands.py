@@ -228,23 +228,19 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         elif subcommand == "shape_narrow_patterns":
             # TODO formatter?
             includes, excludes = shape.patterns()
+            includes = [i for i in includes if i]
+            excludes = [e for e in excludes if e]
             if includes:
                 fm.plain(b"[include]\n")
                 for include in includes:
                     fm.startitem()
-                    # data before the '.' special case to make it behave the
-                    # same as `inc/exc` patterns
                     fm.data(included=True, path=include)
-                    # compatibility with questionable old choices
-                    include = include if include else b"."
                     fm.plain(b"path:%s\n" % include)
             if excludes:
                 fm.plain(b"[exclude]\n")
                 for exclude in excludes:
                     fm.startitem()
-                    # compatibility with questionable old choices
                     fm.data(included=False, path=exclude)
-                    exclude = exclude if exclude else b"."
                     fm.plain(b"path:%s\n" % exclude)
             return
         elif subcommand in ("shape_files", "shape_files_hidden"):

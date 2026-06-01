@@ -119,17 +119,11 @@ Check that we generate the correct narrow patterns for every shape
 Test the legacy narrow patterns option
 
   $ hg admin::narrow-server --shape-narrow-patterns default
-  [include]
-  path:.
   [exclude]
   path:foo/bar/other-secret
   path:secret
   $ hg admin::narrow-server --shape-narrow-patterns full
-  [include]
-  path:.
   $ hg admin::narrow-server --shape-narrow-patterns full-manual
-  [include]
-  path:.
   $ hg admin::narrow-server --shape-narrow-patterns other-secret
   [include]
   path:.hgignore
@@ -137,8 +131,6 @@ Test the legacy narrow patterns option
   path:.hgsubstate
   path:.hgtags
   path:foo/bar/other-secret
-  [exclude]
-  path:.
   $ hg admin::narrow-server --shape-narrow-patterns other-secret -Tjson
   [
    {
@@ -160,10 +152,6 @@ Test the legacy narrow patterns option
    {
     "included": true,
     "path": "foo/bar/other-secret"
-   },
-   {
-    "included": false,
-    "path": ""
    }
   ]
 
