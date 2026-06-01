@@ -18,6 +18,7 @@ import typing
 
 from typing import (
     Callable,
+    Container,
     Generator,
     Iterator,
     Optional,
@@ -778,7 +779,7 @@ class _BaseDeltaSearch(abc.ABC):
         p1: RevnumT,
         p2: RevnumT,
         cachedelta: CachedDeltaT | None,
-        excluded_bases: Sequence[RevnumT] | None = None,
+        excluded_bases: Container[RevnumT] | None = None,
         target_rev: RevnumT | None = None,
         snapshot_cache: SnapshotCache | None = None,
     ):
@@ -796,7 +797,7 @@ class _BaseDeltaSearch(abc.ABC):
         self.p1: RevnumT = p1
         self.p2: RevnumT = p2
         self.cachedelta: CachedDeltaT | None = cachedelta
-        self.excluded_bases: Sequence[RevnumT] | None = excluded_bases
+        self.excluded_bases: Container[RevnumT] | None = excluded_bases
         if target_rev is None:
             self.target_rev: int = len(self.revlog)
         else:
@@ -2234,7 +2235,7 @@ class deltacomputer:
     def finddeltainfo(
         self,
         revinfo: RevisionInfoT,
-        excluded_bases: Sequence[RevnumT] | None = None,
+        excluded_bases: Container[RevnumT] | None = None,
         target_rev: RevnumT | None = None,
     ) -> _DeltaInfo:
         """Find an acceptable delta against a candidate revision
