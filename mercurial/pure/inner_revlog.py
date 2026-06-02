@@ -17,6 +17,7 @@ import zlib
 from typing import (
     Callable,
     Iterator,
+    Mapping,
     cast,
 )
 
@@ -1151,6 +1152,9 @@ class InnerRevlogV1(BaseInnerRevlog):
 
 IDX_TOO_SHORT = _(b'too few index bytes for %s %s: got %d, expected %d')
 
+if typing.TYPE_CHECKING:
+    _ChildrenUpdateT = Mapping[RevnumT, list[RevnumT | None]]
+
 
 class InnerRevlogV2(BaseInnerRevlog):
     """A inner revlog for a revlog-v2 revlog"""
@@ -1702,48 +1706,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         It remove all revisions after `rev`."""
         docket = self.docket
         if self.feature_config.children:
-            # we need to adjust children tracking below the striping point.
-            processed_p1 = set()
-            processed_p2 = set()
-            updates = collections.defaultdict(lambda: [None, None, None, None])
-            idx = self.index
-            for stripped in range(rev, len(self.index)):
-                p1, p2 = idx.parents(stripped)
-                if p1 < rev and p1 not in processed_p1:
-                    processed_p1.add(p1)
-                    c1 = idx.child_p1(p1)
-                    assert c1 != nullrev
-                    if rev <= c1:
-                        # note: child_p1 of nullrev is always 0 (unless the
-                        # repository is empty, but then we would not have
-                        # anything to strip), so the only way to have :
-                        # "p1 == nullrev" and  "p1 < rev" and rev <=
-                        # p1.child_p1" if for "rev" to be "0". In that case we
-                        # are stripping everything and there won't be anything
-                        # left to update.
-                        #
-                        # In all case, we can't "update" nullrev so we strip
-                        # the "p1" update in this case.
-                        if p1 != nullrev:
-                            updates[p1][0] = nullrev
-                    else:
-                        while (
-                            next := idx.sibling_p1(c1)
-                        ) != nullrev and next < rev:
-                            c1 = next
-                        updates[c1][1] = nullrev
-                if p2 < rev and p2 not in processed_p2 and p2 != nullrev:
-                    processed_p2.add(p2)
-                    c2 = idx.child_p2(p2)
-                    assert c2 != nullrev
-                    if rev <= c2:
-                        updates[p2][2] = nullrev
-                    else:
-                        while (
-                            next := idx.sibling_p2(c2)
-                        ) != nullrev and next < rev:
-                            c2 = next
-                        updates[c2][3] = nullrev
+            children_updates = self._strip_precomp_children(rev)
 
         data_end = self.start(rev)
         sidedata_end = self.sidedata_cut_off(rev)
@@ -1757,6 +1720,77 @@ class InnerRevlogV2(BaseInnerRevlog):
         docket.set_end(self.docket.FT.SIDEDATA, sidedata_end)
         transaction.add(docket.filepath(docket.FT.DATA), data_end)
         transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)
+
+        if self.feature_config.children:
+            self._strip_apply_children(transaction, children_updates)
+        self.docket.write(transaction, stripping=True)
+
+    def _strip_precomp_children(
+        self,
+        strip_rev: RevnumT,
+    ) -> _ChildrenUpdateT:
+        """precompute children update for a strip operastion"""
+        ...
+        assert self.feature_config.children
+        # we need to adjust children tracking below the striping point.
+        processed_p1 = set()
+        processed_p2 = set()
+        updates: _ChildrenUpdateT = collections.defaultdict(
+            lambda: [None, None, None, None]
+        )
+        idx = self.index
+        for stripped in range(strip_rev, len(self.index)):
+            p1, p2 = idx.parents(stripped)
+            if p1 < strip_rev and p1 not in processed_p1:
+                processed_p1.add(p1)
+                c1 = idx.child_p1(p1)
+                assert c1 != nullrev
+                if strip_rev <= c1:
+                    # note: child_p1 of nullrev is always 0 (unless the
+                    # repository is empty, but then we would not have
+                    # anything to strip), so the only way to have :
+                    # "p1 == nullrev" and  "p1 < rev" and rev <=
+                    # p1.child_p1" if for "rev" to be "0". In that case we
+                    # are stripping everything and there won't be anything
+                    # left to update.
+                    #
+                    # In all case, we can't "update" nullrev so we strip
+                    # the "p1" update in this case.
+                    if p1 != nullrev:
+                        assert p1 is not None
+                        updates[p1][0] = nullrev
+                else:
+                    while (
+                        next := idx.sibling_p1(c1)
+                    ) != nullrev and next < strip_rev:
+                        c1 = next
+                    assert c1 is not None
+                    updates[c1][1] = nullrev
+            if p2 < strip_rev and p2 not in processed_p2 and p2 != nullrev:
+                processed_p2.add(p2)
+                c2 = idx.child_p2(p2)
+                assert c2 is not None
+                assert c2 != nullrev
+                if strip_rev <= c2:
+                    assert p2 is not None
+                    updates[p2][2] = nullrev
+                else:
+                    while (
+                        next := idx.sibling_p2(c2)
+                    ) != nullrev and next < strip_rev:
+                        c2 = next
+                    assert c2 is not None
+                    updates[c2][3] = nullrev
+        return updates
+
+    def _strip_apply_children(
+        self,
+        transaction: TransactionT,
+        updates: _ChildrenUpdateT,
+    ) -> None:
+        """apply the updates computed by _strip_precomp_children"""
+        assert self.feature_config.children
+        idx = self.index
         with self.writing(transaction):
             for u_rev, u_value in sorted(updates.items()):
                 c1, s1, c2, s2 = u_value
@@ -1772,7 +1806,6 @@ class InnerRevlogV2(BaseInnerRevlog):
                 assert bins is not None
 
                 self._rewrite_index(transaction, u_rev, bins)
-        self.docket.write(transaction, stripping=True)
 
     def file_cutoffs(self, first_excl_rev):
         docket = self.docket
