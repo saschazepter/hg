@@ -764,7 +764,9 @@ Logs and changes
     <th class="description">description</th>
    </tr>
   </thead>
-  <tbody class="stripes2">
+  <tbody class="stripes2"
+         data-ajax-url="/shortlog/%next%"
+         data-ajax-next="">
    <tr>
     <td class="age">Thu, 01 Jan 1970 00:00:00 +0000</td>
     <td class="author">test</td>
@@ -806,21 +808,6 @@ Logs and changes
   <a href="/shortlog/tip?revcount=120">more</a>
   | rev 3: <a href="/shortlog/2ef0ac749a14">(0)</a> <a href="/shortlog/tip">tip</a> 
   </div>
-  
-  <script type="text/javascript">
-      ajaxScrollInit(
-              '/shortlog/%next%',
-              '', <!-- NEXTHASH
-              function (htmlText) {
-                  var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
-                  return m ? m[1] : null;
-              },
-              '.bigtable > tbody',
-              '<tr class="%class%">\
-              <td colspan="3" style="text-align: center;">%text%</td>\
-              </tr>'
-      );
-  </script>
   
   </div>
   </div>
@@ -1821,7 +1808,11 @@ Overviews
   
   <noscript>The revision graph only works with JavaScript-enabled browsers.</noscript>
   
-  <div id="wrapper">
+  <div id="wrapper"
+       data-graph-scale="39"
+       data-ajax-url="/graph/%next%?graphtop=cad8025a2e87f88c06259790adfa15acb4080123&style=gitweb"
+       data-ajax-next="">
+  <script id="graph-data" type="application/json">[{"edges": [[0, 0, 1, 3, "FF0000"]], "graphnode": "@o", "node": "cad8025a2e87", "vertex": [0, 1]}, {"edges": [[0, 0, 1, 3, ""]], "graphnode": "o", "node": "1d22e65f027e", "vertex": [0, 1]}, {"edges": [[0, 0, 1, 3, ""]], "graphnode": "o", "node": "a4f92ed23982", "vertex": [0, 1]}, {"edges": [], "graphnode": "o", "node": "2ef0ac749a14", "vertex": [0, 1]}]</script>
   <canvas id="graph"></canvas>
   <ul id="graphnodes"><li class="parity0" data-node="cad8025a2e87">
    <div class="fg">
@@ -1862,32 +1853,11 @@ Overviews
   </ul>
   </div>
   
-  <script>
-  var data = [{"edges": [[0, 0, 1, 3, "FF0000"]], "graphnode": "@o", "node": "cad8025a2e87", "vertex": [0, 1]}, {"edges": [[0, 0, 1, 3, ""]], "graphnode": "o", "node": "1d22e65f027e", "vertex": [0, 1]}, {"edges": [[0, 0, 1, 3, ""]], "graphnode": "o", "node": "a4f92ed23982", "vertex": [0, 1]}, {"edges": [], "graphnode": "o", "node": "2ef0ac749a14", "vertex": [0, 1]}];
-  var graph = new Graph();
-  graph.scale(39);
-  graph.render(data);
-  </script>
-  
   <div class="extra_nav">
   <a href="/graph/tip?revcount=30&style=gitweb">less</a>
   <a href="/graph/tip?revcount=120&style=gitweb">more</a>
   | <a href="/graph/2ef0ac749a14?style=gitweb">(0)</a> <a href="/graph/tip?style=gitweb">tip</a> 
   </div>
-  
-  <script type="text/javascript">
-      ajaxScrollInit(
-              '/graph/%next%?graphtop=cad8025a2e87f88c06259790adfa15acb4080123&style=gitweb',
-              '', <!-- NEXTHASH
-              function (htmlText) {
-                  var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
-                  return m ? m[1] : null;
-              },
-              '#wrapper',
-              '<div class="%class%" style="text-align: center;">%text%</div>',
-              'graph'
-      );
-  </script>
   
   <div class="page_footer">
   <div class="page_footer_text">test</div>

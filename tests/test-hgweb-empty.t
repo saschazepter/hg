@@ -90,7 +90,9 @@ Some tests for hgweb in an empty repository and empty archive
     <th class="description">description</th>
    </tr>
   </thead>
-  <tbody class="stripes2">
+  <tbody class="stripes2"
+         data-ajax-url="/shortlog/%next%"
+         data-ajax-next="">
   
   </tbody>
   </table>
@@ -100,21 +102,6 @@ Some tests for hgweb in an empty repository and empty archive
   <a href="/shortlog/tip?revcount=120">more</a>
   | rev -1: 
   </div>
-  
-  <script type="text/javascript">
-      ajaxScrollInit(
-              '/shortlog/%next%',
-              '', <!-- NEXTHASH
-              function (htmlText) {
-                  var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
-                  return m ? m[1] : null;
-              },
-              '.bigtable > tbody',
-              '<tr class="%class%">\
-              <td colspan="3" style="text-align: center;">%text%</td>\
-              </tr>'
-      );
-  </script>
   
   </div>
   </div>
@@ -204,7 +191,9 @@ Some tests for hgweb in an empty repository and empty archive
     <th class="description">description</th>
    </tr>
   </thead>
-  <tbody class="stripes2">
+  <tbody class="stripes2"
+         data-ajax-url="/shortlog/%next%"
+         data-ajax-next="">
   
   </tbody>
   </table>
@@ -214,21 +203,6 @@ Some tests for hgweb in an empty repository and empty archive
   <a href="/shortlog/tip?revcount=20">more</a>
   | rev -1: 
   </div>
-  
-  <script type="text/javascript">
-      ajaxScrollInit(
-              '/shortlog/%next%',
-              '', <!-- NEXTHASH
-              function (htmlText) {
-                  var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
-                  return m ? m[1] : null;
-              },
-              '.bigtable > tbody',
-              '<tr class="%class%">\
-              <td colspan="3" style="text-align: center;">%text%</td>\
-              </tr>'
-      );
-  </script>
   
   </div>
   </div>
@@ -310,37 +284,20 @@ Some tests for hgweb in an empty repository and empty archive
   
   <noscript><p>The revision graph only works with JavaScript-enabled browsers.</p></noscript>
   
-  <div id="wrapper">
+  <div id="wrapper"
+       data-graph-scale="39"
+       data-ajax-url="/graph/%next%?graphtop=0000000000000000000000000000000000000000"
+       data-ajax-next="">
+  <script id="graph-data" type="application/json">[]</script>
   <canvas id="graph"></canvas>
   <ul id="graphnodes" class="stripes2"></ul>
   </div>
-  
-  <script type="text/javascript">
-  var data = [];
-  var graph = new Graph();
-  graph.scale(39);
-  graph.render(data);
-  </script>
   
   <div class="navigate">
   <a href="/graph/tip?revcount=30">less</a>
   <a href="/graph/tip?revcount=120">more</a>
   | rev -1: 
   </div>
-  
-  <script type="text/javascript">
-      ajaxScrollInit(
-              '/graph/%next%?graphtop=0000000000000000000000000000000000000000',
-              '', <!-- NEXTHASH
-              function (htmlText) {
-                  var m = htmlText.match(/'(\w+)', <!-- NEXTHASH/);
-                  return m ? m[1] : null;
-              },
-              '#wrapper',
-              '<div class="%class%" style="text-align: center;">%text%</div>',
-              'graph'
-      );
-  </script>
   
   </div>
   </div>

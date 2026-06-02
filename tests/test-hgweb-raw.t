@@ -162,10 +162,6 @@ Test raw style of hgweb
   <input id="ignorewseol-checkbox" type="checkbox" />
   </form>
   
-  <script type="text/javascript">
-      renderDiffOptsForm();
-  </script>
-  
   <div class="overflow">
   <table class="bigtable">
   <thead>

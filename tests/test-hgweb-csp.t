@@ -67,14 +67,13 @@ repo page should send CSP by default, include etag w/o nonce
   content-security-policy: script-src https://example.com/ 'unsafe-inline'
   etag: W/"*" (glob)
 
-nonce should not be added to html if CSP doesn't use it
+no inline scripts in html
 
   $ get-with-headers.py localhost:$HGPORT repo1/graph/tip | grep -E 'content-security-policy|<script'
   <script type="text/javascript" src="/repo1/static/mercurial.js"></script>
-  <script type="text/javascript">
-  <script type="text/javascript">
+  <script id="graph-data" type="application/json">[{"edges": [], "graphnode": "@o", "node": "96ee1d7354c4", "vertex": [0, 1]}]</script>
 
-Configure CSP with nonce
+Configure CSP with nonce placeholder
 
   $ killdaemons.py
   $ cat >> web.conf << EOF
@@ -96,19 +95,19 @@ nonce should be included in CSP for static pages
   200 Script output follows
   content-security-policy: image-src 'self'; script-src https://example.com/ 'nonce-*' (glob)
 
-repo page should have nonce, no ETag
+repo page should have ETag
 
   $ get-with-headers.py --headeronly localhost:$HGPORT repo1 content-security-policy etag
   200 Script output follows
   content-security-policy: image-src 'self'; script-src https://example.com/ 'nonce-*' (glob)
+  etag: W/"*" (glob)
 
-nonce should be added to html when used
+no nonce attributes in script tags
 
   $ get-with-headers.py localhost:$HGPORT repo1/graph/tip content-security-policy | grep -E 'content-security-policy|<script'
   content-security-policy: image-src 'self'; script-src https://example.com/ 'nonce-*' (glob)
   <script type="text/javascript" src="/repo1/static/mercurial.js"></script>
-  <script type="text/javascript" nonce="*"> (glob)
-  <script type="text/javascript" nonce="*"> (glob)
+  <script id="graph-data" type="application/json">[{"edges": [], "graphnode": "@o", "node": "96ee1d7354c4", "vertex": [0, 1]}]</script>
 
 hgweb_mod w/o hgwebdir works as expected
 
@@ -122,11 +121,11 @@ static page sends CSP
   $ get-with-headers.py --headeronly localhost:$HGPORT static/mercurial.js content-security-policy etag
   200 Script output follows
   content-security-policy: image-src 'self'; script-src https://example.com/ 'nonce-*' (glob)
+  etag: W/"*" (glob)
 
-nonce included in <script> and headers
+no nonce in script tags
 
-  $ get-with-headers.py localhost:$HGPORT graph/tip content-security-policy  | grep -E 'content-security-policy|<script'
+  $ get-with-headers.py localhost:$HGPORT graph/tip content-security-policy | grep -E 'content-security-policy|<script'
   content-security-policy: image-src 'self'; script-src https://example.com/ 'nonce-*' (glob)
   <script type="text/javascript" src="/static/mercurial.js"></script>
-  <script type="text/javascript" nonce="*"> (glob)
-  <script type="text/javascript" nonce="*"> (glob)
+  <script id="graph-data" type="application/json">[{"edges": [], "graphnode": "@o", "node": "96ee1d7354c4", "vertex": [0, 1]}]</script>

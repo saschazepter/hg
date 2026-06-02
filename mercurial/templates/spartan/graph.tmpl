@@ -29,17 +29,12 @@ navigate: <small class="navigate">{changenav%navgraph}</small>
 
 <noscript>The revision graph only works with JavaScript-enabled browsers.</noscript>
 
-<div id="wrapper">
+<div id="wrapper"
+     data-graph-scale="{bg_height}">
+<script id="graph-data" type="application/json">{jsdata|json}</script>
 <canvas id="graph"></canvas>
 <ul id="graphnodes">{nodes%graphentry}</ul>
 </div>
-
-<script type="text/javascript"{if(nonce, ' nonce="{nonce}"')}>
-var data = {jsdata|json};
-var graph = new Graph();
-graph.scale({bg_height});
-graph.render(data);
-</script>
 
 <form action="{url|urlescape}log">
 {sessionvars%hiddenformentry}

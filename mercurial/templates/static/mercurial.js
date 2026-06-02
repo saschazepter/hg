@@ -426,7 +426,6 @@ function adoptChildren(from, to) {
 
 function ajaxScrollInit(urlFormat,
                         nextPageVar,
-                        nextPageVarGet,
                         containerSelector,
                         messageFormat,
                         mode) {
@@ -471,8 +470,7 @@ function ajaxScrollInit(urlFormat,
 
                     if (mode === 'graph') {
                         var graph = window.graph;
-                        var dataStr = htmlText.match(/^\s*var data = (.*);$/m)[1];
-                        var data = JSON.parse(dataStr);
+                        var data = JSON.parse(doc.getElementById('graph-data').textContent);
                         graph.reset();
                         adoptChildren(doc.querySelector('#graphnodes'), container.querySelector('#graphnodes'));
                         graph.render(data);
@@ -480,7 +478,7 @@ function ajaxScrollInit(urlFormat,
                         adoptChildren(doc.querySelector(containerSelector), container);
                     }
 
-                    nextPageVar = nextPageVarGet(htmlText);
+                    nextPageVar = doc.querySelector(containerSelector).dataset.ajaxNext || null;
                 },
                 function onerror(errorText) {
                     var message = {
@@ -511,6 +509,9 @@ function renderDiffOptsForm() {
     }
 
     var form = document.getElementById("diffopts-form");
+    if (!form) {
+        return;
+    }
 
     var KEYS = [
         "ignorews",
@@ -574,7 +575,42 @@ function addLineWrapToggle() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-   process_dates();
-   addDiffStatToggle();
-   addLineWrapToggle();
+    process_dates();
+    addDiffStatToggle();
+    addLineWrapToggle();
+    renderDiffOptsForm();
+
+    var wrapper = document.getElementById('wrapper');
+    var graphDataEl = document.getElementById('graph-data');
+    if (wrapper && graphDataEl) {
+        var noscriptDiv = document.getElementById('noscript');
+        if (noscriptDiv) {
+            noscriptDiv.style.display = 'none';
+        }
+        var graphData = JSON.parse(graphDataEl.textContent);
+        window.graph = new Graph();
+        window.graph.scale(parseInt(wrapper.dataset.graphScale, 10));
+        window.graph.render(graphData);
+
+        if (wrapper.dataset.ajaxUrl) {
+            ajaxScrollInit(
+                wrapper.dataset.ajaxUrl,
+                wrapper.dataset.ajaxNext || null,
+                '#wrapper',
+                '<div class="%class%" style="text-align: center;">%text%</div>',
+                'graph'
+            );
+        }
+    }
+
+    var scrollContainer = document.querySelector('tbody[data-ajax-url]');
+    if (scrollContainer) {
+        var cols = scrollContainer.closest('table').querySelector('tr').children.length;
+        ajaxScrollInit(
+            scrollContainer.dataset.ajaxUrl,
+            scrollContainer.dataset.ajaxNext || null,
+            'tbody[data-ajax-url]',
+            '<tr class="%class%"><td colspan="' + cols + '" style="text-align: center;">%text%</td></tr>'
+        );
+    }
 }, false);

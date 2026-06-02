@@ -1701,12 +1701,12 @@ immediately.
   <a href="/dir1/a_repo/shortlog/tip?revcount=30">less</a>
   <a href="/dir1/a_repo/shortlog/tip?revcount=120">more</a>
   | rev 1: <a href="/dir1/a_repo/shortlog/8580ff50825a">(0)</a> <a href="/dir1/a_repo/shortlog/tip">tip</a> 
+         data-ajax-url="/dir1/a_repo/shortlog/%next%"
      <a href="/dir1/a_repo/rev/71a89161f014">add index file</a>
      <a href="/dir1/a_repo/rev/8580ff50825a">a</a>
   <a href="/dir1/a_repo/shortlog/tip?revcount=30">less</a>
   <a href="/dir1/a_repo/shortlog/tip?revcount=120">more</a>
   | rev 1: <a href="/dir1/a_repo/shortlog/8580ff50825a">(0)</a> <a href="/dir1/a_repo/shortlog/tip">tip</a> 
-              '/dir1/a_repo/shortlog/%next%',
 
   $ get-with-headers.py localhost:$HGPORT1 'dir1/a_repo/index' | grep 'a_repo'
   <h2 class="breadcrumb"><a href="/">Mercurial</a> &gt; <a href="/dir1">dir1</a> &gt; <a href="/dir1/a_repo">a_repo</a> </h2>
@@ -1746,11 +1746,11 @@ Repos named 'index' take precedence over the index file
   <a href="/dir1/dir2/index/shortlog/tip?revcount=30">less</a>
   <a href="/dir1/dir2/index/shortlog/tip?revcount=120">more</a>
   | rev 0: <a href="/dir1/dir2/index/shortlog/39505516671b">(0)</a> <a href="/dir1/dir2/index/shortlog/tip">tip</a> 
+         data-ajax-url="/dir1/dir2/index/shortlog/%next%"
      <a href="/dir1/dir2/index/rev/39505516671b">b</a>
   <a href="/dir1/dir2/index/shortlog/tip?revcount=30">less</a>
   <a href="/dir1/dir2/index/shortlog/tip?revcount=120">more</a>
   | rev 0: <a href="/dir1/dir2/index/shortlog/39505516671b">(0)</a> <a href="/dir1/dir2/index/shortlog/tip">tip</a> 
-              '/dir1/dir2/index/shortlog/%next%',
 
   $ killdaemons.py
 

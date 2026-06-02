@@ -424,12 +424,12 @@ class hgwebdir:
     def _runwsgi(self, req, res):
         self.refresh()
 
-        csp, nonce = cspvalues(self.ui)
+        csp = cspvalues(self.ui)
         if csp:
             res.headers[b'Content-Security-Policy'] = csp
 
         virtual = req.dispatchpath.strip(b'/')
-        tmpl = self.templater(req, nonce)
+        tmpl = self.templater(req)
         try:
             ctype = tmpl.render(b'mimetype', {b'encoding': encoding.encoding})
 
@@ -558,7 +558,7 @@ class hgwebdir:
         res.setbodygen(tmpl.generate(b'index', mapping))
         return res.sendresponse()
 
-    def templater(self, req, nonce):
+    def templater(self, req):
         def config(*args, **kwargs):
             kwargs.setdefault('untrusted', True)
             return self.ui.config(*args, **kwargs)
@@ -588,7 +588,6 @@ class hgwebdir:
             b"staticurl": staticurl,
             b"sessionvars": sessionvars,
             b"style": style,
-            b"nonce": nonce,
         }
         templatekeyword = registrar.templatekeyword(defaults)
 

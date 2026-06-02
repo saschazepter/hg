@@ -464,7 +464,7 @@ Now test a variation where we strip the query string from the redirect URL.
   s>     <li><a href="/redirected/tags">tags</a></li>\n
   s>     <li><a href="
   s>     \r\n
-  s>     810\r\n
+  s>     7e0\r\n
   s>     /redirected/bookmarks">bookmarks</a></li>\n
   s>     <li><a href="/redirected/branches">branches</a></li>\n
   s>     </ul>\n
@@ -511,7 +511,9 @@ Now test a variation where we strip the query string from the redirect URL.
   s>       <th class="description">description</th>\n
   s>      </tr>\n
   s>     </thead>\n
-  s>     <tbody class="stripes2">\n
+  s>     <tbody class="stripes2"\n
+  s>            data-ajax-url="/redirected/shortlog/%next%"\n
+  s>            data-ajax-next="">\n
   s>      <tr>\n
   s>       <td class="age">Thu, 01 Jan 1970 00:00:00 +0000</td>\n
   s>       <td class="author">test</td>\n
@@ -529,24 +531,6 @@ Now test a variation where we strip the query string from the redirect URL.
   s>     <a href="/redirected/shortlog/tip?revcount=120">more</a>\n
   s>     | rev 0: <a href="/redirected/shortlog/96ee1d7354c4">(0)</a> <a href="/redirected/shortlog/tip">tip</a> \n
   s>     </div>\n
-  s>     \n
-  s>     <script type="text/javascript">\n
-  s>         ajaxScrollInit(\n
-  s>                 \'/redirected/shortlog/%next%\',\n
-  s>                 \'\', <!-- NEXTHASH\n
-  s>                 function (htmlText) {
-  s>     \r\n
-  s>     14a\r\n
-  s>     \n
-  s>                     var m = htmlText.match(/\'(\\w+)\', <!-- NEXTHASH/);\n
-  s>                     return m ? m[1] : null;\n
-  s>                 },\n
-  s>                 \'.bigtable > tbody\',\n
-  s>                 \'<tr class="%class%">\\\n
-  s>                 <td colspan="3" style="text-align: center;">%text%</td>\\\n
-  s>                 </tr>\'\n
-  s>         );\n
-  s>     </script>\n
   s>     \n
   s>     </div>\n
   s>     </div>\n

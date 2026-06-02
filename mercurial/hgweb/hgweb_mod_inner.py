@@ -162,7 +162,7 @@ class requestcontext:
         # of the request.
         self.websubtable = app.websubtable
 
-        self.csp, self.nonce = cspvalues(self.repo.ui)
+        self.csp = cspvalues(self.repo.ui)
 
     # Trust the settings from the .hg/hgrc files by default.
     def config(self, *args, **kwargs):
@@ -235,7 +235,6 @@ class requestcontext:
             b'sessionvars': sessionvars,
             b'pathdef': makebreadcrumb(req.apppath),
             b'style': style,
-            b'nonce': self.nonce,
         }
         templatekeyword = registrar.templatekeyword(defaults)
 
@@ -456,9 +455,7 @@ class hgweb:
                 req.qsparams[b'cmd'] = rctx.tmpl.render(b'default', {})
                 cmd = req.qsparams[b'cmd']
 
-            # Don't enable caching if using a CSP nonce because then it wouldn't
-            # be a nonce.
-            if rctx.configbool(b'web', b'cache') and not rctx.nonce:
+            if rctx.configbool(b'web', b'cache'):
                 tag = b'W/"%d"' % self.mtime
                 if req.headers.get(b'If-None-Match') == tag:
                     res.status = b'304 Not Modified'
