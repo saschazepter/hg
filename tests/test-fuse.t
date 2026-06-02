@@ -88,7 +88,7 @@ We can access the contents of each revision
   total 3
   -rw------- * branch (glob)
   -rw------- * dirstate (glob)
-  -rw------- * dirstate-tracked-key (glob)
+  -rw------- * dirstate-tracked-hint (glob)
   -rw------- * dirstate.* (glob)
   -rw------- * requires (glob)
   -rw------- * sharedpath (glob)

@@ -438,7 +438,7 @@ impl RevisionInodeEncoder {
         write_tracked_key_to(&mut tracked_key)
             .expect("writing to Vec cannot fail");
         let tracked_key_ino =
-            self.add_reserved_file("dirstate-tracked-key", tracked_key.into());
+            self.add_reserved_file("dirstate-tracked-hint", tracked_key.into());
 
         dot_hg_files.push(requires_ino);
         dot_hg_files.push(tracked_key_ino);
