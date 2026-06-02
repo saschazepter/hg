@@ -2280,6 +2280,10 @@ class revlog:
             node = self.hash(rawtext, p1, p2)
         rev = self.index.get_rev(node)
         if rev is not None:
+            if self.configs.feature.link_revs:
+                inner = cast(py_inner.InnerRevlogV2, self._inner)
+                with self._writing(transaction):
+                    inner.register_extra_link_rev(transaction, rev, link)
             return rev
 
         if validatehash and provided_node:

@@ -2320,6 +2320,71 @@ def debuglabelcomplete(ui, repo, *args):
 
 
 @command(
+    b'debug::link-revs',
+    cmdutil.debugrevlogopts
+    + [
+        (
+            b'',
+            b'dump-raw',
+            False,
+            _(b'dump the raw link-revs data block'),
+        ),
+        # NOTE: we could add revision selection for manifest and filelog
+    ],
+    _(b'-m|FILE'),
+)
+def debug_link_revs(
+    ui,
+    repo,
+    file_=None,
+    dump_raw: bool = False,
+    **opts,
+):
+    """Show stored link-revs information for a revlog
+
+    return 2 if the revlog doesn't support the link-revs features
+
+    By default show::
+
+        <rev (in revlog)>: <base link-rev (in changelog)> (<last-idx>)
+          - <link-rev #1>
+          - <link-rev #2>
+            …
+        <rev (in revlog)>: <base link-rev (in changelog)>
+          - <link-rev #1>
+            …
+
+    With --dump-raw, this directly dump the value of the link-revs data block
+    from index 0 upward::
+
+       <idx>: <link-rev> <next-idx>
+       <idx>: <link-rev> <next-idx>
+              …
+    """
+    revlog = cmdutil.openstorage(
+        repo,
+        b'debug::link-revs',
+        file_,
+        pycompat.byteskwargs(opts),
+    ).get_revlog()
+    if not revlog.configs.feature.link_revs:
+        return 2
+    # NOTE: we will need to provide appropriate public method on the inner
+    # revlog when we start to have more than just a Python implementation.
+    if dump_raw:
+        idx = 0
+        for link_revs, next_idx in revlog_debug.raw_link_revs(revlog):
+            ui.write(b"%d: %d %d\n" % (idx, link_revs, next_idx))
+            idx += 1
+    else:
+        debug_data = revlog_debug.link_revs(revlog)
+        for rev, lk, idx, link_revs in debug_data:
+            ui.write(b"%d: %d (%d)\n" % (rev, lk, idx))
+            for lk in link_revs:
+                ui.write(b"  - %d\n" % lk)
+
+
+@command(
     b'debuglocks',
     [
         (b'L', b'force-free-lock', None, _(b'free the store lock (DANGEROUS)')),
@@ -3709,7 +3774,7 @@ def debugsidedata(ui, repo, file_, rev=None, **opts):
     r = cmdutil.openstorage(
         repo, b'debugdata', file_, pycompat.byteskwargs(opts)
     )
-    r = getattr(r, '_revlog', r)
+    r = r.get_revlog()
     try:
         sidedata = r.sidedata(r.lookup(rev))
     except KeyError:

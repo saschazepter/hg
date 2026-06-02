@@ -1140,6 +1140,8 @@ default = false
 # * introduce a proper solution to reduce the number of filelog related files.
 # * use caching for reading sidedata (similar to what we do for data).
 # * no longer set offset=0 if sidedata_size=0 (simplify cutoff computation).
+# * remove the duplication between "linkrev" and the first entry in "linkrevs"
+# * finalize the disk format of the "linkrevs" entries.
 # * Improvement to consider
 #   - avoid compression header in chunk using the default compression?
 #   - forbid "inline" compression mode entirely?

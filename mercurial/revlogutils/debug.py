@@ -15,6 +15,14 @@ import string
 import tempfile
 import time
 
+from typing import (
+    Iterator,
+)
+
+from ..interfaces.types import (
+    RevnumT,
+)
+
 from .. import (
     error,
     mdiff,
@@ -324,6 +332,32 @@ def dump(ui, revlog):
                 len(heads),
                 clen,
             )
+        )
+
+
+def raw_link_revs(revlog) -> Iterator[tuple[RevnumT, int]]:
+    """return the raw data from the link_revs block"""
+    assert revlog.configs.feature.link_revs
+    inner = revlog._inner
+    docket = revlog._inner.docket
+    lk_end = docket.get_end(docket.FT.LINK_REVS)
+    idx = 0
+    while idx * constants.S_LINK_REVS.size < lk_end:
+        yield inner._read_one_lkr(idx)
+        idx += 1
+
+
+def link_revs(revlog) -> Iterator[tuple[RevnumT, RevnumT, int, list[int]]]:
+    """return an iterator over (rev, linkrev, last-idx, [link-revs, …])"""
+    inner = revlog._inner
+    index = revlog.index
+    assert revlog.configs.feature.link_revs
+    for rev in range(0, len(index)):
+        yield (
+            rev,
+            index.linkrev(rev),
+            index.link_revs_last_idx(rev),
+            inner.link_revs(rev),
         )
 
 

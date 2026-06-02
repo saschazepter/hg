@@ -226,6 +226,7 @@ Show debug commands if there are no other candidates
   debug::fast-upgrade
   debug::file-index
   debug::is-ancestor
+  debug::link-revs
   debug::revlog-reencoded-delta-info
   debug::stable-tail-info
   debug::stable-tail-sort
@@ -437,6 +438,7 @@ Show all commands + options
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
   debug::is-ancestor: 
+  debug::link-revs: changelog, manifest, dir, dump-raw
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
   debug::stable-tail-info: naive, display-revs
   debug::stable-tail-sort: template, limit, naive

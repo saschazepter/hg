@@ -67,6 +67,9 @@ class FeatureConfig(_Config):
     # keep track of revision's children in the index
     children = attr.ib(default=False, type=bool)
 
+    # track all link-revs, not just the first one
+    link_revs = attr.ib(default=False, type=bool)
+
     # use a persistent nodemap
     persistent_nodemap = attr.ib(default=False, type=bool)
 

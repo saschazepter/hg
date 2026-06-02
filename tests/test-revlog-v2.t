@@ -91,6 +91,7 @@ We should have have:
   .hg/store/00manifest-7f2eb713.dat
   .hg/store/00manifest-88163688.i01
   .hg/store/00manifest-9b3fc813.i02
+  .hg/store/00manifest-a2b86225.lkr
   .hg/store/00manifest.i
 
 Local clone works
@@ -264,3 +265,48 @@ Store a file with multiple version of itself
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     initial
   
+
+Checking on disk data
+.....................
+
+The recorded data should make sense.
+
+  $ hg debug::link-revs -m
+  0: 0 (0)
+    - 0
+  1: 1 (5)
+    - 5
+    - 2
+    - 1
+  2: 3 (6)
+    - 6
+    - 4
+    - 3
+  $ hg debug::link-revs --dump-raw -m
+  0: 0 0
+  1: 1 1
+  2: 2 1
+  3: 3 3
+  4: 4 3
+  5: 5 2
+  6: 6 4
+
+  $ hg debug::link-revs foo
+  0: 0 (0)
+    - 0
+  1: 1 (5)
+    - 5
+    - 2
+    - 1
+  2: 3 (6)
+    - 6
+    - 4
+    - 3
+  $ hg debug::link-revs --dump-raw foo
+  0: 0 0
+  1: 1 1
+  2: 2 1
+  3: 3 3
+  4: 4 3
+  5: 5 2
+  6: 6 4

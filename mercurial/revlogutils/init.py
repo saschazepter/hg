@@ -235,6 +235,7 @@ def load_entry_point(
             # main docket, so disable it for now.
             configs.feature.persistent_nodemap = False
 
+    configs.feature.link_revs = features['track_all_link_revs']
     configs.feature.children = features['track_children']
 
     configs.finalize()

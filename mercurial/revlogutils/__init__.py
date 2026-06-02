@@ -83,6 +83,13 @@ class RevlogEntry:
     node_id = attr.ib(type=NodeIdT)
     data_offset = attr.ib(type=int)
     flags = attr.ib(type=int, default=0)
+
+    link_revs_last_idx = attr.ib(type=RevnumT, default=None)
+    """Index of head of the rev "link-revs" linked list in the associated block
+
+    Set to None when the feature is not supported.
+    """
+
     data_uncompressed_length = attr.ib(type=Optional[int], default=None)
     data_compression_mode = attr.ib(type=CompModeT, default=COMP_MODE_INLINE)
     sidedata_offset = attr.ib(type=Optional[int], default=None)

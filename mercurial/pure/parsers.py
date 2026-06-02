@@ -1426,8 +1426,8 @@ class Index2(MultiBlockIndex):
         data: tuple[bytes, ...],
     ) -> revlogutils.RevlogEntry:
         pieces = tuple(f.unpack(d) for f, d in zip(cls._index_formats, data))
-        data_comp = pieces[1][2] & 3
-        sidedata_comp = (pieces[1][2] & (3 << 2)) >> 2
+        data_comp = pieces[1][3] & 3
+        sidedata_comp = (pieces[1][3] & (3 << 2)) >> 2
 
         return revlogutils.RevlogEntry(
             flags=pieces[0][0] & 0xFFFF,
@@ -1441,6 +1441,7 @@ class Index2(MultiBlockIndex):
             node_id=pieces[0][7],
             sidedata_offset=pieces[1][0],
             sidedata_compressed_length=pieces[1][1],
+            link_revs_last_idx=pieces[1][2],
             data_compression_mode=data_comp,
             sidedata_compression_mode=sidedata_comp,
         )
@@ -1465,11 +1466,30 @@ class Index2(MultiBlockIndex):
             (
                 entry.sidedata_offset,
                 entry.sidedata_compressed_length,
+                entry.link_revs_last_idx,
                 (entry.data_compression_mode & 3)
                 | ((entry.sidedata_compression_mode & 3) << 2),
             ),
         )
         return tuple(f.pack(*d) for f, d in zip(cls._index_formats, pieces))
+
+    def link_revs_last_idx(self, rev: RevnumT) -> int:
+        """index of last index "link-revs" entry in the "link-revs block"
+
+        Each entry in the "link-revs" block will point to the previous block,
+        creating a linked list. The index returned by this function is the
+        "head" of such linked lists
+        """
+        return self._rich_entry(rev).link_revs_last_idx
+
+    def update_link_revs_last_idx(self, rev, idx) -> tuple[bytes | None, ...]:
+        """update the index of the "link-revs" head entry for this revision
+
+        This is used when appending a new block to the linked list.
+        """
+        e = self._rich_entry(rev)
+        e.link_revs_last_idx = idx
+        return self._update(rev, e, (False, True))
 
 
 class IndexChangelogV2(Index2):

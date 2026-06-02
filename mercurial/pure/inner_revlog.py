@@ -39,6 +39,7 @@ from ..revlogutils.constants import (
     KIND_MANIFESTLOG,
     REVIDX_DELTA_IS_SNAPSHOT,
     STR_SPLIT,
+    S_LINK_REVS,
     V2FileType,
 )
 from ..interfaces import compression as i_comp
@@ -1604,6 +1605,9 @@ class InnerRevlogV2(BaseInnerRevlog):
             assert (split_data_size % STR_SPLIT.size) == 0
             entry.sts_split_count = split_data_size // STR_SPLIT.size
 
+        if self.feature_config.link_revs:
+            self._register_first_link_rev(entry, link)
+
         for ft, fh in sorted(self._writinghandles.items()):
             pos = docket.get_end(ft)
             fh.seek(pos, os.SEEK_SET)
@@ -1621,6 +1625,90 @@ class InnerRevlogV2(BaseInnerRevlog):
             self._writinghandles[ft].write(bin_piece)
         for ft, fh in sorted(self._writinghandles.items()):
             self.docket.set_end(ft, fh.tell())
+
+    def register_extra_link_rev(
+        self,
+        transaction: TransactionT,
+        rev: RevnumT,
+        linkrev: RevnumT,
+    ) -> None:
+        """register a new link_rev entry for a revision already known in the
+        repository.
+
+        Among other things, this will update the index entry of a revision
+        already known to this revlog.
+        """
+        assert self.is_writing
+        FT_LR = self.docket.FT.LINK_REVS
+        assert FT_LR in self._active_fts
+        offset = self.docket.get_end(FT_LR)
+        fh = self._writinghandles[FT_LR]
+        fh.seek(offset, os.SEEK_SET)
+
+        prev_idx = self.index.link_revs_last_idx(rev)
+        this_idx = offset // S_LINK_REVS.size
+        data = S_LINK_REVS.pack(linkrev, prev_idx)
+        fh.write(data)
+        self.docket.set_end(FT_LR, offset + S_LINK_REVS.size)
+        idx_bins = self.index.update_link_revs_last_idx(rev, this_idx)
+        self._rewrite_index(transaction, rev, idx_bins)
+
+    def _register_first_link_rev(
+        self,
+        entry: revlogutils.RevlogEntry,
+        linkrev: RevnumT,
+    ) -> None:
+        """Store the first link-rev of a revision in the "linkrevs" block.
+
+        NOTE: This is redundant with the "linkrev" value stored in the fixed
+        size index. The data is currently duplicated for simplicity, but we
+        should remove the duplicate one way or the other before freezing the
+        format.
+        """
+        FT_LR = self.docket.FT.LINK_REVS
+        assert FT_LR in self._active_fts
+        offset = self.docket.get_end(FT_LR)
+        fh = self._writinghandles[FT_LR]
+        fh.seek(offset, os.SEEK_SET)
+        this_idx = offset // S_LINK_REVS.size
+        data = S_LINK_REVS.pack(linkrev, this_idx)
+        fh.write(data)
+        entry.link_revs_last_idx = this_idx
+        self.docket.set_end(FT_LR, offset + S_LINK_REVS.size)
+
+    def link_revs(self, rev: RevnumT) -> list[RevnumT] | None:
+        """return all known changelog revision that introduce this rev
+
+        return None if the feature is unsupported.
+
+        This is only relevant for manifest and filelog revisions.
+        """
+        if not self.feature_config.link_revs:
+            return None
+        if rev == nullrev:
+            return [nullrev]
+        idx = self.index.link_revs_last_idx(rev)
+        link_revs = []
+        while True:
+            (lrev, next_idx) = self._read_one_lkr(idx)
+            link_revs.append(lrev)
+            if next_idx == idx:
+                break
+            idx = next_idx
+        # NOTE: we could yield values instead of returning a list.
+        return link_revs
+
+    def _read_one_lkr(self, idx: int) -> tuple[RevnumT, int]:
+        """return the "link-revs" entry at index "idx"
+
+        Used internally by other algorithm
+        """
+        fh = self._segment_files[self.docket.FT.LINK_REVS]
+        offset = idx * S_LINK_REVS.size
+        raw = fh.read_chunk(offset, S_LINK_REVS.size)
+        (lrev, next_idx) = S_LINK_REVS.unpack(raw)
+        assert next_idx <= idx
+        return (lrev, next_idx)
 
     def rewrite_sidedata(self, transaction: TransactionT, new_info):
         assert self.is_writing

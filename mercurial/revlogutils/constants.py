@@ -206,11 +206,12 @@ assert INDEX_ENTRY_V1.size == 32 * 2
 # Part 2:
 #   * 8 bytes: sidedata offset
 #   * 4 bytes: sidedata compressed length
+#   * 4 bytes: index of the latest linkrevs info for that revision
 #   * 1 bytes: compression mode (2 lower bit are data_compression_mode)
-#   * 19 bytes: Padding to align to 32 bytes (see RevlogV2Plan wiki page)
+#   * 15 bytes: Padding to align to 32 bytes (see RevlogV2Plan wiki page)
 INDEX_ENTRY_V2: tuple[struct.Struct, ...] = (
     struct.Struct(b">Qiiiiii20s12x"),
-    struct.Struct(b">QiB19x"),
+    struct.Struct(b">QiiB15x"),
 )
 
 assert INDEX_ENTRY_V2[0].size == 32 * 2, INDEX_ENTRY_V2[0].size
@@ -375,6 +376,7 @@ class V2FileType(enum.IntEnum):
     DATA = 64
     SIDEDATA = 65
     CHANGED_FILES = 66
+    LINK_REVS = 67
     STS_SPLIT = 68
 
     @property
@@ -399,6 +401,7 @@ V2_FILE_TYPE_EXT = {
     V2FileType.DATA: b'dat',
     V2FileType.SIDEDATA: b'sda',
     V2FileType.CHANGED_FILES: b'cgf',
+    V2FileType.LINK_REVS: b'lkr',
     V2FileType.STS_SPLIT: b'str',
 }
 
@@ -411,6 +414,7 @@ if typing.TYPE_CHECKING:
         generaldelta: _FromFlagsFnc
         hasmeta_flag: _FromFlagsFnc
         track_children: bool
+        track_all_link_revs: bool
         sidedata: bool
         docket: bool
         delta_info: _FromFlagsFnc
@@ -424,6 +428,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'hasmeta_flag': _no,
         'delta_info': _no,
         'track_children': False,
+        'track_all_link_revs': False,
         'sidedata': False,
         'docket': False,
         'active_file_types': (),
@@ -434,6 +439,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'hasmeta_flag': _from_flag(FLAG_FILELOG_META),
         'delta_info': _from_flag(FLAG_DELTA_INFO),
         'track_children': False,
+        'track_all_link_revs': False,
         'sidedata': False,
         'docket': False,
         'active_file_types': (),
@@ -447,6 +453,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'hasmeta_flag': _no,  # Should become yes at some point
         'delta_info': _no,  # XXX we should make that True at some point
         'track_children': False,
+        'track_all_link_revs': True,
         'sidedata': True,
         'docket': True,
         'active_file_types': (
@@ -454,6 +461,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
             V2FileType.INDEX2,
             V2FileType.DATA,
             V2FileType.SIDEDATA,
+            V2FileType.LINK_REVS,
         ),
     },
     CHANGELOGV2: {
@@ -463,6 +471,7 @@ FEATURES_BY_VERSION: dict[int, RevlogFeatures] = {
         'hasmeta_flag': _no,  # Should become yes at some point
         'delta_info': _no,
         'track_children': True,
+        'track_all_link_revs': False,
         'sidedata': True,
         'docket': True,
         'active_file_types': (
@@ -504,3 +513,16 @@ FILELOG_HASMETA_DOWNGRADE = 2
 # (not strickly revlog related, but used most for revlog)
 META_MARKER = b'\x01\n'
 META_MARKER_SIZE = len(META_MARKER)
+
+# Struct for a "link-revs" entry.
+#
+# * 4 bytes: "value": one "link-rev" value
+# * 4 bytes: "next": the index of the next entry in the chain
+#
+# If "next" point to the current entry, this is the end of the "link-revs"
+# list.
+#
+# NOTE: we could use a "relative index" for "next". This would allow to store
+# the value on a shorter integer, possibly with a special link when the
+# relative index is too far away.
+S_LINK_REVS = struct.Struct(b"ii")
