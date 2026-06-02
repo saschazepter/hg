@@ -26,7 +26,7 @@ gethgversion() {
     export HGPLAIN=
 
     make cleanbutpackages PYTHON=$python
-    make local PURE=--pure PYTHON=$python
+    make local FLAVOR=--pure PYTHON=$python
     HG="$PWD/hg"
 
     $python "$HG" version > /dev/null || { echo 'abort: hg version failed!'; exit 1 ; }

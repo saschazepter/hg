@@ -105,14 +105,14 @@ make install DESTDIR=$RPM_BUILD_ROOT
 rm -f %{buildroot}%{hgpyprefix}/lib/{,python2.*/config}/libpython2.*.a
 cd -
 
-PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PIP_PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} PREFIX=%{hgpyprefix} MANDIR=%{_mandir} PURE="--rust"
+PATH=$PYPATH:$PATH LD_LIBRARY_PATH=$PYPATH make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PIP_PREFIX=$RPM_BUILD_ROOT/%{hgpyprefix} PREFIX=%{hgpyprefix} MANDIR=%{_mandir} FLAVOR="--rust"
 mkdir -p $RPM_BUILD_ROOT%{_bindir}
 ( cd $RPM_BUILD_ROOT%{_bindir}/ && ln -s ../..%{hgpyprefix}/bin/hg . )
 pathfix.py -n -i %{hgpyprefix}/bin/python3 $(readlink -f $RPM_BUILD_ROOT%{_bindir}/hg)
 
 %else
 PYTHON_FULLPATH=$(which python3)
-make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PREFIX=$RPM_BUILD_ROOT/%{_prefix} MANDIR=%{_mandir} PURE="--rust"
+make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PREFIX=$RPM_BUILD_ROOT/%{_prefix} MANDIR=%{_mandir} FLAVOR="--rust"
 
 %endif
 

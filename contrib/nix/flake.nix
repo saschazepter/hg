@@ -130,7 +130,7 @@
       );
 
       makeFlags = (super.makeFlags or []) ++ [
-        "PURE=--rust"
+        "FLAVOR=--rust"
       ];
     });
 

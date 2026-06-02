@@ -29,7 +29,7 @@ Local use (you need to clean previous build artifacts if you have
 built without rust previously):
 
 ```shell
-  $ make PURE=--rust local # to use ./hg
+  $ make FLAVOR=--rust local # to use ./hg
   $ ./tests/run-tests.py --rust # to run all tests
   $ ./hg debuginstall | grep -i rust # to validate rust is in use
   checking Rust extensions (installed)
@@ -76,7 +76,7 @@ time to the python interpreter instead of python functions).
 Example usage:
 
 ```shell
-  $ make PURE=--rust local # Don't forget to recompile after a code change
+  $ make FLAVOR=--rust local # Don't forget to recompile after a code change
   $ py-spy record --native --output /tmp/profile.svg -- ./hg ...
 ```
 
@@ -124,7 +124,7 @@ overridden via the `HG_TRACE_PATH` environment variable.
 Example:
 
 ```shell
-  $ HG_RUST_FEATURES="full-tracing" make local PURE=--rust
+  $ HG_RUST_FEATURES="full-tracing" make local FLAVOR=--rust
   $ HG_TRACE_PATH=/tmp/trace.json RUST_LOG=debug ./hg-local st > /dev/null
 ```
 
