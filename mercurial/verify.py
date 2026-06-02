@@ -491,9 +491,13 @@ class verifier:
             for f in undecodable:
                 self._err(None, _(b"cannot decode filename '%s'") % f)
 
+        ml = self.repo.manifestlog.getstorage(b"").get_revlog()
+
         state = {
-            # TODO this assumes revlog storage for changelog.
-            b'expectedversion': self.repo.changelog._format_version,
+            # For now, we don't have a format where the manifestlog version is
+            # different from the filelog version. This will change in the
+            # future but is good enough for now.
+            b'expectedversion': ml._format_version,
             b'skipflags': self.skipflags,
             # experimental config: censor.policy
             b'erroroncensored': ui.config(b'censor', b'policy') == b'abort',
