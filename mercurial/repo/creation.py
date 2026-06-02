@@ -187,6 +187,8 @@ def new_repo_requirements(ui, createopts):
         requirements.discard(requirementsmod.REVLOGV1_REQUIREMENT)
         requirements.discard(requirementsmod.FNCACHE_REQUIREMENT)
         requirements.discard(requirementsmod.DOTENCODE_REQUIREMENT)
+        requirements.add(requirementsmod.CHANGELOGV2_REQUIREMENT)
+        requirements.add(requirementsmod.COPIESSDC_REQUIREMENT)
     # experimental config: format.internal-phase
     if ui.configbool(b'format', b'use-internal-phase'):
         requirements.add(requirementsmod.INTERNAL_PHASE_REQUIREMENT)

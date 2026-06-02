@@ -2061,7 +2061,7 @@ upgrade
      preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
      preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
      removed: dotencode, fncache, revlogv1
-     added: exp-revlogv2.2, fileindex-v1
+     added: exp-changelog-v2, exp-copies-sidedata-changeset, exp-revlogv2.2, fileindex-v1
   
   processed revlogs:
     - all-filelogs
@@ -2082,14 +2082,16 @@ upgrade
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:             yes    yes      no (rust !)
-  copies-sdc:                      no     no      no
+  copies-sdc:                     yes     no      no
   revlog-v2:                      yes     no      no
-  changelog-v2:                    no     no      no
+  changelog-v2:                   yes     no      no
   plain-cl-delta:                 yes    yes     yes
   compression:                    zlib   zlib    zlib (no-zstd !)
   compression:                    zstd   zstd    zstd (zstd !)
   compression-level:              default default default
   $ hg debugrequires
+  exp-changelog-v2
+  exp-copies-sidedata-changeset
   exp-revlogv2.2
   fileindex-v1
   generaldelta
@@ -2115,7 +2117,7 @@ downgrade
      preserved: generaldelta, share-safe, sparserevlog, store (no-zstd !)
      preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
      preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
-     removed: exp-revlogv2.2, fileindex-v1
+     removed: exp-changelog-v2, exp-copies-sidedata-changeset, exp-revlogv2.2, fileindex-v1
      added: dotencode, fncache, revlogv1
   
   processed revlogs:
@@ -2170,7 +2172,7 @@ upgrade from hgrc
      preserved: generaldelta, revlog-compression-zstd, share-safe, sparserevlog, store (zstd no-rust !)
      preserved: generaldelta, persistent-nodemap, revlog-compression-zstd, share-safe, sparserevlog, store (rust !)
      removed: dotencode, fncache, revlogv1
-     added: exp-revlogv2.2, fileindex-v1
+     added: exp-changelog-v2, exp-copies-sidedata-changeset, exp-revlogv2.2, fileindex-v1
   
   processed revlogs:
     - all-filelogs
@@ -2191,14 +2193,16 @@ upgrade from hgrc
   delta-info-flags:                no     no      no
   persistent-nodemap:              no     no      no (no-rust !)
   persistent-nodemap:             yes    yes      no (rust !)
-  copies-sdc:                      no     no      no
+  copies-sdc:                     yes    yes      no
   revlog-v2:                      yes    yes      no
-  changelog-v2:                    no     no      no
+  changelog-v2:                   yes    yes      no
   plain-cl-delta:                 yes    yes     yes
   compression:                    zlib   zlib    zlib (no-zstd !)
   compression:                    zstd   zstd    zstd (zstd !)
   compression-level:              default default default
   $ hg debugrequires
+  exp-changelog-v2
+  exp-copies-sidedata-changeset
   exp-revlogv2.2
   fileindex-v1
   generaldelta
