@@ -125,3 +125,142 @@ hg verify should be happy
   $ hg verify -q
 
   $ hg verify -R ../cloned-repo -q
+
+
+Link revs are properly tracked
+=============================
+
+Store a file with multiple version of itself
+
+  $ echo babar > foo
+  $ hg -q commit -m first-left
+  $ hg up --quiet '.~1'
+  $ echo babar > foo
+  $ hg -q commit -m first-right
+  $ echo celeste > foo
+  $ hg -q commit -m second-right
+  $ hg up 'desc("first-left")'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ echo celeste > foo
+  $ hg -q commit -m second-left
+  $ hg up --quiet 'desc(initial)'
+  $ echo babar > foo
+  $ hg -q commit -m first-middle
+  $ echo celeste > foo
+  $ hg -q commit -m second-middle
+  $ hg up null
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ hg log -Gv
+  o  changeset:   6:bdd5c2bd9da1
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  files:       foo
+  |  description:
+  |  second-middle
+  |
+  |
+  o  changeset:   5:abfa5d7b3859
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  files:       foo
+  |  description:
+  |  first-middle
+  |
+  |
+  | o  changeset:   4:1817c66e5efc
+  | |  parent:      1:3cd31802617e
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  files:       foo
+  | |  description:
+  | |  second-left
+  | |
+  | |
+  | | o  changeset:   3:5e3d11883c7b
+  | | |  user:        test
+  | | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | | |  files:       foo
+  | | |  description:
+  | | |  second-right
+  | | |
+  | | |
+  +---o  changeset:   2:fa1eb91ce219
+  | |    parent:      0:96ee1d7354c4
+  | |    user:        test
+  | |    date:        Thu Jan 01 00:00:00 1970 +0000
+  | |    files:       foo
+  | |    description:
+  | |    first-right
+  | |
+  | |
+  | o  changeset:   1:3cd31802617e
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    files:       foo
+  |    description:
+  |    first-left
+  |
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     files:       foo
+     description:
+     initial
+  
+  
+
+  $ hg log -G --rev 'desc("second-left")' foo --follow
+  o  changeset:   4:1817c66e5efc
+  |  parent:      1:3cd31802617e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     second-left
+  |
+  o  changeset:   1:3cd31802617e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-left
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+  $ hg log -G --rev 'desc("second-right")' foo --follow
+  o  changeset:   3:5e3d11883c7b
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     second-right
+  |
+  o  changeset:   2:fa1eb91ce219
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-right
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+  $ hg log -G --rev 'desc("second-middle")' foo --follow
+  o  changeset:   6:bdd5c2bd9da1
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     second-middle
+  |
+  o  changeset:   5:abfa5d7b3859
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-middle
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
