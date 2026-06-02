@@ -646,25 +646,18 @@ class changelog(revlog.revlog):
 
             if link_revs:
                 with ml._writing(tr):
-                    index = ml.index
-                    for node, cl_rev in ml_link_revs:
-                        rev = ml.rev(node)
-                        # the lowest link_rev was properly recorded, the
-                        # missing one are the extra link-revs.
-                        if index.linkrev(rev) != cl_rev:
-                            ml._inner.register_extra_link_rev(tr, rev, cl_rev)
+                    ml._inner.apply_link_revs_post_process(
+                        tr,
+                        ml_link_revs,
+                    )
 
                 for filename in sorted(fl_link_revs):
                     fl = repo.file(filename, writable=True).get_revlog()
                     with fl._writing(tr):
-                        index = fl.index
-                        inner = fl._inner
-                        for node, cl_rev in fl_link_revs[filename]:
-                            rev = fl.rev(node)
-                            # the lowest link_rev was properly recorded, the
-                            # missing one are the extra link-revs.
-                            if index.linkrev(rev) != cl_rev:
-                                inner.register_extra_link_rev(tr, rev, cl_rev)
+                        fl._inner.apply_link_revs_post_process(
+                            tr,
+                            fl_link_revs[filename],
+                        )
 
     def branchinfo(self, rev):
         """return the branch name and open/close state of a revision

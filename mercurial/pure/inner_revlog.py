@@ -16,6 +16,7 @@ import zlib
 
 from typing import (
     Callable,
+    Iterable,
     Iterator,
     Mapping,
     cast,
@@ -28,6 +29,7 @@ from ..node import (
 from ..i18n import _
 from ..interfaces.types import (
     HgPathT,
+    NodeIdT,
     RevnumT,
     TransactionT,
 )
@@ -1676,6 +1678,19 @@ class InnerRevlogV2(BaseInnerRevlog):
         entry.link_revs_last_idx = this_idx
         self.docket.set_end(FT_LR, offset + S_LINK_REVS.size)
 
+    def apply_link_revs_post_process(
+        self,
+        transaction: TransactionT,
+        updates: Iterable[tuple[NodeIdT, RevnumT]],
+    ) -> None:
+        index = self.index
+        for node, cl_rev in updates:
+            rev = index.rev(node)
+            # the lowest link_rev was properly recorded, the
+            # missing one are the extra link-revs.
+            if index.linkrev(rev) != cl_rev:
+                self.register_extra_link_rev(transaction, rev, cl_rev)
+
     def link_revs(self, rev: RevnumT) -> list[RevnumT] | None:
         """return all known changelog revision that introduce this rev
 
@@ -1810,6 +1825,10 @@ class InnerRevlogV2(BaseInnerRevlog):
             return True
         elif size == 0:
             return False
+        elif self.feature_config.link_revs:
+            tip_rev = size - 1
+            idx = self.index.link_revs_last_idx(tip_rev)
+            return self._read_one_lkr(idx)[0] >= min_link
         return False
 
     def _strip_after(self, transaction, rev, min_link):
@@ -1817,6 +1836,9 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         It remove all revisions after `rev`."""
         docket = self.docket
+
+        if self.feature_config.link_revs:
+            lkr_updates, lkr_cutoff = self._strip_precomp_link_revs(min_link)
 
         if rev < len(self):
             if self.feature_config.children:
@@ -1837,6 +1859,10 @@ class InnerRevlogV2(BaseInnerRevlog):
 
             if self.feature_config.children:
                 self._strip_apply_children(transaction, children_updates)
+        if self.feature_config.link_revs:
+            docket.set_end(self.docket.FT.LINK_REVS, lkr_cutoff)
+            transaction.add(docket.filepath(docket.FT.LINK_REVS), lkr_cutoff)
+            self._strip_apply_link_revs(transaction, lkr_updates)
         self.docket.write(transaction, stripping=True)
 
     def _strip_precomp_children(
@@ -1920,6 +1946,44 @@ class InnerRevlogV2(BaseInnerRevlog):
                 assert bins is not None
 
                 self._rewrite_index(transaction, u_rev, bins)
+
+    def _strip_precomp_link_revs(
+        self,
+        strip_rev: RevnumT,
+    ) -> tuple[Mapping[int, int], int]:
+        """precompute "link-revs" update for a strip operation"""
+        updates = {}
+        initial_indexes = {}
+
+        lkr_end = self.docket.get_end(self.docket.FT.LINK_REVS)
+        cut_idx = lkr_end // S_LINK_REVS.size
+        cursor = cut_idx - 1
+        while (
+            cursor >= 0 and (item := self._read_one_lkr(cursor))[0] >= strip_rev
+        ):
+            (lrev, next_idx) = item
+            old_idx = initial_indexes.get(cursor, cursor)
+            initial_indexes[next_idx] = old_idx
+            updates[old_idx] = next_idx
+            cut_idx = cursor
+            cursor -= 1
+        cutoff = cut_idx * S_LINK_REVS.size
+        return (updates, cutoff)
+
+    def _strip_apply_link_revs(
+        self,
+        transaction: TransactionT,
+        updates: Mapping[int, int],
+    ) -> None:
+        index = self.index
+        if not updates:
+            return
+        with self._writing(transaction):
+            for rev in range(len(index)):
+                old_idx = index.link_revs_last_idx(rev)
+                if (new_idx := updates.get(old_idx)) is not None:
+                    idx_bins = index.update_link_revs_last_idx(rev, new_idx)
+                    self._rewrite_index(transaction, rev, idx_bins)
 
     def file_cutoffs(self, first_excl_rev):
         docket = self.docket

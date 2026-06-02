@@ -499,3 +499,72 @@ not strictly monotonous. This will cause use trouble when stripping.
   4: 4 2 (known-bad-output !)
   5: 5 3 (known-bad-output !)
   6: 6 4
+
+Test link-revs adjustement on stripping
+---------------------------------------
+
+  $ cd ../simple
+  $ hg debugstrip --rev 'desc("second-left"):' --no-backup
+  $ hg log -G --rev 'desc("first-left")' foo --follow
+  o  changeset:   1:3cd31802617e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-left
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+  $ hg log -G --rev 'desc("second-right")' foo --follow
+  o  changeset:   3:5e3d11883c7b
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     second-right
+  |
+  o  changeset:   2:fa1eb91ce219
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-right
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+
+Checking on disk data
+.....................
+
+They should no longer points to stripped revisions.
+
+  $ hg debug::link-revs -m
+  0: 0 (0)
+    - 0
+  1: 1 (2)
+    - 2
+    - 1
+  2: 3 (3)
+    - 3
+  $ hg debug::link-revs --dump-raw -m
+  0: 0 0
+  1: 1 1
+  2: 2 1
+  3: 3 3
+
+  $ hg debug::link-revs foo
+  0: 0 (0)
+    - 0
+  1: 1 (2)
+    - 2
+    - 1
+  2: 3 (3)
+    - 3
+  $ hg debug::link-revs --dump-raw foo
+  0: 0 0
+  1: 1 1
+  2: 2 1
+  3: 3 3
+
