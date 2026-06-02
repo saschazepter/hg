@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import collections
 import typing
 
 from .i18n import _
@@ -602,13 +603,38 @@ class changelog(revlog.revlog):
         """
         assert repo.filtername is None
         if (start := self._missing_changed_files_start) is not None:
+            ml = repo.manifestlog.getstorage(b"").get_revlog()
+            link_revs = ml.configs.feature.link_revs
+
+            # sequential update to the link-rev information of other revlogs.
+            # We keep them sequential to keep the same order as a local
+            # incremental creation. This seems a useful property to perserve
+            # for now.
+            ml_link_revs = []
+            fl_link_revs = collections.defaultdict(list)
+
             assert start >= 0, start
             tr = repo.currenttransaction()
             with self._writing(tr):
 
                 def data_iter():
                     for rev in self.revs(start):
-                        files = metadata.compute_all_files_changes(repo[rev])
+                        ctx = repo[rev]
+                        files = metadata.compute_all_files_changes(ctx)
+                        if link_revs:
+                            # The linkrev processing is expected to be slow but
+                            # correct, we should make it faster at some point.
+                            manifest_node = ctx.manifestnode()
+                            parent_nodes = [
+                                p.manifestnode() for p in ctx.parents()
+                            ]
+                            if manifest_node not in parent_nodes:
+                                ml_link_revs.append((manifest_node, rev))
+                            for filename in sorted(
+                                files.touched - files.removed
+                            ):
+                                file_node = ctx[filename].filenode()
+                                fl_link_revs[filename].append((file_node, rev))
                         yield (
                             rev,
                             files.has_copies_info,
@@ -617,6 +643,28 @@ class changelog(revlog.revlog):
 
                 self._inner.add_changed_files(tr, data_iter())
                 self._missing_changed_files_start = None
+
+            if link_revs:
+                with ml._writing(tr):
+                    index = ml.index
+                    for node, cl_rev in ml_link_revs:
+                        rev = ml.rev(node)
+                        # the lowest link_rev was properly recorded, the
+                        # missing one are the extra link-revs.
+                        if index.linkrev(rev) != cl_rev:
+                            ml._inner.register_extra_link_rev(tr, rev, cl_rev)
+
+                for filename in sorted(fl_link_revs):
+                    fl = repo.file(filename, writable=True).get_revlog()
+                    with fl._writing(tr):
+                        index = fl.index
+                        inner = fl._inner
+                        for node, cl_rev in fl_link_revs[filename]:
+                            rev = fl.rev(node)
+                            # the lowest link_rev was properly recorded, the
+                            # missing one are the extra link-revs.
+                            if index.linkrev(rev) != cl_rev:
+                                inner.register_extra_link_rev(tr, rev, cl_rev)
 
     def branchinfo(self, rev):
         """return the branch name and open/close state of a revision

@@ -310,3 +310,192 @@ The recorded data should make sense.
   4: 4 3
   5: 5 2
   6: 6 4
+
+unbundling an old bundle should result is correct data on disk
+--------------------------------------------------------------
+
+  $ hg bundle --all --type none-v3 ../all.hg
+  7 changesets found
+  $ cd ..
+
+  $ hg init unbundled-repo
+  $ cd unbundled-repo
+  $ hg unbundle ../all.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 3 changes to 1 files (+2 heads)
+  new changesets 96ee1d7354c4:bdd5c2bd9da1 (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+  $ hg log -Gv
+  o  changeset:   6:bdd5c2bd9da1
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  files:       foo
+  |  description:
+  |  second-middle
+  |
+  |
+  o  changeset:   5:abfa5d7b3859
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  files:       foo
+  |  description:
+  |  first-middle
+  |
+  |
+  | o  changeset:   4:1817c66e5efc
+  | |  parent:      1:3cd31802617e
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  files:       foo
+  | |  description:
+  | |  second-left
+  | |
+  | |
+  | | o  changeset:   3:5e3d11883c7b
+  | | |  user:        test
+  | | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | | |  files:       foo
+  | | |  description:
+  | | |  second-right
+  | | |
+  | | |
+  +---o  changeset:   2:fa1eb91ce219
+  | |    parent:      0:96ee1d7354c4
+  | |    user:        test
+  | |    date:        Thu Jan 01 00:00:00 1970 +0000
+  | |    files:       foo
+  | |    description:
+  | |    first-right
+  | |
+  | |
+  | o  changeset:   1:3cd31802617e
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    files:       foo
+  |    description:
+  |    first-left
+  |
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     files:       foo
+     description:
+     initial
+  
+  
+
+  $ hg log -G --rev 'desc("second-left")' foo --follow
+  o  changeset:   4:1817c66e5efc
+  |  parent:      1:3cd31802617e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     second-left
+  |
+  o  changeset:   1:3cd31802617e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-left
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+  $ hg log -G --rev 'desc("second-right")' foo --follow
+  o  changeset:   3:5e3d11883c7b
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     second-right
+  |
+  o  changeset:   2:fa1eb91ce219
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-right
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+  $ hg log -G --rev 'desc("second-middle")' foo --follow
+  o  changeset:   6:bdd5c2bd9da1
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     second-middle
+  |
+  o  changeset:   5:abfa5d7b3859
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-middle
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+
+Checking the recorded data
+..........................
+
+We need to ensure the data are updated, and that the raw data are properly
+ordered.
+
+XXX The ordering is currently wrong as the link-rev entry in the raw block are
+not strictly monotonous. This will cause use trouble when stripping.
+
+  $ hg debug::link-revs -m
+  0: 0 (0)
+    - 0
+  1: 1 (5)
+    - 5
+    - 2
+    - 1
+  2: 3 (6)
+    - 6
+    - 4
+    - 3
+  $ hg debug::link-revs --dump-raw -m
+  0: 0 0
+  1: 1 1
+  2: 2 1 (missing-correct-output !)
+  3: 3 3 (missing-correct-output !)
+  4: 4 3 (missing-correct-output !)
+  5: 5 2 (missing-correct-output !)
+  2: 3 2 (known-bad-output !)
+  3: 2 1 (known-bad-output !)
+  4: 4 2 (known-bad-output !)
+  5: 5 3 (known-bad-output !)
+  6: 6 4
+
+
+  $ hg debug::link-revs foo
+  0: 0 (0)
+    - 0
+  1: 1 (5)
+    - 5
+    - 2
+    - 1
+  2: 3 (6)
+    - 6
+    - 4
+    - 3
+  $ hg debug::link-revs --dump-raw foo
+  0: 0 0
+  1: 1 1
+  2: 2 1 (missing-correct-output !)
+  3: 3 3 (missing-correct-output !)
+  4: 4 3 (missing-correct-output !)
+  5: 5 2 (missing-correct-output !)
+  2: 3 2 (known-bad-output !)
+  3: 2 1 (known-bad-output !)
+  4: 4 2 (known-bad-output !)
+  5: 5 3 (known-bad-output !)
+  6: 6 4
