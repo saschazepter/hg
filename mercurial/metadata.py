@@ -8,13 +8,10 @@
 
 from __future__ import annotations
 
-import multiprocessing
 import struct
-import sys
 
 from .interfaces.types import (
     HgPathT,
-    SideDataT,
 )
 from .node import nullrev
 from . import (
@@ -23,11 +20,6 @@ from . import (
 )
 from .interfaces import (
     revlog as rl_t,
-)
-from .revlogutils import (
-    constants as revlog_constants,
-    flagutil as sidedataflag,
-    sidedata as sidedatamod,
 )
 
 
@@ -767,14 +759,6 @@ def encode_files(files: rl_t.ChangedFilesT) -> bytes:
     return b''.join(chunks)
 
 
-def encode_files_sidedata(files: rl_t.ChangedFilesT) -> SideDataT:
-    return {sidedatamod.SD_FILES: encode_files(files)}
-
-
-def decode_files_sidedata(sidedata: SideDataT) -> rl_t.ChangedFilesT:
-    return decode_files(sidedata.get(sidedatamod.SD_FILES))
-
-
 def decode_files(raw: bytes) -> rl_t.ChangedFilesT:
     md = ChangingFiles()
 
@@ -834,114 +818,3 @@ def decode_files(raw: bytes) -> rl_t.ChangedFilesT:
         copied(all_files[copy_idx], filename)
 
     return md
-
-
-def _getsidedata(srcrepo, rev):
-    ctx = srcrepo[rev]
-    files = compute_all_files_changes(ctx)
-    return encode_files_sidedata(files), files.has_copies_info
-
-
-def copies_sidedata_computer(repo, revlog, rev, existing_sidedata):
-    sidedata, has_copies_info = _getsidedata(repo, rev)
-    flags_to_add = sidedataflag.REVIDX_HASCOPIESINFO if has_copies_info else 0
-    return sidedata, (flags_to_add, 0)
-
-
-def _sidedata_worker(srcrepo, revs_queue, sidedata_queue, tokens):
-    """The function used by worker precomputing sidedata
-
-    It read an input queue containing revision numbers
-    It write in an output queue containing (rev, <sidedata-map>)
-
-    The `None` input value is used as a stop signal.
-
-    The `tokens` semaphore is user to avoid having too many unprocessed
-    entries. The workers needs to acquire one token before fetching a task.
-    They will be released by the consumer of the produced data.
-    """
-    tokens.acquire()
-    rev = revs_queue.get()
-    while rev is not None:
-        data = _getsidedata(srcrepo, rev)
-        sidedata_queue.put((rev, data))
-        tokens.acquire()
-        rev = revs_queue.get()
-    # processing of `None` is completed, release the token.
-    tokens.release()
-
-
-BUFF_PER_WORKER = 50
-
-
-def _get_worker_sidedata_adder(srcrepo, destrepo):
-    """The parallel version of the sidedata computation
-
-    This code spawn a pool of worker that precompute a buffer of sidedata
-    before we actually need them"""
-    # avoid circular import copies -> scmutil -> worker -> copies
-    from . import worker
-
-    nbworkers = worker._numworkers(srcrepo.ui)
-
-    if sys.version_info >= (3, 14):
-        multiprocessing.set_start_method('fork')
-
-    tokens = multiprocessing.BoundedSemaphore(nbworkers * BUFF_PER_WORKER)
-    revsq = multiprocessing.Queue()
-    sidedataq = multiprocessing.Queue()
-
-    assert srcrepo.filtername is None
-    # queue all tasks beforehand, revision numbers are small and it make
-    # synchronisation simpler
-    #
-    # Since the computation for each node can be quite expensive, the overhead
-    # of using a single queue is not revelant. In practice, most computation
-    # are fast but some are very expensive and dominate all the other smaller
-    # cost.
-    for r in srcrepo.changelog.revs():
-        revsq.put(r)
-    # queue the "no more tasks" markers
-    for i in range(nbworkers):
-        revsq.put(None)
-
-    allworkers = []
-    for i in range(nbworkers):
-        args = (srcrepo, revsq, sidedataq, tokens)
-        w = multiprocessing.Process(target=_sidedata_worker, args=args)
-        allworkers.append(w)
-        w.start()
-
-    # dictionnary to store results for revision higher than we one we are
-    # looking for. For example, if we need the sidedatamap for 42, and 43 is
-    # received, when shelve 43 for later use.
-    staging = {}
-
-    def sidedata_companion(repo, revlog, rev, old_sidedata):
-        # Is the data previously shelved ?
-        data = staging.pop(rev, None)
-        if data is None:
-            # look at the queued result until we find the one we are lookig
-            # for (shelve the other ones)
-            r, data = sidedataq.get()
-            while r != rev:
-                staging[r] = data
-                r, data = sidedataq.get()
-        tokens.release()
-        sidedata, has_copies_info = data
-        new_flag = 0
-        if has_copies_info:
-            new_flag = sidedataflag.REVIDX_HASCOPIESINFO
-        return sidedata, (new_flag, 0)
-
-    return sidedata_companion
-
-
-def set_sidedata_spec_for_repo(repo):
-    repo.register_sidedata_computer(
-        revlog_constants.KIND_CHANGELOG,
-        sidedatamod.SD_FILES,
-        (sidedatamod.SD_FILES,),
-        copies_sidedata_computer,
-        sidedataflag.REVIDX_HASCOPIESINFO,
-    )

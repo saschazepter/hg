@@ -46,7 +46,6 @@ from . import (
     match as matchmod,
     mergestate as mergestatemod,
     mergeutil,
-    metadata,
     namespaces,
     narrowspec,
     obsolete,
@@ -1195,7 +1194,6 @@ class localrepository(_localrepo_base_classes):
 
         self._wanted_sidedata = set()
         self._sidedata_computers = {}
-        metadata.set_sidedata_spec_for_repo(self)
 
     def _getvfsward(self, origfunc):
         """build a ward for self.vfs"""

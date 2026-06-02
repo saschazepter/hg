@@ -42,7 +42,6 @@ will likely receive warnings about a direct import.
   mercurial/extensions.py:*: function level import: hgext.__index__ (glob)
   mercurial/hgweb/server.py:*: function level import: mercurial.sslutil (glob)
   mercurial/merge_utils/diff.py:*: function level import: mercurial.merge (glob)
-  mercurial/metadata.py:*: function level import: mercurial.worker (glob)
   mercurial/policy.py:*: function level import: mercurial.zstd (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprof (glob)
   mercurial/profiling.py:*: function level import: mercurial.lsprofcalltree (glob)

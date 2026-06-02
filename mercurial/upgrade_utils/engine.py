@@ -21,7 +21,6 @@ from ..interfaces.types import (
 
 from .. import (
     error,
-    metadata,
     pycompat,
     requirements as requirementsmod,
     scmutil,
@@ -31,8 +30,6 @@ from .. import (
     vfs as vfsmod,
 )
 from ..revlogutils import (
-    constants as revlogconst,
-    flagutil,
     nodemap,
     sidedata as sidedatamod,
 )
@@ -52,25 +49,6 @@ if typing.TYPE_CHECKING:
 
 
 def get_sidedata_helpers(srcrepo: RepoT, dstrepo: RepoT):
-    use_w = srcrepo.ui.configbool(b'experimental', b'worker.repository-upgrade')
-
-    if use_w and pycompat.isdarwin:
-        # Avoid a PicklingError on macOS in bundlerepository.
-        use_w = False
-        srcrepo.ui.debug(
-            b'ignoring experimental.worker.repository-upgrade=True on darwin'
-        )
-
-    sequential = pycompat.iswindows or not use_w
-    if not sequential:
-        srcrepo.register_sidedata_computer(
-            revlogconst.KIND_CHANGELOG,
-            sidedatamod.SD_FILES,
-            (sidedatamod.SD_FILES,),
-            metadata._get_worker_sidedata_adder(srcrepo, dstrepo),
-            flagutil.REVIDX_HASCOPIESINFO,
-            replace=True,
-        )
     return sidedatamod.get_sidedata_helpers(srcrepo, dstrepo._wanted_sidedata)
 
 

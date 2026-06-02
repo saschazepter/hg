@@ -54,12 +54,6 @@ SD_TEST5: SideDataKeyT = 5
 SD_TEST6: SideDataKeyT = 6
 SD_TEST7: SideDataKeyT = 7
 
-# key to store copies related information
-SD_P1COPIES: SideDataKeyT = 8
-SD_P2COPIES: SideDataKeyT = 9
-SD_FILESADDED: SideDataKeyT = 10
-SD_FILESREMOVED: SideDataKeyT = 11
-SD_FILES: SideDataKeyT = 12
 
 # internal format constant
 SIDEDATA_HEADER = struct.Struct('>H')
