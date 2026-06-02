@@ -77,19 +77,27 @@ We can access the contents of each revision
   -rw------- * file1 (glob)
   -rw------- * file2 (glob)
   drwx------ * nested (glob)
+
   $ ls -l commits/$rev1/files
   total * (glob)
   -rw------- * file1 (glob)
   -rw------- * file2 (glob)
   drwx------ * nested (glob)
 
+  $ ls -l commits/$rev1/files/.hg
+  total 3
+  -rw------- * branch (glob)
+  -rw------- * dirstate (glob)
+  -rw------- * dirstate-tracked-key (glob)
+  -rw------- * dirstate.* (glob)
+  -rw------- * requires (glob)
+  -rw------- * sharedpath (glob)
 
   $ ls -l commits/$rev1/files/nested
   total 1
   drwx------ * dir (glob)
   -rw------- 1 * file (glob)
   lrwxrwxrwx 1 * symlink1 -> ../file1 (glob)
-
 
 We can access contents of files
   $ cat commits/$rev1/files/file1
