@@ -853,6 +853,7 @@ impl InnerRevlog {
         slf: &Bound<'_, Self>,
         transaction: Py<PyAny>,
         rev: PyRevision,
+        _min_link: PyRevision,
     ) -> PyResult<()> {
         let cut_rev = i32_u(rev.0);
         let current_size = Self::_index___len__(slf)?;

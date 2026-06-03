@@ -709,7 +709,7 @@ class BaseInnerRevlog(abc.ABC):
     def rewrite_sidedata(self, transaction: TransactionT, new_info):
         raise error.ProgrammingError(b"rewriting sidedata without support")
 
-    def strip_after(self, transaction, rev):
+    def strip_after(self, transaction, rev, min_link):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         It remove all revisions after `rev`."""
@@ -717,14 +717,14 @@ class BaseInnerRevlog(abc.ABC):
             return
 
         # first truncate the files on disk
-        self._strip_after(transaction, rev)
+        self._strip_after(transaction, rev, min_link)
 
         # then reset internal state in memory to forget those revisions
         self.clear_cache()
         del self.index[rev:-1]
 
     @abc.abstractmethod
-    def _strip_after(self, transaction, rev):
+    def _strip_after(self, transaction, rev, min_link):
         ...
 
 
@@ -1135,7 +1135,7 @@ class InnerRevlogV1(BaseInnerRevlog):
             raise error.ProgrammingError(msg)
         return self.canonical_index_file
 
-    def _strip_after(self, transaction, rev):
+    def _strip_after(self, transaction, rev, min_link):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         It remove all revisions after `rev`."""
@@ -1700,7 +1700,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             rev -= 1
         return 0
 
-    def _strip_after(self, transaction, rev):
+    def _strip_after(self, transaction, rev, min_link):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         It remove all revisions after `rev`."""

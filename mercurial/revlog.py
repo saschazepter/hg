@@ -2770,7 +2770,7 @@ class revlog:
 
         rev, _ = self.getstrippoint(minlink)
 
-        self._inner.strip_after(transaction, rev)
+        self._inner.strip_after(transaction, rev, minlink)
 
         # then reset internal state in memory to forget those revisions
         self._chaininfocache.clear()
