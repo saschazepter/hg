@@ -568,3 +568,82 @@ They should no longer points to stripped revisions.
   2: 2 1
   3: 3 3
 
+  $ cd ..
+
+Test link-revs adjustement on stripping after unbundling
+--------------------------------------------------------
+
+  $ hg init unbundle-strip-repo
+  $ cd unbundle-strip-repo
+  $ hg unbundle ../all.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 7 changesets with 3 changes to 1 files (+2 heads)
+  new changesets 96ee1d7354c4:bdd5c2bd9da1 (7 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+
+  $ hg debugstrip --rev 'desc("second-right"):' --no-backup
+  $ hg log -G --rev 'desc("first-left")' foo --follow
+  o  changeset:   1:3cd31802617e
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-left
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+  $ hg log -G --rev 'desc("first-right")' foo --follow
+  o  changeset:   2:fa1eb91ce219
+  |  tag:         tip
+  |  parent:      0:96ee1d7354c4
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     first-right
+  |
+  o  changeset:   0:96ee1d7354c4
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     initial
+  
+
+Checking on disk data
+.....................
+
+They should no longer points to stripped revisions.
+
+This case is important because if the unbundling created a "corrupted" order in
+the linkrevs, the strip logic could stop too early and leave some dangling data
+around.
+
+XXX This is currently the case.
+
+  $ hg debug::link-revs -m
+  0: 0 (0)
+    - 0
+  1: 1 (3) (known-bad-output !)
+  1: 1 (2) (missing-correct-output !)
+    - 2
+    - 1
+  $ hg debug::link-revs --dump-raw -m
+  0: 0 0
+  1: 1 1
+  2: 3 2 (known-bad-output !)
+  3: 2 1 (known-bad-output !)
+  2: 2 1 (missing-correct-output !)
+
+  $ hg debug::link-revs foo
+  0: 0 (0)
+    - 0
+  1: 1 (3) (known-bad-output !)
+  1: 1 (2) (missing-correct-output !)
+    - 2
+    - 1
+  $ hg debug::link-revs --dump-raw foo
+  0: 0 0
+  1: 1 1
+  2: 3 2 (known-bad-output !)
+  3: 2 1 (known-bad-output !)
+  2: 2 1 (missing-correct-output !)
