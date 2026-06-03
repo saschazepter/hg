@@ -211,10 +211,13 @@ class filelog(repository.ifilestorage):
         cachedelta=None,
     ):
         if (
-            revlog_constants.REVIDX_HASMETA & flags
-            and not self._revlog._format_flags & revlog.FLAG_FILELOG_META
+            (revlog_constants.REVIDX_HASMETA & flags)
+            and (
+                not self._revlog._format_flags
+                & revlog_constants.FLAG_FILELOG_META
+            )
+            and p2 == self.nullid
         ):
-            assert p2 == self.nullid
             p1, p2 = self.nullid, p1
             flags &= ~revlog_constants.REVIDX_HASMETA
 
