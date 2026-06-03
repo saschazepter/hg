@@ -713,7 +713,7 @@ class BaseInnerRevlog(abc.ABC):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         It remove all revisions after `rev`."""
-        if rev >= len(self):
+        if not self._strip_affected(rev, min_link):
             return
 
         # first truncate the files on disk
@@ -721,7 +721,12 @@ class BaseInnerRevlog(abc.ABC):
 
         # then reset internal state in memory to forget those revisions
         self.clear_cache()
-        del self.index[rev:-1]
+        if rev < len(self):
+            del self.index[rev:-1]
+
+    def _strip_affected(self, rev: RevnumT, min_link: RevnumT) -> bool:
+        """is there any work to do in this revlog for a strip"""
+        return rev < len(self)
 
     @abc.abstractmethod
     def _strip_after(self, transaction, rev, min_link):
@@ -1700,29 +1705,40 @@ class InnerRevlogV2(BaseInnerRevlog):
             rev -= 1
         return 0
 
+    def _strip_affected(self, rev: RevnumT, min_link: RevnumT) -> bool:
+        """is there any work to do in this revlog for a strip"""
+        size = len(self)
+        if rev < size:
+            return True
+        elif size == 0:
+            return False
+        return False
+
     def _strip_after(self, transaction, rev, min_link):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         It remove all revisions after `rev`."""
         docket = self.docket
-        if self.feature_config.children:
-            children_updates = self._strip_precomp_children(rev)
 
-        data_end = self.start(rev)
-        sidedata_end = self.sidedata_cut_off(rev)
-        # XXX we could, leverage the docket while stripping. However it is
-        # not powerfull enough at the time of this comment
-        for ft, entry_size in zip(self._index_fts, self.index.entry_sizes):
-            end = rev * entry_size
-            docket.set_end(ft, end)
-            transaction.add(docket.filepath(ft), end)
-        docket.set_end(self.docket.FT.DATA, data_end)
-        docket.set_end(self.docket.FT.SIDEDATA, sidedata_end)
-        transaction.add(docket.filepath(docket.FT.DATA), data_end)
-        transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)
+        if rev < len(self):
+            if self.feature_config.children:
+                children_updates = self._strip_precomp_children(rev)
 
-        if self.feature_config.children:
-            self._strip_apply_children(transaction, children_updates)
+            data_end = self.start(rev)
+            sidedata_end = self.sidedata_cut_off(rev)
+            # XXX we could, leverage the docket while stripping. However it is
+            # not powerfull enough at the time of this comment
+            for ft, entry_size in zip(self._index_fts, self.index.entry_sizes):
+                end = rev * entry_size
+                docket.set_end(ft, end)
+                transaction.add(docket.filepath(ft), end)
+            docket.set_end(self.docket.FT.DATA, data_end)
+            docket.set_end(self.docket.FT.SIDEDATA, sidedata_end)
+            transaction.add(docket.filepath(docket.FT.DATA), data_end)
+            transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)
+
+            if self.feature_config.children:
+                self._strip_apply_children(transaction, children_updates)
         self.docket.write(transaction, stripping=True)
 
     def _strip_precomp_children(
