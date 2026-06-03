@@ -2709,19 +2709,47 @@ class revlog:
 
         return storageutil.deltaiscensored(delta, baserev, self.rawsize)
 
-    def getstrippoint(self, minlink):
+    def getstrippoint(self, minlinkrev):
         """find the minimum rev that must be stripped to strip the linkrev
 
         Returns a tuple containing the minimum rev and a set of all revs that
         have linkrevs that will be broken by this strip.
         """
-        return storageutil.resolvestripinfo(
-            minlink,
-            len(self) - 1,
-            self.headrevs(),
-            self.linkrev,
-            self.parentrevs,
-        )
+        brokenrevs = set()
+        strippoint = len(self)
+
+        index = self.index
+
+        heads = {}
+        futurelargelinkrevs = set()
+        for head in self.headrevs():
+            headlinkrev = index.linkrev(head)
+            heads[head] = headlinkrev
+            if headlinkrev >= minlinkrev:
+                futurelargelinkrevs.add(headlinkrev)
+
+        # This algorithm involves walking down the rev graph, starting at the
+        # heads. Since the revs are topologically sorted according to linkrev,
+        # once all head linkrevs are below the minlink, we know there are
+        # no more revs that could have a linkrev greater than minlink.
+        # So we can stop walking.
+        while futurelargelinkrevs:
+            strippoint -= 1
+            linkrev = heads.pop(strippoint)
+
+            if linkrev < minlinkrev:
+                brokenrevs.add(strippoint)
+            else:
+                futurelargelinkrevs.remove(linkrev)
+
+            for p in index.parents(strippoint):
+                if p != nullrev:
+                    plinkrev = index.linkrev(p)
+                    heads[p] = plinkrev
+                    if plinkrev >= minlinkrev:
+                        futurelargelinkrevs.add(plinkrev)
+
+        return strippoint, brokenrevs
 
     def strip(self, minlink, transaction):
         """truncate the revlog on the first revision with a linkrev >= minlink
