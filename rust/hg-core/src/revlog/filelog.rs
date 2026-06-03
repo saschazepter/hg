@@ -209,10 +209,14 @@ impl FilelogEntry<'_> {
 
         if self.0.revlog.index.uses_filelog_meta() {
             return (self.0.flags & REVISION_FLAG_HASMETA) != 0;
-        } else if !self.0.has_p1() {
-            // There may or may not be copy metadata, so we can’t deduce more
-            // about `file_data_len` without computing file data.
-            return false;
+        } else {
+            #[allow(clippy::collapsible_else_if)]
+            if !self.0.has_p1() {
+                // There may or may not be copy metadata, so we can’t deduce
+                // more about `file_data_len` without computing
+                // file data.
+                return false;
+            }
         }
 
         // Filelog ancestry is not meaningful in the way changelog ancestry is.
