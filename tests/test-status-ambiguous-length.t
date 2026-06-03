@@ -255,7 +255,9 @@ Test that status reports the file as clean when the mtime is ambiguous
 
   $ touch -t 200001010000 B1
   $ env RHG_ON_UNSUPPORTED=abort hg status --all B1
-  C B1
+  C B1 (no-rhg !)
+  C B1 (rhg no-delta-info !)
+  M B1 (rhg delta-info known-bad-output !)
 
   $ cd ..
 
@@ -290,7 +292,9 @@ Test that status reports the file as clean when the mtime is ambiguous
 
   $ touch -t 200001010000 B2
   $ env RHG_ON_UNSUPPORTED=abort hg status --all B2
-  C B2
+  C B2 (no-rhg !)
+  C B2 (rhg no-delta-info !)
+  M B2 (rhg delta-info known-bad-output !)
 
   $ cd ..
 
@@ -350,6 +354,8 @@ Test that status reports the file as clean when the mtime is ambiguous
 
   $ touch -t 200001010000 B3
   $ env RHG_ON_UNSUPPORTED=abort hg status --all B3
-  C B3
+  C B3 (no-rhg !)
+  C B3 (rhg no-delta-info !)
+  M B3 (rhg delta-info known-bad-output !)
 
   $ cd ..

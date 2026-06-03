@@ -198,19 +198,18 @@ impl FilelogEntry<'_> {
             return true;
         }
 
-        if uncompressed_len == other_len + 4 {
-            // It’s possible that `file_data_len == other_len` with an empty
-            // metadata block (2 start marker bytes + 2 end marker bytes).
-            // This happens when there wouldn’t otherwise be metadata, but
-            // the first 2 bytes of file data happen to match a start marker
-            // and would be ambiguous.
-            return false;
-        }
-
         if self.0.revlog.index.uses_filelog_meta() {
             return (self.0.flags & REVISION_FLAG_HASMETA) != 0;
         } else {
-            #[allow(clippy::collapsible_else_if)]
+            if uncompressed_len == other_len + 4 {
+                // It’s possible that `file_data_len == other_len` with an empty
+                // metadata block (2 start marker bytes + 2 end marker bytes).
+                // This happens when there wouldn’t otherwise be metadata, but
+                // the first 2 bytes of file data happen to match a start marker
+                // and would be ambiguous.
+                return false;
+            }
+
             if !self.0.has_p1() {
                 // There may or may not be copy metadata, so we can’t deduce
                 // more about `file_data_len` without computing
