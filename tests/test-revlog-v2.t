@@ -465,14 +465,10 @@ not strictly monotonous. This will cause use trouble when stripping.
   $ hg debug::link-revs --dump-raw -m
   0: 0 0
   1: 1 1
-  2: 2 1 (missing-correct-output !)
-  3: 3 3 (missing-correct-output !)
-  4: 4 3 (missing-correct-output !)
-  5: 5 2 (missing-correct-output !)
-  2: 3 2 (known-bad-output !)
-  3: 2 1 (known-bad-output !)
-  4: 4 2 (known-bad-output !)
-  5: 5 3 (known-bad-output !)
+  2: 2 1
+  3: 3 3
+  4: 4 3
+  5: 5 2
   6: 6 4
 
 
@@ -490,14 +486,10 @@ not strictly monotonous. This will cause use trouble when stripping.
   $ hg debug::link-revs --dump-raw foo
   0: 0 0
   1: 1 1
-  2: 2 1 (missing-correct-output !)
-  3: 3 3 (missing-correct-output !)
-  4: 4 3 (missing-correct-output !)
-  5: 5 2 (missing-correct-output !)
-  2: 3 2 (known-bad-output !)
-  3: 2 1 (known-bad-output !)
-  4: 4 2 (known-bad-output !)
-  5: 5 3 (known-bad-output !)
+  2: 2 1
+  3: 3 3
+  4: 4 3
+  5: 5 2
   6: 6 4
 
 Test link-revs adjustement on stripping
@@ -623,27 +615,21 @@ XXX This is currently the case.
   $ hg debug::link-revs -m
   0: 0 (0)
     - 0
-  1: 1 (3) (known-bad-output !)
-  1: 1 (2) (missing-correct-output !)
+  1: 1 (2)
     - 2
     - 1
   $ hg debug::link-revs --dump-raw -m
   0: 0 0
   1: 1 1
-  2: 3 2 (known-bad-output !)
-  3: 2 1 (known-bad-output !)
-  2: 2 1 (missing-correct-output !)
+  2: 2 1
 
   $ hg debug::link-revs foo
   0: 0 (0)
     - 0
-  1: 1 (3) (known-bad-output !)
-  1: 1 (2) (missing-correct-output !)
+  1: 1 (2)
     - 2
     - 1
   $ hg debug::link-revs --dump-raw foo
   0: 0 0
   1: 1 1
-  2: 3 2 (known-bad-output !)
-  3: 2 1 (known-bad-output !)
-  2: 2 1 (missing-correct-output !)
+  2: 2 1

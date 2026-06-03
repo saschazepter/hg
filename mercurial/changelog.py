@@ -648,6 +648,7 @@ class changelog(revlog.revlog):
                 with ml._writing(tr):
                     ml._inner.apply_link_revs_post_process(
                         tr,
+                        start,
                         ml_link_revs,
                     )
 
@@ -656,6 +657,7 @@ class changelog(revlog.revlog):
                     with fl._writing(tr):
                         fl._inner.apply_link_revs_post_process(
                             tr,
+                            start,
                             fl_link_revs[filename],
                         )
 

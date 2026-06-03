@@ -1681,15 +1681,71 @@ class InnerRevlogV2(BaseInnerRevlog):
     def apply_link_revs_post_process(
         self,
         transaction: TransactionT,
+        min_rev: RevnumT,
         updates: Iterable[tuple[NodeIdT, RevnumT]],
     ) -> None:
+        if not len(self) or not updates:
+            return
         index = self.index
+        docket = self.docket
+        FT_LR = docket.FT.LINK_REVS
+        # find the first revision introduced since min_rev
+        #
+        # In the process, we check that no other link-revs were added than the
+        # initial link-rev. This is expected if we need to apply post
+        # processing, but it is easy enough to double check that things are
+        # going according to plan.
+        first_affected = len(self)
+        rev = first_affected - 1
+        last_known_idx = index.link_revs_last_idx(rev)
+        next_idx = None
+        while index.linkrev(rev) >= min_rev and rev >= 0:
+            first_affected = rev
+            rev = rev - 1
+            if rev < 0:
+                assert last_known_idx == 0
+            else:
+                next_idx = index.link_revs_last_idx(rev)
+                assert last_known_idx == next_idx + 1
+                last_known_idx = next_idx
+        # avoid loop variable silently leaking into later logic
+        del rev
+        del last_known_idx
+        del next_idx
+
+        assert first_affected < len(self), "why did we not exit early?"
+
+        # So far we saw only one link-revs entry per revision we walked over.
+        # let's also check that none sneaked above
+        tip_idx = index.link_revs_last_idx(len(self) - 1)
+        offset = docket.get_end(FT_LR)
+        max_idx = (offset // S_LINK_REVS.size) - 1
+        assert tip_idx == max_idx
+
+        # The simplest here is to ignore all initial_linkrev that were written
+        # and overwrite things from scratch.
+
+        seen = set()
+        current_idx = index.link_revs_last_idx(first_affected)
+        offset = S_LINK_REVS.size * current_idx
+        self.docket.set_end(FT_LR, offset)
+        fh = self._writinghandles[FT_LR]
+        fh.seek(offset, os.SEEK_SET)
+
         for node, cl_rev in updates:
             rev = index.rev(node)
-            # the lowest link_rev was properly recorded, the
-            # missing one are the extra link-revs.
-            if index.linkrev(rev) != cl_rev:
-                self.register_extra_link_rev(transaction, rev, cl_rev)
+            if rev >= min_rev and rev not in seen:
+                # new revision, first linkrev we need to write a final node.
+                target_idx = current_idx
+                seen.add(rev)
+            else:
+                target_idx = index.link_revs_last_idx(rev)
+            data = S_LINK_REVS.pack(cl_rev, target_idx)
+            fh.write(data)
+            idx_bins = self.index.update_link_revs_last_idx(rev, current_idx)
+            self._rewrite_index(transaction, rev, idx_bins)
+            current_idx += 1
+        self.docket.set_end(FT_LR, current_idx * S_LINK_REVS.size)
 
     def link_revs(self, rev: RevnumT) -> list[RevnumT] | None:
         """return all known changelog revision that introduce this rev
