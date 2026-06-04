@@ -194,6 +194,10 @@ _errors = {
         # FormatMessage(WSAECONNREFUSED)
         br'No connection could be made because the target machine actively refused it',
     ),
+    br'$EINVAL$': (
+        # strerror()
+        br'Invalid argument',
+    ),
 }
 
 for replace, msgs in _errors.items():
