@@ -998,6 +998,23 @@ class MonoBlockIndex(BaseIndex):
         )
         return cast(revlogutils.EntryTupleT, r)
 
+    def __delitem__(self, i):
+        if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
+            raise ValueError("deleting slices only supports a:-1 with step 1")
+        i = i.start
+        self._check_index(i)
+        self._stripnodes(i)
+        if i < self._lgt:
+            self._del_stored(i)
+            self._lgt = i
+            self._extra = []
+        else:
+            self._extra = self._extra[: i - self._lgt]
+
+    # not an abstractmethod because it would confuse RustIndexProxy
+    def _del_stored(self, rev: RevnumT) -> None:
+        """delete reference to a stored entry"""
+
 
 class Index(MonoBlockIndex):
     def __init__(
@@ -1016,18 +1033,9 @@ class Index(MonoBlockIndex):
     def _calculate_index(self, i: int) -> int:
         return i * self.entry_size
 
-    def __delitem__(self, i):
-        if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
-            raise ValueError("deleting slices only supports a:-1 with step 1")
-        i = i.start
-        self._check_index(i)
-        self._stripnodes(i)
-        if i < self._lgt:
-            self._data = self._data[: i * self.entry_size]
-            self._lgt = i
-            self._extra = []
-        else:
-            self._extra = self._extra[: i - self._lgt]
+    def _del_stored(self, rev: RevnumT) -> None:
+        """delete reference to a stored entry"""
+        self._data = self._data[: rev * self.entry_size]
 
 
 class PersistentNodeMapIndex(Index):
@@ -1106,21 +1114,12 @@ class InlinedIndex(MonoBlockIndex):
             raise ValueError("corrupted data")
         return count
 
-    def __delitem__(self, i):
-        if not isinstance(i, slice) or not i.stop == -1 or i.step is not None:
-            raise ValueError("deleting slices only supports a:-1 with step 1")
-        i = i.start
-        self._check_index(i)
-        self._stripnodes(i)
-        if i < self._lgt:
-            self._offsets = self._offsets[:i]
-            self._lgt = i
-            self._extra = []
-        else:
-            self._extra = self._extra[: i - self._lgt]
-
     def _calculate_index(self, i: int) -> int:
         return self._offsets[i]
+
+    def _del_stored(self, rev: RevnumT) -> None:
+        """delete reference to stored entry from ``rev``"""
+        self._offsets = self._offsets[:rev]
 
 
 def parse_index2(
