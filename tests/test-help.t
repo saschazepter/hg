@@ -1837,7 +1837,7 @@ Test keyword search help
   Extensions:
   
    clonebundles advertise pre-generated bundles to seed clones
-   narrow       create clones which fetch history data for subset of files
+   narrow       create clones which fetch history data for subsets of files
                 (EXPERIMENTAL)
    prefixedname matched against word "clone"
    relink       recreates hardlinks between repository clones

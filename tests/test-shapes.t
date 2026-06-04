@@ -119,17 +119,11 @@ Check that we generate the correct narrow patterns for every shape
 Test the legacy narrow patterns option
 
   $ hg admin::narrow-server --shape-narrow-patterns default
-  [include]
-  path:.
   [exclude]
   path:foo/bar/other-secret
   path:secret
   $ hg admin::narrow-server --shape-narrow-patterns full
-  [include]
-  path:.
   $ hg admin::narrow-server --shape-narrow-patterns full-manual
-  [include]
-  path:.
   $ hg admin::narrow-server --shape-narrow-patterns other-secret
   [include]
   path:.hgignore
@@ -137,8 +131,6 @@ Test the legacy narrow patterns option
   path:.hgsubstate
   path:.hgtags
   path:foo/bar/other-secret
-  [exclude]
-  path:.
   $ hg admin::narrow-server --shape-narrow-patterns other-secret -Tjson
   [
    {
@@ -160,12 +152,39 @@ Test the legacy narrow patterns option
    {
     "included": true,
     "path": "foo/bar/other-secret"
-   },
-   {
-    "included": false,
-    "path": "foo/bar/other-secret"
    }
   ]
+
+
+Test that the generated narrow patterns actually work
+-----------------------------------------------------
+
+One including the root
+
+  $ hg admin::narrow-server --shape-fingerprints | grep default
+  a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5 default
+  $ hg admin::narrow-server --shape-narrow-patterns default > ../shape.npt
+  $ hg --config extensions.narrow= clone --narrow --narrowspec ../shape.npt . ../clone-test-1
+  reading narrowspec from '$TESTTMP/server/../shape.npt'
+  no changes found
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg --config extensions.narrow= -R ../clone-test-1 admin::narrow-client --store-fingerprint
+  a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5
+
+One excluding the root
+
+  $ hg admin::narrow-server --shape-fingerprints | grep other-secret
+  3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6 other-secret
+  $ hg admin::narrow-server --shape-narrow-patterns other-secret > ../shape.npt
+  $ hg --config extensions.narrow= clone --narrow --narrowspec ../shape.npt . ../clone-test-2
+  reading narrowspec from '$TESTTMP/server/../shape.npt'
+  no changes found
+  updating to branch default
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg --config extensions.narrow= -R ../clone-test-2 admin::narrow-client --store-fingerprint
+  3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6
+
 
 Test listing files
 ------------------
