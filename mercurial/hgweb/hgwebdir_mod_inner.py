@@ -444,7 +444,10 @@ class hgwebdir:
                 else:
                     fname = req.qsparams[b'static']
                 static = self.ui.config(b"web", b"static", untrusted=False)
-                staticfile(self.templatepath, static, fname, res)
+                req_for_cache = (
+                    req if self.ui.configbool(b'web', b'cache') else None
+                )
+                staticfile(self.templatepath, static, fname, res, req_for_cache)
                 return res.sendresponse()
 
             # top-level index

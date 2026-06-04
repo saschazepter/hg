@@ -334,11 +334,10 @@ Test the access/error files are opened in append mode
 
 static file
 
-  $ get-with-headers.py --twice localhost:$HGPORT 'static/style-gitweb.css' - date etag server
+  $ get-with-headers.py --twice localhost:$HGPORT 'static/style-gitweb.css' - date etag last-modified server
   200 Script output follows
   content-length: 9074
   content-type: text/css
-  last-modified: * GMT (glob)
   
   body { font-family: sans-serif; font-size: 12px; border:solid #d9d8d1; border-width:1px; margin:10px; background: white; color: black; }
   a { color:#0000cc; }
@@ -732,6 +731,51 @@ static file
   304 Not Modified
   
 
+caching headers use file mtime, not repo mtime
+
+  $ killdaemons.py
+  $ mkdir $TESTTMP/custom_static
+  $ echo 'test' > $TESTTMP/custom_static/test.css
+  $ "$PYTHON" -c "import os; os.utime('$TESTTMP/custom_static/test.css', (1000000000, 1000000000))"
+  $ hg serve -p $HGPORT -d --pid-file=hg.pid --config "web.static=$TESTTMP/custom_static"
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' etag last-modified
+  200 Script output follows
+  etag: W/"1000000000"
+  last-modified: Sun, 09 Sep 2001 01:46:40 GMT
+
+mtime change is reflected in headers
+
+  $ "$PYTHON" -c "import os; os.utime('$TESTTMP/custom_static/test.css', (1000086400, 1000086400))"
+  $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' etag last-modified
+  200 Script output follows
+  etag: W/"1000086400"
+  last-modified: Mon, 10 Sep 2001 01:46:40 GMT
+
+If-None-Match returns 304 when ETag matches
+
+  $ get-with-headers.py --twice --headeronly localhost:$HGPORT 'static/test.css' etag last-modified
+  200 Script output follows
+  etag: W/"1000086400"
+  last-modified: Mon, 10 Sep 2001 01:46:40 GMT
+  304 Not Modified
+  etag: W/"1000086400"
+  last-modified: Mon, 10 Sep 2001 01:46:40 GMT
+
+If-Modified-Since returns 304 when not modified since given date
+
+  $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' --requestheader "If-Modified-Since=Mon, 10 Sep 2001 01:46:40 GMT"
+  304 Not Modified
+
+If-Modified-Since returns 200 when modified after given date
+
+  $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' --requestheader "If-Modified-Since=Sun, 09 Sep 2001 01:46:40 GMT"
+  200 Script output follows
+
+  $ killdaemons.py
+  $ hg serve -p $HGPORT -d --pid-file=hg.pid -A access.log
+  $ cat hg.pid >> $DAEMON_PIDS
+
 phase changes are refreshed (issue4061)
 
   $ echo bar >> foo
@@ -957,12 +1001,48 @@ HTTP 304 works with hgwebdir (issue5844)
   $ hg serve --web-conf hgweb.conf -p $HGPORT -d --pid-file hg.pid -E error.log
   $ cat hg.pid >> $DAEMON_PIDS
 
-  $ get-with-headers.py --twice --headeronly localhost:$HGPORT 'repo/static/style.css' - date etag server
+  $ get-with-headers.py --twice --headeronly localhost:$HGPORT 'repo/static/style.css' - date etag last-modified server
   200 Script output follows
   content-length: 2677
   content-type: text/css
-  last-modified: * GMT (glob)
   304 Not Modified
+
+  $ killdaemons.py
+
+caching headers for hgwebdir-direct static path
+
+  $ cat > hgweb_static.conf << EOF
+  > [paths]
+  > /repo = $TESTTMP/test
+  > [web]
+  > static = $TESTTMP/custom_static
+  > EOF
+  $ hg serve --web-conf hgweb_static.conf -p $HGPORT -d --pid-file hg.pid
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' etag last-modified
+  200 Script output follows
+  etag: W/"1000086400"
+  last-modified: Mon, 10 Sep 2001 01:46:40 GMT
+
+If-None-Match returns 304 when ETag matches
+
+  $ get-with-headers.py --twice --headeronly localhost:$HGPORT 'static/test.css' etag last-modified
+  200 Script output follows
+  etag: W/"1000086400"
+  last-modified: Mon, 10 Sep 2001 01:46:40 GMT
+  304 Not Modified
+  etag: W/"1000086400"
+  last-modified: Mon, 10 Sep 2001 01:46:40 GMT
+
+If-Modified-Since returns 304 when not modified since given date
+
+  $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' --requestheader "If-Modified-Since=Mon, 10 Sep 2001 01:46:40 GMT"
+  304 Not Modified
+
+If-Modified-Since returns 200 when modified after given date
+
+  $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' --requestheader "If-Modified-Since=Sun, 09 Sep 2001 01:46:40 GMT"
+  200 Script output follows
 
   $ killdaemons.py
 

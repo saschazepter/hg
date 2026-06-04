@@ -23,6 +23,7 @@ static page should not send CSP by default
 
   $ get-with-headers.py --headeronly localhost:$HGPORT static/mercurial.js content-security-policy etag
   200 Script output follows
+  etag: W/"*" (glob)
 
 repo page should not send CSP by default, should send ETag
 
@@ -53,6 +54,7 @@ static page should send CSP when enabled
   $ get-with-headers.py --headeronly localhost:$HGPORT static/mercurial.js content-security-policy etag
   200 Script output follows
   content-security-policy: script-src https://example.com/ 'unsafe-inline'
+  etag: W/"*" (glob)
 
   $ get-with-headers.py --twice --headeronly localhost:$HGPORT repo1/static/style.css content-security-policy
   200 Script output follows
@@ -94,6 +96,7 @@ nonce should be included in CSP for static pages
   $ get-with-headers.py --headeronly localhost:$HGPORT static/mercurial.js content-security-policy etag
   200 Script output follows
   content-security-policy: image-src 'self'; script-src https://example.com/ 'nonce-*' (glob)
+  etag: W/"*" (glob)
 
 repo page should have ETag
 

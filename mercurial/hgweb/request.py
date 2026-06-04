@@ -515,6 +515,7 @@ class wsgiresponse:
                     b'cache-control',
                     b'content-location',
                     b'content-security-policy',
+                    b'last-modified',
                     b'vary',
                 )
             }

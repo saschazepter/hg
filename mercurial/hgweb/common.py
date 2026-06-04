@@ -9,6 +9,8 @@
 from __future__ import annotations
 
 import base64
+import calendar
+import email.utils
 import errno
 import mimetypes
 import os
@@ -308,7 +310,22 @@ def ispathsafe(path):
     return True
 
 
-def staticfile(templatepath, directory, fname, res):
+def not_modified(res):
+    """Prepare res as a 304 Not Modified response."""
+    res.status = b'304 Not Modified'
+    # Per https://www.rfc-editor.org/rfc/rfc9110.html#name-304-not-modified
+    # "A 304 response [...] cannot contain content".
+    # Content-Type may be defined globally, so strip it along with the response
+    # body.
+    try:
+        del res.headers[b'Content-Type']
+    except KeyError:
+        pass
+    res.setbodybytes(b'')
+    return res
+
+
+def staticfile(templatepath, directory, fname, res, req=None):
     """return a file inside directory with guessed Content-Type header
 
     fname always uses '/' as directory separator and isn't allowed to
@@ -316,6 +333,9 @@ def staticfile(templatepath, directory, fname, res):
     Content-Type is guessed using the mimetypes module.
     Return an empty string if fname is illegal or file not found.
 
+    If req is provided, sets ETag and Last-Modified headers based on the
+    file's mtime and handles conditional requests (If-None-Match and
+    If-Modified-Since) by returning 304 Not Modified when appropriate.
     """
     if not ispathsafe(fname):
         return
@@ -331,7 +351,7 @@ def staticfile(templatepath, directory, fname, res):
     )
     path = os.path.join(directory, fpath)
     try:
-        os.stat(path)
+        st = os.stat(path)
         data = util.readfile(path)
     except TypeError:
         raise ErrorResponse(HTTP_SERVER_ERROR, b'illegal filename')
@@ -342,6 +362,29 @@ def staticfile(templatepath, directory, fname, res):
             raise ErrorResponse(
                 HTTP_SERVER_ERROR, encoding.strtolocal(err.strerror)
             )
+
+    if req is not None:
+        mtime = int(st.st_mtime)
+        tag = b'W/"%d"' % mtime
+        lastmod = pycompat.sysbytes(email.utils.formatdate(mtime, usegmt=True))
+        inm = req.headers.get(b'If-None-Match')
+        ims = req.headers.get(b'If-Modified-Since')
+        is_not_modified = False
+        # Follow https://www.rfc-editor.org/rfc/rfc9110.html#section-13.2.2
+        # We skip If-Match and If-Unmodified-Since, not useful for our purposes
+        # 3. When If-None-Match is present, evaluate the If-None-Match precondition
+        if inm is not None:
+            is_not_modified = inm == tag
+        # 4. When the method is GET or HEAD, If-None-Match is not present, and
+        #    If-Modified-Since is present, evaluate the If-Modified-Since
+        #    precondition
+        elif ims is not None:
+            t = email.utils.parsedate(pycompat.sysstr(ims))
+            is_not_modified = t is not None and mtime <= calendar.timegm(t)
+        res.headers[b'ETag'] = tag
+        res.headers[b'Last-Modified'] = lastmod
+        if is_not_modified:
+            return not_modified(res)
 
     res.headers[b'Content-Type'] = ct
     res.setbodybytes(data)

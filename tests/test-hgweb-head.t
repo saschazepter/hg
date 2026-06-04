@@ -44,7 +44,6 @@ should give a 404 - static file that does not exist
   $ get-with-headers.py localhost:$HGPORT --method=HEAD 'static/bogus' - date etag server
   404 Not Found
   content-type: text/html; charset=ascii
-  last-modified: * GMT (glob)
   
   [1]
 

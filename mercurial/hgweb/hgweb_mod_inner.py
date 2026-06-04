@@ -20,6 +20,7 @@ from .common import (
     ErrorResponse,
     HTTP_BAD_REQUEST,
     cspvalues,
+    not_modified,
     permhooks,
     statusmessage,
 )
@@ -455,19 +456,10 @@ class hgweb:
                 req.qsparams[b'cmd'] = rctx.tmpl.render(b'default', {})
                 cmd = req.qsparams[b'cmd']
 
-            if rctx.configbool(b'web', b'cache'):
+            if rctx.configbool(b'web', b'cache') and cmd != b'static':
                 tag = b'W/"%d"' % self.mtime
                 if req.headers.get(b'If-None-Match') == tag:
-                    res.status = b'304 Not Modified'
-                    # Content-Type may be defined globally. It isn't valid on a
-                    # 304, so discard it.
-                    try:
-                        del res.headers[b'Content-Type']
-                    except KeyError:
-                        pass
-                    # Response body not allowed on 304.
-                    res.setbodybytes(b'')
-                    return res.sendresponse()
+                    return not_modified(res).sendresponse()
 
                 res.headers[b'ETag'] = tag
 
