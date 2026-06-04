@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import abc
+import functools
 import io
 import stat
 import struct
@@ -588,6 +589,9 @@ def gettype(q):
     return int(q & 0xFFFF)
 
 
+_LRU_CACHE_SIZE = 50
+
+
 class BaseIndex(abc.ABC):
     # Can I be passed to an algorithme implemented in Rust ?
     rust_ext_compat = 0
@@ -965,6 +969,7 @@ class MonoBlockIndex(BaseIndex):
         data = self._pack_entry(len(self), tup)
         self._extra.append(data)
 
+    @functools.lru_cache(_LRU_CACHE_SIZE)
     def _entry(self, i: RevnumT) -> revlogutils.EntryTupleT:
         if i == -1:
             return self.null_item
@@ -1010,6 +1015,7 @@ class MonoBlockIndex(BaseIndex):
             self._extra = []
         else:
             self._extra = self._extra[: i - self._lgt]
+        self._entry.cache_clear()
 
     # not an abstractmethod because it would confuse RustIndexProxy
     def _del_stored(self, rev: RevnumT) -> None:
@@ -1181,6 +1187,8 @@ class MultiBlockIndex(BaseIndex):
             self._extra = []
         else:
             self._extra = self._extra[: i - self._lgt]
+        self._entry.cache_clear()
+        self._rich_entry.cache_clear()
 
     def pack_header(self, header):
         """pack header information as binary"""
@@ -1212,11 +1220,13 @@ class MultiBlockIndex(BaseIndex):
                 for data, size in zip(self._data, self.entry_sizes)
             )
 
+    @functools.lru_cache(_LRU_CACHE_SIZE)
     def _entry(self, rev: RevnumT) -> revlogutils.EntryTupleT:
         if rev == -1:
             return self.null_item
         return self._rich_entry(rev).as_tuple()
 
+    @functools.lru_cache(_LRU_CACHE_SIZE)
     def _rich_entry(self, rev: RevnumT) -> revlogutils.RevlogEntry:
         self._check_index(rev)
         data = self.entry_binaries(rev)
@@ -1308,6 +1318,8 @@ class MultiBlockIndex(BaseIndex):
                     size = len(bin)
                     offset = rev * size
                     data[offset : offset + size] = bin
+        self._entry.cache_clear()
+        self._rich_entry.cache_clear()
         return updated_bins
 
     def update_data(
