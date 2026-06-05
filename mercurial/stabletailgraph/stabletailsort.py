@@ -544,6 +544,18 @@ def ancestors(revlog, head: RevnumT) -> Container[RevnumT]:
     return StableTailRange(revlog, head, revlog.index.rank(head))
 
 
+def _canonical_length(index, rev: RevnumT) -> int:
+    """The length of rev's canonical range
+
+    See module documentation for details.
+    """
+    rank = index.rank(rev)
+    anc = index.sts_canon_ancestor(rev)
+    anc_rank = index.rank(anc)
+    assert rank > anc_rank
+    return rank - anc_rank
+
+
 class StableTailRange:
     """represent the "size" first element of "head" stable-tail-sort
 
@@ -562,6 +574,12 @@ class StableTailRange:
     def __repr__(self) -> str:
         return f"STS({self._head})[:{self._size}]"
 
+    @util.propertycache
+    def _is_super_canonical(self) -> bool:
+        """True if this range is larger that the canonical range of its head"""
+        canon_length = _canonical_length(self._revlog.index, self._head)
+        return canon_length < self._size
+
     def __contains__(self, rev: RevnumT) -> bool:
         # if there revision in the Range head, bingo, we found it.
         index = self._revlog.index
@@ -575,7 +593,33 @@ class StableTailRange:
         if head_rank <= rev_rank:
             return False
 
+        # If this range is canonical or small, dives into the dedicated logic.
+        if not self._is_super_canonical:
+            return self._contains_sub_canonical(rev)
+
         # finally fallback to the inefficient first implementation that exists
+        # just to set the API in place.
+        return rev in self._revs
+
+    def _contains_sub_canonical(self, rev: RevnumT) -> bool:
+        """check if revision is within a canonical of sub canonical range
+
+        Such range have a size equal or smaller to their head's canonical
+        range.
+        """
+        assert not self._is_super_canonical
+        index = self._revlog.index
+
+        rev_rank = index.rank(rev)
+        min_rank = index.sts_min_rank(self._head)
+
+        # if the revision we are checking as a lower rank that we one we know
+        # about, it is not there. (we already checked that rev_rank >=
+        # head_rank earlier)
+        if rev_rank < min_rank:
+            return False
+
+        # inefficient first implementation that exists
         # just to set the API in place.
         return rev in self._revs
 
