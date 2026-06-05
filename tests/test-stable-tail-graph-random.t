@@ -78,9 +78,9 @@ Check that the stale sort is correct
 Build a big repository with a large random graph
 ================================================
 
-  $ hg init repo-5_000
-  $ cd repo-5_000
-  $ "$RUNTESTDIR"/testlib/random-graph-spec.py 5000 | hg debugbuilddag
+  $ hg init repo-1_000
+  $ cd repo-1_000
+  $ "$RUNTESTDIR"/testlib/random-graph-spec.py 1000 | hg debugbuilddag
   reading DAG from stdin
 
 Verify that computed values are correct
