@@ -130,7 +130,10 @@ from ..node import hex, nullrev
 from ..revlogutils.constants import (
     STR_SPLIT,
 )
-from .. import ancestor
+from .. import (
+    ancestor,
+    util,
+)
 
 
 def split_encode(splits):
@@ -257,7 +260,7 @@ def compute_stable_tail_data(
     if parent_excl != nullrev:
         # start with a number higher than anything we will encounter
         min_canon_rank += index.rank(parent_excl)
-        tail = revlog.ancestors([parent_tail], inclusive=True)
+        tail = ancestors(revlog, parent_tail)
         splits_iter = _compute_excl_splits(revlog, parent_excl, tail)
         for u, length, mru in splits_iter:
             splits.append((u, length))
@@ -529,6 +532,45 @@ def _power2(high, low):
     """
     assert (high > low) and (low >= 0), (high, low)
     return int.bit_length(high ^ low) - 1
+
+
+def ancestors(revlog, head: RevnumT) -> Container[RevnumT]:
+    """return the ancestors of head
+
+    The returned object can be checked for membership.
+
+    It uses Stable Tail Range under the hood as an "implementation detail".
+    """
+    return StableTailRange(revlog, head, revlog.index.rank(head))
+
+
+class StableTailRange:
+    """represent the "size" first element of "head" stable-tail-sort
+
+    This class currently focus on membership testing, this might evolve in the
+    future.
+
+    See module documentation for more details on the involved Concept.
+    """
+
+    def __init__(self, revlog, head: RevnumT, size: int):
+        self._revlog = revlog
+        self._head = head
+        assert size > 0
+        self._size = size
+
+    def __repr__(self) -> str:
+        return f"STS({self._head})[:{self._size}]"
+
+    def __contains__(self, rev: RevnumT) -> bool:
+        # XXX inefficient first implementation just to set the API in place
+        return rev in self._revs
+
+    @util.propertycache
+    def _revs(self) -> set[RevnumT]:
+        head_sts = stable_tail_sort(self._revlog, self._head)
+        range_iter = itertools.islice(head_sts, self._size)
+        return set(range_iter)
 
 
 def stable_tail_sort_naive(cl, head_rev):
