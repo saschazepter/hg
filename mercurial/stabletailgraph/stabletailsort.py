@@ -564,8 +564,16 @@ class StableTailRange:
 
     def __contains__(self, rev: RevnumT) -> bool:
         # if there revision in the Range head, bingo, we found it.
+        index = self._revlog.index
         if rev == self._head:
             return True
+
+        # else, if the revision rank is higher than any ancestors of
+        # self._head, we know we don't contains it.
+        rev_rank = index.rank(rev)
+        head_rank = index.rank(self._head)
+        if head_rank <= rev_rank:
+            return False
 
         # finally fallback to the inefficient first implementation that exists
         # just to set the API in place.
