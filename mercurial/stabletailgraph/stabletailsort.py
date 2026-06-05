@@ -257,7 +257,8 @@ def compute_stable_tail_data(
     if parent_excl != nullrev:
         # start with a number higher than anything we will encounter
         min_canon_rank += index.rank(parent_excl)
-        splits_iter = _compute_excl_splits(revlog, parent_excl, parent_tail)
+        tail = revlog.ancestors([parent_tail], inclusive=True)
+        splits_iter = _compute_excl_splits(revlog, parent_excl, tail)
         for u, length, mru in splits_iter:
             splits.append((u, length))
             rank += length
@@ -280,16 +281,17 @@ def computed_excl_splits(revlog, rev: RevnumT) -> list[tuple[RevnumT, int]]:
     if px == nullrev:
         return []
     else:
-        return list((h, l) for h, l, m in _compute_excl_splits(revlog, px, pt))
+        tail = revlog.ancestors([pt], inclusive=True)
+        ranges = _compute_excl_splits(revlog, px, tail)
+        return list((h, l) for h, l, m in ranges)
 
 
 def _compute_excl_splits(
     revlog,
     exclusive_head: RevnumT,
-    tail_head: RevnumT,
+    tail: Container[RevnumT],
 ) -> Iterator[tuple[RevnumT, int, int]]:
     """yield the exclusive splits from exclusive and tail parents"""
-    tail = revlog.ancestors([tail_head], inclusive=True)
     revs = _exclusive_part_iter(revlog, exclusive_head, tail)
     yield from _group_by_range(revlog, revs)
 
