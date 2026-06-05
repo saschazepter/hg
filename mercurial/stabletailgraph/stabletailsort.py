@@ -585,6 +585,9 @@ class StableTailRange:
         index = self._revlog.index
         if rev == self._head:
             return True
+        elif self._size == 1:
+            # there are no other revisions to check in this range
+            return False
 
         # else, if the revision rank is higher than any ancestors of
         # self._head, we know we don't contains it.
@@ -605,6 +608,7 @@ class StableTailRange:
         range.
         """
         assert not self._is_super_canonical
+        assert self._size > 1
         index = self._revlog.index
 
         rev_rank = index.rank(rev)
@@ -630,6 +634,7 @@ class StableTailRange:
         canonical range can contains the checked revision.
         """
         assert self._is_super_canonical
+        assert self._size > 1
         index = self._revlog.index
         rev_rank = index.rank(rev)
 
