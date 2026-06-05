@@ -1614,6 +1614,14 @@ class revlog:
             return True
         elif a > b:
             return False
+        # if we can use stable-tail based checking, we should use it
+        rank_a = self.index.lazy_rank(a)
+        rank_b = self.index.lazy_rank(b)
+        if rank_a != RANK_UNKNOWN and rank_b != RANK_UNKNOWN:
+            if rank_a >= rank_b:
+                return False
+            return stabletailsort.is_ancestor_rev(self, a, b)
+        # fallback to searching a path between the two revisions.
         return bool(self.reachableroots(a, [b], [a], includepath=False))
 
     def reachableroots(self, minroot, heads, roots, includepath=False):

@@ -534,6 +534,11 @@ def _power2(high, low):
     return int.bit_length(high ^ low) - 1
 
 
+def is_ancestor_rev(revlog, anc, head):
+    """return True is `anc` is and ancestors of `head`"""
+    return anc in ancestors(revlog, head)
+
+
 def ancestors(revlog, head: RevnumT) -> Container[RevnumT]:
     """return the ancestors of head
 
