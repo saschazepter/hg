@@ -620,9 +620,21 @@ class StableTailRange:
         if rev_rank < min_rank:
             return False
 
-        # inefficient first implementation that exists
-        # just to set the API in place.
-        return rev in self._revs
+        # otherwise, lets check in sub range. Since we already know that rev is
+        # not self._head, we can just check potential exclusive splits and the
+        # range starting from tail-parent (that range will deal with
+        # sub-slicing itself)
+        remaining = self._size - 1
+        for head, length in self._revlog._inner.sts_splits(self._head):
+            size = min(remaining, length)
+            if rev in StableTailRange(self._revlog, head, size):
+                return True
+            remaining -= size
+            if remaining <= 0:
+                return False
+        assert remaining > 0
+        pt = _parents(index, self._head)[0]
+        return rev in StableTailRange(self._revlog, pt, remaining)
 
     def _contains_super_canonical(self, rev: RevnumT) -> bool:
         """check if revision is within a super canonical range
