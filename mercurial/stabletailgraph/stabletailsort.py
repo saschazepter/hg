@@ -563,7 +563,12 @@ class StableTailRange:
         return f"STS({self._head})[:{self._size}]"
 
     def __contains__(self, rev: RevnumT) -> bool:
-        # XXX inefficient first implementation just to set the API in place
+        # if there revision in the Range head, bingo, we found it.
+        if rev == self._head:
+            return True
+
+        # finally fallback to the inefficient first implementation that exists
+        # just to set the API in place.
         return rev in self._revs
 
     @util.propertycache
