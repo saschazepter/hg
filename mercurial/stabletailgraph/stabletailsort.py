@@ -593,16 +593,13 @@ class StableTailRange:
         if head_rank <= rev_rank:
             return False
 
-        # If this range is canonical or small, dives into the dedicated logic.
-        if not self._is_super_canonical:
+        if self._is_super_canonical:
+            return self._contains_super_canonical(rev)
+        else:
             return self._contains_sub_canonical(rev)
 
-        # finally fallback to the inefficient first implementation that exists
-        # just to set the API in place.
-        return rev in self._revs
-
     def _contains_sub_canonical(self, rev: RevnumT) -> bool:
-        """check if revision is within a canonical of sub canonical range
+        """check if revision is within a canonical or sub canonical range
 
         Such range have a size equal or smaller to their head's canonical
         range.
@@ -622,6 +619,53 @@ class StableTailRange:
         # inefficient first implementation that exists
         # just to set the API in place.
         return rev in self._revs
+
+    def _contains_super_canonical(self, rev: RevnumT) -> bool:
+        """check if revision is within a super canonical range
+
+        Such range have a size higher than the canonical range of its head.
+
+        The containement check is done by spliting this super canonical range
+        into canonical ranges. Stopping early if we detect that no lower
+        canonical range can contains the checked revision.
+        """
+        assert self._is_super_canonical
+        index = self._revlog.index
+        rev_rank = index.rank(rev)
+
+        head = self._head
+        remaining = self._size
+        while remaining > 0:
+            # we should have remaining == 0 before reaching the bottom
+            assert head != nullrev
+
+            # did we get lucky
+            if rev == head:
+                return True
+
+            # Is `rev` strictly above the current `head` ?
+            #
+            # The rank in the canonical chain are getting strictly lower as we
+            # go. So if this head has a too low rank, all remaining item in the
+            # chain will also have a too low rank.
+            head_rank = index.rank(head)
+            if head_rank <= rev_rank:
+                break
+
+            # Could `rev` be in the canonical range of this head ?
+            head_min_rank = index.sts_min_rank(head)
+            head_size = _canonical_length(index, head)
+            if head_min_rank <= rev_rank:
+                sub_range_size = min(head_size, remaining)
+                sub_range = StableTailRange(self._revlog, head, sub_range_size)
+                if rev in sub_range:
+                    return True
+
+            # The revision could be lower, update the size and move to the next
+            # canonical ancestor.
+            head = index.sts_canon_ancestor(head)
+            remaining -= head_size
+        return False
 
     @util.propertycache
     def _revs(self) -> set[RevnumT]:
