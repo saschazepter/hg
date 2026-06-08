@@ -29,11 +29,8 @@ if SYNCFILE2 is None:
 
 def _timeout_factor():
     """return the current modification to timeout"""
-    default = int(os.environ.get('HGTEST_TIMEOUT_DEFAULT', 360))
-    current = int(os.environ.get('HGTEST_TIMEOUT', default))
-    if current == 0:
-        return 1
-    return current / float(default)
+    factor_percentage = int(os.environ.get('HGTEST_TIMEOUT_PERCENTAGE', 100))
+    return factor_percentage / 100
 
 
 def wait_file(path, timeout=10):
