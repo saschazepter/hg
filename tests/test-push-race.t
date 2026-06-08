@@ -77,7 +77,11 @@ A set of extension and shell functions ensures this scheduling.
 
   $ release () {
   >     # create a file and wait for it be deleted
-  >     count=100
+  >     if [ -n "$HGTEST_TIMEOUT_PERCENTAGE" ] ; then
+  >         count=$HGTEST_TIMEOUT_PERCENTAGE
+  >     else
+  >         count=100
+  >     fi
   >     touch $1
   >     while [ -f $1 ] ;
   >     do
