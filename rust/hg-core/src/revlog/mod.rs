@@ -45,6 +45,7 @@ use crate::errors::HgIoError;
 use crate::errors::IoResultExt;
 use crate::exit_codes;
 use crate::revlog::index::Index;
+use crate::revlog::nodemap::validate_persistent_nodemap;
 use crate::utils::RawData;
 use crate::utils::u32_u;
 use crate::vfs::Vfs;
@@ -535,15 +536,15 @@ impl Revlog {
         revlog_type: RevlogType,
     ) -> Result<Self, RevlogError> {
         let index_path = index_path.as_ref();
-        let index = open_index(store_vfs, index_path, options)?;
-
         let default_data_path = index_path.with_extension("d");
         let data_path = data_path.unwrap_or(&default_data_path);
 
+        let index = open_index(store_vfs, index_path, options)?;
         let nodemap = if index.is_inline() || !options.use_nodemap {
             None
         } else {
-            read_persistent_nodemap(store_vfs, index_path, &index)?
+            let nodemap = read_persistent_nodemap(store_vfs, index_path)?;
+            validate_persistent_nodemap(nodemap, &index)?
         };
 
         let nodemap = nodemap_for_test.or(nodemap);

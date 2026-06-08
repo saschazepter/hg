@@ -303,18 +303,32 @@ fn validate_candidate(
     }
 }
 
-/// Read the persistent nodemap corresponding to the `index` at `index_path`.
-/// `index` and `index_path` MUST reference the same index.
+/// Persistent nodemap loaded from disk, but not validated against the
+/// index file.
+pub(super) struct PersistentNodemapUnvalidated(Option<(NodeMapDocket, NodeTree)>);
+
 pub(super) fn read_persistent_nodemap(
     store_vfs: &VfsImpl,
     index_path: &Path,
-    index: &impl RevlogIndex,
-) -> Result<Option<NodeTree>, RevlogError> {
+) -> Result<PersistentNodemapUnvalidated, RevlogError> {
     if let Some((docket, data)) =
         NodeMapDocket::read_from_file(store_vfs, index_path)?
     {
-        let mut nodemap =
-            NodeTree::load_bytes(Box::new(data), docket.data_length);
+        let nodemap = NodeTree::load_bytes(Box::new(data), docket.data_length);
+
+        Ok(PersistentNodemapUnvalidated(Some((docket, nodemap))))
+    } else {
+        Ok(PersistentNodemapUnvalidated(None))
+    }
+}
+
+/// Check the persistent nodemap, assuming it corresponds to to the
+/// `index`, and catch up or repair it as needed.
+pub(super) fn validate_persistent_nodemap(
+    nodemap: PersistentNodemapUnvalidated,
+    index: &impl RevlogIndex,
+) -> Result<Option<NodeTree>, RevlogError> {
+    if let PersistentNodemapUnvalidated(Some((docket, mut nodemap))) = nodemap {
         if let Some(valid_tip_rev) = index.check_revision(docket.tip_rev) {
             let valid_node = index.node(valid_tip_rev) == &docket.tip_node;
             if valid_node && (valid_tip_rev.0 as usize) < index.len() {
