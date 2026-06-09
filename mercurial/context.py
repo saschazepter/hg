@@ -2818,6 +2818,10 @@ class overlayworkingctx(committablectx):
             self._mergestate = mergestatemod.memmergestate(self._repo)
         return self._mergestate
 
+    @property
+    def _status(self):
+        raise error.ProgrammingError(b"calling status on an overlayworkingctx")
+
 
 class overlayworkingfilectx(committablefilectx):
     """Wrap a ``workingfilectx`` but intercepts all writes into an in-memory
