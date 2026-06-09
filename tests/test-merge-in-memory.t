@@ -515,4 +515,176 @@ no new file revision should have been created
        2       3 47b5662761cf b336e38e6a17 000000000000
 
 
+Test history of file restored and remerged
+==========================================
+
+create The following scenario for the revision of a file X
+
+.   2   (The merge we are testing here)
+.  / \
+. 0   |
+. |\  |
+. 0 ø 2
+. | |/
+. | 2 (same content as 0)
+. | |
+. | 1
+. |/
+. 0
+. |
+. …
+
+We want the merge to use revision number 2 otherwise, we would a commit with
+revision 0 as a child of a commit with revision 2.
+
+XXX This is currently broken for both in-memory merge, in-working-copy merge.
+XXX The in-memory merge version is slightly less broken. Even if thAe behavior is
+XXX currently bad. It seems important to explicilty test this case.
+
+
+
+  $ hg init repo-merge-salvaged
+  $ cd repo-merge-salvaged
+  $ echo babar >> file
+  $ hg add file
+  $ hg commit -m root
+  $ echo Babar >> file
+  $ hg commit -m update_1
+  $ hg revert --rev 'desc("root")' file
+  $ hg commit -m update_2
+  $ mkcommit unrelated_2
+  $ hg up 'desc("update_2")'
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ hg rm file
+  $ hg commit -m delete_2
+  created new head
+  $ hg up 'desc("root")'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ mkcommit unrelated_0
+  created new head
+  $ hg merge 'desc("delete_2")'
+  0 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg revert --rev 'desc("root")' file
+  $ hg commit -m "merge_0_deleted"
+  $ hg up null
+  0 files updated, 0 files merged, 2 files removed, 0 files unresolved
+
+  $ hg log -Gv
+  o    changeset:   6:387f782fc4cb
+  |\   tag:         tip
+  | |  parent:      5:e49b723ecf12
+  | |  parent:      4:f067ce192039
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  description:
+  | |  merge_0_deleted
+  | |
+  | |
+  | o  changeset:   5:e49b723ecf12
+  | |  parent:      0:87177078645e
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  files:       unrelated_0
+  | |  description:
+  | |  unrelated_0
+  | |
+  | |
+  o |  changeset:   4:f067ce192039
+  | |  parent:      2:6eeb7d264f46
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  files:       file
+  | |  description:
+  | |  delete_2
+  | |
+  | |
+  +---o  changeset:   3:44f867aec9c9
+  | |    user:        test
+  | |    date:        Thu Jan 01 00:00:00 1970 +0000
+  | |    files:       unrelated_2
+  | |    description:
+  | |    unrelated_2
+  | |
+  | |
+  o |  changeset:   2:6eeb7d264f46
+  | |  user:        test
+  | |  date:        Thu Jan 01 00:00:00 1970 +0000
+  | |  files:       file
+  | |  description:
+  | |  update_2
+  | |
+  | |
+  o |  changeset:   1:81f1361a4a4c
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    files:       file
+  |    description:
+  |    update_1
+  |
+  |
+  o  changeset:   0:87177078645e
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     files:       file
+     description:
+     root
+  
+  
+
+  $ hg debugindex file
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 360afd990eef 000000000000 000000000000
+       1       1 694c100a2d5d 360afd990eef 000000000000
+       2       2 0ac6f5e10d22 694c100a2d5d 000000000000
+
+Merge in both direction, both result should use the "reverted" nodeid. Not the
+original content.
+
+  $ hg script::merge --message merge_red 'desc("merge_0_deleted")' 'desc("unrelated_2")' \
+  >     -T 'merge-rev: {rev}\n'
+  merge-rev: 7
+  $ hg manifest --debug --rev 'desc("merge_red")' | grep file
+  360afd990eeff79e4a7f9f3ded5ecd7bc2fd3b59 644   file (known-bad-output !)
+  0ac6f5e10d22db9061d21c68f5eb88e75ac0fea0 644   file (missing-correct-output !)
+
+  $ hg script::merge --message merge_blue 'desc("unrelated_2")' 'desc("merge_0_deleted")' \
+  >     -T 'merge-rev: {rev}\n'
+  merge-rev: 8
+  $ hg manifest --debug --rev 'desc("merge_blue")' | grep file
+  0ac6f5e10d22db9061d21c68f5eb88e75ac0fea0 644   file
+
+double check with the non-in-memory version
+
+  $ hg up 'desc("merge_0_deleted")'
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg merge 'desc("unrelated_2")'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit --message "merge_wc_red"
+  created new head
+  $ hg manifest --debug --rev 'desc("merge_wc_red")' | grep file
+  360afd990eeff79e4a7f9f3ded5ecd7bc2fd3b59 644   file (known-bad-output !)
+  0ac6f5e10d22db9061d21c68f5eb88e75ac0fea0 644   file (missing-correct-output !)
+
+  $ hg up 'desc("unrelated_2")'
+  1 files updated, 0 files merged, 1 files removed, 0 files unresolved
+  $ hg merge 'desc("merge_0_deleted")'
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  (branch merge, don't forget to commit)
+  $ hg commit --message "merge_wc_blue"
+  created new head
+  $ hg manifest --debug --rev 'desc("merge_wc_blue")' | grep file
+  360afd990eeff79e4a7f9f3ded5ecd7bc2fd3b59 644   file (known-bad-output !)
+  0ac6f5e10d22db9061d21c68f5eb88e75ac0fea0 644   file (missing-correct-output !)
+
+no new file revision should have been created
+
+  $ hg debugindex file
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 360afd990eef 000000000000 000000000000
+       1       1 694c100a2d5d 360afd990eef 000000000000
+       2       2 0ac6f5e10d22 694c100a2d5d 000000000000
+
+
 
