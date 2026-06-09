@@ -1,86 +1,30 @@
-All config options used within Mercurial should be registered.
+Registration
+============
 
-Config Option in Core
-=====================
+All config options used within Mercurial must be registered.
 
-Config options used by Mercurial core are registered in the
-``mercurial.configitems`` module.
+* Core config options must be registered in mercurial/configitems.toml.
 
-Simple entry
-------------
+* Config options for core extensions must also be registered in
+  configitems.toml, setting ``in_core_extension`` to the name of the extension.
 
-A registration entry typically looks like::
+* Config options for third-party extensions must be registered in code through
+  the ``registrar`` API.
 
-    coreconfigitem('section', 'option',
-        default=MyDefaultValue,
-    )
+Registrar API
+-------------
 
-Once registered, Mercurial will know that ``section.option`` is a legitimate
-config option and that ``MyDefaultValue`` should be used if no other values are
-defined in configuration files.
-
-Complex default value
----------------------
-
-If the default provided is a callable, it is called to retrieve the default
-value when accessing the config option. This is useful for default values that
-are mutable like the empty list::
-
-    coreconfigitem('pager', 'ignore',
-        default=list,
-    )
-
-In addition, there are cases where the default is not fixed, but computed from
-other properties. In this case, use the ``dynamicdefault`` object as the value
-for the ``default`` parameter. A default value is then explicitly required when
-reading the option::
-
-    # registration
-    coreconfigitem('web', 'name',
-        default=dynamicdefault,
-    )
-
-    # usage
-    ui.config('web', 'name', dirname)
-
-Free form options
------------------
-
-Some config sections use free form options (e.g. ``paths``). You can register
-them using the ``generic`` parameters::
-
-    coreconfigitem('paths', '.*',
-        default=None,
-        generic=True,
-    )
-
-When ``generic=True`` is set, the option name is matched as a regular expression
-(rooted to string start). It can be used to select specific sub parameters::
-
-    coreconfigitem('merge-tools', br'.*\.args$',
-        default="$local $base $other",
-        generic=True,
-        priority=-1,
-    )
-
-The ``priority`` parameter controls the order used to match the generic pattern
-(lower first).
-
-Config Option in Extensions
-===========================
-
-General case
-------------
-
-Extensions should register config items through the ``registrar`` API (also used
-for commands and others)::
+Here is an example of registering a config using the ``registrar`` API (also
+used for commands and others)::
 
     configtable = {}
     configitem = registrar.configitem(configtable)
 
-    configitem('blackbox', 'dirty',
-        default=False,
-    )
+    configitem(b'blackbox', b'dirty', default=False)
 
-The ``dynamicdefault`` object is then available as
-``configitem.dynamicdefault``.
+If ``default`` is a callable, it is called to retrieve the default value when
+accessing the config option. For example, ``default=list`` would make the config
+option default to an empty list.
+
+If ``default`` is ``mercurial.configitems.dynamicdefault``, then there is no
+fixed default, and a default value is explicitly required when reading.
