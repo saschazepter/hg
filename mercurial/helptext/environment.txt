@@ -50,7 +50,11 @@ HGRCPATH
     - otherwise, the file itself will be added
 
 HGRCSKIPREPO
-    When set, the .hg/hgrc from repositories are not read.
+    When set, the per-repository configuration files are not read:
+
+    - ``<repo>/.hg/hgrc``
+    - ``<repo>/.hg/hgrc-not-shared``
+    - ``<share-source>/.hg/hgrc``
 
 HGPLAIN
     When set, this disables any configuration settings that might

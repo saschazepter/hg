@@ -25,6 +25,34 @@ by ``name = value`` entries::
 The above entries will be referred to as ``ui.username`` and
 ``ui.verbose``, respectively. See :hg:`help config.syntax`.
 
+Command line
+============
+
+There are two ways to specify configuration options on the command line:
+
+- ``--config <section>.<name>=<value>`` sets a single value.
+- ``--config-file <filename>`` reads from a configuration file.
+
+These are read in the order given, with later ones overriding earlier ones. They
+override all other configuration methods described in :hg:`help
+config.environment` and :hg:`help config.files`.
+
+Environment
+===========
+
+``HGRCPATH``
+    When set, Mercurial will search for global configuration files here instead
+    of the default locations.
+    See :hg:`help environment.HGRCPATH`.
+
+``HGRCSKIPREPO``
+    When set, Mercurial will not read per-repository configuration files.
+    See :hg:`help environment.HGRCSKIPREPO`.
+
+``HGPLAIN``
+    When set, this disables many configuration options.
+    See :hg:`help environment.HGPLAIN`.
+
 Files
 =====
 
@@ -46,9 +74,14 @@ Global configuration like the username setting is typically put into:
 
 The names of these files depend on the system on which Mercurial is
 installed. ``*.rc`` files from a single directory are read in
-alphabetical order, later ones overriding earlier ones. Where multiple
-paths are given below, settings from earlier paths override later
-ones.
+alphabetical order, later ones overriding earlier ones. In the lists of paths
+below, settings from earlier paths override later ones.
+
+.. note::
+
+    Mercurial does not read per-repository files if ``HGRCSKIPREPO`` is set.
+    Mercurial does not read any of the global configuration files (per-user,
+    per-installation, per-system, and default) if ``HGRCPATH`` is set.
 
 .. container:: verbose.unix
 
@@ -56,6 +89,7 @@ ones.
 
   - ``<repo>/.hg/hgrc-not-shared`` (per-repository)
   - ``<repo>/.hg/hgrc`` (per-repository)
+  - ``<share-source>/.hg/hgrc`` (per-repository, if applicable)
   - ``$HOME/.hgrc`` (per-user)
   - ``${XDG_CONFIG_HOME:-$HOME/.config}/hg/hgrc`` (per-user)
   - ``<install-root>/etc/mercurial/hgrc`` (per-installation)
@@ -146,13 +180,6 @@ configuration files should never be edited by users or administrators but can
 be overridden in other configuration files. So far the directory only contains
 merge tool configuration but packagers can also put other default configuration
 there.
-
-On versions 5.7 and later, if share-safe functionality is enabled,
-shares will read config file of share source too.
-`<share-source/.hg/hgrc>` is read before reading `<repo/.hg/hgrc>`.
-
-For configs which should not be shared, `<repo/.hg/hgrc-not-shared>`
-should be used.
 
 Syntax
 ======
