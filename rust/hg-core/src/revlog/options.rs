@@ -476,7 +476,12 @@ pub fn default_revlog_options(
         version,
         // We don't need to dance around the slow path like in the Python
         // implementation since we know we have access to the fast code.
-        use_nodemap: requirements.contains(NODEMAP_REQUIREMENT),
+        //
+        // Persistent nodemaps are only written for the changelog and manifest;
+        // filelogs never get one, so don't attempt to read it for them, since
+        // that incurs the cost of an extra `open` syscall.
+        use_nodemap: requirements.contains(NODEMAP_REQUIREMENT)
+            && revlog_type != RevlogType::Filelog,
         delta_config: RevlogDeltaConfig::new(
             config,
             requirements,
