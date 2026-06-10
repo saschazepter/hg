@@ -2,6 +2,22 @@
 Test non-regression on the corruption associated with issue6528
 ===============================================================
 
+#testcases dirstate-v1 dirstate-v2
+
+#if dirstate-v1
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-dirstate-v2=no
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-dirstate-v2=yes
+  > [storage]
+  > dirstate-v2.slow-path=allow
+  > EOF
+#endif
+
 Setup
 =====
 
