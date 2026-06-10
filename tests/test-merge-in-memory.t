@@ -518,7 +518,7 @@ no new file revision should have been created
 Test history of file restored and remerged
 ==========================================
 
-create The following scenario for the revision of a file X
+Create the following scenario for the revision of a file X.
 
 .   2   (The merge we are testing here)
 .  / \
@@ -534,11 +534,11 @@ create The following scenario for the revision of a file X
 . |
 . …
 
-We want the merge to use revision number 2 otherwise, we would a commit with
-revision 0 as a child of a commit with revision 2.
+We want the merge to use revision number 2 otherwise, we would have a commit
+with revision 0 as a child of a commit with revision 2.
 
 XXX This is currently broken for both in-memory merge, in-working-copy merge.
-XXX The in-memory merge version is slightly less broken. Even if thAe behavior is
+XXX The in-memory merge version is slightly less broken. Even if the behavior is
 XXX currently bad. It seems important to explicilty test this case.
 
 
@@ -654,7 +654,7 @@ original content.
   $ hg manifest --debug --rev 'desc("merge_blue")' | grep file
   0ac6f5e10d22db9061d21c68f5eb88e75ac0fea0 644   file
 
-double check with the non-in-memory version
+Double check with the non-in-memory version. (XXX currently also broken)
 
   $ hg up 'desc("merge_0_deleted")'
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -743,7 +743,7 @@ wc as p2
   >     -T 'merge-rev: {rev}\n'
   merge-rev: 5
 
-wc as p2
+wc as p1
 
   $ hg script::merge --message merge_green_blue 'desc("c_green")' 'desc("c_blue")' \
   >     -T 'merge-rev: {rev}\n'
