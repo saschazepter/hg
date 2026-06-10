@@ -1498,6 +1498,9 @@ class committablectx(basectx):
 
     @propertycache
     def _status(self) -> StatusT:
+        if self.isinmemory():
+            msg = b"calling working copy status from an in-memory commit"
+            raise error.ProgrammingError(msg)
         return self._repo.status()
 
     @propertycache
