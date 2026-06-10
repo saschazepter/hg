@@ -540,23 +540,40 @@ impl Revlog {
         let default_data_path = index_path.with_extension("d");
         let data_path = data_path.unwrap_or(&default_data_path);
 
-        let index = open_index(store_vfs, index_path, &options)?;
+        let nodemap = if !options.use_nodemap {
+            None
+        } else {
+            // We make sure to read the nodemap before we read the index,
+            // to avoid the race condition where the nodemap contains a
+            // reference to the index tip rev which isn't present in the
+            // stale version of the index.
+            // The race in the other direction is safer because then
+            // we can incrementally catch up the nodemap to the latest
+            // version of the index.
+            Some(read_persistent_nodemap(store_vfs, index_path)?)
+        };
 
         // Test-only synchronization point, in between the two steps of opening
-        // the revlog (reading the index above and reading the nodemap below).
+        // the revlog (reading the nodemap above and reading the index below).
         debug_wait_for_sync_point_or_print(
             &options.devel.sync_point_read_index_file,
         );
 
-        let nodemap = if index.is_inline() || !options.use_nodemap {
+        let index = open_index(store_vfs, index_path, options)?;
+        let nodemap = if index.is_inline() {
+            // Reading the nodemap was a waste of time in this case.
+            // Since we don't attempt to use nodemaps for filelogs,
+            // this cost is extremely small.
             None
         } else {
-            let nodemap = read_persistent_nodemap(store_vfs, index_path)?;
-            validate_persistent_nodemap(
-                nodemap,
-                &index,
-                options.devel.debug_nodemap,
-            )?
+            match nodemap {
+                None => None,
+                Some(nodemap) => validate_persistent_nodemap(
+                    nodemap,
+                    &index,
+                    options.devel.debug_nodemap,
+                )?,
+            }
         };
 
         let nodemap = nodemap_for_test.or(nodemap);

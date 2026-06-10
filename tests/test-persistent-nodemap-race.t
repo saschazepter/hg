@@ -6,14 +6,16 @@ When a revlog is opened, two things are read from disk: the persistent nodemap
 and the index. If another process appends a revision (updating both the index
 and the nodemap) in between those two reads, the two can end up out of sync.
 
-This is bad when the index is read *before* the nodemap: the freshly written
-nodemap then refers to a tip revision absent from the stale index we already
-loaded, which forces a full (and expensive) nodemap rebuild from scratch.
+The opening code reads the nodemap *before* the index on purpose: if the index
+then races ahead, the (slightly stale) in-memory nodemap can simply be caught
+up to the index incrementally. Reading them in the opposite order would make
+the freshly written nodemap refer to a tip revision absent from the stale
+index, forcing a full (and expensive) nodemap rebuild.
 
 This test reproduces that race deterministically using the
-`devel.sync.revlog.pre-read-index-file` synchronization points and observes,
-via `devel.debug.nodemap.catchup`, that the full rebuild happens. It exercises
-the Rust revlog opening code through `rhg`.
+`devel.sync.revlog.pre-read-index-file` synchronization points and checks,
+via `devel.debug.nodemap.catchup`, that we catch up incrementally rather than
+rebuild from scratch. It exercises the Rust revlog opening code through `rhg`.
 
 #require rhg
 
@@ -43,7 +45,7 @@ opening code will read (the nodemap is not used for inline revlogs).
 
 Start an `rhg cat`, which opens the changelog. The sync point makes it create
 `index-open-sync.waiting` and then wait for `index-open-sync`, in between
-reading the index and reading the nodemap.
+reading the nodemap and reading the index.
 
   $ $NO_FALLBACK rhg cat -r "$node" afile \
   >   --config devel.debug.nodemap.catchup=yes \
@@ -57,7 +59,7 @@ index and its persistent nodemap on disk.
   $ echo more >> afile
   $ hg commit -qm 'concurrent commit'
 
-Let the paused `rhg cat` proceed to read the (now advanced) nodemap.
+Let the paused `rhg cat` proceed to read the (now advanced) index.
 
   $ touch "$TESTTMP"/index-open-sync
   $ wait
@@ -67,12 +69,11 @@ Let the paused `rhg cat` proceed to read the (now advanced) nodemap.
   $ cat "$TESTTMP"/cat.out
   content
 
-... but the freshly written nodemap refers to a revision that is not in the
-stale index we read first, so the whole nodemap is rebuilt from scratch. (With
-the index and nodemap read in the other order, this would instead print
-"caught up 1 revisions".)
+... and the stale in-memory nodemap was caught up incrementally (by the single
+revision that was appended), not rebuilt from scratch. Reading the index before
+the nodemap would instead print "rebuilt from scratch (... revisions)".
 
   $ cat "$TESTTMP"/cat.err
-  persistent nodemap: rebuilt from scratch (1 revisions)
+  persistent nodemap: caught up 1 revisions
 
   $ cd ..
