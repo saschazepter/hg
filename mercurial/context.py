@@ -310,6 +310,13 @@ class basectx(abc.ABC):
             instabilities.append(b'content-divergent')
         return instabilities
 
+    def is_merge(self) -> bool:
+        """True if this context has multiple parents
+
+        Exists to help the `thin` extension.
+        """
+        return len(self.parents()) > 1
+
     def parents(self):
         """return contexts for each parent changeset"""
         return self._parents

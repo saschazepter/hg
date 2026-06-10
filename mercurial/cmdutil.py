@@ -1126,7 +1126,7 @@ def mergeeditform(ctxorbool, baseformname):
     if isinstance(ctxorbool, bool):
         if ctxorbool:
             return baseformname + b".merge"
-    elif len(ctxorbool.parents()) > 1:
+    elif ctxorbool.is_merge():
         return baseformname + b".merge"
 
     return baseformname + b".normal"
