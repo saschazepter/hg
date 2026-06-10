@@ -686,5 +686,65 @@ no new file revision should have been created
        1       1 694c100a2d5d 360afd990eef 000000000000
        2       2 0ac6f5e10d22 694c100a2d5d 000000000000
 
+  $ cd ..
 
 
+Test merging in memory with a working copy
+==========================================
+
+Test merging in memory with a working copy not on the null revision
+
+  $ hg init repo-merge-with-wc
+  $ cd repo-merge-with-wc
+  $ mkcommit root
+  $ mkcommit c_red
+  $ hg up --quiet 'desc("root")'
+  $ mkcommit c_blue
+  created new head
+  $ hg up --quiet 'desc("root")'
+  $ mkcommit c_green
+  created new head
+
+  $ hg log -G
+  @  changeset:   3:0e9f2a6e913e
+  |  tag:         tip
+  |  parent:      0:1e4be0697311
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     c_green
+  |
+  | o  changeset:   2:5286421d3f76
+  |/   parent:      0:1e4be0697311
+  |    user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     c_blue
+  |
+  | o  changeset:   1:100e9b013162
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     c_red
+  |
+  o  changeset:   0:1e4be0697311
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     root
+  
+
+
+Two revision unrelated to the wc parent
+
+  $ hg script::merge --message merge_red_blue 'desc("c_red")' 'desc("c_blue")' \
+  >     -T 'merge-rev: {rev}\n'
+  merge-rev: 4
+
+wc as p2
+
+  $ hg script::merge --message merge_red_green 'desc("c_red")' 'desc("c_green")' \
+  >     -T 'merge-rev: {rev}\n'
+  merge-rev: 5
+
+wc as p2
+
+  $ hg script::merge --message merge_green_blue 'desc("c_green")' 'desc("c_blue")' \
+  >     -T 'merge-rev: {rev}\n'
+  merge-rev: 6

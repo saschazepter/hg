@@ -2477,6 +2477,10 @@ class overlayworkingctx(committablectx):
             if not self._cache[f][b'exists'] and self._existsinparent(f)
         ]
 
+    def deleted(self) -> list[bytes]:
+        # This context is purely in memory so "deleted" file don't apply.
+        return []
+
     def p1copies(self):
         copies = {}
         narrowmatch = self._repo.narrowmatch()
