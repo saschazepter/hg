@@ -553,6 +553,7 @@ That we do see the symptoms of the bug
 
   $ hg up -- -1
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ touch -t 200001010000 D.txt b.txt
   $ hg status
   M D.txt
   M b.txt
@@ -601,6 +602,7 @@ That we do see the symptoms of the bug
 
   $ hg up -- -1
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ touch -t 200001010000 D.txt b.txt
   $ hg status
   M D.txt
   M b.txt
@@ -656,6 +658,7 @@ Check that revision were not fixed on the fly
        1 0000       82      7      0     -1 2a80419dfc31
 
 That we do see the symptoms of the bug
+(the touch ensure that the status are ambiguous even when tested under heavy load that screw up timing)
 
   $ hg status --change 2 --copies
   A b.txt
@@ -663,6 +666,7 @@ That we do see the symptoms of the bug
   R a.txt
   $ hg up -- -1
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ touch -t 200001010000 D.txt b.txt
   $ hg status
   M D.txt
   M b.txt
