@@ -21,6 +21,14 @@ Test non-regression on the corruption associated with issue6528
 Setup
 =====
 
+Delta info prevent this issue to happens altogether, so we need it disabled for this test.
+
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > format.use-delta-info-flags=no
+  > EOF
+
+
   $ hg init base-repo
   $ cd base-repo
 
