@@ -63,6 +63,9 @@ def hgweb(config, name=None, baseui=None):
 
 
 def hgwebdir(config, baseui=None):
+    # Same as above
+    importlib.import_module('mercurial.initialization').init()
+
     return hgwebdir_mod.hgwebdir(config, baseui=baseui)
 
 
