@@ -44,6 +44,7 @@ use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
 use crate::fuse::RootInodeEncoder;
 use crate::server::permissions_for_file;
+use crate::server::store::BackendMode;
 use crate::server::store::ChangesetFiles;
 use crate::server::store::Error as StoreError;
 use crate::server::store::FileToken;
@@ -284,7 +285,7 @@ impl<T: FileToken> RevisionTree<T> {
         let mut inode_encoder = RevisionInodeEncoder::new(
             available_inode_range,
             store.changeset_store_info(changeset)?,
-            store.server_config().archive_view,
+            store.server_config().backend_mode,
         );
 
         let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
@@ -360,7 +361,7 @@ impl RevisionInodeEncoder {
     fn new(
         available_range: Range<INodeNo>,
         store_info: Option<StoreInfo>,
-        archive_view: bool,
+        backend_mode: BackendMode,
     ) -> Self {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
@@ -379,12 +380,15 @@ impl RevisionInodeEncoder {
 
         // /!\ Keep in sync with `path_to_revision_working_copy`
         // Will be special-cased later to also point to the revision files
-        let files_root_ino = if archive_view {
-            encoder.add_reserved_directory(FILES_INODE_NAME, &[])
-        } else {
-            let dot_hg_ino = encoder.add_dot_hg(store_info);
-            encoder.dot_hg_ino = Some(dot_hg_ino);
-            encoder.add_reserved_directory(FILES_INODE_NAME, &[dot_hg_ino])
+        let files_root_ino = match backend_mode {
+            BackendMode::Archive => {
+                encoder.add_reserved_directory(FILES_INODE_NAME, &[])
+            }
+            BackendMode::Full => {
+                let dot_hg_ino = encoder.add_dot_hg(store_info, backend_mode);
+                encoder.dot_hg_ino = Some(dot_hg_ino);
+                encoder.add_reserved_directory(FILES_INODE_NAME, &[dot_hg_ino])
+            }
         };
 
         encoder.reserved_entries.insert(
@@ -400,19 +404,31 @@ impl RevisionInodeEncoder {
         encoder
     }
 
-    fn add_dot_hg(&mut self, store_info: Option<StoreInfo>) -> INodeNo {
+    fn add_dot_hg(
+        &mut self,
+        store_info: Option<StoreInfo>,
+        backend_mode: BackendMode,
+    ) -> INodeNo {
         let mut requirements = vec![
-            SHARED_REQUIREMENT,
             SHARESAFE_REQUIREMENT,
             DIRSTATE_V2_REQUIREMENT,
             DIRSTATE_TRACKED_HINT_V1,
         ];
+
+        match backend_mode {
+            BackendMode::Archive => (),
+            BackendMode::Full => {
+                requirements.push(SHARED_REQUIREMENT);
+            }
+        }
+
         let mut dot_hg_files = vec![];
 
         if let Some(info) = store_info {
             if info.has_sparse {
                 requirements.push(SPARSE_REQUIREMENT);
             }
+
             let store_path_bytes = get_bytes_from_path(info.share_source);
             let sharedpath_ino =
                 self.add_reserved_file("sharedpath", store_path_bytes.into());

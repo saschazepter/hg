@@ -5,6 +5,7 @@ use std::thread::available_parallelism;
 use std::time::Duration;
 
 use clap::Arg;
+use clap::builder::EnumValueParser;
 use fuser::SessionACL;
 use hg::errors::IoResultExt;
 use hg::repo::Repo;
@@ -12,6 +13,7 @@ use hg::utils::u32_u;
 use hg_fuse::fuse::HgFuse;
 use hg_fuse::server::Server;
 use hg_fuse::server::local::LocalBackend;
+use hg_fuse::server::store::BackendMode;
 use libc::SIGHUP;
 use libc::SIGINT;
 use libc::SIGTERM;
@@ -60,10 +62,10 @@ pub fn args() -> clap::Command {
                 .conflicts_with("open-to-all"),
         )
         .arg(
-            Arg::new("archive-view")
-                .long("archive-view")
-                .action(clap::ArgAction::SetTrue)
-                .help("present revision contents without a .hg directory"),
+            Arg::new("backend-mode")
+                .long("backend-mode")
+                .value_parser(EnumValueParser::<BackendMode>::new())
+                .help("what type of working copy to present"),
         )
         .about(HELP_TEXT)
 }
@@ -87,7 +89,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let group_id = invocation.subcommand_args.get_one("group-id").copied();
     let open_to_all = invocation.subcommand_args.get_flag("open-to-all");
     let open_to_root = invocation.subcommand_args.get_flag("open-to-root");
-    let archive_view = invocation.subcommand_args.get_flag("archive-view");
+    let backend_mode: BackendMode = invocation
+        .subcommand_args
+        .get_one::<BackendMode>("backend-mode")
+        .copied()
+        .unwrap_or_default();
     let session_acl = if open_to_all {
         SessionACL::All
     } else if open_to_root {
@@ -100,7 +106,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         repo.config(),
         Some(repo.working_directory_path().to_path_buf()),
     )?;
-    let store = LocalBackend::new(backend_repo, archive_view)?;
+    let store = LocalBackend::new(backend_repo, backend_mode)?;
     let server = Server::new(store, user_id, group_id)?;
 
     // Set up non-fatal signals to break our loop

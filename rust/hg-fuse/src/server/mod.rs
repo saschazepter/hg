@@ -21,6 +21,7 @@ use crate::fuse::Entry;
 use crate::fuse::RootInodeEncoder;
 use crate::fuse::path_to_revision_working_copy;
 use crate::server::revision::OwnedRevision;
+use crate::server::store::BackendMode;
 use crate::server::store::Error as StoreError;
 use crate::server::store::FileToken;
 use crate::server::store::StoreBackend;
@@ -43,9 +44,8 @@ pub struct Config {
     /// at the mountpoint (useful for debugging outside of the context of an
     /// overlay, which would change the mountpoint).
     preload_structure: bool,
-    /// When archive_view is true, we do not present a .hg directory alongside
-    /// the files in a revision.
-    archive_view: bool,
+    /// What sort of working copy the VFS should present
+    backend_mode: BackendMode,
 }
 
 /// Responsible for serving contents from the store to the FUSE layer

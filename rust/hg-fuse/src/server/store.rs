@@ -3,6 +3,7 @@
 
 use std::path::PathBuf;
 
+use clap::ValueEnum;
 use hg::Node;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
@@ -28,6 +29,8 @@ pub enum ErrorKind<T> {
     InvalidRevisionIdx(RevisionIdx),
     /// Reading this file failed somehow
     ReadFailed { changeset: Node, path: HgPathBuf, token: T },
+    /// Share_source does not point to the .hg subdirectory of a repo
+    InvalidShareSource { share_source: PathBuf },
     /// Catch-all error. You should really think about defining a fine-grained
     /// structured error case before using this.
     /// TODO flesh out more likely (and non-string-based) cases
@@ -197,4 +200,13 @@ pub struct FileInfo<'store, T> {
     pub flags: ManifestFlags,
     /// An opaque token, see [`FileRevisionToken`]
     pub token: T,
+}
+
+#[derive(Clone, Copy, Default, Debug, ValueEnum)]
+pub enum BackendMode {
+    /// Present working copies that look like fully-functional hg repos
+    #[default]
+    Full,
+    /// Present working copies that don't have a .hg directory at all
+    Archive,
 }

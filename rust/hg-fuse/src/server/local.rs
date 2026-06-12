@@ -21,6 +21,7 @@ use rayon::iter::ParallelIterator;
 use self_cell::self_cell;
 
 use crate::server::Config;
+use crate::server::store::BackendMode;
 use crate::server::store::ChangesetFiles;
 use crate::server::store::Error;
 use crate::server::store::ErrorKind;
@@ -49,12 +50,12 @@ pub struct LocalBackend {
 }
 
 impl LocalBackend {
-    pub fn new(repo: Repo, archive_view: bool) -> Result<Self, HgError> {
+    pub fn new(repo: Repo, backend_mode: BackendMode) -> Result<Self, HgError> {
         let repo_config = repo.config();
         let server_config = Config {
             preload_structure: repo_config
                 .get_bool(b"fuse", b"preload-working-copy-structure")?,
-            archive_view,
+            backend_mode,
         };
         let file_nodeid_to_size = DashMap::new();
 
