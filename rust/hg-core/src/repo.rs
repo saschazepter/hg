@@ -794,6 +794,13 @@ fn load_requirements(
     let mut reqs = requirements::load_if_exists(&hg_vfs)?;
     let relative = reqs.contains(requirements::RELATIVE_SHARED_REQUIREMENT);
     let shared = reqs.contains(requirements::SHARED_REQUIREMENT) || relative;
+    let thin = reqs.contains(requirements::THIN_REQUIREMENT);
+
+    if thin {
+        return Err(HgError::unsupported(
+            "rhg does not support thin working copies",
+        ));
+    }
 
     // From `mercurial/localrepo.py`:
     //

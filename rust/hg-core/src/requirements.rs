@@ -200,6 +200,10 @@ pub const SHARESAFE_REQUIREMENT: &str = "share-safe";
 /// A repository that use zstd compression inside its revlog
 pub const REVLOG_COMPRESSION_ZSTD: &str = "revlog-compression-zstd";
 
+/// A working copy where the store is located elsewhere, possibly on a
+/// remote machine
+pub const THIN_REQUIREMENT: &str = "exp-v0-thin";
+
 #[cfg(test)]
 mod tests {
     use super::*;

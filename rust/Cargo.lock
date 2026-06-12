@@ -782,6 +782,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "dashmap",
+ "format-bytes",
  "fuser",
  "hg-core",
  "rayon",

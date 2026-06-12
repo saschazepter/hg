@@ -209,4 +209,7 @@ pub enum BackendMode {
     Full,
     /// Present working copies that don't have a .hg directory at all
     Archive,
+    /// Present working copies that have a minimal .hg directory meant to work
+    /// with the thin extension
+    Thin,
 }

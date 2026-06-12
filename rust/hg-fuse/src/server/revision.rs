@@ -10,6 +10,7 @@ use std::sync::atomic::Ordering;
 use std::time::SystemTime;
 
 use dashmap::DashMap;
+use format_bytes::format_bytes;
 use fuser::INodeNo;
 use hg::DirstateParents;
 use hg::FastHashMap;
@@ -30,6 +31,7 @@ use hg::requirements::DIRSTATE_V2_REQUIREMENT;
 use hg::requirements::SHARED_REQUIREMENT;
 use hg::requirements::SHARESAFE_REQUIREMENT;
 use hg::requirements::SPARSE_REQUIREMENT;
+use hg::requirements::THIN_REQUIREMENT;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
@@ -47,6 +49,7 @@ use crate::server::permissions_for_file;
 use crate::server::store::BackendMode;
 use crate::server::store::ChangesetFiles;
 use crate::server::store::Error as StoreError;
+use crate::server::store::ErrorKind;
 use crate::server::store::FileToken;
 use crate::server::store::StoreBackend;
 use crate::server::store::StoreInfo;
@@ -286,7 +289,7 @@ impl<T: FileToken> RevisionTree<T> {
             available_inode_range,
             store.changeset_store_info(changeset)?,
             store.server_config().backend_mode,
-        );
+        )?;
 
         let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
 
@@ -358,11 +361,11 @@ struct RevisionInodeEncoder {
 }
 
 impl RevisionInodeEncoder {
-    fn new(
+    fn new<T>(
         available_range: Range<INodeNo>,
         store_info: Option<StoreInfo>,
         backend_mode: BackendMode,
-    ) -> Self {
+    ) -> Result<Self, StoreError<T>> {
         let mut encoder = Self {
             current_ino: AtomicU64::new(available_range.start.0),
             available_range,
@@ -384,8 +387,9 @@ impl RevisionInodeEncoder {
             BackendMode::Archive => {
                 encoder.add_reserved_directory(FILES_INODE_NAME, &[])
             }
-            BackendMode::Full => {
-                let dot_hg_ino = encoder.add_dot_hg(store_info, backend_mode);
+            BackendMode::Full | BackendMode::Thin => {
+                let dot_hg_ino =
+                    encoder.add_dot_hg(store_info, backend_mode)?;
                 encoder.dot_hg_ino = Some(dot_hg_ino);
                 encoder.add_reserved_directory(FILES_INODE_NAME, &[dot_hg_ino])
             }
@@ -401,14 +405,14 @@ impl RevisionInodeEncoder {
 
         encoder.files_root_inode = files_root_ino;
         encoder.root_ino = root_ino;
-        encoder
+        Ok(encoder)
     }
 
-    fn add_dot_hg(
+    fn add_dot_hg<T>(
         &mut self,
         store_info: Option<StoreInfo>,
         backend_mode: BackendMode,
-    ) -> INodeNo {
+    ) -> Result<INodeNo, StoreError<T>> {
         let mut requirements = vec![
             SHARESAFE_REQUIREMENT,
             DIRSTATE_V2_REQUIREMENT,
@@ -420,6 +424,9 @@ impl RevisionInodeEncoder {
             BackendMode::Full => {
                 requirements.push(SHARED_REQUIREMENT);
             }
+            BackendMode::Thin => {
+                requirements.push(THIN_REQUIREMENT);
+            }
         }
 
         let mut dot_hg_files = vec![];
@@ -429,10 +436,39 @@ impl RevisionInodeEncoder {
                 requirements.push(SPARSE_REQUIREMENT);
             }
 
-            let store_path_bytes = get_bytes_from_path(info.share_source);
-            let sharedpath_ino =
-                self.add_reserved_file("sharedpath", store_path_bytes.into());
-            dot_hg_files.push(sharedpath_ino);
+            match backend_mode {
+                BackendMode::Thin => {
+                    let thin_backend_path = info
+                        .share_source
+                        .parent()
+                        .ok_or_else(|| ErrorKind::InvalidShareSource {
+                            share_source: info.share_source.clone(),
+                        })?;
+                    let thin_backend_path_bytes =
+                        get_bytes_from_path(thin_backend_path);
+
+                    let thin_backend_contents: RawData = format_bytes!(
+                        b"local://{}\n",
+                        &thin_backend_path_bytes
+                    )
+                    .into();
+
+                    let thin_backend_ino = self.add_reserved_file(
+                        "thin-backend",
+                        thin_backend_contents,
+                    );
+                    dot_hg_files.push(thin_backend_ino);
+                }
+                BackendMode::Archive | BackendMode::Full => {
+                    let store_path_bytes =
+                        get_bytes_from_path(info.share_source);
+                    let sharedpath_ino = self.add_reserved_file(
+                        "sharedpath",
+                        store_path_bytes.into(),
+                    );
+                    dot_hg_files.push(sharedpath_ino);
+                }
+            }
 
             let branch_ino =
                 self.add_reserved_file("branch", info.branch.as_bytes().into());
@@ -459,7 +495,7 @@ impl RevisionInodeEncoder {
 
         dot_hg_files.push(requires_ino);
         dot_hg_files.push(tracked_key_ino);
-        self.add_reserved_directory(".hg", &dot_hg_files)
+        Ok(self.add_reserved_directory(".hg", &dot_hg_files))
     }
 
     /// Returns a new unique inode
