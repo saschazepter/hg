@@ -1,5 +1,7 @@
 #require rhg fuse
 
+  $ . $TESTDIR/testlib/fuse-util.sh
+
 Simple tests of the FUSE virtual filesystem for Mercurial
 =========================================================
 
@@ -32,22 +34,8 @@ Source repo setup
 Create and test the FUSE
 ------------------------
 
-  $ hg debug::virtual-share $FUSE_ROOT --pid-file=$TESTTMP/fuse.pid 2>error.log &
-
-Wait for it to be mounted, timeout after a short period
-
-  $ iterations=0
-  $ maxiterations=50
-  > while ! (mount | grep "hgvfs on $FUSE_ROOT") && [ $iterations -lt $maxiterations ]
-  > do
-  >   sleep 0.1
-  >   iterations=`expr $iterations + 1`
-  > done
+  $ mount_FUSE $FUSE_ROOT
   hgvfs on $TESTTMP/fuse-mount type fuse (ro,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
-  $ [ $iterations -ge $maxiterations ] && echo "timed out waiting for the FUSE to mount" || true
-
-  $ cat $TESTTMP/fuse.pid >> $DAEMON_PIDS
-  $ cat error.log
 
 We can list the root
 
