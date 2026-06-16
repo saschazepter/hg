@@ -405,12 +405,12 @@ Chain of include:
 # /foo/bar/.hgignore ignore's `drop2`
 
 Expected result:
-`include:` inside a subincluded file is disallowed; filter nothing
-TODO: warn instead of silently skipping
+`include:` inside a subincluded file is disallowed; warn and filter nothing
 
   $ echo 'subinclude:foo/.hgignore' > .hgignore
   $ echo 'include:bar/.hgignore' > foo/.hgignore
   $ hg status -i
+  foo/.hgignore: include is not allowed inside a subincluded file; skipping 'include:bar/.hgignore'
 
 Chaining subincludes
 --------------------
@@ -718,6 +718,7 @@ Windows paths are accepted on input
   $ rm dir1/.hgignore
   $ echo "dir1/file*" >> .hgignore
   $ hg debugignore "dir1\file2"
+  skipping unreadable pattern file '$TESTTMP\ignorerepo/dir1/.hgignore': $ENOENT$
   dir1/file2 is ignored
   (ignore rule in $TESTTMP\ignorerepo\.hgignore, line 4: 'dir1/file*')
   $ hg up -qC .

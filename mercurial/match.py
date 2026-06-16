@@ -120,7 +120,11 @@ def _expandsets(
     return matchers, other
 
 
-def _expandsubinclude(kindpats: Iterable[_KindPatT], root: HgPathT):
+def _expandsubinclude(
+    kindpats: Iterable[_KindPatT],
+    root: HgPathT,
+    warn: Callable[[bytes], Any] | None = None,
+):
     """Returns the list of subinclude matcher args and the kindpats without the
     subincludes in it."""
     relmatchers = []
@@ -138,6 +142,8 @@ def _expandsubinclude(kindpats: Iterable[_KindPatT], root: HgPathT):
                 'patterns': [],
                 'include': [b'subinclude:%s' % path],
                 'outer_kind': b'subinclude',
+                'outer_file': path,
+                'warn': warn,
                 'read_subinclude_file': True,
             }
 
@@ -169,6 +175,7 @@ def _buildkindpatsmatcher(
     ctx=None,
     listsubrepos: bool = False,
     badfn: _BadFuncT | None = None,
+    warn: Callable[[bytes], Any] | None = None,
 ):
     matchers = []
     fms, kindpats = _expandsets(
@@ -179,7 +186,7 @@ def _buildkindpatsmatcher(
         badfn=badfn,
     )
     if kindpats:
-        m = matchercls(root, kindpats, badfn=badfn)
+        m = matchercls(root, kindpats, badfn=badfn, warn=warn)
         matchers.append(m)
     if fms:
         matchers.extend(fms)
@@ -200,10 +207,11 @@ def match(
     auditor=None,
     ctx=None,
     listsubrepos: bool = False,
-    warn=None,
+    warn: Callable[[bytes], Any] | None = None,
     badfn: _BadFuncT | None = None,
     icasefs: bool = False,
     outer_kind: bytes | None = None,
+    outer_file: HgPathT | None = None,
     read_subinclude_file: bool = False,
 ):
     r"""build an object to match a set of file patterns
@@ -307,6 +315,7 @@ def match(
             auditor,
             warn,
             outer_kind,
+            outer_file,
             read_subinclude_file,
         ) -> list[_KindPatT]:
             kp = _donormalize(
@@ -317,6 +326,7 @@ def match(
                 auditor,
                 warn,
                 outer_kind,
+                outer_file,
                 read_subinclude_file,
             )
             kindpats: list[_KindPatT] = []
@@ -341,6 +351,7 @@ def match(
             auditor,
             warn,
             outer_kind,
+            outer_file,
             read_subinclude_file,
         )
         if _kindpatsalwaysmatch(kindpats):
@@ -354,6 +365,7 @@ def match(
                 ctx=ctx,
                 listsubrepos=listsubrepos,
                 badfn=badfn,
+                warn=warn,
             )
     else:
         # It's a little strange that no patterns means to match everything.
@@ -369,6 +381,7 @@ def match(
             auditor,
             warn,
             outer_kind,
+            outer_file,
             read_subinclude_file,
         )
         im = _buildkindpatsmatcher(
@@ -379,6 +392,7 @@ def match(
             ctx=ctx,
             listsubrepos=listsubrepos,
             badfn=None,
+            warn=warn,
         )
         m = intersectmatchers(m, im)
     if exclude:
@@ -390,6 +404,7 @@ def match(
             auditor,
             warn,
             outer_kind,
+            outer_file,
             read_subinclude_file,
         )
         em = _buildkindpatsmatcher(
@@ -400,6 +415,7 @@ def match(
             ctx=ctx,
             listsubrepos=listsubrepos,
             badfn=None,
+            warn=warn,
         )
         m = differencematcher(m, em)
     return m
@@ -434,8 +450,9 @@ def _donormalize(
     root: HgPathT,
     cwd,
     auditor=None,
-    warn=None,
+    warn: Callable[[bytes], Any] | None = None,
     outer_kind: bytes | None = None,
+    outer_file: HgPathT | None = None,
     read_subinclude_file: bool = False,
 ) -> list[_KindPatT]:
     """Convert 'kind:pat' from the patterns list to tuples with kind and
@@ -443,7 +460,7 @@ def _donormalize(
 
     `outer_kind` is the kind whose contents we're normalizing (`None` at top level,
     otherwise include/subinclude/listfile/listfile0). When it is `subinclude`, nested
-    `include:`s are not allowed (TODO: warn).
+    `include:`s are not allowed and are skipped with a warning.
 
     If `read_subinclude_file` is false, subinclude patterns are passed along without
     being processed so that a later `_expandsubinclude` call can scope them properly.
@@ -481,7 +498,17 @@ def _donormalize(
             continue
         elif kind in (b'include', b'subinclude'):
             if kind == b'include' and outer_kind == b'subinclude':
-                # TODO: warn
+                if warn:
+                    display = (
+                        os.path.relpath(outer_file)
+                        if outer_file is not None
+                        else b'<unknown>'
+                    )
+                    msg = _(
+                        b"%s: include is not allowed inside a subincluded"
+                        b" file; skipping 'include:%s'\n"
+                    )
+                    warn(msg % (display, pat))
                 continue
             if kind == b'subinclude' and not read_subinclude_file:
                 # To be handled by _expandsubinclude
@@ -498,6 +525,7 @@ def _donormalize(
                     auditor,
                     warn,
                     kind,
+                    outer_file=fullpath,
                 ):
                     kindpats.append((k, p, source or pat))
             except error.Abort as inst:
@@ -776,6 +804,7 @@ class patternmatcher(basematcher):
         root: HgPathT,
         kindpats: list[_KindPatT],
         badfn: _BadFuncT | None = None,
+        warn: Callable[[bytes], Any] | None = None,
     ) -> None:
         super().__init__(badfn)
         kindpats.sort()
@@ -790,7 +819,7 @@ class patternmatcher(basematcher):
         self._dirs_explicit = set(dirs)
         self._dirs = parents
         self._prefix = _prefix(kindpats)
-        self._pats, self._matchfn = _buildmatch(kindpats, b'$', root)
+        self._pats, self._matchfn = _buildmatch(kindpats, b'$', root, warn=warn)
 
     def matchfn(self, fn: HgPathT) -> bool:
         if fn in self._fileset:
@@ -869,13 +898,16 @@ class includematcher(basematcher):
         root: HgPathT,
         kindpats: Iterable[_KindPatT],
         badfn: _BadFuncT | None = None,
+        warn: Callable[[bytes], Any] | None = None,
     ) -> None:
         super().__init__(badfn)
         if rustmod is not None:
             # We need to pass the patterns to Rust because they can contain
             # patterns from the user interface
             self._kindpats = kindpats
-        self._pats, self.matchfn = _buildmatch(kindpats, b'(?:/|$)', root)
+        self._pats, self.matchfn = _buildmatch(
+            kindpats, b'(?:/|$)', root, warn=warn
+        )
         self._prefix = _prefix(kindpats)
         roots, dirs, parents = _rootsdirsandparents(kindpats)
         # roots are directories which are recursively included.
@@ -1586,13 +1618,16 @@ def _regex(kind: bytes, pat: bytes, globsuffix: bytes) -> bytes:
 
 
 def _buildmatch(
-    kindpats: Iterable[_KindPatT], globsuffix: bytes, root: HgPathT
+    kindpats: Iterable[_KindPatT],
+    globsuffix: bytes,
+    root: HgPathT,
+    warn: Callable[[bytes], Any] | None = None,
 ):
     """Return regexp string and a matcher function for kindpats.
     globsuffix is appended to the regexp of globs."""
     matchfuncs = []
 
-    subincludes, kindpats = _expandsubinclude(kindpats, root)
+    subincludes, kindpats = _expandsubinclude(kindpats, root, warn=warn)
     if subincludes:
         submatchers = {}
 

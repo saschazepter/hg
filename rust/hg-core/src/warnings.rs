@@ -173,6 +173,22 @@ pub mod format {
                     get_bytes_from_path(path),
                 )
             }
+            PatternFileWarning::IncludeInSubinclude(path, raw) => {
+                let path = if let Ok(relative) =
+                    path.strip_prefix(working_directory)
+                {
+                    relative
+                } else {
+                    path
+                };
+                write_bytes!(
+                    output,
+                    b"{}: include is not allowed inside a subincluded file; \
+                        skipping 'include:{}'\n",
+                    get_bytes_from_path(path),
+                    raw,
+                )
+            }
         }
     }
 

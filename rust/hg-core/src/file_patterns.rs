@@ -551,6 +551,9 @@ pub enum PatternFileWarning {
     InvalidSyntax(PathBuf, Vec<u8>),
     /// File path
     NoSuchFile(PathBuf),
+    /// `include:` appeared inside a subincluded file. Tuple is (file containing
+    /// the include, included path bytes)
+    IncludeInSubinclude(PathBuf, Vec<u8>),
 }
 
 pub fn parse_one_pattern(
@@ -745,7 +748,7 @@ pub type PatternResult<T> = Result<T, PatternError>;
 ///
 /// `outer_kind` is the kind whose contents we're normalizing (`None` at top
 /// level, otherwise include/subinclude). When it is `subinclude`, nested
-/// `include:`s are not allowed (TODO: warn).
+/// `include:`s are not allowed and are skipped with a warning.
 pub fn get_patterns_from_file(
     pattern_file: &Path,
     root_dir: &Path,
@@ -766,7 +769,10 @@ pub fn get_patterns_from_file(
             Ok(match &entry.syntax {
                 PatternSyntax::Include => {
                     if outer_kind == Some(PatternSyntax::SubInclude) {
-                        // TODO: warn.
+                        warnings.send(PatternFileWarning::IncludeInSubinclude(
+                            pattern_file.to_owned(),
+                            entry.raw.clone(),
+                        ));
                         vec![]
                     } else {
                         let inner_include =
