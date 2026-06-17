@@ -24,6 +24,7 @@ use hg::utils::RawData;
 use hg::utils::u32_u;
 use hg::utils::u64_u;
 
+use crate::server::ATTRIBUTES_FOR_NEGATIVE_LOOKUP;
 use crate::server::Server;
 use crate::server::store::FileToken;
 use crate::server::store::RevisionIdx;
@@ -174,7 +175,16 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
                     Generation(0),
                 );
             }
-            Ok(None) => reply.error(fuser::Errno::ENOENT),
+            Ok(None) => {
+                // The fuser library doesn't have a good way of adding a TTL to
+                // a negative entry. We work around this by sending an entry
+                // with inode 0.
+                reply.entry(
+                    &TTL,
+                    &ATTRIBUTES_FOR_NEGATIVE_LOOKUP,
+                    Generation(0),
+                )
+            }
             // TODO better error codes
             Err(_) => reply.error(fuser::Errno::EIO),
         }

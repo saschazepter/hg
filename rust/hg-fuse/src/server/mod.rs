@@ -297,3 +297,21 @@ fn permissions_for_file(flags: ManifestFlags) -> u16 {
         0o600
     }
 }
+
+pub const ATTRIBUTES_FOR_NEGATIVE_LOOKUP: FileAttr = FileAttr {
+    ino: INodeNo(0),
+    size: 0,
+    blocks: 0,
+    atime: SystemTime::UNIX_EPOCH,
+    mtime: SystemTime::UNIX_EPOCH,
+    ctime: SystemTime::UNIX_EPOCH,
+    crtime: SystemTime::UNIX_EPOCH,
+    kind: FileType::RegularFile,
+    perm: 0o000,
+    nlink: 0,
+    uid: 0,
+    gid: 0,
+    rdev: 0,
+    flags: 0,
+    blksize: 0,
+};
