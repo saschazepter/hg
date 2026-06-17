@@ -1584,7 +1584,7 @@ class ui:
             # take precedence over disabling factors below
             command in self.configlist(b'pager', b'ignore')
             or not self.configbool(b'ui', b'paginate')
-            or not self.configbool(b'ui', b'interactive')
+            or not self.interactive()
             or not self.configbool(b'pager', b'attend-' + command, True)
             or encoding.environ.get(b'TERM') == b'dumb'
             # TODO: if we want to allow HGPLAINEXCEPT=pager,
