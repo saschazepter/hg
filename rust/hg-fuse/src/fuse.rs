@@ -13,6 +13,7 @@ use fuser::Filesystem;
 use fuser::FopenFlags;
 use fuser::Generation;
 use fuser::INodeNo;
+use fuser::InitFlags;
 use fuser::MountOption;
 use fuser::SessionACL;
 use hg::Node;
@@ -38,6 +39,10 @@ pub struct HgFuse<S, T> {
     server: Server<S, T>,
     /// The mount point for this FUSE
     mount_point: PathBuf,
+    /// FUSE capability for zero-message open
+    fuse_no_open_support: bool,
+    /// FUSE capability for zero-message opendir
+    fuse_no_opendir_support: bool,
 }
 
 impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
@@ -64,7 +69,12 @@ impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
         ]);
         config.acl = session_acl;
         config.n_threads = Some(thread_count);
-        let filesystem = Self { server, mount_point: mountpoint.to_path_buf() };
+        let filesystem = Self {
+            server,
+            mount_point: mountpoint.to_path_buf(),
+            fuse_no_open_support: false,
+            fuse_no_opendir_support: false,
+        };
         Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }
@@ -78,6 +88,18 @@ const TTL: Duration = Duration::MAX;
 const STATELESS_FILE_HANDLE: FileHandle = FileHandle(0);
 
 impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
+    fn init(
+        &mut self,
+        _req: &fuser::Request,
+        config: &mut fuser::KernelConfig,
+    ) -> std::io::Result<()> {
+        self.fuse_no_open_support =
+            config.add_capabilities(InitFlags::FUSE_NO_OPEN_SUPPORT).is_ok();
+        self.fuse_no_opendir_support =
+            config.add_capabilities(InitFlags::FUSE_NO_OPENDIR_SUPPORT).is_ok();
+        Ok(())
+    }
+
     fn access(
         &self,
         _req: &fuser::Request,
@@ -165,8 +187,14 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
         _flags: fuser::OpenFlags,
         reply: fuser::ReplyOpen,
     ) {
-        let flags = FopenFlags::FOPEN_KEEP_CACHE | FopenFlags::FOPEN_NOFLUSH;
-        reply.opened(STATELESS_FILE_HANDLE, flags);
+        if self.fuse_no_open_support {
+            // Tell the kernel to use zero-message open
+            reply.error(fuser::Errno::ENOSYS);
+        } else {
+            let flags =
+                FopenFlags::FOPEN_KEEP_CACHE | FopenFlags::FOPEN_NOFLUSH;
+            reply.opened(STATELESS_FILE_HANDLE, flags);
+        }
     }
 
     fn read(
@@ -217,10 +245,15 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
         _flags: fuser::OpenFlags,
         reply: fuser::ReplyOpen,
     ) {
-        let flags = FopenFlags::FOPEN_KEEP_CACHE
-            | FopenFlags::FOPEN_CACHE_DIR
-            | FopenFlags::FOPEN_NOFLUSH;
-        reply.opened(STATELESS_FILE_HANDLE, flags);
+        if self.fuse_no_opendir_support {
+            // Tell the kernel to use zero-message opendir
+            reply.error(fuser::Errno::ENOSYS);
+        } else {
+            let flags = FopenFlags::FOPEN_KEEP_CACHE
+                | FopenFlags::FOPEN_CACHE_DIR
+                | FopenFlags::FOPEN_NOFLUSH;
+            reply.opened(STATELESS_FILE_HANDLE, flags);
+        }
     }
 }
 
