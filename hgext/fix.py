@@ -960,7 +960,11 @@ class Fixer:
         """Should this fixer run on the file at the given path and context?"""
         repo = fixctx.repo()
         matcher = matchmod.match(
-            repo.root, repo.root, [self._pattern], ctx=fixctx
+            repo.root,
+            repo.root,
+            [self._pattern],
+            ctx=fixctx,
+            warn=repo.ui.warn,
         )
         return matcher(path)
 

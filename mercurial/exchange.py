@@ -2553,7 +2553,10 @@ def _getbundlestream2(
     narrow_matcher: MatcherT | None = None
     if includepats or excludepats:
         narrow_matcher = narrowspec.match(
-            repo.root, include=includepats, exclude=excludepats
+            repo.root,
+            include=includepats,
+            exclude=excludepats,
+            warn=repo.ui.warn,
         )
     return bundle2.addpartbundlestream2(
         bundler,
@@ -2600,7 +2603,12 @@ def _getbundlechangegrouppart(
     if kwargs.get('narrow', False):
         include = sorted(filter(bool, kwargs.get('includepats', [])))
         exclude = sorted(filter(bool, kwargs.get('excludepats', [])))
-        matcher = narrowspec.match(repo.root, include=include, exclude=exclude)
+        matcher = narrowspec.match(
+            repo.root,
+            include=include,
+            exclude=exclude,
+            warn=repo.ui.warn,
+        )
     else:
         matcher = None
 

@@ -1624,7 +1624,12 @@ class localrepository(_localrepo_base_classes):
         if not self.is_narrow:
             return matchmod.always()
         include, exclude = self.narrowpats
-        return narrowspec.match(self.root, include=include, exclude=exclude)
+        return narrowspec.match(
+            self.root,
+            include=include,
+            exclude=exclude,
+            warn=self.ui.warn,
+        )
 
     @storecache(narrowspec.FILENAME)
     def _narrowmatch(self):
@@ -1632,7 +1637,12 @@ class localrepository(_localrepo_base_classes):
             return matchmod.always()
         narrowspec.checkworkingcopynarrowspec(self)
         include, exclude = self.narrowpats
-        return narrowspec.match(self.root, include=include, exclude=exclude)
+        return narrowspec.match(
+            self.root,
+            include=include,
+            exclude=exclude,
+            warn=self.ui.warn,
+        )
 
     def narrowmatch(self, match=None, includeexact=False):
         """matcher corresponding the the repo's narrowspec
@@ -2201,7 +2211,7 @@ class localrepository(_localrepo_base_classes):
             for pat, cmd in self.ui.configitems(filter):
                 if cmd == b'!':
                     continue
-                mf = matchmod.match(self.root, b'', [pat])
+                mf = matchmod.match(self.root, b'', [pat], warn=self.ui.warn)
                 fn = None
                 params = cmd
                 for name, filterfn in self._datafilters.items():

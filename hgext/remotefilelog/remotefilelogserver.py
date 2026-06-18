@@ -59,7 +59,12 @@ def setupserver(ui, repo):
             m = match.always()
             if includepattern or excludepattern:
                 m = match.match(
-                    repo.root, b'', None, includepattern, excludepattern
+                    repo.root,
+                    b'',
+                    None,
+                    includepattern,
+                    excludepattern,
+                    warn=repo.ui.warn,
                 )
 
             changedfiles = [f for f in changedfiles if not m(f)]
@@ -119,7 +124,12 @@ def onetimesetup(ui):
             state.noflatmf = other.get(b'noflatmanifest') == b'True'
             if includepattern or excludepattern:
                 state.match = match.match(
-                    repo.root, b'', None, includepattern, excludepattern
+                    repo.root,
+                    b'',
+                    None,
+                    includepattern,
+                    excludepattern,
+                    warn=repo.ui.warn,
                 )
             streamres = wireprotov1server.stream(repo, proto)
 

@@ -248,7 +248,7 @@ class kwtemplater:
     def __init__(self, ui, repo, inc, exc):
         self.ui = ui
         self._repo = weakref.ref(repo)
-        self.match = match.match(repo.root, b'', [], inc, exc)
+        self.match = match.match(repo.root, b'', [], inc, exc, warn=ui.warn)
         self.restrict = kwtools[b'hgcmd'] in restricted.split()
         self.postcommit = False
 

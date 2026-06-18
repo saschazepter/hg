@@ -226,8 +226,18 @@ def _narrow(
     force,
     backup,
 ):
-    oldmatch = narrowspec.match(repo.root, oldincludes, oldexcludes)
-    newmatch = narrowspec.match(repo.root, newincludes, newexcludes)
+    oldmatch = narrowspec.match(
+        repo.root,
+        oldincludes,
+        oldexcludes,
+        warn=repo.ui.warn,
+    )
+    newmatch = narrowspec.match(
+        repo.root,
+        newincludes,
+        newexcludes,
+        warn=repo.ui.warn,
+    )
 
     # This is essentially doing "hg outgoing" to find all local-only
     # commits. We will then check that the local-only commits don't
@@ -651,7 +661,12 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
                     localfiles.update(repo[n].files())
                 suggestedremovals = []
                 for include in sorted(oldincludes):
-                    match = narrowspec.match(repo.root, [include], oldexcludes)
+                    match = narrowspec.match(
+                        repo.root,
+                        [include],
+                        oldexcludes,
+                        warn=repo.ui.warn,
+                    )
                     if not any(match(f) for f in localfiles):
                         suggestedremovals.append(include)
                 if suggestedremovals:

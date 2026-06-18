@@ -130,10 +130,16 @@ def narrow_widen(
 
         bundler = bundle2.bundle20(repo.ui)
         newmatch = narrowspec.match(
-            repo.root, include=newincludes, exclude=newexcludes
+            repo.root,
+            include=newincludes,
+            exclude=newexcludes,
+            warn=repo.ui.warn,
         )
         oldmatch = narrowspec.match(
-            repo.root, include=oldincludes, exclude=oldexcludes
+            repo.root,
+            include=oldincludes,
+            exclude=oldexcludes,
+            warn=repo.ui.warn,
         )
         if not ellipses:
             bundle2.widen_bundle(

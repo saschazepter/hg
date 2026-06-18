@@ -375,7 +375,13 @@ def checkstatus(repo: RepoT, subset, pat, field):
     def matches(x):
         c = repo[x]
         if not mcache[0] or hasset:
-            mcache[0] = matchmod.match(repo.root, repo.getcwd(), [pat], ctx=c)
+            mcache[0] = matchmod.match(
+                repo.root,
+                repo.getcwd(),
+                [pat],
+                ctx=c,
+                warn=repo.ui.warn,
+            )
         m = mcache[0]
         fname = None
 
@@ -515,7 +521,13 @@ def contains(repo: RepoT, subset, x):
                 return True
         else:
             c = repo[x]
-            m = matchmod.match(repo.root, repo.getcwd(), [pat], ctx=c)
+            m = matchmod.match(
+                repo.root,
+                repo.getcwd(),
+                [pat],
+                ctx=c,
+                warn=repo.ui.warn,
+            )
             for f in c.manifest():
                 if m(f):
                     return True
@@ -863,7 +875,13 @@ def filelog(repo: RepoT, subset, x):
         f = pathutil.canonpath(repo.root, repo.getcwd(), pat)
         files = [f]
     else:
-        m = matchmod.match(repo.root, repo.getcwd(), [pat], ctx=repo[None])
+        m = matchmod.match(
+            repo.root,
+            repo.getcwd(),
+            [pat],
+            ctx=repo[None],
+            warn=repo.ui.warn,
+        )
         files = (f for f in repo[None] if m(f))
 
     for f in files:
@@ -937,7 +955,12 @@ def _follow(repo: RepoT, subset, x, name, followfirst=False):
             if r is None:
                 ctx = repo[b'.']
             m = matchmod.match(
-                repo.root, repo.getcwd(), [x], ctx=mctx, default=b'path'
+                repo.root,
+                repo.getcwd(),
+                [x],
+                ctx=mctx,
+                default=b'path',
+                warn=repo.ui.warn,
             )
             fctxs.extend(ctx[f].introfilectx() for f in ctx.manifest().walk(m))
         s = dag_util.filerevancestors(fctxs, followfirst)
@@ -1166,6 +1189,7 @@ def _matchfiles(repo: RepoT, subset, x):
                 exclude=exc,
                 ctx=repo[r],
                 default=default,
+                warn=repo.ui.warn,
             )
         m = mcache[0]
 

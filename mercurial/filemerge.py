@@ -225,7 +225,7 @@ def _picktool(repo, ui, path, binary, symlink, changedelete):
     binarycap = binary and strictcheck
 
     for pat, tool in ui.configitems(b"merge-patterns"):
-        mf = match.match(repo.root, b'', [pat])
+        mf = match.match(repo.root, b'', [pat], warn=ui.warn)
         if mf(path) and check(tool, pat, symlink, binarycap, changedelete):
             if binary and not hascapability(tool, b"binary", strict=True):
                 ui.warn(
@@ -1156,7 +1156,11 @@ def _run_partial_resolution_tools(repo, local, other, base):
         is_match = True
         if patterns:
             m = match.match(
-                repo.root, b'', patterns, ctx=local.fctx.changectx()
+                repo.root,
+                b'',
+                patterns,
+                ctx=local.fctx.changectx(),
+                warn=ui.warn,
             )
             is_match = m(local.fctx.path())
         if is_match:

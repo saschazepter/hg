@@ -1153,7 +1153,13 @@ def parsefollowlinespattern(repo, rev, pat: bytes, msg: bytes) -> bytes:
         return pathutil.canonpath(repo.root, repo.getcwd(), pat)
     else:
         ctx = repo[rev]
-        m = matchmod.match(repo.root, repo.getcwd(), [pat], ctx=ctx)
+        m = matchmod.match(
+            repo.root,
+            repo.getcwd(),
+            [pat],
+            ctx=ctx,
+            warn=repo.ui.warn,
+        )
         files = [f for f in ctx if m(f)]
         if len(files) != 1:
             raise error.ParseError(msg)

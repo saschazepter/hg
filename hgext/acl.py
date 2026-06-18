@@ -348,7 +348,7 @@ def buildmatch(ui, repo, user, key):
 
     # Path-based ACL
     if pats:
-        return match.match(repo.root, b'', pats)
+        return match.match(repo.root, b'', pats, warn=repo.ui.warn)
     return util.never
 
 

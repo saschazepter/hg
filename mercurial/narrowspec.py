@@ -157,20 +157,25 @@ def format(includes, excludes):
     return output
 
 
-def match(root, include=None, exclude=None):
+def match(root, include=None, exclude=None, warn=None):
     if not include:
         # Passing empty include and empty exclude to matchmod.match()
         # gives a matcher that matches everything, so explicitly use
         # the nevermatcher.
         return matchmod.never()
 
-    shape_matcher = shape.shard_tree_matcher(root, include, exclude)
+    shape_matcher = shape.shard_tree_matcher(root, include, exclude, warn=warn)
     if shape_matcher is not None:
         return shape_matcher
     # Fall back to the old way of matching
     # TODO warn users?
     return matchmod.match(
-        root, b'', [], include=include or [], exclude=exclude or []
+        root,
+        b'',
+        [],
+        include=include or [],
+        exclude=exclude or [],
+        warn=warn,
     )
 
 

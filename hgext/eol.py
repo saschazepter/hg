@@ -221,11 +221,11 @@ class eolfile:
                 exclude.append(pattern)
             else:
                 include.append(pattern)
-            m = match.match(root, b'', [pattern])
+            m = match.match(root, b'', [pattern], warn=ui.warn)
             self.patterns.append((pattern, key, m))
         # This will match the files for which we need to care
         # about inconsistent newlines.
-        self.match = match.match(root, b'', [], include, exclude)
+        self.match = match.match(root, b'', [], include, exclude, warn=ui.warn)
 
     def copytoui(self, ui):
         newpatterns = {pattern for pattern, key, m in self.patterns}

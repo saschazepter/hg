@@ -75,7 +75,7 @@ class ShardTreeNode:
         root = stack[0]
         return root
 
-    def matcher(self, root_path: bytes):
+    def matcher(self, root_path: bytes, warn=None):
         """Build the matcher corresponding to this tree."""
         if not self.path:
             # We're the root node
@@ -88,6 +88,7 @@ class ShardTreeNode:
                 root_path,
                 b'',
                 [b'path:%s' % self.path],
+                warn=warn,
             )
         if not self.children:
             return top_matcher
@@ -96,7 +97,7 @@ class ShardTreeNode:
         for child in self.children:
             # Make sure the tree is well-formed
             assert child.included != self.included
-            subs.append(child.matcher(root_path))
+            subs.append(child.matcher(root_path, warn=warn))
 
         if len(subs) == 1:
             sub_matcher = subs[0]
@@ -177,7 +178,10 @@ def fingerprint_for_patterns(
 
 
 def shard_tree_matcher(
-    root: bytes, include: set[bytes], exclude: set[bytes] | None
+    root: bytes,
+    include: set[bytes],
+    exclude: set[bytes] | None,
+    warn=None,
 ):
     """Return a matcher corresponding to these includes and excludes if they
     can be expressed as a tree, which (for now) only works for `path:`."""
@@ -198,4 +202,4 @@ def shard_tree_matcher(
         pattern_tree: ShardTreeNode = ShardTreeNode.from_patterns(
             include, exclude
         )
-        return pattern_tree.matcher(root)
+        return pattern_tree.matcher(root, warn=warn)

@@ -357,6 +357,7 @@ def matcher(repo, revs=None, includetemp=True):
                     include=includes,
                     exclude=excludes,
                     default=b'relpath',
+                    warn=repo.ui.warn,
                 )
                 matchers.append(matcher)
         except OSError:

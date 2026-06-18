@@ -413,6 +413,7 @@ class basectx(abc.ABC):
             ctx=self,
             listsubrepos=listsubrepos,
             badfn=badfn,
+            warn=r.ui.warn,
         )
 
     def diff(
@@ -1906,6 +1907,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
             listsubrepos=listsubrepos,
             badfn=badfn,
             icasefs=icasefs,
+            warn=r.ui.warn,
         )
 
     def _filtersuspectsymlink(self, files: list[bytes]) -> list[bytes]:

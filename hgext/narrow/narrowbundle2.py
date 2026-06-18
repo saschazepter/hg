@@ -87,7 +87,12 @@ def generateellipsesbundle2(
     heads,
     depth,
 ):
-    match = narrowspec.match(repo.root, include=include, exclude=exclude)
+    match = narrowspec.match(
+        repo.root,
+        include=include,
+        exclude=exclude,
+        warn=repo.ui.warn,
+    )
     if depth is not None:
         depth = int(depth)
         if depth < 1:

@@ -134,7 +134,12 @@ def makechangegroup(orig, repo, outgoing, version, source, *args, **kwargs):
                         excludepattern = raw.split(b'\0')
             if includepattern or excludepattern:
                 repo.shallowmatch = match.match(
-                    repo.root, b'', None, includepattern, excludepattern
+                    repo.root,
+                    b'',
+                    None,
+                    includepattern,
+                    excludepattern,
+                    warn=repo.ui.warn,
                 )
             else:
                 repo.shallowmatch = match.always()

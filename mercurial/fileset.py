@@ -478,7 +478,13 @@ def subrepo(mctx, x):
                 return s == pat
 
         else:
-            m = matchmod.match(ctx.repo().root, b'', [pat], ctx=ctx)
+            m = matchmod.match(
+                ctx.repo().root,
+                b'',
+                [pat],
+                ctx=ctx,
+                warn=ctx.repo().ui.warn,
+            )
         return mctx.predicate(
             lambda f: f in sstate and m(f), predrepr=(b'subrepo(%r)', pat)
         )

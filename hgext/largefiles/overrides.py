@@ -123,7 +123,12 @@ def addlargefiles(ui, repo, isaddremove, matcher, uipathfn, **opts):
     if lfutil.islfilesrepo(repo):
         lfpats = ui.configlist(lfutil.longname, b'patterns')
         if lfpats:
-            lfmatcher = matchmod.match(repo.root, b'', list(lfpats))
+            lfmatcher = matchmod.match(
+                repo.root,
+                b'',
+                list(lfpats),
+                warn=ui.warn,
+            )
 
     lfnames = []
     m = matcher

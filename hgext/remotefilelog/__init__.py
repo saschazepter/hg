@@ -806,7 +806,12 @@ def filelogrevset(orig, repo, subset, x):
     # i18n: "filelog" is a keyword
     pat = revset.getstring(x, _(b"filelog requires a pattern"))
     m = matchmod.match(
-        repo.root, repo.getcwd(), [pat], default=b'relpath', ctx=repo[None]
+        repo.root,
+        repo.getcwd(),
+        [pat],
+        default=b'relpath',
+        ctx=repo[None],
+        warn=repo.ui.warn,
     )
     s = set()
 

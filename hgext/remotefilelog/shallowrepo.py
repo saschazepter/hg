@@ -340,5 +340,10 @@ def wraprepo(repo):
 
     if repo.includepattern or repo.excludepattern:
         repo.shallowmatch = match.match(
-            repo.root, b'', None, repo.includepattern, repo.excludepattern
+            repo.root,
+            b'',
+            None,
+            repo.includepattern,
+            repo.excludepattern,
+            warn=repo.ui.warn,
         )

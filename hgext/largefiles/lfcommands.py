@@ -129,7 +129,12 @@ def lfconvert(ui, src, dest, *pats, **opts):
             if not pats:
                 pats = ui.configlist(lfutil.longname, b'patterns')
             if pats:
-                matcher = matchmod.match(rsrc.root, b'', list(pats))
+                matcher = matchmod.match(
+                    rsrc.root,
+                    b'',
+                    list(pats),
+                    warn=ui.warn,
+                )
             else:
                 matcher = None
 
