@@ -135,6 +135,26 @@ class ThinRepo:
         pass
         # XXX write cache
 
+    @util.propertycache
+    def _narrowmatch(self):
+        # XXX Actually support narrow at some point
+        return matchmod.always()
+
+    def narrowmatch(self, match=None, includeexact=False):
+        """matcher corresponding the the repo's narrowspec
+
+        If `match` is given, then that will be intersected with the narrow
+        matcher.
+
+        If `includeexact` is True, then any exact matches from `match` will
+        be included even if they're outside the narrowspec.
+        """
+        assert self._narrowmatch.always()
+        if match:
+            return match
+        else:
+            return self._narrowmatch
+
     @localrepo.unfilteredpropertycache
     def dirstate(self):
         if self._dirstate is None:
@@ -407,7 +427,7 @@ class ThinRepo:
         return s
 
 
-class ThinWcCtx:
+class ThinWcCtx(context.workingctx):
     def __init__(self, repo):
         self._repo = repo
 
@@ -450,6 +470,10 @@ class ThinWcCtx:
             badfn=badfn,
             icasefs=icasefs,
         )
+
+    @property
+    def substate(self):
+        return {}
 
 
 def filectxfn_from_dict(files):

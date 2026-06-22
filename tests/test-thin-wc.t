@@ -14,6 +14,8 @@ anything not tested here is unsupported and likely to be broken.
 
 
   $ cat << EOF >> $HGRCPATH
+  > [diff]
+  > git=yes
   > [extensions]
   > thin=
   > EOF
@@ -89,3 +91,45 @@ anything not tested here is unsupported and likely to be broken.
      date:        Thu Jan 01 00:00:00 1970 +0000
      summary:     base
   
+
+Running `hg add` before the commit
+----------------------------------
+
+  $ hg -R repo devel::create-thin-wc thin-add
+  $ echo fou > thin-add/rataxes
+  $ hg --cwd thin-add add rataxes
+  $ hg -R thin-add commit -m 'rataxes'
+  $ hg -R repo log -G
+  o  changeset:   2:70c3e1e28bd7
+  |  tag:         tip
+  |  parent:      0:a27d7651a8de
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     rataxes
+  |
+  | o  changeset:   1:6a3dd2470982
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     foo
+  |
+  @  changeset:   0:a27d7651a8de
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     base
+  
+  $ hg -R repo export --rev 'desc("rataxes")'
+  # HG changeset patch
+  # User test
+  # Date 0 0
+  #      Thu Jan 01 00:00:00 1970 +0000
+  # Node ID 70c3e1e28bd7e4442d949730a3584ceba4f91615
+  # Parent  a27d7651a8de9e060a1f1e839dc7c2039fb9a843
+  rataxes
+  
+  diff --git a/rataxes b/rataxes
+  new file mode 100644
+  --- /dev/null
+  +++ b/rataxes
+  @@ -0,0 +1,1 @@
+  +fou
+
