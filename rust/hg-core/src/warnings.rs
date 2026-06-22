@@ -189,6 +189,13 @@ pub mod format {
                     raw,
                 )
             }
+            PatternFileWarning::SubincludeEscapesDirectory(raw) => {
+                write_bytes!(
+                    output,
+                    b"subinclude '{}' escapes its directory; skipping\n",
+                    raw,
+                )
+            }
         }
     }
 

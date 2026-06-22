@@ -554,6 +554,10 @@ pub enum PatternFileWarning {
     /// `include:` appeared inside a subincluded file. Tuple is (file containing
     /// the include, included path bytes)
     IncludeInSubinclude(PathBuf, Vec<u8>),
+    /// A nested `subinclude:` points outside its parent subincluded file's
+    /// directory. Tuple is (subincluded path bytes). Note that this check does
+    /// not follow symlinks.
+    SubincludeEscapesDirectory(Vec<u8>),
 }
 
 pub fn parse_one_pattern(
@@ -788,6 +792,24 @@ pub fn get_patterns_from_file(
                     }
                 }
                 PatternSyntax::SubInclude => {
+                    if outer_kind == Some(PatternSyntax::SubInclude) {
+                        // Nested subinclude: must stay inside the outer
+                        // subincluded file's directory.
+                        let raw_path =
+                            scope_dir.join(get_path_from_bytes(&entry.raw));
+                        let normalized_bytes = normalize_path_bytes(
+                            &get_bytes_from_path(&raw_path),
+                        );
+                        let normalized = get_path_from_bytes(&normalized_bytes);
+                        if !normalized.starts_with(scope_dir) {
+                            warnings.send(
+                                PatternFileWarning::SubincludeEscapesDirectory(
+                                    entry.raw.clone(),
+                                ),
+                            );
+                            return Ok(vec![]);
+                        }
+                    }
                     let mut sub_include =
                         SubInclude::new(root_dir, &entry.raw, scope_dir)?;
                     let inner_patterns = get_patterns_from_file(

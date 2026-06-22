@@ -451,7 +451,6 @@ Subinclude outside the current scope
 
 Using ../ to escape scope in a nested subinclude is not allowed
 
-
 # /.hgignore sub-include /foo/.hgignore
 # /foo/.hgignore sub-include /bar/.hgignore
 # bar/.hgignore ignore's `drop1`
@@ -459,16 +458,20 @@ Using ../ to escape scope in a nested subinclude is not allowed
 Expected result:
 - backward subinclude should be disallowed
 
-TODO: warn instead of fail and make Rust match Python
-
   $ echo 'subinclude:foo/.hgignore' > .hgignore
   $ echo 'subinclude:''../bar/.hgignore' > foo/.hgignore
+  $ hg status -i
+  subinclude '../bar/.hgignore' escapes its directory; skipping
+
+Demonstrate behavior diff between Python and Rust. Python resolves nested subinclude
+patterns lazily (only when a relevant file is queried) while Rust resolves them eagerly.
+Therefore, a pattern escaping scope may emit a warning in Rust but not in Python.
+
 #if no-rust no-rhg
-  $ hg status -i
-  abort: $TESTTMP/nested/foo/../bar not under root '$TESTTMP/nested/foo'
-  [255]
+  $ hg status -i -X 'foo/**'
 #else
-  $ hg status -i
+  $ hg status -i -X 'foo/**'
+  subinclude '../bar/.hgignore' escapes its directory; skipping
 #endif
 
   $ cd "$TESTTMP/ignorerepo"

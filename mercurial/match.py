@@ -511,6 +511,22 @@ def _donormalize(
                     warn(msg % (display, pat))
                 continue
             if kind == b'subinclude' and not read_subinclude_file:
+                if outer_kind == b'subinclude':
+                    # Nested subinclude: must stay inside the outer
+                    # subincluded file's directory.
+                    root_norm = util.normpath(root)
+                    resolved = util.normpath(
+                        pathutil.join(root, util.pconvert(pat))
+                    )
+                    if resolved != root_norm and not resolved.startswith(
+                        root_norm + b'/'
+                    ):
+                        if warn:
+                            msg = _(
+                                b"subinclude '%s' escapes its directory; skipping\n"
+                            )
+                            warn(msg % (pat))
+                        continue
                 # To be handled by _expandsubinclude
                 kindpats.append((kind, pat, b''))
                 continue
