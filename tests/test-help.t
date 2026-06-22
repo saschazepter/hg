@@ -406,6 +406,7 @@ Test extension help:
        relink        recreates hardlinks between repository clones
        schemes       extend schemes with shortcuts to repository swarms
        share         share a common history between several working directories
+       thin          provide thin working with a remote backend (experimental)
        transplant    command to transplant changesets from another branch
        win32mbcs     allow the use of MBCS paths with problematic encodings
        zeroconf      discover and advertise repositories on the local network

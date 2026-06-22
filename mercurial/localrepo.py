@@ -116,9 +116,12 @@ if typing.TYPE_CHECKING:
         HgPathT,
         MatcherT,
         NodeIdT,
+        RepoT,
         RevsetAliasesT,
         StatusT,
         TransactionT,
+        UiT,
+        VfsT,
     )
 
     _C = TypeVar('_C', bound=Callable)
@@ -605,7 +608,7 @@ def makelocalrepository(baseui, path: bytes, intents=None):
             and requirementsmod.SHARESAFE_REQUIREMENT
             not in scmutil.readrequires(sharedvfs, True)
         ):
-            requirements |= scmutil.readrequires(storevfs, False)
+            requirements |= _read_store_requirements(requirements, storevfs)
         else:
             mismatch_warn = ui.configbool(
                 b'share', b'safe-mismatch.source-not-safe.warn'
@@ -726,6 +729,19 @@ def makelocalrepository(baseui, path: bytes, intents=None):
 
     features = set()
 
+    may_repo = _thin_repo_hook(
+        baseui=baseui,
+        ui=ui,
+        origroot=path,
+        wdirvfs=wdirvfs,
+        hgvfs=hgvfs,
+        requirements=requirements,
+        supportedrequirements=supportedrequirements,
+        features=features,
+    )
+    if may_repo is not None:
+        return may_repo
+
     # The "store" part of the repository holds versioned data. How it is
     # accessed is determined by various requirements. If `shared` or
     # `relshared` requirements are present, this indicates current repository
@@ -799,6 +815,30 @@ def makelocalrepository(baseui, path: bytes, intents=None):
         features=features,
         intents=intents,
     )
+
+
+def _read_store_requirements(
+    requirements: set[bytes],
+    storevfs: VfsT,
+) -> set[bytes]:
+    """Read the store requirement
+
+    exist to let the thin extension wrap it.
+    """
+    return scmutil.readrequires(storevfs, False)
+
+
+def _thin_repo_hook(
+    baseui: UiT,
+    ui: UiT,
+    origroot: HgPathT,
+    wdirvfs: VfsT,
+    hgvfs: VfsT,
+    requirements: set[bytes],
+    supportedrequirements: set[bytes],
+    features: set[bytes],
+) -> None | RepoT:
+    return None
 
 
 def loadhgrc(
