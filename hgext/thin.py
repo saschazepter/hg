@@ -413,8 +413,12 @@ class ThinRepo:
                 # XXX ignoring deleted file
                 digests = {}
                 for path in cmp:
-                    with self.wvfs(path) as f:
-                        d = file_digest(f, "sha256").digest()
+                    if self.wvfs.islink(path):
+                        dst = self.wvfs.readlink(path)
+                        d = hashlib.sha256(dst).digest()
+                    else:
+                        with self.wvfs(path) as f:
+                            d = file_digest(f, "sha256").digest()
                     digests[path] = d
 
                 assert dirstate.p2() == self.nodeconstants.nullid
@@ -607,8 +611,10 @@ def create_thin_wc(ui, repo, root):
                 fctx = target_rev[filename]
                 data = fctx.data()
                 size = len(data)
-                # XXX current code ignore symlink entirely
-                wvfs.write(filename, data)
+                if fctx.flags() == b'l':
+                    wvfs.symlink(data, filename)
+                else:
+                    wvfs.write(filename, data)
                 s = wvfs.lstat(filename)
                 mode = s.st_mode
                 mtime = timestamp.mtime_of(s)
