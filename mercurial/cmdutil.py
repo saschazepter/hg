@@ -3357,6 +3357,14 @@ def future_head_change(
         return None
 
 
+def may_use_commit_status(repo):
+    """True if `commitstatus` can be called for this repository type
+
+    Exists to let "thin" repository overwrite it to False
+    """
+    return True
+
+
 def commitstatus(
     repo,
     node,

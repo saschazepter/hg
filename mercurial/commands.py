@@ -1986,11 +1986,14 @@ def _docommit(ui, repo, *pats, **opts):
         head_change = cmdutil.future_head_change(repo, any_close)
 
     branch = repo[None].branch()
-    tip = repo.changelog.tip()
-    p1 = repo[b'.'].rev()
+    if cmdutil.may_use_commit_status(repo):
+        tip = repo.changelog.tip()
+    else:
+        tip = None
 
     extra = {}
     if any_close:
+        p1 = repo[b'.'].rev()
         extra[b'close'] = b'1'
 
         wc_dirty = False
@@ -2097,7 +2100,8 @@ def _docommit(ui, repo, *pats, **opts):
                 ui.status(_(b"nothing changed\n"))
             return 1
 
-    cmdutil.commitstatus(repo, node, head_change, tip, **opts)
+    if cmdutil.may_use_commit_status(repo):
+        cmdutil.commitstatus(repo, node, head_change, tip, **opts)
 
     if not ui.quiet and ui.configbool(b'commands', b'commit.post-status'):
         status(
