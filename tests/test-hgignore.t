@@ -387,25 +387,22 @@ Chain of include :
 # /foo/.hgignore sub-include /bar/.hgignore
 # /bar/.hgignore ignore's `drop1`
 
-Current result:
-- Python raises an error.
-- Rust reads /foo/bar/.hgignore instead ignoring `.drop2` within `/foo/bar/` only.
-
 Expected result:
 - Python should not raise
 - /bar/.ignore/ should be read, ignoring `.drop2` within `/bar/` only
 
+TODO: have Rust read /bar/.hgignore too.
+
   $ echo 'include:foo/.hgignore' > .hgignore
   $ echo 'subinclude:bar/.hgignore' > foo/.hgignore
 #if no-rust no-rhg
-  $ hg status -i 2>&1 | tail -1
-  AssertionError (known-bad-output !)
+  $ hg status -i
+  I bar/drop1
 #else
   $ hg status -i
   I foo/bar/drop2 (known-bad-output !)
   I bar/drop1 (missing-correct-output !)
 #endif
-
 
 Chaining a subinclude with an include
 -------------------------------------

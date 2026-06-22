@@ -128,12 +128,18 @@ def _expandsubinclude(kindpats: Iterable[_KindPatT], root: HgPathT):
 
     for kind, pat, source in kindpats:
         if kind == b'subinclude':
-            sourceroot = pathutil.dirname(util.normpath(source))
             pat = util.pconvert(pat)
-            path = pathutil.join(sourceroot, pat)
+            path = pathutil.join(root, pat)
 
             newroot = pathutil.dirname(path)
-            matcherargs = (newroot, b'', [], [b'include:%s' % path])
+            matcherargs = {
+                'root': newroot,
+                'cwd': b'',
+                'patterns': [],
+                'include': [b'subinclude:%s' % path],
+                'outer_kind': b'subinclude',
+                'read_subinclude_file': True,
+            }
 
             prefix = pathutil.canonpath(root, root, newroot)
             if prefix:
@@ -197,6 +203,8 @@ def match(
     warn=None,
     badfn: _BadFuncT | None = None,
     icasefs: bool = False,
+    outer_kind: bytes | None = None,
+    read_subinclude_file: bool = False,
 ):
     r"""build an object to match a set of file patterns
 
@@ -298,8 +306,19 @@ def match(
             cwd,
             auditor,
             warn,
+            outer_kind,
+            read_subinclude_file,
         ) -> list[_KindPatT]:
-            kp = _donormalize(patterns, default, root, cwd, auditor, warn)
+            kp = _donormalize(
+                patterns,
+                default,
+                root,
+                cwd,
+                auditor,
+                warn,
+                outer_kind,
+                read_subinclude_file,
+            )
             kindpats: list[_KindPatT] = []
             for kind, pats, source in kp:
                 if kind not in (b're', b'relre'):  # regex can't be normalized
@@ -314,7 +333,16 @@ def match(
             return kindpats
 
     if patterns:
-        kindpats = normalize(patterns, default, root, cwd, auditor, warn)
+        kindpats = normalize(
+            patterns,
+            default,
+            root,
+            cwd,
+            auditor,
+            warn,
+            outer_kind,
+            read_subinclude_file,
+        )
         if _kindpatsalwaysmatch(kindpats):
             m = alwaysmatcher(badfn)
         else:
@@ -333,7 +361,16 @@ def match(
         m = alwaysmatcher(badfn)
 
     if include:
-        kindpats = normalize(include, b'glob', root, cwd, auditor, warn)
+        kindpats = normalize(
+            include,
+            b'glob',
+            root,
+            cwd,
+            auditor,
+            warn,
+            outer_kind,
+            read_subinclude_file,
+        )
         im = _buildkindpatsmatcher(
             includematcher,
             root,
@@ -345,7 +382,16 @@ def match(
         )
         m = intersectmatchers(m, im)
     if exclude:
-        kindpats = normalize(exclude, b'glob', root, cwd, auditor, warn)
+        kindpats = normalize(
+            exclude,
+            b'glob',
+            root,
+            cwd,
+            auditor,
+            warn,
+            outer_kind,
+            read_subinclude_file,
+        )
         em = _buildkindpatsmatcher(
             includematcher,
             root,
@@ -389,9 +435,20 @@ def _donormalize(
     cwd,
     auditor=None,
     warn=None,
+    outer_kind: bytes | None = None,
+    read_subinclude_file: bool = False,
 ) -> list[_KindPatT]:
     """Convert 'kind:pat' from the patterns list to tuples with kind and
-    normalized and rooted patterns and with listfiles expanded."""
+    normalized and rooted patterns and with listfiles expanded.
+
+    `outer_kind` is the kind whose contents we're normalizing (`None` at top level,
+    otherwise include/subinclude/listfile/listfile0).
+
+    If `read_subinclude_file` is false, subinclude patterns are passed along without
+    being processed so that a later `_expandsubinclude` call can scope them properly.
+    Once they are scoped, `_donormalize` will be called again with
+    `read_subinclude_file` set to true, at which point the content of the subinclude
+    files will be read."""
     kindpats = []
     kinds_to_normalize = (
         b'relglob',
@@ -417,16 +474,26 @@ def _donormalize(
             except OSError:
                 raise error.Abort(_(b"unable to read file list (%s)") % pat)
             for k, p, source in _donormalize(
-                files, default, root, cwd, auditor, warn
+                files, default, root, cwd, auditor, warn, kind
             ):
                 kindpats.append((k, p, pat))
             continue
-        elif kind == b'include':
+        elif kind in (b'include', b'subinclude'):
+            if kind == b'subinclude' and not read_subinclude_file:
+                # To be handled by _expandsubinclude
+                kindpats.append((kind, pat, b''))
+                continue
             try:
                 fullpath = os.path.join(root, util.localpath(pat))
                 includepats = readpatternfile(fullpath, warn)
                 for k, p, source in _donormalize(
-                    includepats, default, root, cwd, auditor, warn
+                    includepats,
+                    default,
+                    root,
+                    cwd,
+                    auditor,
+                    warn,
+                    kind,
                 ):
                     kindpats.append((k, p, source or pat))
             except error.Abort as inst:
@@ -1530,7 +1597,7 @@ def _buildmatch(
                 if f.startswith(prefix):
                     mf = submatchers.get(prefix)
                     if mf is None:
-                        mf = match(*matcherargs)
+                        mf = match(**matcherargs)
                         submatchers[prefix] = mf
 
                     if mf(f[len(prefix) :]):
