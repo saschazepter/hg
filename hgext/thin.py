@@ -475,6 +475,9 @@ class ThinWcCtx(context.workingctx):
     def substate(self):
         return {}
 
+    def hasdir(self, path: HgPathT) -> bool:
+        return self._repo.wvfs.isdir(path)
+
 
 def filectxfn_from_dict(files):
     def getfilectx(repo, memctx, path: bytes):

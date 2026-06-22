@@ -133,3 +133,49 @@ Running `hg add` before the commit
   @@ -0,0 +1,1 @@
   +fou
 
+Running `hg rm` before the commit
+----------------------------------
+
+  $ hg -R repo update 'desc("rataxes")'
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R repo devel::create-thin-wc thin-rm
+  $ hg --cwd thin-rm rm rataxes
+  $ hg -R thin-rm commit -m 'battle'
+  $ hg -R repo log -G
+  o  changeset:   3:9d52cd3dd335
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     battle
+  |
+  @  changeset:   2:70c3e1e28bd7
+  |  parent:      0:a27d7651a8de
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     rataxes
+  |
+  | o  changeset:   1:6a3dd2470982
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     foo
+  |
+  o  changeset:   0:a27d7651a8de
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     base
+  
+  $ hg -R repo export --rev 'desc("battle")'
+  # HG changeset patch
+  # User test
+  # Date 0 0
+  #      Thu Jan 01 00:00:00 1970 +0000
+  # Node ID 9d52cd3dd3350d5365fcff2760673e28b97bb20b
+  # Parent  70c3e1e28bd7e4442d949730a3584ceba4f91615
+  battle
+  
+  diff --git a/rataxes b/rataxes
+  deleted file mode 100644
+  --- a/rataxes
+  +++ /dev/null
+  @@ -1,1 +0,0 @@
+  -fou
