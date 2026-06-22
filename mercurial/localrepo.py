@@ -600,11 +600,13 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # to be reshared
     hint = _(b"see `hg help config.format.use-share-safe` for more information")
     if requirementsmod.SHARESAFE_REQUIREMENT in requirements:
-        if (
+        if not (
             shared
             and requirementsmod.SHARESAFE_REQUIREMENT
             not in scmutil.readrequires(sharedvfs, True)
         ):
+            requirements |= scmutil.readrequires(storevfs, False)
+        else:
             mismatch_warn = ui.configbool(
                 b'share', b'safe-mismatch.source-not-safe.warn'
             )
@@ -643,8 +645,6 @@ def makelocalrepository(baseui, path: bytes, intents=None):
                     % mismatch_config,
                     hint=hint,
                 )
-        else:
-            requirements |= scmutil.readrequires(storevfs, False)
     elif shared:
         sourcerequires = scmutil.readrequires(sharedvfs, False)
         if requirementsmod.SHARESAFE_REQUIREMENT in sourcerequires:
