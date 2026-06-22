@@ -234,8 +234,7 @@ Finally commit
 
   $ hg -R thin-symlink commit -m 'symlink'
   $ hg -R repo log -G
-  o  changeset:   4:2cae21a5d237 (missing-correct-output !)
-  o  changeset:   4:35b2bf506438 (known-bad-output !)
+  o  changeset:   4:2cae21a5d237
   |  tag:         tip
   |  parent:      2:6f0ec60a93aa
   |  user:        test
@@ -268,8 +267,7 @@ Finally commit
   # User test
   # Date 0 0
   #      Thu Jan 01 00:00:00 1970 +0000
-  # Node ID 2cae21a5d237d058911134fe3fed581a552f5208 (missing-correct-output !)
-  # Node ID 35b2bf506438e6dd5b3f1c5fdaadacee66ef386b (known-bad-output !)
+  # Node ID 2cae21a5d237d058911134fe3fed581a552f5208
   # Parent  6f0ec60a93aa3c4e8cd850fd82749ceb1666d190
   symlink
   
@@ -283,13 +281,12 @@ Finally commit
   old mode 120000
   new mode 100644
   diff --git a/cousine b/cousine
-  new file mode 120000 (missing-correct-output !)
-  new file mode 100644 (known-bad-output !)
+  new file mode 120000
   --- /dev/null
   +++ b/cousine
   @@ -0,0 +1,1 @@
   +celeste
   \ No newline at end of file
-  diff --git a/zephir b/zephir (missing-correct-output !)
-  old mode 100644 (missing-correct-output !)
-  new mode 120000 (missing-correct-output !)
+  diff --git a/zephir b/zephir
+  old mode 100644
+  new mode 120000

@@ -359,17 +359,20 @@ class ThinRepo:
         status = self.status()
 
         files = {}
+        wctx = self[None]
 
         for path in status.removed:
             files[path] = None
         for path in status.modified + status.added:
+            fctx = wctx[path]
+            flags = fctx.flags()
             if self.wvfs.islink(path):
-                files[path] = self.wvfs.readlink(path)
+                data = self.wvfs.readlink(path)
             else:
-                files[path] = self.wvfs.tryread(path)
+                data = self.wvfs.tryread(path)
+            files[path] = (data, flags)
         assert self.dirstate.p2() == self.nodeconstants.nullid
         # TODO:
-        # - sending symlinks information
         # - sending exec-bits information
         # - sending copies informatin
         return self._backend.commit(
@@ -505,14 +508,16 @@ class ThinWcCtx(context.workingctx):
 
 def filectxfn_from_dict(files):
     def getfilectx(repo, memctx, path: bytes):
-        data = files.get(path)
-        if data is None:
+        value = files.get(path)
+        if value is None:
             return None
+        data, flags = value
         return context.memfilectx(
             repo,
             memctx,
             path,
             data,
+            islink=flags == b'l',
         )
 
     return getfilectx
