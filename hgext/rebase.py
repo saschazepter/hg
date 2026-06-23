@@ -615,9 +615,10 @@ class rebaseruntime:
                 self.skipped,
                 self.obsolete_with_successor_in_destination,
             )
-            if self.resume and self.wctx.p1().rev() == p1:
+            resume = self.resume and self.wctx.p1().rev() == p1
+            self.resume = False
+            if resume:
                 repo.ui.debug(b'resuming interrupted rebase\n')
-                self.resume = False
             else:
                 overrides = {(b'ui', b'forcemerge'): opts.get('tool', b'')}
                 with ui.configoverride(overrides, b'rebase'):
