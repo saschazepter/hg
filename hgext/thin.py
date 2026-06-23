@@ -424,6 +424,13 @@ class ThinRepo:
                         s.clean.append(f)
                 # XXX for now we skip context._poststatusfixup as the working copy
                 # is dead after the commit anyway.
+        s.modified.sort()
+        s.added.sort()
+        s.removed.sort()
+        s.deleted.sort()
+        s.unknown.sort()
+        s.ignored.sort()
+        s.clean.sort()
         return s
 
 
