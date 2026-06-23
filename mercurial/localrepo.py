@@ -2119,7 +2119,7 @@ class localrepository(_localrepo_base_classes):
         return None
 
     def wjoin(self, f: bytes, *insidef: bytes) -> bytes:
-        return self.vfs.reljoin(self.root, f, *insidef)
+        return self.wvfs.join(f, *insidef)
 
     def setparents(self, p1, p2=None):
         if p2 is None:
