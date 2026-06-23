@@ -2119,6 +2119,8 @@ class localrepository(_localrepo_base_classes):
         return None
 
     def wjoin(self, f: bytes, *insidef: bytes) -> bytes:
+        msg = b'replace `repo.wjoin` with `repo.wvfs.join`'
+        self.ui.deprecwarn(msg, b'7.3')
         return self.wvfs.join(f, *insidef)
 
     def setparents(self, p1, p2=None):
