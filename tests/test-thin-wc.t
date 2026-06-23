@@ -291,6 +291,13 @@ Finally commit
   old mode 100644
   new mode 120000
 
+Test committing copy info
+-------------------------
+
+  $ hg -R repo devel::create-thin-wc thin-copies
+  $ cd thin-copies
+  $ hg status --copies
+  $ cd ..
 #if execbit
 
 Test that adding exec bytes works

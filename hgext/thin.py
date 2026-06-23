@@ -121,6 +121,9 @@ class ThinRepo:
         repo_path = backend_url[len(b"local://") : -1]
         self._backend = LocalBackend(self._base_ui, repo_path)
 
+        # XXX whatever we just need it defined for now
+        self.filecopiesmode = None
+
     def __getitem__(self, node):
         if node is None:
             return ThinWcCtx(self)
