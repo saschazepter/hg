@@ -2085,7 +2085,6 @@ class localrepository(_localrepo_base_classes):
         if p2 is None:
             p2 = self.nullid
         self[None].setparents(p1, p2)
-        self._quick_access_changeid_invalidate()
 
     def memctx(
         self,

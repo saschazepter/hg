@@ -1687,6 +1687,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
         dirstate = self._repo.dirstate
         with dirstate.changing_parents(self._repo):
             copies = dirstate.setparents(p1node, p2node)
+            self._repo._quick_access_changeid_invalidate()
             pctx = self._repo[p1node]
             if copies:
                 # Adjust copy records, the dirstate cannot do it, it
