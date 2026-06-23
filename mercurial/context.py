@@ -1681,6 +1681,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
         ]
 
     def setparents(self, p1node, p2node=None):
+        util.clearcachedproperty(self, b"_parents")
         if p2node is None:
             p2node = self._repo.nodeconstants.nullid
         dirstate = self._repo.dirstate
