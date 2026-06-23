@@ -411,7 +411,7 @@ def reposetup(ui, repo):
                     oldeol = eolfile(self.ui, self.root, olddata)
 
             try:
-                eolmtime = os.path.getmtime(self.wjoin(b".hgeol"))
+                eolmtime = os.path.getmtime(self.wvfs.join(b".hgeol"))
             except OSError:
                 eolmtime = 0
 

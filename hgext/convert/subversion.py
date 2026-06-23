@@ -1530,7 +1530,7 @@ class svn_sink(converter_sink, commandline):
             self.wopener.symlink(data, filename)
         else:
             try:
-                if os.path.islink(self.wjoin(filename)):
+                if os.path.islink(self.wvfs.join(filename)):
                     os.unlink(filename)
             except OSError:
                 pass
@@ -1539,8 +1539,8 @@ class svn_sink(converter_sink, commandline):
                 # We need to check executability of the file before the change,
                 # because `vfs.write` is able to reset exec bit.
                 wasexec = False
-                if os.path.exists(self.wjoin(filename)):
-                    wasexec = self.is_exec(self.wjoin(filename))
+                if os.path.exists(self.wvfs.join(filename)):
+                    wasexec = self.is_exec(self.wvfs.join(filename))
 
             self.wopener.write(filename, data)
 
@@ -1551,13 +1551,13 @@ class svn_sink(converter_sink, commandline):
                 else:
                     if b'x' in flags:
                         self.setexec.append(filename)
-                util.setflags(self.wjoin(filename), False, b'x' in flags)
+                util.setflags(self.wvfs.join(filename), False, b'x' in flags)
 
     def _copyfile(self, source, dest):
         # SVN's copy command pukes if the destination file exists, but
         # our copyfile method expects to record a copy that has
         # already occurred.  Cross the semantic gap.
-        wdest = self.wjoin(dest)
+        wdest = self.wvfs.join(dest)
         exists = os.path.lexists(wdest)
         if exists:
             fd, tempname = pycompat.mkstemp(
@@ -1580,7 +1580,7 @@ class svn_sink(converter_sink, commandline):
     def dirs_of(self, files):
         dirs = set()
         for f in files:
-            if os.path.isdir(self.wjoin(f)):
+            if os.path.isdir(self.wvfs.join(f)):
                 dirs.add(f)
             i = len(f)
             for i in iter(lambda: f.rfind(b'/', 0, i), -1):

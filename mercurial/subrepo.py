@@ -542,7 +542,7 @@ class hgsubrepo(abstractsubrepo):
         super().__init__(ctx, path)
         self._state = state
         r = ctx.repo()
-        root = r.wjoin(util.localpath(path))
+        root = r.wvfs.join(util.localpath(path))
         create = allowcreate and not r.wvfs.exists(b'%s/.hg' % path)
         # repository constructor does expand variables in path, which is
         # unsafe since subrepo path might come from untrusted source.
@@ -794,7 +794,7 @@ class hgsubrepo(abstractsubrepo):
         return self._repo[b'.'].hex()
 
     def checknested(self, path: HgPathT) -> bool:
-        return self._repo._checknested(self._repo.wjoin(path))
+        return self._repo._checknested(self._repo.wvfs.join(path))
 
     @annotatesubrepoerror
     def commit(self, text: bytes, user: bytes, date):
@@ -1531,7 +1531,7 @@ class gitsubrepo(abstractsubrepo):
     def __init__(self, ctx, path: HgPathT, state, allowcreate: bool) -> None:
         super().__init__(ctx, path)
         self._state = state
-        self._abspath = ctx.repo().wjoin(path)
+        self._abspath = ctx.repo().wvfs.join(path)
         self._subparent = ctx.repo()
         self._ensuregit()
 

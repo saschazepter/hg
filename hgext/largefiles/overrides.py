@@ -170,7 +170,7 @@ def addlargefiles(ui, repo, isaddremove, matcher, uipathfn, **opts):
                     repo,
                     standinname,
                     hash=b'',
-                    executable=lfutil.getexecutable(repo.wjoin(f)),
+                    executable=lfutil.getexecutable(repo.wvfs.join(f)),
                 )
                 standins.append(standinname)
                 lfdirstate.set_tracked(f)
@@ -896,7 +896,7 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
 
         def overridecopyfile(orig, src, dest, *args, **kwargs):
             if lfutil.shortname in src and dest.startswith(
-                repo.wjoin(lfutil.shortname)
+                repo.wvfs.join(lfutil.shortname)
             ):
                 destlfile = dest.replace(lfutil.shortname, b'')
                 if not opts[b'force'] and os.path.exists(destlfile):
@@ -913,22 +913,43 @@ def overridecopy(orig, ui, repo, pats, opts, rename=False):
         lfdirstate = lfutil.openlfdirstate(ui, repo)
         for src, dest in copiedfiles:
             if lfutil.shortname in src and dest.startswith(
-                repo.wjoin(lfutil.shortname)
+                repo.wvfs.join(lfutil.shortname)
             ):
-                srclfile = src.replace(repo.wjoin(lfutil.standin(b'')), b'')
-                destlfile = dest.replace(repo.wjoin(lfutil.standin(b'')), b'')
-                destlfiledir = repo.wvfs.dirname(repo.wjoin(destlfile)) or b'.'
+                srclfile = src.replace(
+                    repo.wvfs.join(
+                        lfutil.standin(b''),
+                    ),
+                    b'',
+                )
+                destlfile = dest.replace(
+                    repo.wvfs.join(
+                        lfutil.standin(b''),
+                    ),
+                    b'',
+                )
+                destlfiledir = (
+                    repo.wvfs.dirname(
+                        repo.wvfs.join(destlfile),
+                    )
+                    or b'.'
+                )
                 if not os.path.isdir(destlfiledir):
                     os.makedirs(destlfiledir)
                 if rename:
-                    os.rename(repo.wjoin(srclfile), repo.wjoin(destlfile))
+                    os.rename(
+                        repo.wvfs.join(srclfile),
+                        repo.wvfs.join(destlfile),
+                    )
 
                     # The file is gone, but this deletes any empty parent
                     # directories as a side-effect.
                     repo.wvfs.unlinkpath(srclfile, ignoremissing=True)
                     lfdirstate.set_untracked(srclfile)
                 else:
-                    util.copyfile(repo.wjoin(srclfile), repo.wjoin(destlfile))
+                    util.copyfile(
+                        repo.wvfs.join(srclfile),
+                        repo.wvfs.join(destlfile),
+                    )
 
                 lfdirstate.set_tracked(destlfile)
         lfdirstate.write(repo.currenttransaction())

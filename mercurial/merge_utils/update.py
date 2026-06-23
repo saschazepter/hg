@@ -545,7 +545,7 @@ def batchget(repo, mctx, wctx, wantfiledata, actions):
                             break
                 if repo.wvfs.lexists(conflicting):
                     orig = scmutil.backuppath(ui, repo, conflicting)
-                    util.rename(repo.wjoin(conflicting), orig)
+                    util.rename(repo.wvfs.join(conflicting), orig)
             wfctx = wctx[f]
             wfctx.clearunknown()
             atomictemp = ui.configbool(b"experimental", b"update.atomic-file")

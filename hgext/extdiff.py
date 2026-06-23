@@ -208,7 +208,7 @@ def snapshot(
             if node is None:
                 dest = os.path.join(base, wfn)
 
-                fnsandstat.append((dest, repo.wjoin(fn), os.lstat(dest)))
+                fnsandstat.append((dest, repo.wvfs.join(fn), os.lstat(dest)))
     return dirname, fnsandstat
 
 

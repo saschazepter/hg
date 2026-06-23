@@ -1290,7 +1290,7 @@ def _check(repo, r, ui, tool, fcd, backup):
 
 
 def _workingpath(repo, ctx):
-    return repo.wjoin(ctx.path())
+    return repo.wvfs.join(ctx.path())
 
 
 def loadinternalmerge(ui, extname, registrarobj):

@@ -244,7 +244,7 @@ def reposetup(ui, repo):
                                 modified.append(lfile)
                             elif lfutil.readasstandin(
                                 ctx1[standin]
-                            ) != lfutil.hashfile(self.wjoin(lfile)):
+                            ) != lfutil.hashfile(self.wvfs.join(lfile)):
                                 modified.append(lfile)
                             else:
                                 if listclean:
@@ -266,7 +266,7 @@ def reposetup(ui, repo):
                         for lfile in tocheck:
                             standin = lfutil.standin(lfile)
                             if standin in ctx1:
-                                abslfile = self.wjoin(lfile)
+                                abslfile = self.wvfs.join(lfile)
                                 if (
                                     lfutil.readasstandin(ctx1[standin])
                                     != lfutil.hashfile(abslfile)

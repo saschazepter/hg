@@ -4107,7 +4107,7 @@ def locate(ui, repo, *pats, **opts):
     uipathfn = scmutil.getuipathfn(repo, legacyrelativevalue=bool(pats))
     for abs in filesgen:
         if opts.get('fullpath'):
-            ui.write(repo.wjoin(abs), end)
+            ui.write(repo.wvfs.join(abs), end)
         else:
             ui.write(uipathfn(abs), end)
         ret = 0
@@ -5806,7 +5806,7 @@ def resolve(ui, repo, *pats, **opts):
                 ms.mark(f, mergestatemod.MERGE_RECORD_UNRESOLVED)
             else:
                 # backup pre-resolve (merge uses .orig for its own purposes)
-                a = repo.wjoin(f)
+                a = repo.wvfs.join(f)
                 try:
                     util.copyfile(a, a + b".resolve")
                 except FileNotFoundError:

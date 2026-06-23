@@ -189,7 +189,7 @@ class mercurial_sink(common.converter_sink):
                 revmap = self.subrevmaps.get(subpath)
                 if revmap is None:
                     revmap = mapfile(
-                        self.ui, self.repo.wjoin(subpath, b'.hg/shamap')
+                        self.ui, self.repo.wvfs.join(subpath, b'.hg/shamap')
                     )
                     self.subrevmaps[subpath] = revmap
 

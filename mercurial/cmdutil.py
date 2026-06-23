@@ -409,7 +409,7 @@ def _record(
             )
             os.close(fd)
             ui.debug(b'backup %r as %r\n' % (f, tmpname))
-            util.copyfile(repo.wjoin(f), tmpname, copystat=True)
+            util.copyfile(repo.wvfs.join(f), tmpname, copystat=True)
             backups[f] = tmpname
 
         fp = stringio()
@@ -432,7 +432,7 @@ def _record(
             fp.write(reviewedpatch)
             fp.seek(0)
 
-        [os.unlink(repo.wjoin(c)) for c in newlyaddedandmodifiedfiles]
+        [os.unlink(repo.wvfs.join(c)) for c in newlyaddedandmodifiedfiles]
         # 3a. apply filtered patch to clean repo  (clean)
         if backups:
             m = scmutil.matchfiles(repo, set(backups.keys()) | alsorestore)
@@ -455,7 +455,7 @@ def _record(
         #    commit/qrefresh or the like!
 
         # Make all of the pathnames absolute.
-        newfiles = [repo.wjoin(nf) for nf in newfiles]
+        newfiles = [repo.wvfs.join(nf) for nf in newfiles]
         return commitfunc(ui, repo, *newfiles, **pycompat.strkwargs(opts))
     finally:
         # 5. finally restore backed-up files
@@ -487,7 +487,7 @@ def _record(
                 #
                 # Also note that this racy as an editor could notice the
                 # file's mtime before we've finished writing it.
-                util.copyfile(tmpname, repo.wjoin(realname), copystat=True)
+                util.copyfile(tmpname, repo.wvfs.join(realname), copystat=True)
                 os.unlink(tmpname)
             if tobackup:
                 os.rmdir(backupdir)
@@ -1615,8 +1615,8 @@ def copy(ui, repo, pats, opts: dict[bytes, Any], rename=False):
             abspath, absname = abstarget.rsplit(b'/', 1)
             abstarget = repo.dirstate.normalize(abspath) + b'/' + absname
         reltarget = repo.pathto(abstarget, cwd)
-        target = repo.wjoin(abstarget)
-        src = repo.wjoin(abssrc)
+        target = repo.wvfs.join(abstarget)
+        src = repo.wvfs.join(abssrc)
         entry = repo.dirstate.get_entry(abstarget)
 
         already_commited = entry.tracked and not entry.added
@@ -3562,14 +3562,14 @@ def revert(ui, repo, ctx, *pats, **opts):
         # logic.
         removunk = set()
         for abs in removed:
-            target = repo.wjoin(abs)
+            target = repo.wvfs.join(abs)
             if os.path.lexists(target):
                 removunk.add(abs)
         removed -= removunk
 
         dsremovunk = set()
         for abs in dsremoved:
-            target = repo.wjoin(abs)
+            target = repo.wvfs.join(abs)
             if os.path.lexists(target):
                 dsremovunk.add(abs)
         dsremoved -= dsremovunk
@@ -3644,7 +3644,7 @@ def revert(ui, repo, ctx, *pats, **opts):
 
         for abs, exact in sorted(names.items()):
             # target file to be touch on disk (relative to cwd)
-            target = repo.wjoin(abs)
+            target = repo.wvfs.join(abs)
             # search the entry in the dispatch table.
             # if the file is in any of these sets, it was touched in the working
             # directory parent and we are sure it needs to be reverted.
@@ -3855,7 +3855,7 @@ def _performrevert(
                 abs = c.header.filename()
                 # Create a backup file only if this hunk should be backed up
                 if c.header.filename() in tobackup:
-                    target = repo.wjoin(abs)
+                    target = repo.wvfs.join(abs)
                     bakname = scmutil.backuppath(repo.ui, repo, abs)
                     util.copyfile(target, bakname)
                     tobackup.remove(abs)

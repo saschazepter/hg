@@ -203,8 +203,8 @@ def churn(ui, repo, *pats, **opts):
 
     amap = {}
     aliases = opts.get('aliases')
-    if not aliases and os.path.exists(repo.wjoin(b'.hgchurn')):
-        aliases = repo.wjoin(b'.hgchurn')
+    if not aliases and os.path.exists(repo.wvfs.join(b'.hgchurn')):
+        aliases = repo.wvfs.join(b'.hgchurn')
     if aliases:
         with open(aliases, "rb") as fp:
             for l in fp:

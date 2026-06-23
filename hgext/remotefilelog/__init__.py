@@ -981,7 +981,7 @@ def log(orig, ui, repo, *pats, **opts):
             isfile = not match.anypats()
             if isfile:
                 for file in match.files():
-                    if not os.path.isfile(repo.wjoin(file)):
+                    if not os.path.isfile(repo.wvfs.join(file)):
                         isfile = False
                         break
 

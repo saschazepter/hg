@@ -3340,7 +3340,10 @@ class arbitraryfilectx:
             # Add a fast-path for merge if both sides are disk-backed.
             # Note that filecmp uses the opposite return values (True if same)
             # from our cmp functions (True if different).
-            return not filecmp.cmp(self.path(), self._repo.wjoin(fctx.path()))
+            return not filecmp.cmp(
+                self.path(),
+                self._repo.wvfs.join(fctx.path()),
+            )
         return self.data() != fctx.data()
 
     def path(self) -> bytes:

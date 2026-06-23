@@ -820,7 +820,7 @@ class queue:
     def backup(self, repo, files, copy=False):
         # backup local changes in --force case
         for f in sorted(files):
-            absf = repo.wjoin(f)
+            absf = repo.wvfs.join(f)
             if os.path.lexists(absf):
                 absorig = scmutil.backuppath(self.ui, repo, f)
                 self.ui.note(
@@ -2765,7 +2765,7 @@ def qinit(ui, repo, create):
     q.savedirty()
     if r:
         with r.wlock(), r.dirstate.changing_files(r):
-            if not os.path.exists(r.wjoin(b'.hgignore')):
+            if not os.path.exists(r.wvfs.join(b'.hgignore')):
                 fp = r.wvfs(b'.hgignore', b'w')
                 fp.write(b'^\\.hg\n')
                 fp.write(b'^\\.mq\n')
@@ -2773,7 +2773,7 @@ def qinit(ui, repo, create):
                 fp.write(b'status\n')
                 fp.write(b'guards\n')
                 fp.close()
-            if not os.path.exists(r.wjoin(b'series')):
+            if not os.path.exists(r.wvfs.join(b'series')):
                 r.wvfs(b'series', b'w').close()
             r[None].add([b'.hgignore', b'series'])
             commands.add(ui, r)

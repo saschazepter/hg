@@ -252,7 +252,7 @@ def lfdirstatestatus(lfdirstate, repo):
             fctx = pctx[standin(lfile)]
         except LookupError:
             fctx = None
-        if not fctx or readasstandin(fctx) != hashfile(repo.wjoin(lfile)):
+        if not fctx or readasstandin(fctx) != hashfile(repo.wvfs.join(lfile)):
             modified.append(lfile)
         else:
             clean.append(lfile)
@@ -423,7 +423,8 @@ def standin(filename):
     # Notes:
     # 1) Some callers want an absolute path, but for instance addlargefiles
     #    needs it repo-relative so it can be passed to repo[None].add().  So
-    #    leave it up to the caller to use repo.wjoin() to get an absolute path.
+    #    leave it up to the caller to use repo.wvfs.join() to get an absolute
+    #    path.
     # 2) Join with '/' because that's what dirstate always uses, even on
     #    Windows. Change existing separator to '/' first in case we are
     #    passed filenames from an external source (like the command line).
@@ -452,7 +453,7 @@ def updatestandin(repo, lfile, standin):
 
     This assumes that "lfutil.standin(lfile) == standin", for efficiency.
     """
-    file = repo.wjoin(lfile)
+    file = repo.wvfs.join(lfile)
     if repo.wvfs.exists(lfile):
         hash = hashfile(file)
         executable = getexecutable(file)

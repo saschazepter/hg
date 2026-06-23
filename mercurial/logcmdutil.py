@@ -893,7 +893,7 @@ def _makematcher(repo, revs, wopts):
                 if f not in wctx:
                     # If the file exists, it may be a directory, so let it
                     # take the slow path.
-                    if os.path.exists(repo.wjoin(f)):
+                    if os.path.exists(repo.wvfs.join(f)):
                         slowpath = True
                         continue
                     else:

@@ -1182,7 +1182,7 @@ def backuppath(ui: UiT, repo, filepath: bytes) -> bytes:
     """
     origvfs = getorigvfs(ui, repo)
     if origvfs is None:
-        return repo.wjoin(filepath + b".orig")
+        return repo.wvfs.join(filepath + b".orig")
 
     origbackupdir = origvfs.dirname(filepath)
     if not origvfs.isdir(origbackupdir) or origvfs.islink(origbackupdir):
