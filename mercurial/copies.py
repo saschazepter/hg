@@ -689,9 +689,11 @@ def _forwardcopies(a, b, base=None, match=None):
     match = a.repo().narrowmatch(match)
     # check for working copy
     if b.rev() is None:
-        cm = _committedforwardcopies(a, b.p1(), base, match)
-        # combine copies from dirstate if necessary
-        copies = _chain(cm, _dirstatecopies(b._repo, match))
+        copies = _dirstatecopies(b._repo, match)
+        if a != b.p1():
+            cm = _committedforwardcopies(a, b.p1(), base, match)
+            # combine copies from dirstate if necessary
+            copies = _chain(cm, copies)
     else:
         copies = _committedforwardcopies(a, b, base, match)
     return copies
