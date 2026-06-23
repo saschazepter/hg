@@ -2199,7 +2199,7 @@ class IRepo(Protocol):
         """Calls self.vfs.reljoin(self.root, f, *insidef)"""
 
     @abc.abstractmethod
-    def setparents(self, p1, p2):
+    def setparents(self, p1: NodeIdT, p2: NodeIdT | None = None):
         """Set the parent nodes of the working directory."""
 
     @abc.abstractmethod
