@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import time
 import weakref
 
 from mercurial.interfaces.types import (
@@ -45,6 +46,7 @@ from mercurial.repo import (
     factory,
     requirements as req_util,
 )
+from mercurial.dirstateutils import timestamp
 
 
 eh = exthelper.exthelper()
@@ -602,13 +604,25 @@ def create_thin_wc(ui, repo, root):
             if sparsematchfn is None or sparsematchfn().matchfn(filename):
                 file_dir = wvfs.dirname(filename)
                 wvfs.makedirs(file_dir)
+                fctx = target_rev[filename]
+                data = fctx.data()
+                size = len(data)
                 # XXX current code ignore symlink entirely
-                wvfs.write(filename, target_rev[filename].data())
-                # XXX not passing `parentfiledata` ot `update_file` will result
-                # in all file being in an ambiguous state
-                dirstate.update_file(filename, True, True)
+                wvfs.write(filename, data)
+                s = wvfs.lstat(filename)
+                mode = s.st_mode
+                mtime = timestamp.mtime_of(s)
+                # for dirstate.update_file's parentfiledata argument:
+                fs_data = (mode, size, mtime)
+                dirstate.update_file(
+                    filename,
+                    True,
+                    True,
+                    parentfiledata=fs_data,
+                )
 
         dirstate.setparents(target_rev.node(), repo.nodeconstants.nullid)
+    time.sleep(1)  # hacky way to avoid mtime ambiguity
     dirstate.write(tr=None)
 
 
