@@ -2195,10 +2195,6 @@ class IRepo(Protocol):
         """The type of shared repository or None."""
 
     @abc.abstractmethod
-    def wjoin(self, f: bytes, *insidef: bytes) -> bytes:
-        """Calls self.vfs.reljoin(self.root, f, *insidef)"""
-
-    @abc.abstractmethod
     def setparents(self, p1: NodeIdT, p2: NodeIdT | None = None):
         """Set the parent nodes of the working directory."""
 
