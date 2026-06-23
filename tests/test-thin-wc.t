@@ -290,3 +290,108 @@ Finally commit
   diff --git a/zephir b/zephir
   old mode 100644
   new mode 120000
+
+#if execbit
+
+Test that adding exec bytes works
+---------------------------------
+
+  $ hg -R repo devel::create-thin-wc thin-exec-add
+  $ cd thin-exec-add
+  $ chmod +x celeste
+  $ echo rhino > victor
+  $ chmod +x victor
+  $ hg add victor
+  $ hg status
+  M celeste
+  A victor
+  $ hg commit -m 'exec-add'
+  $ cd ..
+  $ hg -R repo log -G --rev '::desc("exec-add")'
+  o  changeset:   5:2f59e5e739ea
+  |  tag:         tip
+  |  parent:      2:6f0ec60a93aa
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     exec-add
+  |
+  @  changeset:   2:6f0ec60a93aa
+  |  parent:      0:a94414d00384
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     rataxes
+  |
+  o  changeset:   0:a94414d00384
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     base
+  
+  $ hg -R repo export --rev 'desc("exec-add")'
+  # HG changeset patch
+  # User test
+  # Date 0 0
+  #      Thu Jan 01 00:00:00 1970 +0000
+  # Node ID 2f59e5e739ea8552cbbc99f46a58175392dc08b2
+  # Parent  6f0ec60a93aa3c4e8cd850fd82749ceb1666d190
+  exec-add
+  
+  diff --git a/celeste b/celeste
+  old mode 100644
+  new mode 100755
+  diff --git a/victor b/victor
+  new file mode 100755
+  --- /dev/null
+  +++ b/victor
+  @@ -0,0 +1,1 @@
+  +rhino
+
+Test that removing exec bytes works
+-----------------------------------
+
+  $ hg -R repo update 'desc("exec-add")'
+  2 files updated, 0 files merged, 0 files removed, 0 files unresolved
+  $ hg -R repo devel::create-thin-wc thin-exec-remove
+  $ cd thin-exec-remove
+  $ chmod -x victor
+  $ hg status
+  M victor
+  $ hg commit -m 'exec-remove'
+  $ cd ..
+  $ hg -R repo log -G --rev '::desc("exec-remove")'
+  o  changeset:   6:e7560d4bcf09
+  |  tag:         tip
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     exec-remove
+  |
+  @  changeset:   5:2f59e5e739ea
+  |  parent:      2:6f0ec60a93aa
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     exec-add
+  |
+  o  changeset:   2:6f0ec60a93aa
+  |  parent:      0:a94414d00384
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     rataxes
+  |
+  o  changeset:   0:a94414d00384
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     base
+  
+  $ hg -R repo export --rev 'desc("exec-remove")'
+  # HG changeset patch
+  # User test
+  # Date 0 0
+  #      Thu Jan 01 00:00:00 1970 +0000
+  # Node ID e7560d4bcf09b2d31caaff450b92e4e3191222c8
+  # Parent  2f59e5e739ea8552cbbc99f46a58175392dc08b2
+  exec-remove
+  
+  diff --git a/victor b/victor
+  old mode 100755
+  new mode 100644
+
+#endif

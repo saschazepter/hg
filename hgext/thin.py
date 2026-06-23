@@ -518,6 +518,7 @@ def filectxfn_from_dict(files):
             path,
             data,
             islink=flags == b'l',
+            isexec=flags == b'x',
         )
 
     return getfilectx
@@ -623,6 +624,8 @@ def create_thin_wc(ui, repo, root):
                     wvfs.symlink(data, filename)
                 else:
                     wvfs.write(filename, data)
+                    if fctx.flags() == b'x':
+                        wvfs.setflags(filename, l=False, x=True)
                 s = wvfs.lstat(filename)
                 mode = s.st_mode
                 mtime = timestamp.mtime_of(s)
