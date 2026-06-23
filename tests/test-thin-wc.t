@@ -196,3 +196,100 @@ Running `hg rm` before the commit
   +++ /dev/null
   @@ -1,1 +0,0 @@
   -fou
+
+symlink work
+------------
+
+  $ hg -R repo devel::create-thin-wc thin-symlink
+
+demote a symlink to normal file (no content change)
+
+  $ cd thin-symlink
+  $ rm cousin
+  $ printf arthur > cousin
+  $ hg status
+  M cousin
+
+Add a new symlink
+  $ ln -s celeste cousine
+  $ hg add cousine
+  $ hg status
+  M cousin
+  A cousine
+
+Promote a file to symlink
+
+  $ echo Zephir > bb
+  $ hg add bb
+  $ rm zephir
+  $ ln -s bb zephir
+  $ hg status
+  M cousin
+  M zephir
+  A bb
+  A cousine
+  $ cd ..
+
+Finally commit
+
+  $ hg -R thin-symlink commit -m 'symlink'
+  $ hg -R repo log -G
+  o  changeset:   4:2cae21a5d237 (missing-correct-output !)
+  o  changeset:   4:35b2bf506438 (known-bad-output !)
+  |  tag:         tip
+  |  parent:      2:6f0ec60a93aa
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     symlink
+  |
+  | o  changeset:   3:d09c36033361
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     battle
+  |
+  @  changeset:   2:6f0ec60a93aa
+  |  parent:      0:a94414d00384
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     rataxes
+  |
+  | o  changeset:   1:a2ab6f280788
+  |/   user:        test
+  |    date:        Thu Jan 01 00:00:00 1970 +0000
+  |    summary:     foo
+  |
+  o  changeset:   0:a94414d00384
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     base
+  
+  $ hg -R repo export --rev 'desc("symlink")'
+  # HG changeset patch
+  # User test
+  # Date 0 0
+  #      Thu Jan 01 00:00:00 1970 +0000
+  # Node ID 2cae21a5d237d058911134fe3fed581a552f5208 (missing-correct-output !)
+  # Node ID 35b2bf506438e6dd5b3f1c5fdaadacee66ef386b (known-bad-output !)
+  # Parent  6f0ec60a93aa3c4e8cd850fd82749ceb1666d190
+  symlink
+  
+  diff --git a/bb b/bb
+  new file mode 100644
+  --- /dev/null
+  +++ b/bb
+  @@ -0,0 +1,1 @@
+  +Zephir
+  diff --git a/cousin b/cousin
+  old mode 120000
+  new mode 100644
+  diff --git a/cousine b/cousine
+  new file mode 120000 (missing-correct-output !)
+  new file mode 100644 (known-bad-output !)
+  --- /dev/null
+  +++ b/cousine
+  @@ -0,0 +1,1 @@
+  +celeste
+  \ No newline at end of file
+  diff --git a/zephir b/zephir (missing-correct-output !)
+  old mode 100644 (missing-correct-output !)
+  new mode 120000 (missing-correct-output !)

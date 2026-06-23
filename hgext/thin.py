@@ -363,7 +363,10 @@ class ThinRepo:
         for path in status.removed:
             files[path] = None
         for path in status.modified + status.added:
-            files[path] = self.wvfs.tryread(path)
+            if self.wvfs.islink(path):
+                files[path] = self.wvfs.readlink(path)
+            else:
+                files[path] = self.wvfs.tryread(path)
         assert self.dirstate.p2() == self.nodeconstants.nullid
         # TODO:
         # - sending symlinks information
