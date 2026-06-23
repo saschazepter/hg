@@ -422,8 +422,15 @@ class ThinRepo:
                         s.modified.append(f)
                     elif clean:
                         s.clean.append(f)
-                # XXX for now we skip context._poststatusfixup as the working copy
-                # is dead after the commit anyway.
+                # XXX for now we skip context._poststatusfixup
+                # XXX
+                # XXX This is infortunate when running `hg status` right before
+                # XXX`hg commit`
+                # XXX
+                # XXX after `hg commit` the working copy is invalidated so we
+                # XXX care about that less
+            if self.currentwlock() is None:
+                dirstate.invalidate()
         s.modified.sort()
         s.added.sort()
         s.removed.sort()
@@ -437,6 +444,7 @@ class ThinRepo:
 class ThinWcCtx(context.workingctx):
     def __init__(self, repo):
         self._repo = repo
+        self._node = repo.nodeconstants.wdirid
 
     def branch(self):
         return b'default'

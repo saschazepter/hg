@@ -60,6 +60,7 @@ anything not tested here is unsupported and likely to be broken.
 
 # do a commit with nothing to commit
 
+  $ hg -R thin status
   $ hg -R thin commit -m 'empty-foo' --traceback
   nothing changed
   [1]
@@ -72,11 +73,19 @@ anything not tested here is unsupported and likely to be broken.
      summary:     base
   
 
+Run an ambiguous status
+
+  $ touch -c -t 200001010000 thin/arthur
+  $ touch -c -t 200001010000 thin/celeste
+  $ hg -R thin status
 
 # do a commit with things to commit
 
   $ echo b > thin/babar
   $ echo zzz > thin/zephir
+  $ hg -R thin status
+  M babar
+  M zephir
   $ hg -R thin commit -m 'foo'
 
   $ hg -R repo log -G
@@ -98,6 +107,8 @@ Running `hg add` before the commit
   $ hg -R repo devel::create-thin-wc thin-add
   $ echo fou > thin-add/rataxes
   $ hg --cwd thin-add add rataxes
+  $ hg -R thin-add status
+  A rataxes
   $ hg -R thin-add commit -m 'rataxes'
   $ hg -R repo log -G
   o  changeset:   2:70c3e1e28bd7
@@ -140,6 +151,8 @@ Running `hg rm` before the commit
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg -R repo devel::create-thin-wc thin-rm
   $ hg --cwd thin-rm rm rataxes
+  $ hg -R thin-rm status
+  R rataxes
   $ hg -R thin-rm commit -m 'battle'
   $ hg -R repo log -G
   o  changeset:   3:9d52cd3dd335
