@@ -383,7 +383,7 @@ class ThinRepo:
                 data = self.wvfs.readlink(path)
             else:
                 data = self.wvfs.tryread(path)
-            files[path] = (data, flags)
+            files[path] = (data, flags, fctx.copysource())
         assert self.dirstate.p2() == self.nodeconstants.nullid
         # TODO:
         # - sending exec-bits information
@@ -554,7 +554,7 @@ def filectxfn_from_dict(files):
         value = files.get(path)
         if value is None:
             return None
-        data, flags = value
+        data, flags, copysource = value
         return context.memfilectx(
             repo,
             memctx,
@@ -562,6 +562,7 @@ def filectxfn_from_dict(files):
             data,
             islink=flags == b'l',
             isexec=flags == b'x',
+            copysource=copysource,
         )
 
     return getfilectx

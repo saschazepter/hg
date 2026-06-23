@@ -318,7 +318,51 @@ Test committing copy info
   A Queen
     celeste
   R babar
+  $ hg commit -m 'copies'
   $ cd ..
+  $ hg -R repo log -G --rev '::desc("copies")'
+  o  changeset:   5:66b87d5a6c1d
+  |  tag:         tip
+  |  parent:      2:6f0ec60a93aa
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     copies
+  |
+  @  changeset:   2:6f0ec60a93aa
+  |  parent:      0:a94414d00384
+  |  user:        test
+  |  date:        Thu Jan 01 00:00:00 1970 +0000
+  |  summary:     rataxes
+  |
+  o  changeset:   0:a94414d00384
+     user:        test
+     date:        Thu Jan 01 00:00:00 1970 +0000
+     summary:     base
+  
+  $ hg -R repo export --rev 'desc("copies")'
+  # HG changeset patch
+  # User test
+  # Date 0 0
+  #      Thu Jan 01 00:00:00 1970 +0000
+  # Node ID 66b87d5a6c1db4d7af57b9eecb6c1dd9e4c2dddd
+  # Parent  6f0ec60a93aa3c4e8cd850fd82749ceb1666d190
+  copies
+  
+  diff --git a/babar b/King
+  rename from babar
+  rename to King
+  diff --git a/celeste b/Queen
+  copy from celeste
+  copy to Queen
+  diff --git a/arthur b/arthur
+  --- a/arthur
+  +++ b/arthur
+  @@ -1,1 +1,1 @@
+  -dddd
+  +bb
+  \ No newline at end of file
+
+
 #if execbit
 
 Test that adding exec bytes works
@@ -336,7 +380,7 @@ Test that adding exec bytes works
   $ hg commit -m 'exec-add'
   $ cd ..
   $ hg -R repo log -G --rev '::desc("exec-add")'
-  o  changeset:   5:2f59e5e739ea
+  o  changeset:   6:2f59e5e739ea
   |  tag:         tip
   |  parent:      2:6f0ec60a93aa
   |  user:        test
@@ -386,13 +430,13 @@ Test that removing exec bytes works
   $ hg commit -m 'exec-remove'
   $ cd ..
   $ hg -R repo log -G --rev '::desc("exec-remove")'
-  o  changeset:   6:e7560d4bcf09
+  o  changeset:   7:e7560d4bcf09
   |  tag:         tip
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
   |  summary:     exec-remove
   |
-  @  changeset:   5:2f59e5e739ea
+  @  changeset:   6:2f59e5e739ea
   |  parent:      2:6f0ec60a93aa
   |  user:        test
   |  date:        Thu Jan 01 00:00:00 1970 +0000
