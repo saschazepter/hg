@@ -122,7 +122,17 @@ class ThinRepo:
         self._backend = LocalBackend(self._base_ui, repo_path)
 
     def __getitem__(self, node):
-        return ThinWcCtx(self)
+        if node is None:
+            return ThinWcCtx(self)
+        elif node == self.nodeconstants.wdirid:
+            return ThinWcCtx(self)
+        elif node == b'.':
+            return ThinP1Ctx(self)
+        elif node == self.dirstate.p1():
+            return ThinP1Ctx(self)
+        msg = b"can't create context for random node: %r"
+        msg %= node
+        raise error.ProgrammingError(msg)
 
     def local(self):
         return True
@@ -458,8 +468,26 @@ class ThinWcCtx(context.workingctx):
         self._repo = repo
         self._node = repo.nodeconstants.wdirid
 
+    def __eq__(self, other):
+        return self._node == getattr(other, "_node", None)
+
     def branch(self):
         return b'default'
+
+    def rev(self):
+        return None
+
+    def p1(self):
+        return ThinP1Ctx(self._repo)
+
+    def parents(self):
+        return [self.p1()]
+
+    def ancestor(self, other_ctx):
+        if other_ctx._node == self._node:
+            return self
+        assert other_ctx._node == self._repo.dirstate.p1()
+        return other_ctx
 
     def repo(self):
         return self._repo
@@ -504,6 +532,18 @@ class ThinWcCtx(context.workingctx):
 
     def hasdir(self, path: HgPathT) -> bool:
         return self._repo.wvfs.isdir(path)
+
+
+class ThinP1Ctx:
+    def __init__(self, repo):
+        self._repo = repo
+        self._node = self._repo.dirstate.p1()
+
+    def node(self):
+        return self._node
+
+    def __eq__(self, other):
+        return self._node == getattr(other, "_node", None)
 
 
 def filectxfn_from_dict(files):
