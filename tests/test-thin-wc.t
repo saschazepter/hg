@@ -302,6 +302,13 @@ Test committing copy info
   A King
     babar
   R babar
+  $ hg copy celeste Queen
+  $ hg status --copies
+  A King
+    babar
+  A Queen
+    celeste
+  R babar
   $ cd ..
 #if execbit
 
