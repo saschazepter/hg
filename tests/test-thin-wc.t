@@ -297,6 +297,11 @@ Test committing copy info
   $ hg -R repo devel::create-thin-wc thin-copies
   $ cd thin-copies
   $ hg status --copies
+  $ hg move babar King
+  $ hg status --copies
+  A King
+    babar
+  R babar
   $ cd ..
 #if execbit
 
