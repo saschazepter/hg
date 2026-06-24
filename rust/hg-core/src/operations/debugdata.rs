@@ -33,7 +33,7 @@ pub fn debug_data(
         &repo.store_vfs(),
         index_file,
         None,
-        default_revlog_options(repo.config(), repo.requirements(), kind)?,
+        &default_revlog_options(repo.config(), repo.requirements(), kind)?,
         kind,
     )?;
     let rev = crate::revset::resolve_rev_number_or_hex_prefix(revset, &revlog)?;

@@ -509,7 +509,7 @@ impl Revlog {
         store_vfs: &VfsImpl,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
-        options: RevlogOpenOptions,
+        options: &RevlogOpenOptions,
         revlog_type: RevlogType,
     ) -> Result<Self, RevlogError> {
         Self::open_gen(
@@ -531,7 +531,7 @@ impl Revlog {
         store_vfs: &VfsImpl,
         index_path: impl AsRef<Path>,
         data_path: Option<&Path>,
-        options: RevlogOpenOptions,
+        options: &RevlogOpenOptions,
         nodemap_for_test: Option<nodemap::NodeTree>,
         revlog_type: RevlogType,
     ) -> Result<Self, RevlogError> {
@@ -540,6 +540,7 @@ impl Revlog {
         let data_path = data_path.unwrap_or(&default_data_path);
 
         let index = open_index(store_vfs, index_path, options)?;
+
         let nodemap = if index.is_inline() || !options.use_nodemap {
             None
         } else {
@@ -768,7 +769,7 @@ fn advise_populate_read_mmap(mmap: &memmap2::Mmap) {}
 pub fn open_index(
     store_vfs: &impl Vfs,
     index_path: &Path,
-    options: RevlogOpenOptions,
+    options: &RevlogOpenOptions,
 ) -> Result<Index, RevlogError> {
     let buf: DynBytes = match store_vfs.open(index_path) {
         Ok(mut file) => {
@@ -1013,7 +1014,7 @@ mod tests {
             &vfs,
             "foo.i",
             None,
-            RevlogOpenOptions::default(),
+            &RevlogOpenOptions::default(),
             RevlogType::Changelog,
         )
         .unwrap();
@@ -1068,7 +1069,7 @@ mod tests {
             &vfs,
             "foo.i",
             None,
-            RevlogOpenOptions::default(),
+            &RevlogOpenOptions::default(),
             RevlogType::Changelog,
         )
         .unwrap();
@@ -1146,7 +1147,7 @@ mod tests {
             &vfs,
             "foo.i",
             None,
-            RevlogOpenOptions::default(),
+            &RevlogOpenOptions::default(),
             Some(idx.nt),
             RevlogType::Changelog,
         )

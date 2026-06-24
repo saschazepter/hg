@@ -46,7 +46,7 @@ impl Manifestlog {
     /// Open the `manifest` of a repository given by its root.
     pub fn open(
         store_vfs: &VfsImpl,
-        options: RevlogOpenOptions,
+        options: &RevlogOpenOptions,
     ) -> Result<Self, RevlogError> {
         let revlog = Revlog::open(
             store_vfs,

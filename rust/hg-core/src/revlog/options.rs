@@ -41,7 +41,7 @@ pub enum RevlogVersionOptions {
 
 /// Options to govern how a revlog should be opened, usually from the
 /// repository configuration or requirements.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct RevlogOpenOptions {
     /// The revlog version, along with any option specific to this version
     pub version: RevlogVersionOptions,

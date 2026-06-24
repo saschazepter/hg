@@ -41,7 +41,7 @@ impl Changelog {
     /// Open the `changelog` of a repository given by its root.
     pub fn open(
         store_vfs: &VfsImpl,
-        options: RevlogOpenOptions,
+        options: &RevlogOpenOptions,
     ) -> Result<Self, HgError> {
         let revlog = Revlog::open(
             store_vfs,
@@ -659,7 +659,7 @@ message",
             &vfs,
             "foo.i",
             None,
-            RevlogOpenOptions::default(),
+            &RevlogOpenOptions::default(),
             RevlogType::Changelog,
         )
         .unwrap();

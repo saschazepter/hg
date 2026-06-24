@@ -465,7 +465,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         check_exec,
                         &manifest,
                         &to_check.path,
-                        filelog_open_options,
+                        &filelog_open_options,
                     ) {
                         Err(RevlogError::IO(_)) => {
                             // IO errors most likely stem from the file being

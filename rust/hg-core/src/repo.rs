@@ -512,7 +512,7 @@ impl Repo {
     fn new_changelog(&self) -> Result<Changelog, HgError> {
         // load dirstate before changelog to avoid race see issue6303
         self.dirstate_parents()?;
-        Changelog::open(&self.store_vfs(), self.changelog_options)
+        Changelog::open(&self.store_vfs(), &self.changelog_options)
     }
 
     pub fn changelog(
@@ -528,7 +528,7 @@ impl Repo {
     }
 
     fn new_manifestlog(&self) -> Result<Manifestlog, HgError> {
-        Ok(Manifestlog::open(&self.store_vfs(), self.manifestlog_options)?)
+        Ok(Manifestlog::open(&self.store_vfs(), &self.manifestlog_options)?)
     }
 
     pub fn manifestlog(
@@ -597,7 +597,7 @@ impl Repo {
     }
 
     pub fn filelog(&self, path: &HgPath) -> Result<Filelog, RevlogError> {
-        Filelog::open(self, path, self.filelog_options)
+        Filelog::open(self, path, &self.filelog_options)
     }
     /// Write to disk any updates that were made through `dirstate_map_mut`.
     ///

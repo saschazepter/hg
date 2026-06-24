@@ -45,7 +45,7 @@ impl Filelog {
     pub fn open_vfs(
         store_vfs: &crate::vfs::VfsImpl,
         file_path: &HgPath,
-        options: RevlogOpenOptions,
+        options: &RevlogOpenOptions,
     ) -> Result<Self, RevlogError> {
         let index_path = store_path(file_path, b".i", store_vfs.encoding);
         let data_path = store_path(file_path, b".d", store_vfs.encoding);
@@ -62,7 +62,7 @@ impl Filelog {
     pub fn open(
         repo: &Repo,
         file_path: &HgPath,
-        options: RevlogOpenOptions,
+        options: &RevlogOpenOptions,
     ) -> Result<Self, RevlogError> {
         Self::open_vfs(&repo.store_vfs(), file_path, options)
     }
@@ -453,7 +453,7 @@ pub fn is_file_modified(
     check_exec: bool,
     manifest: &Manifest,
     hg_path: &HgPath,
-    revlog_open_options: RevlogOpenOptions,
+    revlog_open_options: &RevlogOpenOptions,
 ) -> Result<FileCompOutcome, RevlogError> {
     let vfs = working_directory_vfs;
     let fs_path = hg_path_to_path_buf(hg_path).expect("HgPath conversion");
