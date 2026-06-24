@@ -748,6 +748,33 @@ name = 'sync.fileindex.pre-read-data-files-timeout'
 default = 20
 
 [[items]]
+section = 'devel'
+name = 'sync.revlog.between-index-and-nodemap-open-file'
+documentation = """
+Makes the revlog opening code, in between reading the persistent nodemap and \
+reading the index, wait for the existence of this file (or until a timeout of \
+`devel.sync.revlog.between-index-and-nodemap-open-file-timeout` seconds) before reading the \
+index. The opening code signals that it's ready to wait by creating a file \
+with the same name + `.waiting`. This lets a test inject an operation (e.g. a \
+concurrent commit) in the middle of an index open. \
+Useful when testing race conditions."""
+
+[[items]]
+section = 'devel'
+name = 'sync.revlog.between-index-and-nodemap-open-file-timeout'
+default = 20
+
+[[items]]
+section = 'devel'
+name = 'debug.nodemap.catchup'
+default = false
+documentation = """
+When enabled, the Rust persistent nodemap code prints debug output to stderr \
+when it catches the nodemap up to the index (with the number of revisions \
+caught up) or rebuilds it from scratch. \
+Useful when testing race conditions."""
+
+[[items]]
 section = "devel"
 name = "user.obsmarker"
 

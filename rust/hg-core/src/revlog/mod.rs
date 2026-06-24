@@ -47,6 +47,7 @@ use crate::exit_codes;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::validate_persistent_nodemap;
 use crate::utils::RawData;
+use crate::utils::debug::debug_wait_for_sync_point_or_print;
 use crate::utils::u32_u;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
@@ -539,13 +540,23 @@ impl Revlog {
         let default_data_path = index_path.with_extension("d");
         let data_path = data_path.unwrap_or(&default_data_path);
 
-        let index = open_index(store_vfs, index_path, options)?;
+        let index = open_index(store_vfs, index_path, &options)?;
+
+        // Test-only synchronization point, in between the two steps of opening
+        // the revlog (reading the index above and reading the nodemap below).
+        debug_wait_for_sync_point_or_print(
+            &options.devel.sync_point_read_index_file,
+        );
 
         let nodemap = if index.is_inline() || !options.use_nodemap {
             None
         } else {
             let nodemap = read_persistent_nodemap(store_vfs, index_path)?;
-            validate_persistent_nodemap(nodemap, &index)?
+            validate_persistent_nodemap(
+                nodemap,
+                &index,
+                options.devel.debug_nodemap,
+            )?
         };
 
         let nodemap = nodemap_for_test.or(nodemap);

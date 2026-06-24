@@ -305,7 +305,9 @@ fn validate_candidate(
 
 /// Persistent nodemap loaded from disk, but not validated against the
 /// index file.
-pub(super) struct PersistentNodemapUnvalidated(Option<(NodeMapDocket, NodeTree)>);
+pub(super) struct PersistentNodemapUnvalidated(
+    Option<(NodeMapDocket, NodeTree)>,
+);
 
 pub(super) fn read_persistent_nodemap(
     store_vfs: &VfsImpl,
@@ -327,12 +329,21 @@ pub(super) fn read_persistent_nodemap(
 pub(super) fn validate_persistent_nodemap(
     nodemap: PersistentNodemapUnvalidated,
     index: &impl RevlogIndex,
+    debug_catchup: bool,
 ) -> Result<Option<NodeTree>, RevlogError> {
     if let PersistentNodemapUnvalidated(Some((docket, mut nodemap))) = nodemap {
         if let Some(valid_tip_rev) = index.check_revision(docket.tip_rev) {
             let valid_node = index.node(valid_tip_rev) == &docket.tip_node;
             if valid_node && (valid_tip_rev.0 as usize) < index.len() {
                 // The index moved forward but wasn't rewritten
+                if debug_catchup {
+                    // Number of revisions appended to the index since the
+                    // nodemap was written (`devel.debug.nodemap`).
+                    let caught_up = index.len() - 1 - valid_tip_rev.0 as usize;
+                    eprintln!(
+                        "persistent nodemap: caught up {caught_up} revisions"
+                    );
+                }
                 nodemap.catch_up_to_index(index, valid_tip_rev)?;
                 return Ok(Some(nodemap));
             }
@@ -340,6 +351,13 @@ pub(super) fn validate_persistent_nodemap(
         if !index.is_empty() {
             // The nodemap exists but is invalid somehow (strip, corruption...)
             // so we rebuild it from scratch.
+            if debug_catchup {
+                // `devel.debug.nodemap.catchup`
+                eprintln!(
+                    "persistent nodemap: rebuilt from scratch ({} revisions)",
+                    index.len()
+                );
+            }
             let mut nodemap = NodeTree::new(Box::<Vec<_>>::default());
             nodemap.catch_up_to_index(index, Revision(0))?;
             return Ok(Some(nodemap));

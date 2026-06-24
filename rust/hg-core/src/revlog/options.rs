@@ -18,6 +18,7 @@ use crate::requirements::NODEMAP_REQUIREMENT;
 use crate::requirements::REVLOGV1_REQUIREMENT;
 use crate::requirements::REVLOGV2_REQUIREMENT;
 use crate::requirements::SPARSEREVLOG_REQUIREMENT;
+use crate::utils::debug::SyncPoint;
 
 const DEFAULT_CHUNK_CACHE_SIZE: u64 = 65536;
 const DEFAULT_SPARSE_READ_DENSITY_THRESHOLD: f64 = 0.50;
@@ -39,6 +40,19 @@ pub enum RevlogVersionOptions {
     },
 }
 
+/// Developer-only options for opening a revlog, used to inject
+/// synchronization points and debug output when testing race conditions.
+/// All fields are inert unless the corresponding `devel.*` config is set.
+#[derive(Debug, Clone, Default)]
+pub struct RevlogDevelOpenOptions {
+    /// `devel.sync.revlog.pre-read-index-file`: synchronization point used in
+    /// between reading the persistent nodemap and reading the index.
+    pub sync_point_read_index_file: SyncPoint,
+    /// `devel.debug.nodemap`: print debug output on persistent nodemap
+    /// catch-up and rebuild.
+    pub debug_nodemap: bool,
+}
+
 /// Options to govern how a revlog should be opened, usually from the
 /// repository configuration or requirements.
 #[derive(Debug, Clone)]
@@ -50,6 +64,8 @@ pub struct RevlogOpenOptions {
     pub delta_config: RevlogDeltaConfig,
     pub data_config: RevlogDataConfig,
     pub feature_config: RevlogFeatureConfig,
+    /// Developer-only options for testing race conditions.
+    pub devel: RevlogDevelOpenOptions,
 }
 
 #[cfg(test)]
@@ -66,6 +82,7 @@ impl Default for RevlogOpenOptions {
             data_config: Default::default(),
             delta_config: Default::default(),
             feature_config: Default::default(),
+            devel: Default::default(),
         }
     }
 }
@@ -88,6 +105,7 @@ impl RevlogOpenOptions {
             data_config,
             delta_config,
             feature_config,
+            devel: Default::default(),
         }
     }
 
@@ -493,5 +511,13 @@ pub fn default_revlog_options(
             requirements,
             revlog_type,
         )?,
+        devel: RevlogDevelOpenOptions {
+            sync_point_read_index_file: SyncPoint::read_from_config(
+                config,
+                "revlog.between-index-and-nodemap-open-file",
+            ),
+            debug_nodemap: config
+                .get_bool(b"devel", b"debug.nodemap.catchup")?,
+        },
     })
 }
