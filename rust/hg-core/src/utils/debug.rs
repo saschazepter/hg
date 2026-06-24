@@ -29,20 +29,23 @@ pub fn debug_wait_for_file(
         Ok(Some(timeout)) => timeout,
         _ => default_timeout,
     };
-    let timeout_seconds = timeout_seconds as u64;
 
     tracing::debug!(
         "Config option `{config_option}` found, \
              waiting for file `{file_path}` to be created"
     );
+    debug_wait_for_file_impl(file_path, Some(config_option), timeout_seconds)
+}
+
+fn debug_wait_for_file_impl(
+    file_path: &str,
+    config_option: Option<&str>,
+    timeout_seconds: u32,
+) -> Result<(), String> {
+    let timeout_seconds = timeout_seconds as u64;
     std::fs::File::create(format!("{file_path}.waiting")).ok();
-    // If the test timeout have been extended, scale the timer relative
-    // to the normal timing.
-    let global_timeout_perc: u64 = std::env::var("HGTEST_TIMEOUT_PERCENTAGE")
-        .map(|t| t.parse())
-        .unwrap_or(Ok(100))
-        .unwrap();
-    let timeout_seconds = (timeout_seconds * global_timeout_perc) / 100;
+
+    let timeout_seconds = scale_test_timeout(timeout_seconds);
     let timeout = std::time::Duration::from_secs(timeout_seconds);
 
     let start = std::time::Instant::now();
@@ -58,8 +61,14 @@ pub fn debug_wait_for_file(
         }
     }
     if !found {
+        let file_path_explanation = match config_option {
+            Some(config_option) => {
+                format!(" set by `{config_option}`")
+            }
+            None => format!(""),
+        };
         let msg = format!(
-            "File `{file_path}` set by `{config_option}` was not found \
+            "File `{file_path}`{file_path_explanation} was not found \
             within the allocated {timeout_seconds} seconds timeout"
         );
         Err(msg)
@@ -72,4 +81,14 @@ pub fn debug_wait_for_file_or_print(config: &Config, config_option: &str) {
     if let Err(e) = debug_wait_for_file(config, config_option) {
         eprintln!("{e}");
     };
+}
+
+/// Scale a timeout (in seconds), to avoid flakiness when global `run-tests`
+/// timeouts are raised on slower hardware.
+fn scale_test_timeout(timeout_seconds: u64) -> u64 {
+    let global_timeout_perc: u64 = std::env::var("HGTEST_TIMEOUT_PERCENTAGE")
+        .map(|t| t.parse())
+        .unwrap_or(Ok(100))
+        .unwrap();
+    (timeout_seconds * global_timeout_perc) / 100
 }
