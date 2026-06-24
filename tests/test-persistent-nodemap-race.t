@@ -19,6 +19,10 @@ rebuild from scratch. It exercises the Rust revlog opening code through `rhg`.
 
 #require rhg
 
+TODO: expand this test to cover the Python implementation,
+which suffers from the same bug that this test is guarding against.
+
+
   $ NO_FALLBACK="env RHG_ON_UNSUPPORTED=abort"
 
   $ cat >> $HGRCPATH << EOF
