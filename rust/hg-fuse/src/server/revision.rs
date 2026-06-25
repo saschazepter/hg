@@ -209,8 +209,15 @@ impl<T: FileToken> OwnedRevision<T> {
         };
 
         let changeset = store.node_for_idx(rev_idx)?;
-        let token =
-            self.revision.ino_to_token.get(&ino).expect("node should exist");
+        let offset = RevisionInodeEncoder::ino_to_offset(
+            self.revision.files_root_ino,
+            ino,
+        );
+        let token = self
+            .revision
+            .offset_to_token
+            .get(&u_u64(offset))
+            .expect("node should exist");
         let data = store.file_data(changeset, info.path, *token)?;
         Ok(Some(data))
     }
@@ -237,8 +244,8 @@ impl<T: FileToken> OwnedRevision<T> {
 struct RevisionTree<T> {
     /// The full dirstate for this revision
     dirstate: OwningDirstateMap,
-    /// Mapping of inode to file token, so we can answer reads
-    ino_to_token: DashMap<INodeNo, T>,
+    /// Mapping of offset in the dirstate to file token, so we can answer reads
+    offset_to_token: DashMap<u64, T>,
     /// Inode for the "files" folder for this revision
     files_root_ino: INodeNo,
     /// Mapping of all reserved inodes to their FUSE entries
@@ -254,7 +261,7 @@ impl<T: FileToken> RevisionTree<T> {
         changeset: Node,
         start_time: SystemTime,
     ) -> Result<RevisionTree<T>, StoreError<T>> {
-        let (dirstate, ino_to_file_nodeid, inode_encoder) =
+        let (dirstate, offset_to_token, inode_encoder) =
             Self::process_manifest_files(store, changeset, start_time)?;
 
         // Remember the inodes for reserved entries
@@ -262,7 +269,7 @@ impl<T: FileToken> RevisionTree<T> {
 
         let tree = RevisionTree {
             dirstate,
-            ino_to_token: ino_to_file_nodeid,
+            offset_to_token,
             files_root_ino: inode_encoder.files_root_inode,
             reserved,
             reserved_contents: inode_encoder.reserved_contents,
@@ -279,7 +286,7 @@ impl<T: FileToken> RevisionTree<T> {
         changeset: Node,
         start_time: SystemTime,
     ) -> Result<
-        (OwningDirstateMap, DashMap<INodeNo, T>, RevisionInodeEncoder),
+        (OwningDirstateMap, DashMap<u64, T>, RevisionInodeEncoder),
         StoreError<T>,
     > {
         let revision_idx = store.idx_for_node(changeset)?;
@@ -324,13 +331,13 @@ impl<T: FileToken> RevisionTree<T> {
         drop(map_span);
 
         let dirstate_parents = DirstateParents { p1: changeset, p2: NULL_NODE };
-        let (dirstate, inode_to_token) = inode_encoder.add_dirstate(
+        let (dirstate, offset_to_token) = inode_encoder.add_dirstate(
             dirstate,
             dirstate_parents,
             path_to_token,
         )?;
 
-        Ok((dirstate, inode_to_token, inode_encoder))
+        Ok((dirstate, offset_to_token, inode_encoder))
     }
 }
 
@@ -512,8 +519,8 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
         path_to_token: FastHashMap<&HgPath, T>,
-    ) -> Result<(OwningDirstateMap, DashMap<INodeNo, T>), StoreError<T>> {
-        let ino_to_token = DashMap::with_capacity(dirstate.len());
+    ) -> Result<(OwningDirstateMap, DashMap<u64, T>), StoreError<T>> {
+        let offset_to_token = DashMap::with_capacity(dirstate.len());
         let latest_ino = AtomicU64::new(self.files_root_inode.0);
         // Insert them in the files root
         let files_root_entry = self
@@ -537,7 +544,8 @@ impl RevisionInodeEncoder {
 
             // Remember the inode to token mapping to answer reads
             let path_to_token_entry = path_to_token.get(path);
-            path_to_token_entry.map(|token| ino_to_token.insert(ino, *token));
+            path_to_token_entry
+                .map(|token| offset_to_token.insert(offset, *token));
             latest_ino.store(ino.0, Ordering::Relaxed);
         };
 
@@ -597,7 +605,7 @@ impl RevisionInodeEncoder {
             None,
         )
         .expect("in-memory creation of a brand-new dirstate should not fail");
-        Ok((new_dirstate, ino_to_token))
+        Ok((new_dirstate, offset_to_token))
     }
 
     fn add_reserved_directory(
