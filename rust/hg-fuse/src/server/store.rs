@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use clap::ValueEnum;
+use hg::FastHashMap;
 use hg::Node;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
@@ -255,7 +256,7 @@ pub enum FileChangeInfo<'store, T> {
 
 /// Groups all necessary information about a previously created in-memory
 /// dirstate to create a new, incremental one.
-pub struct DirstateBaseInfo {
+pub struct DirstateBaseInfo<T> {
     /// The fully serialized dirstate data
     pub serialized: RawData,
     /// The docket metadata, with which to interpret [`Self::serialized`]
@@ -264,4 +265,6 @@ pub struct DirstateBaseInfo {
     pub uuid: Vec<u8>,
     /// The changeset nodeid for the parent of this dirstate
     pub node: Node,
+    /// Matching of offset in this dirstate to a file token
+    pub offset_to_token: FastHashMap<u64, T>,
 }

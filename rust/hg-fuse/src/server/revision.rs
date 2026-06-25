@@ -67,7 +67,7 @@ impl<T: FileToken> OwnedRevision<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
-    ) -> Result<(Self, DirstateBaseInfo), StoreError<T>> {
+    ) -> Result<(Self, DirstateBaseInfo<T>), StoreError<T>> {
         let (revision, new_dirstate_info) =
             RevisionTree::from_revision(store, changeset, start_time)?;
         Ok((Self { revision }, new_dirstate_info))
@@ -260,8 +260,8 @@ impl<T: FileToken> RevisionTree<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
-    ) -> Result<(RevisionTree<T>, DirstateBaseInfo), StoreError<T>> {
-        let (dirstate, inode_encoder, offset_to_token, new_dirstate_base) =
+    ) -> Result<(RevisionTree<T>, DirstateBaseInfo<T>), StoreError<T>> {
+        let (dirstate, inode_encoder, new_dirstate_base) =
             Self::process_manifest_files(store, changeset, start_time)?;
 
         // Remember the inodes for reserved entries
@@ -269,7 +269,7 @@ impl<T: FileToken> RevisionTree<T> {
 
         let tree = RevisionTree {
             dirstate,
-            offset_to_token,
+            offset_to_token: new_dirstate_base.offset_to_token.clone(),
             files_root_ino: inode_encoder.files_root_inode,
             reserved,
             reserved_contents: inode_encoder.reserved_contents,
@@ -328,21 +328,20 @@ impl<T: FileToken> RevisionTree<T> {
         drop(map_span);
 
         let dirstate_parents = DirstateParents { p1: changeset, p2: NULL_NODE };
-        let (dirstate, offset_to_token, dirstate_base_info) = inode_encoder
-            .add_dirstate(dirstate, dirstate_parents, path_to_token)?;
+        let (dirstate, dirstate_base_info) = inode_encoder.add_dirstate(
+            dirstate,
+            dirstate_parents,
+            path_to_token,
+        )?;
 
-        Ok((dirstate, inode_encoder, offset_to_token, dirstate_base_info))
+        Ok((dirstate, inode_encoder, dirstate_base_info))
     }
 }
 
 /// All information required to serve a revision in the fuse, obtained after
 /// processing the manifest
-type RevisionInfo<T> = (
-    OwningDirstateMap,
-    RevisionInodeEncoder,
-    FastHashMap<u64, T>,
-    DirstateBaseInfo,
-);
+type RevisionInfo<T> =
+    (OwningDirstateMap, RevisionInodeEncoder, DirstateBaseInfo<T>);
 
 /// Represents a reserved FUSE entry inside the revision's root dir
 #[derive(Debug)]
@@ -522,10 +521,7 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
         path_to_token: FastHashMap<&HgPath, T>,
-    ) -> Result<
-        (OwningDirstateMap, FastHashMap<u64, T>, DirstateBaseInfo),
-        StoreError<T>,
-    > {
+    ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
         // The mutex will be uncontended since the dirstate does not support
         // parallel inserts, this is purely so we can satisfy the callback being
         // immutable
@@ -567,7 +563,7 @@ impl RevisionInodeEncoder {
 
         let packed_res = dirstate
             .pack_v2(DirstateMapWriteMode::ForceNewDataFile, Some(visit));
-        let (data, tree_metadata, _, _) = packed_res
+        let (data, tree_metadata, appending, old_size) = packed_res
             .expect("in-memory serialization of a dirstate should not fail");
         let new_inode = latest_ino
             .load(Ordering::Relaxed)
@@ -578,6 +574,9 @@ impl RevisionInodeEncoder {
             "inode overflow"
         );
         self.current_ino = AtomicU64::new(new_inode);
+        // Paranoid checks
+        assert!(!appending, "dirstate must be written from scratch");
+        assert_eq!(old_size, 0, "dirstate must be written from scratch");
         let data_size = data.len();
         let uuid = Docket::new_uid();
 
@@ -619,12 +618,14 @@ impl RevisionInodeEncoder {
         .expect("in-memory creation of a brand-new dirstate should not fail");
         Ok((
             new_dirstate,
-            offset_to_token.into_inner().expect("propagate the panic"),
             DirstateBaseInfo {
                 serialized: packed_data,
                 metadata: tree_metadata.as_bytes().to_vec(),
                 uuid: uuid.as_bytes().to_vec(),
                 node: parents.p1,
+                offset_to_token: offset_to_token
+                    .into_inner()
+                    .expect("propagate the panic"),
             },
         ))
     }

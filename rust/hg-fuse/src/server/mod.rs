@@ -70,7 +70,7 @@ pub struct Server<S, T> {
     mount_point: PathBuf,
     /// Information about a previously loaded dirstate to compute later ones
     /// incrementally.
-    dirstate_base_info: Mutex<Option<DirstateBaseInfo>>,
+    dirstate_base_info: Mutex<Option<DirstateBaseInfo<T>>>,
 }
 
 impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
