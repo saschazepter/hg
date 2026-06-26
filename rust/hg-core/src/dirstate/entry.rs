@@ -661,11 +661,27 @@ impl DirstateEntry {
         &self,
         filesystem_metadata: &std::fs::Metadata,
     ) -> bool {
-        let dirstate_exec_bit = (self.mode() as u32 & EXEC_BIT_MASK) != 0;
-        let fs_exec_bit = has_exec_bit(filesystem_metadata);
-        dirstate_exec_bit != fs_exec_bit
+        use std::os::unix::fs::MetadataExt;
+        // We compare the all that's important about the `mode`,
+        // even though the caller is only trying to ask about the
+        // execute permission. This leads to slightly more precise
+        // outcomes when the file changes from file to symlink
+        // (or back), but ideally the call site in `status.rs`
+        // should become more aware of this.
+        let dirstate_kind = mode_to_file_kind(self.mode() as u32);
+        let fs_kind = mode_to_file_kind(filesystem_metadata.mode());
+        match (dirstate_kind, fs_kind) {
+            (Some(kind1), Some(kind2)) => kind1 != kind2,
+            _ => {
+                // We might hit this in weird fifo/socket/device cases,
+                // but more importantly we sometimes end up with
+                // `self.mode()` *not* including the file type bits.
+                // Not clear why this happens, but the test
+                // `test-sparse-profiles.t` reproduces that.
+                false
+            }
+        }
     }
-
     /// Returns a `(state, mode, size, mtime)` tuple as for
     /// `DirstateMapMethods::debug_iter`.
     pub fn debug_tuple(&self) -> (u8, i32, i32, i32) {
@@ -710,10 +726,30 @@ impl From<EntryState> for u8 {
     }
 }
 
-const EXEC_BIT_MASK: u32 = 0o100;
+fn mode_to_file_kind(mode: u32) -> Option<FileKind> {
+    let file_type = mode & libc::S_IFMT;
+    if file_type == libc::S_IFLNK {
+        return Some(FileKind::Symlink);
+    }
+    if file_type != libc::S_IFREG {
+        return None;
+    }
+    if (mode & libc::S_IXUSR) != 0 {
+        Some(FileKind::ExecutableFile)
+    } else {
+        Some(FileKind::RegularFile)
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum FileKind {
+    RegularFile,
+    ExecutableFile,
+    Symlink,
+}
 
 pub fn has_exec_bit(metadata: &std::fs::Metadata) -> bool {
     // TODO: How to handle executable permissions on Windows?
     use std::os::unix::fs::MetadataExt;
-    (metadata.mode() & EXEC_BIT_MASK) != 0
+    (metadata.mode() & libc::S_IXUSR) != 0
 }
