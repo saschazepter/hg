@@ -4,6 +4,7 @@
 # GNU General Public License version 2 or any later version.
 
 from __future__ import annotations
+import typing
 
 from .i18n import _
 from .node import (
@@ -22,9 +23,12 @@ from . import (
     util,
 )
 
+if typing.TYPE_CHECKING:
+    from .interfaces.types import NodeIdT
+
 
 @util.rust_tracing_span("commit.commitctx")
-def commitctx(repo, ctx, origctx=None):
+def commitctx(repo, ctx, origctx=None, skip_empty=False):
     """Add a new revision to the target repository.
     Revision information is passed via the context argument.
 
@@ -38,6 +42,10 @@ def commitctx(repo, ctx, origctx=None):
     convert to be the identity, it can pass an origctx and this
     function will use the same files list when it makes sense to
     do so.
+
+    If skip_empty is True and the commit would be empty, returns None.
+    This detects more empty cases than ctx.isempty() would because it
+    checks the actual manifest about to be committed, not ctx.files().
     """
     repo = repo.unfiltered()
 
@@ -46,6 +54,9 @@ def commitctx(repo, ctx, origctx=None):
 
     with repo.lock(), repo.transaction(b"commit") as tr:
         mn, files = _prepare_files(tr, ctx, origctx=origctx)
+
+        if skip_empty and _is_empty(ctx, mn):
+            return None
 
         extra = ctx.extra().copy()
 
@@ -101,6 +112,21 @@ def commitctx(repo, ctx, origctx=None):
             # if minimal phase was 0 we don't need to retract anything
             phases.registernew(repo, tr, targetphase, [rev])
         return n
+
+
+def _is_empty(ctx: context.committablectx, manifest_node: NodeIdT) -> bool:
+    """Return true if the commit would be empty.
+
+    This is similar to ctx.isempty(), except rather than checking ctx.files()
+    (which can be an over-approximation), it checks if manifest_node is being
+    reused from p1.
+    """
+    return (
+        len(ctx.parents()) == 1
+        and ctx.branch() == ctx.p1().branch()
+        and not ctx.closesbranch()
+        and manifest_node == ctx.p1().manifestnode()
+    )
 
 
 @util.rust_tracing_span("_prepare_files")

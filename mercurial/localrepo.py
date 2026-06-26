@@ -3367,8 +3367,10 @@ class localrepository(_localrepo_base_classes):
         return ret
 
     @unfilteredmethod
-    def commitctx(self, ctx, origctx=None):
-        return commit.commitctx(self, ctx, origctx=origctx)
+    def commitctx(self, ctx, origctx=None, skip_empty=False):
+        return commit.commitctx(
+            self, ctx, origctx=origctx, skip_empty=skip_empty
+        )
 
     @unfilteredmethod
     def destroying(self):
