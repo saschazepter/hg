@@ -469,3 +469,15 @@ Test that removing exec bytes works
   diff --git a/victor b/victor
   old mode 100755
   new mode 100644
+
+Test listing empty shelves
+--------------------------
+
+  $ hg -R repo devel::create-thin-wc thin-shelve
+  $ cd thin-shelve
+  $ cat << EOF >> .hg/hgrc
+  > [extensions]
+  > shelve=
+  > EOF
+  $ hg shelve --list
+  $ cd ..
