@@ -48,18 +48,9 @@ A set of extension and shell functions ensures this scheduling.
   >     if watchpath is not None:
   >         ui.status(b'waiting on: %s\n' % watchpath)
   >         limit = 100
-  >         test_default_timeout = os.environ.get('HGTEST_TIMEOUT_DEFAULT')
-  >         test_timeout = os.environ.get('HGTEST_TIMEOUT')
-  >         if test_default_timeout is not None:
-  >            test_default_timeout = int(test_default_timeout)
-  >         if test_timeout is not None:
-  >            test_timeout = int(test_timeout)
-  >         if (
-  >             test_default_timeout is not None
-  >             and test_timeout is not None
-  >             and test_default_timeout < test_timeout
-  >         ):
-  >             limit = int(limit * (test_timeout / test_default_timeout))
+  >         timeout_adjust = os.environ.get('HGTEST_TIMEOUT_PERCENTAGE')
+  >         if timeout_adjust is not None:
+  >             limit = int(limit * int(timeout_adjust) / 100)
   >         while 0 < limit and not os.path.exists(watchpath):
   >             limit -= 1
   >             time.sleep(0.1)
@@ -86,7 +77,11 @@ A set of extension and shell functions ensures this scheduling.
 
   $ release () {
   >     # create a file and wait for it be deleted
-  >     count=100
+  >     if [ -n "$HGTEST_TIMEOUT_PERCENTAGE" ] ; then
+  >         count=$HGTEST_TIMEOUT_PERCENTAGE
+  >     else
+  >         count=100
+  >     fi
   >     touch $1
   >     while [ -f $1 ] ;
   >     do

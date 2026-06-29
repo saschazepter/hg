@@ -112,6 +112,7 @@ With global certificates:
   (verifying remote certificate)
   sending [PATCH] a ...
 
+  $ wait_log "Thu Jan 01 00:00:01 1970"
   $ cat ../log
   connection from * (glob)
   * from=quux to=foo, bar (glob)

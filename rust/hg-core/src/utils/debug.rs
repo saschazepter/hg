@@ -38,19 +38,11 @@ pub fn debug_wait_for_file(
     std::fs::File::create(format!("{file_path}.waiting")).ok();
     // If the test timeout have been extended, scale the timer relative
     // to the normal timing.
-    let global_default_timeout: u64 = std::env::var("HGTEST_TIMEOUT_DEFAULT")
+    let global_timeout_perc: u64 = std::env::var("HGTEST_TIMEOUT_PERCENTAGE")
         .map(|t| t.parse())
-        .unwrap_or(Ok(0))
+        .unwrap_or(Ok(100))
         .unwrap();
-    let global_timeout_override: u64 = std::env::var("HGTEST_TIMEOUT")
-        .map(|t| t.parse())
-        .unwrap_or(Ok(0))
-        .unwrap();
-    let timeout_seconds = if global_default_timeout < global_timeout_override {
-        timeout_seconds * global_timeout_override / global_default_timeout
-    } else {
-        timeout_seconds
-    };
+    let timeout_seconds = (timeout_seconds * global_timeout_perc) / 100;
     let timeout = std::time::Duration::from_secs(timeout_seconds);
 
     let start = std::time::Instant::now();

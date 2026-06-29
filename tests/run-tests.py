@@ -1571,9 +1571,12 @@ class Test(unittest.TestCase):
             env['REALUSERPROFILE'] = env['USERPROFILE']
             # py3.8+ ignores HOME: https://bugs.python.org/issue36264
             env['USERPROFILE'] = env['HOME']
-        formated_timeout = _bytes2sys(b"%d" % default_defaults['timeout'][1])
+        default_timeout = default_defaults['timeout'][1]
+        formated_timeout = _bytes2sys(b"%d" % default_timeout)
         env['HGTEST_TIMEOUT_DEFAULT'] = formated_timeout
         env['HGTEST_TIMEOUT'] = _bytes2sys(b"%d" % self._timeout)
+        timeout_perc = max(100, (self._timeout * 100) // default_timeout)
+        env['HGTEST_TIMEOUT_PERCENTAGE'] = _bytes2sys(b"%d" % timeout_perc)
 
         for port in range(HGPORT_COUNT):
             defineport(port)

@@ -13,8 +13,8 @@ timer="$1"
 
 # If the test timeout have been extended, also scale the timer relative
 # to the normal timing.
-if [ "$HGTEST_TIMEOUT_DEFAULT" -lt "$HGTEST_TIMEOUT" ]; then
-    timer=$(( ( $timer * $HGTEST_TIMEOUT) / $HGTEST_TIMEOUT_DEFAULT ))
+if [ "100" -lt "$HGTEST_TIMEOUT_PERCENTAGE" ]; then
+    timer=$(( ( $timer * $HGTEST_TIMEOUT_PERCENTAGE ) / 100 ))
 fi
 
 max_time=$timer
