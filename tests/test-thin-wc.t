@@ -12,6 +12,12 @@ still accessed through a dedicated API.
 The "thin" extensions is still at a early stage of development, assume that
 anything not tested here is unsupported and likely to be broken.
 
+As windows involves requires more logic around exec-mode and symlink and the
+feature kind of requires to use the vfs to function, we disable it there for
+now.
+
+#require no-windows
+
 
   $ cat << EOF >> $HGRCPATH
   > [diff]
@@ -363,8 +369,6 @@ Test committing copy info
   \ No newline at end of file
 
 
-#if execbit
-
 Test that adding exec bytes works
 ---------------------------------
 
@@ -465,5 +469,3 @@ Test that removing exec bytes works
   diff --git a/victor b/victor
   old mode 100755
   new mode 100644
-
-#endif
