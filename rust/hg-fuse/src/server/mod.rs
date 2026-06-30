@@ -178,16 +178,12 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
             if parent == COMMITS_INODE {
                 if let Ok(node) = Node::from_hex(name.as_encoded_bytes()) {
                     // Is a syntactically valid node, try to look it up
-                    if let Some(revision) = self.revisions.get(&node) {
-                        // We've already loaded this revision
-                        let root_inode = RootInodeEncoder::revision_inode(
-                            self.store.idx_for_node(node)?,
-                        );
-                        let root_entry_opt = revision.get_entry(root_inode);
-                        return Ok(root_entry_opt);
-                    }
-                    // Load the node upon first request
-                    return self.load_revision_root(node);
+                    let revision = self.get_revision(node)?;
+                    let root_inode = RootInodeEncoder::revision_inode(
+                        self.store.idx_for_node(node)?,
+                    );
+                    let root_entry_opt = revision.get_entry(root_inode);
+                    return Ok(root_entry_opt);
                 } else {
                     return Ok(None);
                 };
@@ -203,38 +199,44 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         }
     }
 
-    /// Return the [`Entry`] for the root of the given node prefix.
-    ///
-    /// This means building the [`RevisionTree`] and caching it.
+    /// Build the [`RevisionTree`] for the given node.
     #[tracing::instrument(
         level = "debug",
         skip_all,
         fields(nodeid = format!("{:x}", changeset)),
     )]
-    fn load_revision_root(
+    fn load_revision(
         &self,
         changeset: Node,
-    ) -> Result<Option<Entry>, StoreError<T>> {
+    ) -> Result<Arc<OwnedRevision<T>>, StoreError<T>> {
         let revision_data = OwnedRevision::from_revision(
             &self.store,
             changeset,
             self.start_time,
         )?;
         let revision_arc = Arc::new(revision_data);
-        self.revisions.insert(changeset, Arc::clone(&revision_arc));
-        tracing::debug!("total revisions loaded: {}", self.revisions.len());
-
         let preload = self.store.server_config().preload_structure;
         if preload {
-            self.spawn_revision_preloading(changeset, revision_arc);
+            self.spawn_revision_preloading(
+                changeset,
+                Arc::clone(&revision_arc),
+            );
         }
-        let entry = Entry::dir(
-            format!("{:x}", changeset).into(),
-            RootInodeEncoder::revision_inode(
-                self.store.idx_for_node(changeset)?,
-            ),
-        );
-        Ok(Some(entry))
+        Ok(revision_arc)
+    }
+
+    fn get_revision(
+        &self,
+        changeset: Node,
+    ) -> Result<Arc<OwnedRevision<T>>, StoreError<T>> {
+        if let Some(revision) = self.revisions.get(&changeset) {
+            Ok(Arc::clone(revision.value()))
+        } else {
+            let revision = self.load_revision(changeset)?;
+            self.revisions.insert(changeset, Arc::clone(&revision));
+            tracing::debug!("total revisions loaded: {}", self.revisions.len());
+            Ok(revision)
+        }
     }
 
     /// Spawn a background thread that populates the filesystem kernel caches
@@ -279,8 +281,10 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         func: impl FnOnce(&OwnedRevision<T>) -> R,
     ) -> Option<R> {
         let idx = RootInodeEncoder::ino_to_idx(ino)?;
+        // TODO: instead of ignoring these errors by converting them to options,
+        // we should consider returning Result<Option<R>>
         let node = self.store.node_for_idx(idx).ok()?;
-        let revision = self.revisions.get(&node)?;
+        let revision = self.get_revision(node).ok()?;
         Some(func(&revision))
     }
 }
