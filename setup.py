@@ -12,9 +12,9 @@ import sys
 import sysconfig
 import tempfile
 
-if not ssl.HAS_TLSv1_2:
+if not ssl.HAS_TLSv1_2 and not ssl.HAS_TLSv1_3:
     error = """
-The `ssl` module does not advertise support for TLS 1.2.
+The `ssl` module does not advertise support for TLS 1.2 or later.
 Please make sure that your Python installation was compiled against an OpenSSL
 version enabling these features (likely this requires the OpenSSL version to
 be at least 1.0.1).
