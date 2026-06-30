@@ -1,6 +1,7 @@
 use std::convert::Infallible;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -61,6 +62,8 @@ pub struct Server<S, T> {
     uid: u32,
     /// Group ID returned on requests, by default it's the process'.
     gid: u32,
+    /// The mount point for this FUSE
+    mount_point: PathBuf,
 }
 
 impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
@@ -68,6 +71,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         store: S,
         user_id: Option<u32>,
         group_id: Option<u32>,
+        mount_point: impl AsRef<Path>,
     ) -> Result<Self, HgError> {
         let process_metadata =
             std::fs::metadata("/proc/self").when_reading_file("/proc/self")?;
@@ -89,6 +93,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
                 + MERCURIAL_FIRST_COMMIT_TIMESTAMP,
             uid,
             gid,
+            mount_point: mount_point.as_ref().to_path_buf(),
         })
     }
 
@@ -168,7 +173,6 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         &self,
         parent: INodeNo,
         name: &std::ffi::OsStr,
-        mount_point: &Path,
     ) -> Result<Option<Entry>, StoreError<T>> {
         if RootInodeEncoder::is_reserved(parent) {
             if parent == COMMITS_INODE {
@@ -183,7 +187,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
                         return Ok(root_entry_opt);
                     }
                     // Load the node upon first request
-                    return self.load_revision_root(node, mount_point);
+                    return self.load_revision_root(node);
                 } else {
                     return Ok(None);
                 };
@@ -210,7 +214,6 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     fn load_revision_root(
         &self,
         changeset: Node,
-        mount_point: &Path,
     ) -> Result<Option<Entry>, StoreError<T>> {
         let revision_data = OwnedRevision::from_revision(
             &self.store,
@@ -223,11 +226,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
 
         let preload = self.store.server_config().preload_structure;
         if preload {
-            self.spawn_revision_preloading(
-                changeset,
-                revision_arc,
-                mount_point,
-            );
+            self.spawn_revision_preloading(changeset, revision_arc);
         }
         let entry = Entry::dir(
             format!("{:x}", changeset).into(),
@@ -243,9 +242,9 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         &self,
         changeset: Node,
         revision: Arc<OwnedRevision<T>>,
-        mount_point: &Path,
     ) {
-        let root = mount_point.join(path_to_revision_working_copy(changeset));
+        let root =
+            self.mount_point.join(path_to_revision_working_copy(changeset));
         rayon::spawn(move || revision.preload(&root));
     }
 

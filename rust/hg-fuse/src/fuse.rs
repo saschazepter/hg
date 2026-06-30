@@ -38,8 +38,6 @@ pub fn path_to_revision_working_copy(changeset: Node) -> PathBuf {
 /// A virtual filesystem in user-space (FUSE) for Mercurial
 pub struct HgFuse<S, T> {
     server: Server<S, T>,
-    /// The mount point for this FUSE
-    mount_point: PathBuf,
     /// FUSE capability for zero-message open
     fuse_no_open_support: bool,
     /// FUSE capability for zero-message opendir
@@ -72,7 +70,6 @@ impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
         config.n_threads = Some(thread_count);
         let filesystem = Self {
             server,
-            mount_point: mountpoint.to_path_buf(),
             fuse_no_open_support: false,
             fuse_no_opendir_support: false,
         };
@@ -167,7 +164,7 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
         name: &std::ffi::OsStr,
         reply: fuser::ReplyEntry,
     ) {
-        match self.server.lookup(parent, name, &self.mount_point) {
+        match self.server.lookup(parent, name) {
             Ok(Some(entry)) => {
                 reply.entry(
                     &TTL,
