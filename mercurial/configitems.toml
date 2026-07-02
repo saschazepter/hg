@@ -785,6 +785,21 @@ default = 20
 
 [[items]]
 section = 'devel'
+name = 'sync.phantom-commits.pre-wlock-file'
+documentation = """
+Makes `hg create-phantom-commit` wait for the existence of this file (or until \
+a timeout of `devel.sync.phantom-commits.pre-wlock-file-timeout` seconds) \
+before taking the wlock. It signals that it's ready to wait by creating a file \
+with the same name + `.waiting`. \
+Useful when testing race conditions."""
+
+[[items]]
+section = 'devel'
+name = 'sync.phantom-commits.pre-wlock-file-timeout'
+default = 20
+
+[[items]]
+section = 'devel'
 name = 'debug.nodemap.catchup'
 default = false
 documentation = """
@@ -3640,3 +3655,56 @@ section = "blackbox"
 name = "date-format"
 default = ""
 in_core_extension = "blackbox"
+
+[[items]]
+section = "phantom_commits"
+name = "bookmark"
+in_core_extension = "phantom_commits"
+documentation = """Bookmark name to use for the latest phantom commit.
+If it contains "{bookmark}", that will be replaced with the active bookmark.
+"""
+
+[[items]]
+section = "phantom_commits"
+name = "ai-user"
+in_core_extension = "phantom_commits"
+documentation = """Username for AI commits.
+If it contains "{user}", that will be replaced with the current user (short).
+"""
+
+[[items]]
+section = "phantom_commits"
+name = "last-ai-bookmark"
+in_core_extension = "phantom_commits"
+documentation = """Bookmark name to use for the last AI phantom commit from
+hg create-phantom-commit (not a phantom commit carried over after hg commit).
+Unlike phantom_commits.bookmark, it is never deleted. If it contains
+"{bookmark}", that will be replaced with the active bookmark.
+"""
+
+[[items]]
+section = "phantom_commits"
+name = "unknown-files.size-limit"
+default = 10485760
+in_core_extension = "phantom_commits"
+documentation = """Maximum size in bytes of unknown files to include in phantom
+commits. This only applies to files that would show in hg status --unknown.
+Added and modified files are always included. Ignored files are always excluded.
+
+* If an unknown file exceeding this limit is later added and committed, all
+  changes made before `hg add` will be attributed to the human.
+* If it started below the limit then grew past it, all changes made between
+  crossing the limit and `hg add` will be attributed to the human.
+* If it started above the limit then shrunk below it, all changes made before
+  crossing the limit will be attributed to whichever user makes the first
+  phantom commit after crossing the limit.
+"""
+
+[[items]]
+section = "phantom_commits"
+name = "tracing"
+default = false
+in_core_extension = "phantom_commits"
+documentation = """Print "trace-start" and "trace-end" events in
+`hg create-phantom-commit`.
+"""

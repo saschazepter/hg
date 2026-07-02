@@ -27,3 +27,5 @@ tracing = { version = "0.1.44", features = ["attributes"] }
 tracing-chrome = { version = "0.7.2", optional = true }
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 dashmap = "6.1.0"
+self_cell = "1.2"
+elsa = "1.11.2"

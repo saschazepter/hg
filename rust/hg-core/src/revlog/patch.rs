@@ -26,7 +26,7 @@ use crate::utils::u_u32;
 use crate::utils::u32_u;
 
 /// A piece of data to insert, delete or replace in a Delta
-pub(super) trait DeltaPiece<'a>: Clone {
+pub trait DeltaPiece<'a>: Clone {
     /// build a DeltaPiece from extra information
     ///
     /// The implementation is free to discard the information it doesn't need.
@@ -122,7 +122,7 @@ pub(super) trait DeltaPiece<'a>: Clone {
 /// - a replacement when `!data.is_empty() && start < end`
 /// - not doing anything when `data.is_empty() && start == end`
 #[derive(Clone)]
-pub(crate) struct PlainDeltaPiece<'a> {
+pub struct PlainDeltaPiece<'a> {
     /// The start position of the chunk of data to replace
     pub(crate) start: u32,
     /// The end position of the chunk of data to replace (open end interval)
@@ -220,11 +220,11 @@ impl std::fmt::Debug for PlainDeltaPiece<'_> {
 /// Used within RichDeltaPiece
 ///
 /// The 0 value is usually reserved for the base-text
-type SrcToken = u32;
+pub type SrcToken = u32;
 
 /// A DeltaPiece with information about  source and position within that source
 #[derive(Clone, Debug)]
-pub(crate) struct RichDeltaPiece<'a> {
+pub struct RichDeltaPiece<'a> {
     pub inner: PlainDeltaPiece<'a>,
     pub src: SrcToken,
     pub data_pos: u32,
@@ -298,7 +298,7 @@ impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
 
 /// The delta between two revisions data.
 #[derive(Debug, Clone)]
-pub(super) struct Delta<'a, P>
+pub struct Delta<'a, P>
 where
     P: DeltaPiece<'a>,
 {
@@ -308,7 +308,7 @@ where
     /// - ordered from the left-most replacement to the right-most replacement
     /// - non-overlapping, meaning that two chucks can not change the same
     ///   chunk of the patched data
-    pub(crate) chunks: Vec<P>,
+    pub chunks: Vec<P>,
     phantom: std::marker::PhantomData<&'a P>,
 }
 
@@ -449,7 +449,7 @@ where
     /// In this method, self is the "low" delta applying so a "base", and
     /// `other` is the "high" delta, apply to the result of applying "low"
     /// on "base".
-    pub(super) fn combine(mut self, other: Self) -> Self {
+    pub fn combine(mut self, other: Self) -> Self {
         if self.chunks.is_empty() {
             return other;
         } else if other.chunks.is_empty() {

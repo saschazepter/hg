@@ -18,6 +18,7 @@ mod manifest;
 mod matchers;
 mod node;
 mod path;
+mod phantom_commits;
 mod pytracing;
 mod repo;
 mod revision;
@@ -55,6 +56,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&linkrev::init_module(py, &dotted_name)?)?;
     m.add_submodule(&manifest::init_module(py, &dotted_name)?)?;
     m.add_submodule(&matchers::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&phantom_commits::init_module(py, &dotted_name)?)?;
     m.add_submodule(&pytracing::init_module(py, &dotted_name)?)?;
     m.add_submodule(&revlog::init_module(py, &dotted_name)?)?;
     m.add_submodule(&shape::init_module(py, &dotted_name)?)?;

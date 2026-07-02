@@ -403,6 +403,8 @@ Test extension help:
        mq            manage a stack of patches
        notify        hooks for sending email push notifications
        patchbomb     command to send changesets as (a series of) patch emails
+       phantom_commits
+                     track AI changes separately from human changes
        relink        recreates hardlinks between repository clones
        schemes       extend schemes with shortcuts to repository swarms
        share         share a common history between several working directories

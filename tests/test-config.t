@@ -436,7 +436,14 @@ The feature is experimental and behavior may varies. This test exists to make su
   commands.commit.report-head-changes=True
   convert.git.committeractions=[*'messagedifferent'] (glob)
   convert.svn.dangerous-set-commit-dates=False
+  devel.sync.phantom-commits.pre-wlock-file=None
+  devel.sync.phantom-commits.pre-wlock-file-timeout=20
   experimental.copytrace.sourcecommitlimit=100
+  phantom_commits.ai-user=None
+  phantom_commits.bookmark=None
+  phantom_commits.last-ai-bookmark=None
+  phantom_commits.tracing=False
+  phantom_commits.unknown-files.size-limit=10485760
   phases.new-commit=draft
   ui.allowemptycommit=False
   ui.commitsubrepos=False
