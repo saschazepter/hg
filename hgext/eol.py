@@ -460,7 +460,7 @@ def reposetup(ui, repo):
                     if wlock is not None:
                         wlock.release()
 
-        def commitctx(self, ctx, error=False, origctx=None):
+        def commitctx(self, ctx, *args, **kwargs):
             for f in sorted(ctx.added() + ctx.modified()):
                 if not self._eolmatch(f):
                     continue
@@ -477,7 +477,7 @@ def reposetup(ui, repo):
                     raise errormod.Abort(
                         _(b"inconsistent newline style in %s\n") % f
                     )
-            return super().commitctx(ctx, error, origctx)
+            return super().commitctx(ctx, *args, **kwargs)
 
     repo.__class__ = eolrepo
     repo._hgcleardirstate()
