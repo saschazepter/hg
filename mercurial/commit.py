@@ -13,6 +13,7 @@ from .node import (
 
 from . import (
     context,
+    error,
     mergestate,
     metadata,
     phases,
@@ -23,7 +24,7 @@ from . import (
 
 
 @util.rust_tracing_span("commit.commitctx")
-def commitctx(repo, ctx, error=False, origctx=None):
+def commitctx(repo, ctx, origctx=None):
     """Add a new revision to the target repository.
     Revision information is passed via the context argument.
 
@@ -44,7 +45,7 @@ def commitctx(repo, ctx, error=False, origctx=None):
     user = ctx.user()
 
     with repo.lock(), repo.transaction(b"commit") as tr:
-        mn, files = _prepare_files(tr, ctx, error=error, origctx=origctx)
+        mn, files = _prepare_files(tr, ctx, origctx=origctx)
 
         extra = ctx.extra().copy()
 
@@ -103,7 +104,7 @@ def commitctx(repo, ctx, error=False, origctx=None):
 
 
 @util.rust_tracing_span("_prepare_files")
-def _prepare_files(tr, ctx, error=False, origctx=None):
+def _prepare_files(tr, ctx, origctx=None):
     repo = ctx.repo()
     p1 = ctx.p1()
 
@@ -131,7 +132,7 @@ def _prepare_files(tr, ctx, error=False, origctx=None):
         repo.ui.debug(b'reusing manifest from p1 (no file change)\n')
         mn = p1.manifestnode()
     else:
-        mn = _process_files(tr, ctx, ms, files, narrow_files, error=error)
+        mn = _process_files(tr, ctx, ms, files, narrow_files)
 
     if origctx and origctx.manifestnode() == mn:
         origfiles = origctx.files()
@@ -163,7 +164,7 @@ def _get_salvaged(repo, ms, ctx):
 
 
 @util.rust_tracing_span("_process_files")
-def _process_files(tr, ctx, ms, files, narrow_files=None, error=False):
+def _process_files(tr, ctx, ms, files, narrow_files=None):
     repo = ctx.repo()
     p1 = ctx.p1()
     p2 = ctx.p2()

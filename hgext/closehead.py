@@ -63,7 +63,7 @@ def close_branch(ui, repo: RepoT, *revs, **opts):
             extra=extra,
         )
         with repo.transaction(b'commit'):
-            ret = repo.commitctx(cctx, True)
+            ret = repo.commitctx(cctx)
             bookmarks.update(repo, [rev, None], ret)
             cctx.markcommitted(ret)
 

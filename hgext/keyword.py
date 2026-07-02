@@ -869,8 +869,8 @@ def reposetup(ui, repo):
             finally:
                 del self.commitctx
 
-        def kwcommitctx(self, ctx, error=False, origctx=None):
-            n = super().commitctx(ctx, error, origctx)
+        def kwcommitctx(self, ctx, origctx=None):
+            n = super().commitctx(ctx, origctx)
             # no lock needed, only called from repo.commit() which already locks
             if not kwt.postcommit:
                 restrict = kwt.restrict

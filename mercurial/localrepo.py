@@ -3311,7 +3311,7 @@ class localrepository(_localrepo_base_classes):
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
                 )
                 with self.transaction(b'commit'):
-                    ret = unfi.commitctx(cctx, True)
+                    ret = unfi.commitctx(cctx)
                     # update bookmarks, dirstate and mergestate
                     bookmarks.update(self, [p1, p2], ret)
                     cctx.markcommitted(ret)
@@ -3342,8 +3342,8 @@ class localrepository(_localrepo_base_classes):
         return ret
 
     @unfilteredmethod
-    def commitctx(self, ctx, error=False, origctx=None):
-        return commit.commitctx(self, ctx, error=error, origctx=origctx)
+    def commitctx(self, ctx, origctx=None):
+        return commit.commitctx(self, ctx, origctx=origctx)
 
     @unfilteredmethod
     def destroying(self):

@@ -2367,7 +2367,7 @@ class IRepo(Protocol):
         """Add a new revision to the repository."""
 
     @abc.abstractmethod
-    def commitctx(self, ctx, error=False, origctx=None):
+    def commitctx(self, ctx, origctx=None):
         """Commit a commitctx instance to the repository."""
 
     @abc.abstractmethod
