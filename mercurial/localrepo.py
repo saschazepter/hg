@@ -3336,7 +3336,7 @@ class localrepository(_localrepo_base_classes):
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
                 )
                 with self.transaction(b'commit'):
-                    ret = unfi.commitctx(cctx)
+                    ret = unfi.commitctx_for_commit(cctx, status)
                     # update bookmarks, dirstate and mergestate
                     bookmarks.update(self, [p1, p2], ret)
                     cctx.markcommitted(ret)
@@ -3365,6 +3365,18 @@ class localrepository(_localrepo_base_classes):
 
         self._afterlock(commithook)
         return ret
+
+    @unfilteredmethod
+    def commitctx_for_commit(
+        self, cctx: context.workingcommitctx, status: StatusT
+    ) -> NodeIdT:
+        """Call commitctx on cctx, returning the new node.
+
+        This is a separate method to allow extensions to override just the
+        commitctx call that happens in localrepository.commit, and not other
+        other uses of localrepository.commitctx, for example amends.
+        """
+        return self.commitctx(cctx)
 
     @unfilteredmethod
     def commitctx(self, ctx, origctx=None, skip_empty=False):
