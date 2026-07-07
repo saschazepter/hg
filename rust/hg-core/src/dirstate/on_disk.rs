@@ -433,14 +433,17 @@ impl Node {
     }
 
     fn synthesize_unix_mode(&self) -> u32 {
+        let is_symlink = self.flags().contains(Flags::MODE_IS_SYMLINK);
         // Some platforms' libc don't have the same type (MacOS uses i32 here)
         #[allow(clippy::unnecessary_cast)]
-        let file_type = if self.flags().contains(Flags::MODE_IS_SYMLINK) {
+        let file_type = if is_symlink {
             libc::S_IFLNK as u32
         } else {
             libc::S_IFREG as u32
         };
-        let permissions = if self.flags().contains(Flags::MODE_EXEC_PERM) {
+        let permissions = if is_symlink {
+            0o777
+        } else if self.flags().contains(Flags::MODE_EXEC_PERM) {
             0o755
         } else {
             0o644
