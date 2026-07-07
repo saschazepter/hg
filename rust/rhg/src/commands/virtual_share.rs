@@ -49,6 +49,12 @@ pub fn args() -> clap::Command {
                 .help("override the gid"),
         )
         .arg(
+            Arg::new("max-revisions-loaded")
+                .long("max-revisions-loaded")
+                .value_parser(clap::value_parser!(usize))
+                .help("maximum number of revisions to keep loaded"),
+        )
+        .arg(
             Arg::new("open-to-all")
                 .long("open-to-all")
                 .action(clap::ArgAction::SetTrue)
@@ -87,6 +93,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
     let user_id = invocation.subcommand_args.get_one("user-id").copied();
     let group_id = invocation.subcommand_args.get_one("group-id").copied();
+    let max_revisions_loaded =
+        invocation.subcommand_args.get_one("max-revisions-loaded").copied();
     let open_to_all = invocation.subcommand_args.get_flag("open-to-all");
     let open_to_root = invocation.subcommand_args.get_flag("open-to-root");
     let backend_mode: BackendMode = invocation
@@ -107,7 +115,13 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         Some(repo.working_directory_path().to_path_buf()),
     )?;
     let store = LocalBackend::new(backend_repo, backend_mode)?;
-    let server = Server::new(store, user_id, group_id, destination, None)?;
+    let server = Server::new(
+        store,
+        user_id,
+        group_id,
+        destination,
+        max_revisions_loaded,
+    )?;
 
     // Set up non-fatal signals to break our loop
     let should_terminate = Arc::new(AtomicBool::new(false));
