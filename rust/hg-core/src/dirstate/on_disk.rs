@@ -553,8 +553,15 @@ impl Node {
         // Some platforms' libc don't have the same type (MacOS uses i32 here)
         #[allow(clippy::unnecessary_cast)]
         let size = if let Some((m, s)) = mode_size_opt {
-            let exec_perm = m & (libc::S_IXUSR as u32) != 0;
             let is_symlink = m & (libc::S_IFMT as u32) == libc::S_IFLNK as u32;
+            let exec_perm = if is_symlink {
+                // `exec_perm` is meaningless for symlinks.
+                // We now set to `true` consistently, but this
+                // wasn't always enforced. The readers should ignore this value.
+                true
+            } else {
+                m & (libc::S_IXUSR as u32) != 0
+            };
             flags.set(Flags::MODE_EXEC_PERM, exec_perm);
             flags.set(Flags::MODE_IS_SYMLINK, is_symlink);
             flags.insert(Flags::HAS_MODE_AND_SIZE);
