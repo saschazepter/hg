@@ -20,3 +20,4 @@ rayon = "1.11.0"
 self_cell = "1.2"
 tracing = {version = "0.1.44", features = ["attributes"]}
 format-bytes = "0.3.0"
+quick_cache = "0.7.0"

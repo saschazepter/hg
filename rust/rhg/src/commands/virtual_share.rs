@@ -107,7 +107,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         Some(repo.working_directory_path().to_path_buf()),
     )?;
     let store = LocalBackend::new(backend_repo, backend_mode)?;
-    let server = Server::new(store, user_id, group_id, destination)?;
+    let server = Server::new(store, user_id, group_id, destination, None)?;
 
     // Set up non-fatal signals to break our loop
     let should_terminate = Arc::new(AtomicBool::new(false));

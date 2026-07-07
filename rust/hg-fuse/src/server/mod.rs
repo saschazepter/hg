@@ -6,7 +6,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::SystemTime;
 
-use dashmap::DashMap;
 use fuser::FileAttr;
 use fuser::FileType;
 use fuser::INodeNo;
@@ -16,6 +15,8 @@ use hg::errors::IoResultExt;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
 use hg::warnings::HgWarningContext;
+use quick_cache::sync::Cache;
+use quick_cache::sync::GuardResult;
 
 use crate::fuse::COMMITS_INODE;
 use crate::fuse::Entry;
@@ -31,6 +32,7 @@ pub mod local;
 pub mod revision;
 pub mod store;
 
+const DEFAULT_MAX_REVISIONS_LOADED: usize = 64;
 const BLOCK_SIZE: u32 = 4096;
 // Fake size that's obvious enough to be grepped in case that's
 // a problem.
@@ -55,7 +57,7 @@ pub struct Server<S, T> {
     /// TODO more than 1 repo at once
     store: S,
     /// Revisions whose tree we've populated
-    revisions: DashMap<Node, Arc<OwnedRevision<T>>>,
+    revisions: Cache<Node, Arc<OwnedRevision<T>>>,
     /// When this server was started
     start_time: SystemTime,
     /// User ID returned on requests, by default it's the process'.
@@ -72,6 +74,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         user_id: Option<u32>,
         group_id: Option<u32>,
         mount_point: impl AsRef<Path>,
+        max_revisions_loaded: Option<usize>,
     ) -> Result<Self, HgError> {
         let process_metadata =
             std::fs::metadata("/proc/self").when_reading_file("/proc/self")?;
@@ -87,7 +90,9 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
 
         Ok(Self {
             store,
-            revisions: DashMap::default(),
+            revisions: Cache::new(
+                max_revisions_loaded.unwrap_or(DEFAULT_MAX_REVISIONS_LOADED),
+            ),
             // Use a constant time, so that restarts don't affect the dirstate.
             start_time: SystemTime::UNIX_EPOCH
                 + MERCURIAL_FIRST_COMMIT_TIMESTAMP,
@@ -229,13 +234,20 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         &self,
         changeset: Node,
     ) -> Result<Arc<OwnedRevision<T>>, StoreError<T>> {
-        if let Some(revision) = self.revisions.get(&changeset) {
-            Ok(Arc::clone(revision.value()))
-        } else {
-            let revision = self.load_revision(changeset)?;
-            self.revisions.insert(changeset, Arc::clone(&revision));
-            tracing::debug!("total revisions loaded: {}", self.revisions.len());
-            Ok(revision)
+        match self.revisions.get_value_or_guard(&changeset, None) {
+            GuardResult::Value(v) => Ok(v),
+            GuardResult::Guard(g) => {
+                let revision = self.load_revision(changeset)?;
+                let _ = g.insert(Arc::clone(&revision));
+                tracing::debug!(
+                    "total revisions loaded: {}",
+                    self.revisions.len()
+                );
+                Ok(revision)
+            }
+            GuardResult::Timeout => unreachable!(
+                "timeout is None, so result cannot be GuardResult::Timeout"
+            ),
         }
     }
 
