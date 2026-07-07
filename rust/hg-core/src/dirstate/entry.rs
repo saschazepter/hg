@@ -726,15 +726,25 @@ impl From<EntryState> for u8 {
     }
 }
 
+// Some platforms' libc don't have the same type (MacOS uses i32 here)
+#[allow(clippy::unnecessary_cast)]
+const EXEC_BIT_MASK: u32 = libc::S_IXUSR as u32;
+#[allow(clippy::unnecessary_cast)]
+const FILE_TYPE_BIT_MASK: u32 = libc::S_IFMT as u32;
+#[allow(clippy::unnecessary_cast)]
+const FILE_TYPE_SYMLINK: u32 = libc::S_IFLNK as u32;
+#[allow(clippy::unnecessary_cast)]
+const FILE_TYPE_REGULAR: u32 = libc::S_IFREG as u32;
+
 fn mode_to_file_kind(mode: u32) -> Option<FileKind> {
-    let file_type = mode & libc::S_IFMT;
-    if file_type == libc::S_IFLNK {
+    let file_type = mode & FILE_TYPE_BIT_MASK;
+    if file_type == FILE_TYPE_SYMLINK {
         return Some(FileKind::Symlink);
     }
-    if file_type != libc::S_IFREG {
+    if file_type != FILE_TYPE_REGULAR {
         return None;
     }
-    if (mode & libc::S_IXUSR) != 0 {
+    if (mode & EXEC_BIT_MASK) != 0 {
         Some(FileKind::ExecutableFile)
     } else {
         Some(FileKind::RegularFile)
@@ -751,5 +761,5 @@ enum FileKind {
 pub fn has_exec_bit(metadata: &std::fs::Metadata) -> bool {
     // TODO: How to handle executable permissions on Windows?
     use std::os::unix::fs::MetadataExt;
-    (metadata.mode() & libc::S_IXUSR) != 0
+    (metadata.mode() & EXEC_BIT_MASK) != 0
 }
