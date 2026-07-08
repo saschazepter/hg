@@ -35,6 +35,7 @@ use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::revlog::manifest::ManifestFlags;
 use crate::utils::hg_path::HgPath;
+use crate::utils::u_u32;
 use crate::utils::u_u64;
 use crate::utils::u32_u;
 use crate::vfs::Vfs;
@@ -341,6 +342,21 @@ impl Node {
         on_disk: &'on_disk [u8],
     ) -> Result<&'on_disk HgPath, DirstateV2ParseError> {
         read_hg_path(on_disk, self.full_path)
+    }
+
+    /// Return the full path of this node inside the appended part of an
+    /// incremental rewrite, given the `offset` of the previous on-disk
+    /// serialization. Useful when post-processing nodes.
+    fn full_path_appended<'on_disk>(
+        &self,
+        appended_part: &'on_disk [u8],
+        offset: u32,
+    ) -> Result<&'on_disk HgPath, DirstateV2ParseError> {
+        let start = self.full_path.start.get();
+        let start =
+            start.checked_sub(offset).expect("offset must be lower than start");
+        let slice = PathSlice { start: start.into(), len: self.full_path.len };
+        read_hg_path(appended_part, slice)
     }
 
     pub(super) fn base_name_start(
@@ -845,14 +861,22 @@ impl Writer<'_, '_> {
         let len = child_nodes_len_from_usize(nodes_len);
         if let Some(visit) = visit_in_order {
             for (idx, node) in on_disk_nodes.iter().enumerate() {
-                let full_path = node.full_path(&self.out)?;
-                let root_node = node.base_name(&self.out)? == full_path;
-                let serialization_start = u32_u(start.get());
+                let node_start = node.full_path.start.get();
+                let on_disk = &self.dirstate_map.on_disk;
+                let on_disk_end = u_u32(on_disk.len());
+                let full_path = if node_start < on_disk_end {
+                    node.full_path(on_disk)?
+                } else {
+                    // Need to offset the start of the path by the length
+                    // of the buffer we're based on, since we're incremental
+                    node.full_path_appended(&self.out, on_disk_end)?
+                };
+                let is_child_of_root = !full_path.contains(b'/');
                 let node_offset = idx * std::mem::size_of::<Node>();
                 visit(
                     full_path,
-                    root_node,
-                    u_u64(serialization_start + node_offset),
+                    is_child_of_root,
+                    u_u64(u32_u(start.get()) + node_offset),
                 );
             }
         }
