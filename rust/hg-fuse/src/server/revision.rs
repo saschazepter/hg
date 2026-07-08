@@ -25,6 +25,7 @@ use hg::dirstate::on_disk::Docket;
 use hg::dirstate::on_disk::WriteNodeVisit;
 use hg::dirstate::on_disk::write_tracked_key_to;
 use hg::dirstate::owning::OwningDirstateMap;
+use hg::errors::HgError;
 use hg::narrow;
 use hg::requirements::DIRSTATE_TRACKED_HINT_V1;
 use hg::requirements::DIRSTATE_V2_REQUIREMENT;
@@ -42,15 +43,17 @@ use hg::utils::u64_u;
 use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
 
-use super::store::DirstateBaseInfo;
 use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
 use crate::fuse::RootInodeEncoder;
 use crate::server::permissions_for_file;
 use crate::server::store::BackendMode;
 use crate::server::store::ChangesetFiles;
+use crate::server::store::ChangesetFilesDiff;
+use crate::server::store::DirstateBaseInfo;
 use crate::server::store::Error as StoreError;
 use crate::server::store::ErrorKind;
+use crate::server::store::FileChangeInfo;
 use crate::server::store::FileToken;
 use crate::server::store::StoreBackend;
 use crate::server::store::StoreInfo;
@@ -336,6 +339,7 @@ impl<T: FileToken> RevisionTree<T> {
                 dirstate,
                 dirstate_parents,
                 path_to_token,
+                None,
             )?
         } else {
             unreachable!("this case will be filled in the next changeset")
@@ -343,6 +347,85 @@ impl<T: FileToken> RevisionTree<T> {
 
         let (dirstate, dirstate_base_info) = info;
         Ok((dirstate, inode_encoder, dirstate_base_info))
+    }
+
+    /// Create the dirstate incrementally from `base_info`.
+    ///
+    /// For now, we simply choose the latest dirstate encountered by the
+    /// FUSE, which should already have a lot in common with likely revisions.
+    /// A more sophisticated approach is may be needed, but is left for a future
+    /// improvement.
+    #[expect(unused)]
+    fn process_files_incremental<S: StoreBackend<T>>(
+        store: &S,
+        base_info: DirstateBaseInfo<T>,
+        changeset: Node,
+        start_time: TruncatedTimestamp,
+        inode_encoder: &mut RevisionInodeEncoder,
+    ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
+        let map_span = tracing::debug_span!("building the dirstate").entered();
+        let old_dirstate = OwningDirstateMap::new_v2(
+            RawData::clone(&base_info.serialized),
+            base_info.serialized.len(),
+            &base_info.metadata,
+            base_info.uuid.clone(),
+            None,
+        )
+        .map_err(HgError::from)?;
+        let mut dirstate = OwningDirstateMap::new_v2(
+            RawData::clone(&base_info.serialized),
+            base_info.serialized.len(),
+            &base_info.metadata,
+            base_info.uuid.clone(),
+            None,
+        )
+        .map_err(HgError::from)?;
+
+        let files_diff =
+            store.changeset_files_diff(base_info.node, changeset)?;
+
+        let mut path_to_token = FastHashMap::default();
+        for hunk in files_diff.iter_diff() {
+            match hunk {
+                FileChangeInfo::Removed(path) => {
+                    dirstate
+                        .drop_entry_and_copy_source(path)
+                        .map_err(HgError::from)?;
+                }
+                FileChangeInfo::New(info) | FileChangeInfo::Changed(info) => {
+                    path_to_token.insert(info.path, info.token);
+
+                    let mode_size = Some((
+                        permissions_for_file(info.flags).into(),
+                        info.size.try_into().expect("file too large"),
+                    ));
+                    dirstate
+                        .reset_state(DirstateEntryReset {
+                            filename: info.path,
+                            wc_tracked: true,
+                            p1_tracked: true,
+                            p2_info: false, /* We're never in an active merge */
+                            has_meaningful_mtime: true,
+                            parent_file_data_opt: Some(ParentFileData {
+                                mode_size,
+                                mtime: Some(start_time),
+                            }),
+                            from_empty: matches!(hunk, FileChangeInfo::New(_)),
+                            set_parents_mtime: true,
+                        })
+                        .expect("insert in in-memory dirstate should not fail");
+                }
+            }
+        }
+
+        drop(map_span);
+        let dirstate_parents = DirstateParents { p1: changeset, p2: NULL_NODE };
+        inode_encoder.add_dirstate(
+            dirstate,
+            dirstate_parents,
+            path_to_token,
+            Some((base_info, old_dirstate)),
+        )
     }
 }
 
@@ -529,6 +612,10 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
         path_to_token: FastHashMap<&HgPath, T>,
+        #[expect(unused)] base: Option<(
+            DirstateBaseInfo<T>,
+            OwningDirstateMap,
+        )>,
     ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
         // The mutex will be uncontended since the dirstate does not support
         // parallel inserts, this is purely so we can satisfy the callback being
