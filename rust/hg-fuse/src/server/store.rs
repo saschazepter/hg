@@ -198,7 +198,7 @@ pub struct FileInfo<'store, T> {
     pub size: u64,
     /// The flags for this file revision
     pub flags: ManifestFlags,
-    /// An opaque token, see [`FileRevisionToken`]
+    /// An opaque token, see [`FileToken`]
     pub token: T,
 }
 
