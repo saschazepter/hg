@@ -31,6 +31,7 @@ use crate::revlog::manifest::ManifestFlags;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
+use crate::utils::u_u64;
 use crate::warnings::HgWarningContext;
 
 /// Append to an existing data file if the amount of unreachable data (not used
@@ -1105,6 +1106,51 @@ pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
         let offset = node.child_offset(idx);
         self.fuse_info_from_dirstate_node(child, offset).ok()
     }
+
+    /// Returns the offset for [`on_disk::Node`] for `path` into the on-disk
+    /// serialization of this dirstate, if it exists.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any in-memory nodes are encountered
+    fn fuse_offset(&'on_disk self, path: &HgPath) -> Option<u64> {
+        let parent_path = path.parent();
+        let children = if parent_path.is_empty() {
+            match self.root_nodes() {
+                ChildNodes::InMemory(_) => {
+                    unreachable!("fuse shouldn't have in-memory nodes")
+                }
+                ChildNodes::OnDisk(children) => children,
+            }
+        } else {
+            match self.node_for_path(parent_path).ok().flatten()? {
+                NodeRef::InMemory(_, _node) => {
+                    unreachable!("fuse shouldn't have in-memory nodes")
+                }
+                NodeRef::OnDisk(node) => node.children(self.on_disk()).ok()?,
+            }
+        };
+
+        // Pretty sad state of affairs to be ignoring (unlikely) errors like
+        // this, but the plan is to have a better error handling story for
+        // the FUSE soon.
+        let children = ChildNodesRef::OnDisk(children);
+        let filename = path.split_filename().1;
+        let child = children.get(filename, self.on_disk()).ok().flatten()?;
+        match child {
+            NodeRef::InMemory(_, _) => {
+                unreachable!("fuse shouldn't have in-memory-nodes")
+            }
+            NodeRef::OnDisk(node) => {
+                let offset = node.as_bytes().as_ptr() as usize;
+                let on_disk_start = self.on_disk().as_ptr() as usize;
+                let offset = offset
+                    .checked_sub(on_disk_start)
+                    .expect("node outside of on_disk");
+                Some(u_u64(offset))
+            }
+        }
+    }
 }
 
 /// Extension trait for FUSE-related operations that peek into the private
@@ -1112,6 +1158,15 @@ pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
 pub(super) trait DirstateInternalFuseExt<'on_disk> {
     /// Returns a reference to the immutable bytes this dirstate is based on
     fn on_disk(&self) -> &[u8];
+
+    /// Returns the [`NodeRef`] that corresponds to this path
+    fn node_for_path<'tree>(
+        &'tree self,
+        path: &HgPath,
+    ) -> Result<Option<NodeRef<'tree, 'on_disk>>, DirstateV2ParseError>;
+
+    /// Returns the [`ChildNodes`] for the root of the dirstate
+    fn root_nodes(&self) -> &ChildNodes<'_>;
 
     /// Returns info relevant to the FUSE for this node, given its offset into
     /// the packed dirstate.
@@ -1132,6 +1187,17 @@ pub(super) trait DirstateInternalFuseExt<'on_disk> {
 impl<'on_disk> DirstateInternalFuseExt<'on_disk> for &DirstateMap<'on_disk> {
     fn on_disk(&self) -> &[u8] {
         self.on_disk
+    }
+
+    fn node_for_path<'tree>(
+        &'tree self,
+        path: &HgPath,
+    ) -> Result<Option<NodeRef<'tree, 'on_disk>>, DirstateV2ParseError> {
+        self.get_node(path)
+    }
+
+    fn root_nodes(&self) -> &ChildNodes<'_> {
+        &self.root
     }
 }
 
