@@ -65,12 +65,10 @@ when the server rejects the `unbundle` request.
   >   --config http.timeout=60
   pushing to http://babar:***@localhost:$HGPORT/
   searching for changes
-  remote: adding changesets (missing-correct-output !)
-  remote: adding manifests (missing-correct-output !)
-  remote: adding file changes (missing-correct-output !)
-  remote: added 1 changesets with 1 changes to 1 files (missing-correct-output !)
-  abort: error: timed out (known-bad-output !)
-  [100]
+  remote: adding changesets
+  remote: adding manifests
+  remote: adding file changes
+  remote: added 1 changesets with 1 changes to 1 files
 
   $ killdaemons.py
   $ cat access.log
@@ -81,8 +79,6 @@ when the server rejects the `unbundle` request.
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=branchmap HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "POST /?cmd=listkeys HTTP/1.1" 200 - x-hgargs-post:19 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "POST /?cmd=unbundle HTTP/1.1" 401 - x-hgargs-post:16 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
-  $LOCALIP - - [$LOGDATE$] "POST /?cmd=unbundle HTTP/1.1" 200 - x-hgargs-post:16 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob) (missing-correct-output !)
-  $LOCALIP - - [$LOGDATE$] "POST /?cmd=unbundle HTTP/1.1" 500 - x-hgargs-post:16 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob) (known-bad-output !)
-  $LOCALIP - - [$LOGDATE$] "POST /?cmd=listkeys HTTP/1.1" 200 - x-hgargs-post:16 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob) (missing-correct-output !)
+  $LOCALIP - - [$LOGDATE$] "POST /?cmd=unbundle HTTP/1.1" 200 - x-hgargs-post:16 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
+  $LOCALIP - - [$LOGDATE$] "POST /?cmd=listkeys HTTP/1.1" 200 - x-hgargs-post:16 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $ cat errors.log | head -n 1
-  $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/?cmd=unbundle': (glob)
