@@ -860,28 +860,43 @@ impl Writer<'_, '_> {
         let start = self.current_offset();
         let len = child_nodes_len_from_usize(nodes_len);
         if let Some(visit) = visit_in_order {
-            for (idx, node) in on_disk_nodes.iter().enumerate() {
-                let node_start = node.full_path.start.get();
-                let on_disk = &self.dirstate_map.on_disk;
-                let on_disk_end = u_u32(on_disk.len());
-                let full_path = if node_start < on_disk_end {
-                    node.full_path(on_disk)?
-                } else {
-                    // Need to offset the start of the path by the length
-                    // of the buffer we're based on, since we're incremental
-                    node.full_path_appended(&self.out, on_disk_end)?
-                };
-                let is_child_of_root = !full_path.contains(b'/');
-                let node_offset = idx * std::mem::size_of::<Node>();
-                visit(
-                    full_path,
-                    is_child_of_root,
-                    u_u64(u32_u(start.get()) + node_offset),
-                );
-            }
+            self.visit_serialized_nodes(
+                &on_disk_nodes,
+                u32_u(start.get()),
+                visit,
+            )?;
         }
         self.out.extend(on_disk_nodes.as_bytes());
         Ok(ChildNodes { start, len })
+    }
+
+    /// Called after each node's subtree is done being serialized
+    fn visit_serialized_nodes(
+        &mut self,
+        nodes: &[Node],
+        on_disk_offset: usize,
+        visit_in_order: WriteNodeVisit,
+    ) -> Result<(), DirstateError> {
+        for (idx, node) in nodes.iter().enumerate() {
+            let node_start = node.full_path.start.get();
+            let on_disk = &self.dirstate_map.on_disk;
+            let on_disk_end = u_u32(on_disk.len());
+            let full_path = if node_start < on_disk_end {
+                node.full_path(on_disk)?
+            } else {
+                // Need to offset the start of the path by the length
+                // of the buffer we're based on, since we're incremental
+                node.full_path_appended(&self.out, on_disk_end)?
+            };
+            let is_child_of_root = !full_path.contains(b'/');
+            let node_offset = idx * std::mem::size_of::<Node>();
+            visit_in_order(
+                full_path,
+                is_child_of_root,
+                u_u64(on_disk_offset + node_offset),
+            );
+        }
+        Ok(())
     }
 
     /// Catch some dirstate corruptions before writing them to disk
