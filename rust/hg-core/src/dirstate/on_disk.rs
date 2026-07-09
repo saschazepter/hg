@@ -673,7 +673,7 @@ where
 /// A function that is called for every on-disk [`Node`] being written to the
 /// dirstate data file. Each node is called in order of serialization.
 /// The function is called with the full path of the node, whether it's a
-/// root node and its size (as defined in [`Node::size`]).
+/// root node and its offset in the full dirstate serialization.
 ///
 /// Used in the context of hg-fuse to create a mapping of offset -> filenodeid,
 /// with inodes being derived from offsets.
