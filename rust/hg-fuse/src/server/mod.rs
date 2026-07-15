@@ -216,15 +216,18 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         skip_all,
         fields(nodeid = format!("{:x}", changeset)),
     )]
+    #[allow(clippy::type_complexity)] // Return type is still best locally here
     fn load_revision(
         &self,
         changeset: Node,
+        base_dirstate: Option<DirstateBaseInfo<T>>,
     ) -> Result<(Arc<OwnedRevision<T>>, DirstateBaseInfo<T>), StoreError<T>>
     {
         let (revision_data, new_dirstate_base) = OwnedRevision::from_revision(
             &self.store,
             changeset,
             self.start_time,
+            base_dirstate,
         )?;
         let revision_arc = Arc::new(revision_data);
         let preload = self.store.server_config().preload_structure;
@@ -244,13 +247,16 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         match self.revisions.get_value_or_guard(&changeset, None) {
             GuardResult::Value(v) => Ok(v),
             GuardResult::Guard(g) => {
+                let mut base_dirstate_guard = self
+                    .dirstate_base_info
+                    .lock()
+                    .expect("propagate the panic");
                 let (revision, new_dirstate_base) =
-                    self.load_revision(changeset)?;
+                    self.load_revision(changeset, base_dirstate_guard.take())?;
                 let _ = g.insert(Arc::clone(&revision));
                 // Remember the latest dirstate update for later incremental
                 // loads
-                *self.dirstate_base_info.lock().expect("propagate the panic") =
-                    Some(new_dirstate_base);
+                *base_dirstate_guard = Some(new_dirstate_base);
                 tracing::debug!(
                     "total revisions loaded: {}",
                     self.revisions.len()

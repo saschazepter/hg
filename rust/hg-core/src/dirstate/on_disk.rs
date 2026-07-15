@@ -775,6 +775,14 @@ impl Writer<'_, '_> {
                 .on_disk_offset_of(nodes_slice)
                 .expect("dirstate-v2 OnDisk nodes not found within on_disk");
             let len = child_nodes_len_from_usize(nodes_slice.len());
+
+            if let Some(visit) = visit_in_order {
+                self.visit_serialized_nodes(
+                    nodes_slice,
+                    u32_u(start.get()),
+                    visit,
+                )?;
+            }
             return Ok(ChildNodes { start, len });
         }
 

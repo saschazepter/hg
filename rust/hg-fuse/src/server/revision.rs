@@ -71,10 +71,15 @@ impl<T: FileToken> OwnedRevision<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
+        dirstate_base: Option<DirstateBaseInfo<T>>,
     ) -> Result<(Self, DirstateBaseInfo<T>), StoreError<T>> {
-        let (revision, new_dirstate_info) =
-            RevisionTree::from_revision(store, changeset, start_time)?;
-        Ok((Self { revision }, new_dirstate_info))
+        let (revision, new_dirstate_base) = RevisionTree::from_revision(
+            store,
+            changeset,
+            start_time,
+            dirstate_base,
+        )?;
+        Ok((Self { revision }, new_dirstate_base))
     }
 
     /// Preload this revision's filesystem structure into the kernel's caches.
@@ -267,9 +272,15 @@ impl<T: FileToken> RevisionTree<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
+        dirstate_base: Option<DirstateBaseInfo<T>>,
     ) -> Result<(RevisionTree<T>, DirstateBaseInfo<T>), StoreError<T>> {
         let (dirstate, inode_encoder, new_dirstate_base) =
-            Self::process_manifest_files(store, changeset, start_time)?;
+            Self::process_manifest_files(
+                store,
+                changeset,
+                start_time,
+                dirstate_base,
+            )?;
 
         // Remember the inodes for reserved entries
         let reserved = inode_encoder.reserved_entries;
@@ -292,6 +303,7 @@ impl<T: FileToken> RevisionTree<T> {
         store: &S,
         changeset: Node,
         start_time: SystemTime,
+        dirstate_base: Option<DirstateBaseInfo<T>>,
     ) -> Result<RevisionInfo<T>, StoreError<T>> {
         let revision_idx = store.idx_for_node(changeset)?;
         let available_inode_range =
@@ -303,7 +315,15 @@ impl<T: FileToken> RevisionTree<T> {
         )?;
 
         let start_time: TruncatedTimestamp = start_time.into();
-        let info = if true {
+        let info = if let Some(base) = dirstate_base {
+            Self::process_files_incremental(
+                store,
+                base,
+                changeset,
+                start_time,
+                &mut inode_encoder,
+            )?
+        } else {
             let map_span =
                 tracing::debug_span!("building the dirstate").entered();
             let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
@@ -341,12 +361,10 @@ impl<T: FileToken> RevisionTree<T> {
                 path_to_token,
                 None,
             )?
-        } else {
-            unreachable!("this case will be filled in the next changeset")
         };
 
-        let (dirstate, dirstate_base_info) = info;
-        Ok((dirstate, inode_encoder, dirstate_base_info))
+        let (dirstate, new_dirstate_base) = info;
+        Ok((dirstate, inode_encoder, new_dirstate_base))
     }
 
     /// Create the dirstate incrementally from `base_info`.
@@ -355,7 +373,6 @@ impl<T: FileToken> RevisionTree<T> {
     /// FUSE, which should already have a lot in common with likely revisions.
     /// A more sophisticated approach is may be needed, but is left for a future
     /// improvement.
-    #[expect(unused)]
     fn process_files_incremental<S: StoreBackend<T>>(
         store: &S,
         base_info: DirstateBaseInfo<T>,
@@ -612,16 +629,20 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
         path_to_token: FastHashMap<&HgPath, T>,
-        #[expect(unused)] base: Option<(
-            DirstateBaseInfo<T>,
-            OwningDirstateMap,
-        )>,
+        base: Option<(DirstateBaseInfo<T>, OwningDirstateMap)>,
     ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
         // The mutex will be uncontended since the dirstate does not support
         // parallel inserts, this is purely so we can satisfy the callback being
         // immutable
-        let mut offset_to_token = FastHashMap::default();
-        offset_to_token.reserve(dirstate.len());
+        let should_append = base.is_some();
+        let (mut offset_to_token, old_dirstate) = match base {
+            Some((base_info, old_dirstate)) => {
+                (base_info.offset_to_token, Some(old_dirstate))
+            }
+            None => (FastHashMap::default(), None),
+        };
+        offset_to_token
+            .reserve(dirstate.len().saturating_sub(offset_to_token.len()));
         let offset_to_token = Mutex::new(offset_to_token);
 
         let latest_ino = AtomicU64::new(self.files_root_inode.0);
@@ -650,19 +671,45 @@ impl RevisionInodeEncoder {
                 return;
             }
 
-            // Remember the inode to token mapping to answer reads
-            let path_to_token_entry = path_to_token.get(path);
-            path_to_token_entry.map(|token| {
-                offset_to_token
-                    .lock()
-                    .expect("propagate the panic")
-                    .insert(offset, *token)
-            });
+            let mut lock = offset_to_token.lock().expect("propagate the panic");
+            let new_token = path_to_token.get(path);
+            // If we're in an incremental update
+            if let Some(old_dirstate) = &old_dirstate {
+                // And there's an old entry
+                if let Some(old_offset) =
+                    old_dirstate.get_map().fuse_offset(path)
+                {
+                    // If it has changed
+                    if let Some(token) = new_token {
+                        lock.insert(offset, *token);
+                        lock.remove(&old_offset);
+                    } else {
+                        let old_token = lock
+                            .remove(&old_offset)
+                            .expect("old token should exist");
+                        lock.insert(offset, old_token);
+                    }
+                } else {
+                    lock.insert(
+                        offset,
+                        *new_token.expect("should have a new token"),
+                    );
+                }
+            } else {
+                lock.insert(
+                    offset,
+                    *new_token.expect("should have a new token"),
+                );
+            }
         };
 
-        let packed_res = dirstate
-            .pack_v2(DirstateMapWriteMode::ForceNewDataFile, Some(visit));
-        let (data, tree_metadata, appending, old_size) = packed_res
+        let write_mode = if should_append {
+            DirstateMapWriteMode::ForceAppend
+        } else {
+            DirstateMapWriteMode::ForceNewDataFile
+        };
+        let packed_res = dirstate.pack_v2(write_mode, Some(visit));
+        let (mut data, tree_metadata, _, _) = packed_res
             .expect("in-memory serialization of a dirstate should not fail");
         let new_inode = latest_ino
             .load(Ordering::Relaxed)
@@ -673,9 +720,13 @@ impl RevisionInodeEncoder {
             "inode overflow"
         );
         self.current_ino = AtomicU64::new(new_inode);
-        // Paranoid checks
-        assert!(!appending, "dirstate must be written from scratch");
-        assert_eq!(old_size, 0, "dirstate must be written from scratch");
+        if should_append {
+            // TODO stop copying the previous dirstate and build an abstraction
+            // to reuse the old buffer
+            let mut buf = dirstate.on_disk().to_owned();
+            buf.extend_from_slice(&data);
+            data = buf;
+        }
         let data_size = data.len();
         let uuid = Docket::new_uid();
 
