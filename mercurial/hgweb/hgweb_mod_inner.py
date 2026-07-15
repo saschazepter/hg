@@ -440,7 +440,7 @@ class hgweb:
             cmd = req.qsparams.get(b'cmd', b'')
 
         # process the web interface request
-
+        ctype = None
         try:
             rctx.tmpl = rctx.templater(req)
             ctype = rctx.tmpl.render(
@@ -495,20 +495,24 @@ class hgweb:
                 msg = b'revision not found: %s' % err.name
 
             res.status = b'404 Not Found'
+            assert ctype is not None
             res.headers[b'Content-Type'] = ctype
             return rctx.sendtemplate(b'error', error=msg)
         except (error.RepoError, error.StorageError) as e:
             res.status = b'500 Internal Server Error'
+            assert ctype is not None
             res.headers[b'Content-Type'] = ctype
             return rctx.sendtemplate(b'error', error=pycompat.bytestr(e))
         except error.Abort as e:
             res.status = b'403 Forbidden'
+            assert ctype is not None
             res.headers[b'Content-Type'] = ctype
             return rctx.sendtemplate(b'error', error=e.message)
         except ErrorResponse as e:
             for k, v in e.headers:
                 res.headers[k] = v
             res.status = statusmessage(e.code, pycompat.bytestr(e))
+            assert ctype is not None
             res.headers[b'Content-Type'] = ctype
             return rctx.sendtemplate(b'error', error=pycompat.bytestr(e))
 
