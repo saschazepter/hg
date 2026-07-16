@@ -142,7 +142,7 @@ client side: pull from the server
   > n
   > EOF
   pulling from $TESTTMP/distributed-chain-building/server
-  query 1; heads + initial-local-heads 
+  query 1; heads + initial-local-heads (sample size is 1)
   searching for changes
   taking quick initial sample
   query 2; still undecided: 1, sample size is: 1

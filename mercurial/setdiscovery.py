@@ -370,7 +370,8 @@ def findcommonheads(
         else:
             sample = ownheads
 
-        ui.debug(b"query 1; heads + initial-local-heads \n")
+        msg = b"query 1; heads + initial-local-heads (sample size is %d)\n"
+        ui.debug(msg % len(sample))
         roundtrips += 1
         with remote.commandexecutor() as e:
             fheads = e.callcommand(b'heads', {})

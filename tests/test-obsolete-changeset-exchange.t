@@ -144,7 +144,7 @@ client only pulls down 1 changeset
   $ cd pull-hidden-common-client
   $ hg pull --debug
   pulling from $TESTTMP/pull-hidden-common
-  query 1; heads + initial-local-heads 
+  query 1; heads + initial-local-heads (sample size is 1)
   searching for changes
   taking quick initial sample
   query 2; still undecided: 2, sample size is: 2
