@@ -1665,51 +1665,264 @@ neither should the sample size grow with the number of queries.
   query 4; still undecided: 1029, sample size is: 10
   sending known command
   sampling from both directions
-  query 5; still undecided: 1016, sample size is: 254
+  query 5; still undecided: 1016, sample size is: 10
   sending known command
   sampling from both directions
-  query 6; still undecided: 760, sample size is: 190
+  query 6; still undecided: 1004, sample size is: 10
   sending known command
   sampling from both directions
-  query 7; still undecided: 568, sample size is: 142
+  query 7; still undecided: 992, sample size is: 10
   sending known command
   sampling from both directions
-  query 8; still undecided: 424, sample size is: 106
+  query 8; still undecided: 980, sample size is: 10
   sending known command
   sampling from both directions
-  query 9; still undecided: 316, sample size is: 79
+  query 9; still undecided: 968, sample size is: 10
   sending known command
   sampling from both directions
-  query 10; still undecided: 236, sample size is: 59
+  query 10; still undecided: 956, sample size is: 10
   sending known command
   sampling from both directions
-  query 11; still undecided: 176, sample size is: 44
+  query 11; still undecided: 944, sample size is: 10
   sending known command
   sampling from both directions
-  query 12; still undecided: 132, sample size is: 33
+  query 12; still undecided: 932, sample size is: 10
   sending known command
   sampling from both directions
-  query 13; still undecided: 96, sample size is: 24
+  query 13; still undecided: 920, sample size is: 10
   sending known command
   sampling from both directions
-  query 14; still undecided: 72, sample size is: 18
+  query 14; still undecided: 908, sample size is: 10
   sending known command
   sampling from both directions
-  query 15; still undecided: 52, sample size is: 13
+  query 15; still undecided: 896, sample size is: 10
   sending known command
   sampling from both directions
-  query 16; still undecided: 36, sample size is: 10
+  query 16; still undecided: 884, sample size is: 10
   sending known command
   sampling from both directions
-  query 17; still undecided: 24, sample size is: 10
+  query 17; still undecided: 872, sample size is: 10
   sending known command
   sampling from both directions
-  query 18; still undecided: 12, sample size is: 10
+  query 18; still undecided: 860, sample size is: 10
   sending known command
-  18 total queries in *.????s (glob)
+  sampling from both directions
+  query 19; still undecided: 848, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 20; still undecided: 836, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 21; still undecided: 824, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 22; still undecided: 812, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 23; still undecided: 800, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 24; still undecided: 788, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 25; still undecided: 776, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 26; still undecided: 764, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 27; still undecided: 752, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 28; still undecided: 740, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 29; still undecided: 728, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 30; still undecided: 716, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 31; still undecided: 704, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 32; still undecided: 692, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 33; still undecided: 680, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 34; still undecided: 668, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 35; still undecided: 656, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 36; still undecided: 644, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 37; still undecided: 632, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 38; still undecided: 620, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 39; still undecided: 608, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 40; still undecided: 596, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 41; still undecided: 584, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 42; still undecided: 572, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 43; still undecided: 560, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 44; still undecided: 548, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 45; still undecided: 536, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 46; still undecided: 524, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 47; still undecided: 512, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 48; still undecided: 500, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 49; still undecided: 488, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 50; still undecided: 476, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 51; still undecided: 464, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 52; still undecided: 452, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 53; still undecided: 440, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 54; still undecided: 428, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 55; still undecided: 416, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 56; still undecided: 404, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 57; still undecided: 392, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 58; still undecided: 380, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 59; still undecided: 368, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 60; still undecided: 356, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 61; still undecided: 344, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 62; still undecided: 332, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 63; still undecided: 320, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 64; still undecided: 308, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 65; still undecided: 296, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 66; still undecided: 284, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 67; still undecided: 272, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 68; still undecided: 260, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 69; still undecided: 248, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 70; still undecided: 236, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 71; still undecided: 224, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 72; still undecided: 212, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 73; still undecided: 200, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 74; still undecided: 188, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 75; still undecided: 176, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 76; still undecided: 164, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 77; still undecided: 152, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 78; still undecided: 140, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 79; still undecided: 128, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 80; still undecided: 116, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 81; still undecided: 104, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 82; still undecided: 92, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 83; still undecided: 80, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 84; still undecided: 68, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 85; still undecided: 56, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 86; still undecided: 44, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 87; still undecided: 32, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 88; still undecided: 20, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 89; still undecided: 8, sample size is: 8
+  sending known command
+  89 total queries in *.????s (glob)
   elapsed time:  *.?????? seconds (glob)
-  round-trips:                  18
-  queries:                    1032
+  round-trips:                  89
+  queries:                     888
   heads summary:
     total common heads:          1
       also local heads:          0

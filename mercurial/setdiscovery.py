@@ -437,7 +437,7 @@ def findcommonheads(
     grow_sample = grow_sample and not remote.limitedarguments
 
     dynamic_sample = configbool(b'devel', b'discovery.grow-sample.dynamic')
-    hard_limit_sample = not (dynamic_sample or remote.limitedarguments)
+    hard_limit_sample = remote.limitedarguments or not dynamic_sample
 
     randomize = ui.configbool(b'devel', b'discovery.randomize')
     if cl.index.rust_ext_compat:
