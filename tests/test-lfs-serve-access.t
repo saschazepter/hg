@@ -65,7 +65,7 @@ Downloads fail...
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=listkeys HTTP/1.1" 200 - x-hgarg-1:namespace=bookmarks x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "POST /.git/info/lfs/objects/batch HTTP/1.1" 400 - (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  $LOCALIP - - [$LOGDATE$] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /?cmd=heads HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=1&common=0000000000000000000000000000000000000000&heads=525251863cad618e55d483555f3d00a2ca99597e&listkeys=bookmarks&phases=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "POST /.git/info/lfs/objects/batch HTTP/1.1" 400 - (glob)
 
@@ -96,8 +96,8 @@ Blob URIs are correct when --prefix is used
   using http://localhost:$HGPORT/subdir/mount/point
   sending capabilities command
   (remote is using large file support (lfs); lfs will be enabled for this repository)
-  query 1; heads + initial-local-heads (sample size is 0)
-  sending batch command
+  query 1; heads
+  sending heads command
   requesting all changes
   sending getbundle command
   bundle2-input-bundle: with-transaction
@@ -165,7 +165,7 @@ Blob URIs are correct when --prefix is used
   $ cat $TESTTMP/access.log $TESTTMP/errors.log
   $LOCALIP - - [$LOGDATE$] "POST /missing/objects/batch HTTP/1.1" 404 - (glob)
   $LOCALIP - - [$LOGDATE$] "GET /subdir/mount/point?cmd=capabilities HTTP/1.1" 200 - (glob)
-  $LOCALIP - - [$LOGDATE$] "GET /subdir/mount/point?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /subdir/mount/point?cmd=heads HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "GET /subdir/mount/point?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=1&common=0000000000000000000000000000000000000000&heads=525251863cad618e55d483555f3d00a2ca99597e&listkeys=bookmarks&phases=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "POST /subdir/mount/point/.git/info/lfs/objects/batch HTTP/1.1" 200 - (glob)
   $LOCALIP - - [$LOGDATE$] "GET /subdir/mount/point/.hg/lfs/objects/f03217a32529a28a42d03b1244fe09b6e0f9fd06d7b966d4d50567be2abe6c0e HTTP/1.1" 200 - (glob)
@@ -311,7 +311,7 @@ Test a checksum failure during the processing of the GET request
 
   $ cat $TESTTMP/access.log
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  $LOCALIP - - [$LOGDATE$] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /?cmd=heads HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=1&common=0000000000000000000000000000000000000000&heads=525251863cad618e55d483555f3d00a2ca99597e&listkeys=bookmarks&phases=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "POST /.git/info/lfs/objects/batch HTTP/1.1" 200 - (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
@@ -437,7 +437,7 @@ Test that Digest Auth fails gracefully before testing the successful Basic Auth
   $ cat $TESTTMP/access.log $TESTTMP/errors.log
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=capabilities HTTP/1.1" 401 - (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  $LOCALIP - - [$LOGDATE$] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /?cmd=heads HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=1&common=0000000000000000000000000000000000000000&heads=506bf3d83f78c54b89e81c6411adee19fdf02156+525251863cad618e55d483555f3d00a2ca99597e&listkeys=bookmarks&phases=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "POST /.git/info/lfs/objects/batch HTTP/1.1" 401 - (glob)
   $LOCALIP - - [$LOGDATE$] "POST /.git/info/lfs/objects/batch HTTP/1.1" 200 - (glob)

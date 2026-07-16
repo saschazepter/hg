@@ -362,6 +362,7 @@ def findcommonheads(
     #     graph (with many heads) attached to, but very independant to a the
     #     "simple" graph on the server. This is a fairly usual case and have
     #     not been met in the wild so far.
+    sample = []
     if initial_head_exchange:
         if remote.limitedarguments:
             sample = _limitsample(ownheads, initialsamplesize)
@@ -370,6 +371,7 @@ def findcommonheads(
         else:
             sample = ownheads
 
+    if sample:
         msg = b"query 1; heads + initial-local-heads (sample size is %d)\n"
         ui.debug(msg % len(sample))
         roundtrips += 1
@@ -392,6 +394,7 @@ def findcommonheads(
         with remote.commandexecutor() as e:
             fheads = e.callcommand(b'heads', {})
         srvheadhashes = fheads.result()
+        yesno = []
 
     if cl.tiprev() == nullrev:
         if audit is not None:

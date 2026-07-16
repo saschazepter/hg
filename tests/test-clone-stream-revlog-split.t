@@ -120,8 +120,8 @@ Check everything is fine
   $ cat client.log
   using http://localhost:$HGPORT1/
   sending capabilities command
-  query 1; heads + initial-local-heads (sample size is 0)
-  sending batch command
+  query 1; heads
+  sending heads command
   streaming all changes
   sending getbundle command
   bundle2-input-bundle: with-transaction

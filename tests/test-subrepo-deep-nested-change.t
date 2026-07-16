@@ -159,7 +159,7 @@ are also available as siblings of 'main'.
 
   $ cat access.log
   * "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  * "GET /?cmd=batch HTTP/1.1" 200 - * (glob)
+  * "GET /?cmd=heads HTTP/1.1" 200 - * (glob)
   * "GET /?cmd=getbundle HTTP/1.1" 200 - * (glob)
   * "GET /../sub1?cmd=capabilities HTTP/1.1" 404 - (glob)
   $ cat error.log

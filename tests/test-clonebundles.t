@@ -32,7 +32,7 @@ Missing manifest should not result in server lookup
   $ cat server/access.log
   * - - [*] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=capabilities HTTP/1.1" 200 - (glob)
-  $LOCALIP - - [$LOGDATE$] "GET /?cmd=batch HTTP/1.1" 200 - x-hgarg-1:cmds=heads+%3Bknown+nodes%3D x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
+  $LOCALIP - - [$LOGDATE$] "GET /?cmd=heads HTTP/1.1" 200 - x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
   $LOCALIP - - [$LOGDATE$] "GET /?cmd=getbundle HTTP/1.1" 200 - x-hgarg-1:bookmarks=1&$USUAL_BUNDLE_CAPS$&cg=1&common=0000000000000000000000000000000000000000&heads=aaff8d2ffbbf07a46dd1f05d8ae7877e3f56e2a2&listkeys=bookmarks&phases=1 x-hgproto-1:0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull (glob)
 
 Empty manifest file results in retrieval
@@ -897,8 +897,8 @@ on a 32MB system.
   filtering http://localhost:$HGPORT1/gz-a.hg as it needs more than 2/3 of system memory
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
-  query 1; heads + initial-local-heads (sample size is 0)
-  sending batch command
+  query 1; heads
+  sending lheads command
   requesting all changes
   sending getbundle command
   bundle2-input-bundle: with-transaction
