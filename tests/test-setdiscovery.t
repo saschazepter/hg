@@ -1535,6 +1535,207 @@ Test actual protocol when pulling one new head in addition to common heads
   $ hg -R c id -i
   e64a39e7da8b
 
+Check discovery with a small sample-size when talking to an http server without
+query size restriction.
+
+  $ hg serve -R c -p $HGPORT -d --pid-file=hg.pid -E errors.log \
+  >     --config experimental.httppostargs=yes
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg -R a debugdiscovery http://localhost:$HGPORT/ --debug \
+  >     --config devel.discovery.exchange-heads=false \
+  >     --config devel.discovery.randomize=false \
+  >     --config devel.discovery.grow-sample.rate=1.20 \
+  >     --config devel.discovery.grow-sample.dynamic=yes \
+  >     --config devel.discovery.sample-size=10
+  using http://localhost:$HGPORT/
+  sending capabilities command
+  comparing with http://localhost:$HGPORT/
+  sending heads command
+  searching for changes
+  sampling from both directions
+  query 1; still undecided: 1340, sample size is: 10
+  sending known command
+  sending 415 bytes
+  sampling from both directions
+  query 2; still undecided: 1163, sample size is: 12
+  sending known command
+  sending 497 bytes
+  sampling from both directions
+  query 3; still undecided: 1039, sample size is: 14
+  sending known command
+  sending 579 bytes
+  sampling from both directions
+  query 4; still undecided: 1021, sample size is: 16
+  sending known command
+  sending 661 bytes
+  sampling from both directions
+  query 5; still undecided: 1000, sample size is: 250
+  sending known command
+  sending 10255 bytes
+  sampling from both directions
+  query 6; still undecided: 748, sample size is: 187
+  sending known command
+  sending 7672 bytes
+  sampling from both directions
+  query 7; still undecided: 560, sample size is: 140
+  sending known command
+  sending 5745 bytes
+  sampling from both directions
+  query 8; still undecided: 420, sample size is: 105
+  sending known command
+  sending 4310 bytes
+  sampling from both directions
+  query 9; still undecided: 312, sample size is: 78
+  sending known command
+  sending 3203 bytes
+  sampling from both directions
+  query 10; still undecided: 232, sample size is: 58
+  sending known command
+  sending 2383 bytes
+  sampling from both directions
+  query 11; still undecided: 172, sample size is: 52
+  sending known command
+  sending 2137 bytes
+  sampling from both directions
+  query 12; still undecided: 120, sample size is: 62
+  sending known command
+  sending 2547 bytes
+  sampling from both directions
+  query 13; still undecided: 56, sample size is: 56
+  sending known command
+  sending 2301 bytes
+  13 total queries in *.????s (glob)
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                  13
+  queries:                    1040
+  heads summary:
+    total common heads:          1
+      also local heads:          0
+      also remote heads:         0
+      both:                      0
+    local heads:               260
+      common:                    0
+      missing:                 260
+    remote heads:                2
+      common:                    0
+      unknown:                   2
+  local changesets:           1340
+    common:                    300
+      heads:                     1
+      roots:                     1
+    missing:                  1040
+      heads:                   260
+      roots:                   260
+    first undecided set:      1340
+      heads:                   260
+      roots:                     1
+      common:                  300
+      missing:                1040
+  common heads: 3ee37d65064a
+  $ $RUNTESTDIR/killdaemons.py
+
+Check discovery with a small sample-size when talking to an http server with
+query size restriction. The dynamic sample size adaptation should not kick in,
+neither should the sample size grow with the number of queries.
+
+  $ hg serve -R c -p $HGPORT -d --pid-file=hg.pid -E errors.log \
+  >     --config experimental.httppostargs=no
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg -R a debugdiscovery http://localhost:$HGPORT/ --debug \
+  >     --config devel.discovery.exchange-heads=false \
+  >     --config devel.discovery.randomize=false \
+  >     --config devel.discovery.grow-sample.rate=1.20 \
+  >     --config devel.discovery.grow-sample.dynamic=yes \
+  >     --config devel.discovery.sample-size=10
+  using http://localhost:$HGPORT/
+  sending capabilities command
+  comparing with http://localhost:$HGPORT/
+  sending heads command
+  searching for changes
+  sampling from both directions
+  query 1; still undecided: 1340, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 2; still undecided: 1163, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 3; still undecided: 1043, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 4; still undecided: 1029, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 5; still undecided: 1016, sample size is: 254
+  sending known command
+  sampling from both directions
+  query 6; still undecided: 760, sample size is: 190
+  sending known command
+  sampling from both directions
+  query 7; still undecided: 568, sample size is: 142
+  sending known command
+  sampling from both directions
+  query 8; still undecided: 424, sample size is: 106
+  sending known command
+  sampling from both directions
+  query 9; still undecided: 316, sample size is: 79
+  sending known command
+  sampling from both directions
+  query 10; still undecided: 236, sample size is: 59
+  sending known command
+  sampling from both directions
+  query 11; still undecided: 176, sample size is: 44
+  sending known command
+  sampling from both directions
+  query 12; still undecided: 132, sample size is: 33
+  sending known command
+  sampling from both directions
+  query 13; still undecided: 96, sample size is: 24
+  sending known command
+  sampling from both directions
+  query 14; still undecided: 72, sample size is: 18
+  sending known command
+  sampling from both directions
+  query 15; still undecided: 52, sample size is: 13
+  sending known command
+  sampling from both directions
+  query 16; still undecided: 36, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 17; still undecided: 24, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 18; still undecided: 12, sample size is: 10
+  sending known command
+  18 total queries in *.????s (glob)
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                  18
+  queries:                    1032
+  heads summary:
+    total common heads:          1
+      also local heads:          0
+      also remote heads:         0
+      both:                      0
+    local heads:               260
+      common:                    0
+      missing:                 260
+    remote heads:                2
+      common:                    0
+      unknown:                   2
+  local changesets:           1340
+    common:                    300
+      heads:                     1
+      roots:                     1
+    missing:                  1040
+      heads:                   260
+      roots:                   260
+    first undecided set:      1340
+      heads:                   260
+      roots:                     1
+      common:                  300
+      missing:                1040
+  common heads: 3ee37d65064a
+  $ $RUNTESTDIR/killdaemons.py
+
   $ hg serve -R c -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
   $ cat hg.pid >> $DAEMON_PIDS
 
