@@ -451,13 +451,14 @@ class httppeer(wireprotov1peer.wirepeer):
         url,
         opener: urlmod.UrlOpenerT,
         requestbuilder: RequestBuilderT,
-        caps,
+        caps: set[bytes],
         remotehidden: bool = False,
     ):
         super().__init__(ui, path=path, remotehidden=remotehidden)
         self._url = url
         self._caps = caps
-        self.limitedarguments = caps is not None and b'httppostargs' not in caps
+        assert caps is not None
+        self.limitedarguments = b'httppostargs' not in caps
         self._urlopener: urlmod.UrlOpenerT = opener
         self._requestbuilder: RequestBuilderT = requestbuilder
         self._remotehidden: bool = remotehidden
@@ -623,7 +624,12 @@ class queuedcommandfuture(futures.Future):
         return self.result(timeout)
 
 
-def performhandshake(ui, url, opener, requestbuilder):
+def performhandshake(
+    ui,
+    url,
+    opener,
+    requestbuilder,
+) -> tuple[bytes, dict[bytes, set[bytes]]]:
     # The handshake is a request to the capabilities command.
 
     caps = None
