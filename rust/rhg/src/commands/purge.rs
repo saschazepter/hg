@@ -17,6 +17,7 @@ use hg::{self};
 
 use crate::error::CommandError;
 use crate::ui::print_warnings;
+use crate::ui::Ui;
 
 pub const HELP_TEXT: &str = "
 removes files not tracked by Mercurial
@@ -119,6 +120,24 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
+fn handle_removal_result(
+    result: Result<(), impl ToString>,
+    abort_on_error: bool,
+    ui: &Ui,
+) -> Result<(), CommandError> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(e) if abort_on_error => Err(CommandError::abort(e.to_string())),
+        Err(e) => {
+            ui.write_stderr(&format_bytes!(
+                b"{}\n",
+                e.to_string().as_bytes()
+            ))?;
+            Ok(())
+        }
+    }
+}
+
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let ui = invocation.ui;
     let args = invocation.subcommand_args;
@@ -206,18 +225,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         ))?;
                     }
 
-                    match repo.working_directory_vfs().unlink(&path) {
-                        Ok(()) => {}
-                        Err(e) if abort_on_error => {
-                            return Err(CommandError::abort(e.to_string()));
-                        }
-                        Err(e) => {
-                            ui.write_stderr(&format_bytes!(
-                                b"{}\n",
-                                e.to_string().as_bytes()
-                            ))?;
-                        }
-                    }
+                    handle_removal_result(
+                        repo.working_directory_vfs().unlink(&path),
+                        abort_on_error,
+                        ui,
+                    )?;
                 } else {
                     ui.write_stdout(&format_bytes!(
                         b"{}\n",
@@ -239,20 +251,13 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         ))?;
                     }
 
-                    match std::fs::remove_dir(
-                        repo.working_directory_path().join(path),
-                    ) {
-                        Ok(()) => {}
-                        Err(e) if abort_on_error => {
-                            return Err(CommandError::abort(e.to_string()));
-                        }
-                        Err(e) => {
-                            ui.write_stderr(&format_bytes!(
-                                b"{}\n",
-                                e.to_string().as_bytes()
-                            ))?;
-                        }
-                    }
+                    handle_removal_result(
+                        std::fs::remove_dir(
+                            repo.working_directory_path().join(path),
+                        ),
+                        abort_on_error,
+                        ui,
+                    )?;
                 } else {
                     ui.write_stdout(&format_bytes!(b"{}\n", *dir.as_bytes()))?;
                 }
