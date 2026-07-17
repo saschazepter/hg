@@ -1536,6 +1536,422 @@ Test actual protocol when pulling one new head in addition to common heads
   $ hg -R c id -i
   e64a39e7da8b
 
+Check discovery with a small sample-size when talking to an http server without
+query size restriction.
+
+  $ hg serve -R c -p $HGPORT -d --pid-file=hg.pid -E errors.log \
+  >     --config experimental.httppostargs=yes
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg -R a debugdiscovery http://localhost:$HGPORT/ --debug \
+  >     --config devel.discovery.exchange-heads=false \
+  >     --config devel.discovery.randomize=false \
+  >     --config devel.discovery.grow-sample.rate=1.20 \
+  >     --config devel.discovery.grow-sample.dynamic=yes \
+  >     --config devel.discovery.sample-size=10
+  using http://localhost:$HGPORT/
+  sending capabilities command
+  comparing with http://localhost:$HGPORT/
+  query 1; heads
+  sending heads command
+  searching for changes
+  sampling from both directions
+  query 2; still undecided: 1340, sample size is: 10
+  sending known command
+  sending 415 bytes
+  sampling from both directions
+  query 3; still undecided: 1163, sample size is: 12
+  sending known command
+  sending 497 bytes
+  sampling from both directions
+  query 4; still undecided: 1039, sample size is: 14
+  sending known command
+  sending 579 bytes
+  sampling from both directions
+  query 5; still undecided: 1021, sample size is: 16
+  sending known command
+  sending 661 bytes
+  sampling from both directions
+  query 6; still undecided: 1000, sample size is: 250
+  sending known command
+  sending 10255 bytes
+  sampling from both directions
+  query 7; still undecided: 748, sample size is: 187
+  sending known command
+  sending 7672 bytes
+  sampling from both directions
+  query 8; still undecided: 560, sample size is: 140
+  sending known command
+  sending 5745 bytes
+  sampling from both directions
+  query 9; still undecided: 420, sample size is: 105
+  sending known command
+  sending 4310 bytes
+  sampling from both directions
+  query 10; still undecided: 312, sample size is: 78
+  sending known command
+  sending 3203 bytes
+  sampling from both directions
+  query 11; still undecided: 232, sample size is: 58
+  sending known command
+  sending 2383 bytes
+  sampling from both directions
+  query 12; still undecided: 172, sample size is: 52
+  sending known command
+  sending 2137 bytes
+  sampling from both directions
+  query 13; still undecided: 120, sample size is: 62
+  sending known command
+  sending 2547 bytes
+  sampling from both directions
+  query 14; still undecided: 56, sample size is: 56
+  sending known command
+  sending 2301 bytes
+  14 total queries in *.????s (glob)
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                  14
+  queries:                    1040
+  heads summary:
+    total common heads:          1
+      also local heads:          0
+      also remote heads:         0
+      both:                      0
+    local heads:               260
+      common:                    0
+      missing:                 260
+    remote heads:                2
+      common:                    0
+      unknown:                   2
+  local changesets:           1340
+    common:                    300
+      heads:                     1
+      roots:                     1
+    missing:                  1040
+      heads:                   260
+      roots:                   260
+    first undecided set:      1340
+      heads:                   260
+      roots:                     1
+      common:                  300
+      missing:                1040
+  common heads: 3ee37d65064a
+  $ $RUNTESTDIR/killdaemons.py
+
+Check discovery with a small sample-size when talking to an http server with
+query size restriction. The dynamic sample size adaptation should not kick in,
+neither should the sample size grow with the number of queries.
+
+  $ hg serve -R c -p $HGPORT -d --pid-file=hg.pid -E errors.log \
+  >     --config experimental.httppostargs=no
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg -R a debugdiscovery http://localhost:$HGPORT/ --debug \
+  >     --config devel.discovery.exchange-heads=false \
+  >     --config devel.discovery.randomize=false \
+  >     --config devel.discovery.grow-sample.rate=1.20 \
+  >     --config devel.discovery.grow-sample.dynamic=yes \
+  >     --config devel.discovery.sample-size=10
+  using http://localhost:$HGPORT/
+  sending capabilities command
+  comparing with http://localhost:$HGPORT/
+  query 1; heads
+  sending heads command
+  searching for changes
+  sampling from both directions
+  query 2; still undecided: 1340, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 3; still undecided: 1163, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 4; still undecided: 1043, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 5; still undecided: 1029, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 6; still undecided: 1016, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 7; still undecided: 1004, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 8; still undecided: 992, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 9; still undecided: 980, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 10; still undecided: 968, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 11; still undecided: 956, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 12; still undecided: 944, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 13; still undecided: 932, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 14; still undecided: 920, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 15; still undecided: 908, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 16; still undecided: 896, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 17; still undecided: 884, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 18; still undecided: 872, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 19; still undecided: 860, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 20; still undecided: 848, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 21; still undecided: 836, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 22; still undecided: 824, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 23; still undecided: 812, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 24; still undecided: 800, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 25; still undecided: 788, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 26; still undecided: 776, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 27; still undecided: 764, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 28; still undecided: 752, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 29; still undecided: 740, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 30; still undecided: 728, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 31; still undecided: 716, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 32; still undecided: 704, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 33; still undecided: 692, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 34; still undecided: 680, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 35; still undecided: 668, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 36; still undecided: 656, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 37; still undecided: 644, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 38; still undecided: 632, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 39; still undecided: 620, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 40; still undecided: 608, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 41; still undecided: 596, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 42; still undecided: 584, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 43; still undecided: 572, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 44; still undecided: 560, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 45; still undecided: 548, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 46; still undecided: 536, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 47; still undecided: 524, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 48; still undecided: 512, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 49; still undecided: 500, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 50; still undecided: 488, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 51; still undecided: 476, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 52; still undecided: 464, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 53; still undecided: 452, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 54; still undecided: 440, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 55; still undecided: 428, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 56; still undecided: 416, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 57; still undecided: 404, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 58; still undecided: 392, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 59; still undecided: 380, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 60; still undecided: 368, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 61; still undecided: 356, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 62; still undecided: 344, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 63; still undecided: 332, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 64; still undecided: 320, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 65; still undecided: 308, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 66; still undecided: 296, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 67; still undecided: 284, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 68; still undecided: 272, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 69; still undecided: 260, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 70; still undecided: 248, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 71; still undecided: 236, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 72; still undecided: 224, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 73; still undecided: 212, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 74; still undecided: 200, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 75; still undecided: 188, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 76; still undecided: 176, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 77; still undecided: 164, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 78; still undecided: 152, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 79; still undecided: 140, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 80; still undecided: 128, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 81; still undecided: 116, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 82; still undecided: 104, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 83; still undecided: 92, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 84; still undecided: 80, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 85; still undecided: 68, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 86; still undecided: 56, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 87; still undecided: 44, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 88; still undecided: 32, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 89; still undecided: 20, sample size is: 10
+  sending known command
+  sampling from both directions
+  query 90; still undecided: 8, sample size is: 8
+  sending known command
+  90 total queries in *.????s (glob)
+  elapsed time:  *.?????? seconds (glob)
+  round-trips:                  90
+  queries:                     888
+  heads summary:
+    total common heads:          1
+      also local heads:          0
+      also remote heads:         0
+      both:                      0
+    local heads:               260
+      common:                    0
+      missing:                 260
+    remote heads:                2
+      common:                    0
+      unknown:                   2
+  local changesets:           1340
+    common:                    300
+      heads:                     1
+      roots:                     1
+    missing:                  1040
+      heads:                   260
+      roots:                   260
+    first undecided set:      1340
+      heads:                   260
+      roots:                     1
+      common:                  300
+      missing:                1040
+  common heads: 3ee37d65064a
+  $ $RUNTESTDIR/killdaemons.py
+
   $ hg serve -R c -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
   $ cat hg.pid >> $DAEMON_PIDS
 

@@ -19,6 +19,7 @@ Things to check:
 
 - [ ] Make sure the latest [evolve](https://foss.heptapod.net/mercurial/evolve)
       is compatible
+      - [ ] Run a pipeline on the `stable` branch, which tracks hg's `stable`
 - [ ] Check for queued security patches
 - [ ] Check for the **very** occasional mailing list submission
 - [ ] Pull from [Heptapod](https://foss.heptapod.net/mercurial/mercurial-devel)
@@ -35,7 +36,13 @@ Things to check:
       branch
 - [ ] Push a merge from `stable` into `default` to the CI (hence pushing the
       release changesets)
-- [ ] Create the wheels for MacOS and Windows manually (ping mharbison)
+- [ ] Create the wheels for MacOS and Windows:
+      - Start a pipeline on **the tag** itself (and not on `stable`)
+      - Trigger the nightly build to enable Windows and MacOS wheel jobs
+      - Download and extract the artifacts from the wheels job for both Windows
+        and MacOS
+      - Move the wheels to `release-build-X.Y.Z/dist/` so they'll be uploaded
+        along with the Linux ones you just built
 - [ ] Copy the new release notes to the appropriate page on
       [the website](https://foss.heptapod.net/mercurial/hg-website)
 - [ ] For non-rc versions, write a blog entry as well
