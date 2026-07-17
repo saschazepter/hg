@@ -129,7 +129,13 @@ fn parse<'py>(
     tmpl: &Bound<'_, PyBytes>,
 ) -> PyResult<Bound<'py, PyAny>> {
     let node = template::parse_template(tmpl.as_bytes()).map_err(|err| {
-        ParseError::new_err((err.message.into_bytes(), err.location))
+        let message = match &err {
+            template::ParseError::Grammar { source, .. } => {
+                source.variant.message().into_owned()
+            }
+            template::ParseError::Integer { source, .. } => source.to_string(),
+        };
+        ParseError::new_err((message.into_bytes(), err.location()))
     })?;
     node_to_py(py, node)
 }

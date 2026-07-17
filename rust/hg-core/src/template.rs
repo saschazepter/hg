@@ -13,6 +13,8 @@ use pest::pratt_parser::Op;
 use pest::pratt_parser::PrattParser;
 use pest_derive::Parser;
 
+use crate::errors::HgBacktrace;
+
 /// pest parser generated from `template.pest`. The `Rule` enum used
 /// throughout this module is derived from the grammar by this macro.
 #[derive(Parser)]
@@ -82,11 +84,36 @@ pub enum Node {
 
 /// An error produced while parsing a template.
 #[derive(Debug)]
-pub struct ParseError {
-    /// Human-readable description of the failure.
-    pub message: String,
+pub enum ParseError {
+    /// The grammar rejected the input.
+    Grammar {
+        source: Box<pest::error::Error<Rule>>,
+        location: usize,
+        backtrace: HgBacktrace,
+    },
+    /// A matched integer literal did not fit in `i64`.
+    Integer {
+        source: std::num::ParseIntError,
+        location: usize,
+        backtrace: HgBacktrace,
+    },
+}
+
+impl ParseError {
     /// Byte offset into the original template input where the error occurred.
-    pub location: usize,
+    pub fn location(&self) -> usize {
+        match self {
+            ParseError::Grammar { location, .. }
+            | ParseError::Integer { location, .. } => *location,
+        }
+    }
+
+    fn set_location(&mut self, offset: usize) {
+        match self {
+            ParseError::Grammar { location, .. }
+            | ParseError::Integer { location, .. } => *location = offset,
+        }
+    }
 }
 
 impl From<pest::error::Error<Rule>> for ParseError {
@@ -95,7 +122,11 @@ impl From<pest::error::Error<Rule>> for ParseError {
             pest::error::InputLocation::Pos(p) => p,
             pest::error::InputLocation::Span((s, _)) => s,
         };
-        ParseError { message: err.variant.message().into_owned(), location }
+        ParseError::Grammar {
+            source: Box::new(err),
+            location,
+            backtrace: HgBacktrace::capture(),
+        }
     }
 }
 
@@ -114,7 +145,8 @@ pub fn parse_template(input: &[u8]) -> Result<Node, ParseError> {
         // pest and the integer parser report byte offsets into `chars`.
         // Each input byte is exactly one char, so the input-byte offset is the
         // char count of the prefix.
-        err.location = chars[..err.location].chars().count();
+        let offset = chars[..err.location()].chars().count();
+        err.set_location(offset);
         err
     })
 }
@@ -256,10 +288,13 @@ fn parse_primary(pair: Pair<Rule>) -> Result<Node, ParseError> {
     match pair.as_rule() {
         Rule::integer => {
             let location = pair.as_span().start();
-            pair.as_str()
-                .parse::<i64>()
-                .map(Node::Integer)
-                .map_err(|e| ParseError { message: e.to_string(), location })
+            pair.as_str().parse::<i64>().map(Node::Integer).map_err(|e| {
+                ParseError::Integer {
+                    source: e,
+                    location,
+                    backtrace: HgBacktrace::capture(),
+                }
+            })
         }
         Rule::symbol => Ok(Node::Symbol(pair.as_str().to_owned())),
         Rule::function => {
@@ -356,7 +391,7 @@ mod tests {
     #[test]
     fn error_location_is_input_byte_offset() {
         let err = parse_template(b"\xe9{}").unwrap_err();
-        assert_eq!(err.location, 2);
+        assert_eq!(err.location(), 2);
     }
 
     /// Function calls with positional and keyword arguments.
