@@ -202,6 +202,7 @@ Failure to read getbundle HTTP request
 Now do a variation using POST to send arguments
 ===============================================
 
+  $ hg clone . ../client --rev 0 --quiet
   $ hg serve \
   > --config badserver.close-after-recv-patterns="x-hgargs-post:,user-agent: mercurial/proto-1.0" \
   > --config badserver.close-after-recv-bytes="14,26" \
@@ -209,7 +210,8 @@ Now do a variation using POST to send arguments
   > -p $HGPORT -d --pid-file=hg.pid -E error.log
   $ cat hg.pid > $DAEMON_PIDS
 
-  $ hg clone http://localhost:$HGPORT/ clone
+  $ hg -R ../client pull http://localhost:$HGPORT/
+  pulling from http://localhost:$HGPORT/
   abort: error: bad HTTP status line: * (glob)
   [100]
 
@@ -228,21 +230,21 @@ Now do a variation using POST to send arguments
   readline(*) -> (27) Accept-Encoding: identity\r\n (glob)
   readline(*) -> (41) content-type: application/mercurial-0.1\r\n (glob)
   readline(*) -> (33) vary: X-HgArgs-Post,X-HgProto-1\r\n (glob)
-  readline(*) -> (19) x-hgargs-post: 28\r\n (glob)
+  readline(*) -> (19) x-hgargs-post: 68\r\n (glob)
   readline(*) -> (1?) x-hgproto-1: * (glob)
   read limit reached; closing socket
   readline(~) -> (27) POST /?cmd=batch HTTP/1.1\r\n
   readline(*) -> (27) Accept-Encoding: identity\r\n (glob)
   readline(*) -> (41) content-type: application/mercurial-0.1\r\n (glob)
   readline(*) -> (33) vary: X-HgArgs-Post,X-HgProto-1\r\n (glob)
-  readline(*) -> (19) x-hgargs-post: 28\r\n (glob)
+  readline(*) -> (19) x-hgargs-post: 68\r\n (glob)
   readline(*) -> (61) x-hgproto-1: 0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull\r\n (glob)
   readline(*) -> (35) accept: application/mercurial-0.1\r\n (glob)
-  readline(*) -> (20) content-length: 28\r\n (glob)
+  readline(*) -> (20) content-length: 68\r\n (glob)
   readline(*) -> (*) host: localhost:$HGPORT\r\n (glob)
   readline(*) -> (49) user-agent: mercurial/proto-1.0 (Mercurial 4.2)\r\n (glob)
   readline(*) -> (2) \r\n (glob)
-  read(24 from 28) -> (*) cmds=* (glob)
+  read(24 from 68) -> (*) cmds=* (glob)
   read limit reached; closing socket
   $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/?cmd=batch': (glob)
   Traceback (most recent call last):
@@ -369,7 +371,8 @@ Server sends an incomplete HTTP response body to batch request
   > -p $HGPORT -d --pid-file=hg.pid -E error.log
   $ cat hg.pid > $DAEMON_PIDS
 
-  $ hg clone http://localhost:$HGPORT/ clone
+  $ hg -R ../client pull http://localhost:$HGPORT/
+  pulling from http://localhost:$HGPORT/
   abort: unexpected response:
   '96ee1d7354c4ad7372047672'
   [255]
@@ -388,14 +391,14 @@ Server sends an incomplete HTTP response body to batch request
   readline(~) -> (26) GET /?cmd=batch HTTP/1.1\r\n
   readline(*) -> (27) Accept-Encoding: identity\r\n (glob)
   readline(*) -> (29) vary: X-HgArg-1,X-HgProto-1\r\n (glob)
-  readline(*) -> (41) x-hgarg-1: cmds=heads+%3Bknown+nodes%3D\r\n (glob)
+  readline(*) -> (81) x-hgarg-1: cmds=heads+%3Bknown+nodes%3D*\r\n (glob)
   readline(*) -> (61) x-hgproto-1: 0.1 0.2 comp=$USUAL_COMPRESSIONS$ partial-pull\r\n (glob)
   readline(*) -> (35) accept: application/mercurial-0.1\r\n (glob)
   readline(*) -> (2?) host: localhost:$HGPORT\r\n (glob)
   readline(*) -> (49) user-agent: mercurial/proto-1.0 (Mercurial 4.2)\r\n (glob)
   readline(*) -> (2) \r\n (glob)
-  sendall(159) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.1\r\nContent-Length: 42\r\n\r\n
-  sendall(24 from 42) -> (0) 96ee1d7354c4ad7372047672
+  sendall(159) -> HTTP/1.1 200 Script output follows\r\nServer: badhttpserver\r\nDate: $HTTP_DATE$\r\nContent-Type: application/mercurial-0.1\r\nContent-Length: 43\r\n\r\n
+  sendall(24 from 43) -> (0) 96ee1d7354c4ad7372047672
   write limit reached; closing socket
   $LOCALIP - - [$ERRDATE$] Exception happened during processing request '/?cmd=batch': (glob)
   Traceback (most recent call last):
