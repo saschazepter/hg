@@ -396,11 +396,11 @@ to the containing directory.
   $ hg purge --dirs --no-confirm -v
   removing directory container/empty_subdir
   warning: container/empty_subdir cannot be removed (no-rhg !)
-  $EACCES$ (rhg !)
+  warning: when removing $TESTTMP/t/container/empty_subdir: $EACCES$ (rhg !)
   $ hg purge --dirs --no-confirm -v -a
   removing directory container/empty_subdir
   abort: container/empty_subdir cannot be removed (no-rhg !)
-  $EACCES$ (rhg !)
+  abort: when removing $TESTTMP/t/container/empty_subdir: $EACCES$ (rhg !)
   [255]
   $ chmod +w container
   $ rm -r container

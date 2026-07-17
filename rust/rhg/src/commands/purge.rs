@@ -5,6 +5,8 @@ use format_bytes::format_bytes;
 use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
+use hg::errors::IoErrorContext;
+use hg::errors::IoResultExt;
 use hg::matchers::get_ignore_files;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::IntersectionMatcher;
@@ -127,13 +129,19 @@ fn handle_removal_result(
 ) -> Result<(), CommandError> {
     match result {
         Ok(()) => Ok(()),
-        Err(e) if abort_on_error => Err(CommandError::abort(e.to_string())),
         Err(e) => {
-            ui.write_stderr(&format_bytes!(
-                b"{}\n",
-                e.to_string().as_bytes()
-            ))?;
-            Ok(())
+            let message = e.to_string();
+            if abort_on_error {
+                Err(CommandError::abort_bytes(message))
+            } else {
+                let message =
+                    message.strip_prefix("abort: ").unwrap_or(&message);
+                ui.write_stderr(&format_bytes!(
+                    b"warning: {}\n",
+                    message.as_bytes()
+                ))?;
+                Ok(())
+            }
         }
     }
 }
@@ -251,10 +259,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         ))?;
                     }
 
+                    let full_path = repo.working_directory_path().join(path);
                     handle_removal_result(
-                        std::fs::remove_dir(
-                            repo.working_directory_path().join(path),
-                        ),
+                        std::fs::remove_dir(&full_path).with_context(|| {
+                            IoErrorContext::RemovingFile(full_path.clone())
+                        }),
                         abort_on_error,
                         ui,
                     )?;
