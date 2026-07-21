@@ -733,10 +733,20 @@ static file
 
 caching headers use file mtime, not repo mtime
 
+  $ cat << EOF > $TESTTMP/set_utime.py
+  > import os
+  > import sys
+  > base_dir = os.path.dirname(sys.argv[0])
+  > file_path = os.path.join(base_dir, 'custom_static', 'test.css')
+  > s_time = int(sys.argv[1])
+  > os.utime(file_path, (s_time, s_time))
+  > EOF
+
+
   $ killdaemons.py
   $ mkdir $TESTTMP/custom_static
   $ echo 'test' > $TESTTMP/custom_static/test.css
-  $ "$PYTHON" -c "import os; os.utime('$TESTTMP/custom_static/test.css', (1000000000, 1000000000))"
+  $ "$PYTHON" $TESTTMP/set_utime.py 1000000000
   $ hg serve -p $HGPORT -d --pid-file=hg.pid --config "web.static=$TESTTMP/custom_static"
   $ cat hg.pid >> $DAEMON_PIDS
   $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' etag last-modified
@@ -746,7 +756,7 @@ caching headers use file mtime, not repo mtime
 
 mtime change is reflected in headers
 
-  $ "$PYTHON" -c "import os; os.utime('$TESTTMP/custom_static/test.css', (1000086400, 1000086400))"
+  $ "$PYTHON" $TESTTMP/set_utime.py 1000086400
   $ get-with-headers.py --headeronly localhost:$HGPORT 'static/test.css' etag last-modified
   200 Script output follows
   etag: W/"1000086400"
