@@ -744,7 +744,8 @@ pub type PatternResult<T> = Result<T, PatternError>;
 /// is used for the latter to form a tree of patterns.
 ///
 /// `outer_kind` is the kind whose contents we're normalizing (`None` at top
-/// level, otherwise include/subinclude).
+/// level, otherwise include/subinclude). When it is `subinclude`, nested
+/// `include:`s are not allowed (TODO: warn).
 pub fn get_patterns_from_file(
     pattern_file: &Path,
     root_dir: &Path,
@@ -764,16 +765,21 @@ pub fn get_patterns_from_file(
         .flat_map(|entry| -> PatternResult<_> {
             Ok(match &entry.syntax {
                 PatternSyntax::Include => {
-                    let inner_include =
-                        root_dir.join(get_path_from_bytes(&entry.raw));
+                    if outer_kind == Some(PatternSyntax::SubInclude) {
+                        // TODO: warn.
+                        vec![]
+                    } else {
+                        let inner_include =
+                            root_dir.join(get_path_from_bytes(&entry.raw));
 
-                    get_patterns_from_file(
-                        &inner_include,
-                        root_dir,
-                        Some(PatternSyntax::Include),
-                        inspect_pattern_bytes,
-                        warnings,
-                    )?
+                        get_patterns_from_file(
+                            &inner_include,
+                            root_dir,
+                            Some(PatternSyntax::Include),
+                            inspect_pattern_bytes,
+                            warnings,
+                        )?
+                    }
                 }
                 PatternSyntax::SubInclude => {
                     let mut sub_include =
