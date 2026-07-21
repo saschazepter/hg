@@ -44,6 +44,7 @@ To read a set of patterns from a file, use ``subinclude:`` or ``include:``.
 
 - patterns apply only to files under the subinclude file's directory
 - nested ``subinclude:`` resolves relative to the outer subinclude's directory
+- nested ``include:`` is not allowed
 
 ``include:<path>``
 

@@ -412,18 +412,19 @@ Chain of include:
 # /foo/.hgignore include /foo/bar/.hgignore
 # /foo/bar/.hgignore ignore's `drop2`
 
-Current result:
-drops anything matching regex `drop2` under `foo/`
-
 Expected result:
 `include:` inside a subincluded file is disallowed; filter nothing
 TODO: warn instead of silently skipping
 
   $ echo 'subinclude:foo/.hgignore' > .hgignore
   $ echo 'include:bar/.hgignore' > foo/.hgignore
+#if no-rust no-rhg
+  $ hg status -i
+#else
   $ hg status -i
   I foo/bar/drop2
   I foo/drop2
+#endif
 
 Chaining subincludes
 --------------------

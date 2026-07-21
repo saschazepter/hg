@@ -442,7 +442,8 @@ def _donormalize(
     normalized and rooted patterns and with listfiles expanded.
 
     `outer_kind` is the kind whose contents we're normalizing (`None` at top level,
-    otherwise include/subinclude/listfile/listfile0).
+    otherwise include/subinclude/listfile/listfile0). When it is `subinclude`, nested
+    `include:`s are not allowed (TODO: warn).
 
     If `read_subinclude_file` is false, subinclude patterns are passed along without
     being processed so that a later `_expandsubinclude` call can scope them properly.
@@ -479,6 +480,9 @@ def _donormalize(
                 kindpats.append((k, p, pat))
             continue
         elif kind in (b'include', b'subinclude'):
+            if kind == b'include' and outer_kind == b'subinclude':
+                # TODO: warn
+                continue
             if kind == b'subinclude' and not read_subinclude_file:
                 # To be handled by _expandsubinclude
                 kindpats.append((kind, pat, b''))
