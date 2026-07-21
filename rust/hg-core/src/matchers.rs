@@ -1233,6 +1233,7 @@ pub fn get_ignore_matcher_pre(
         let patterns = get_patterns_from_file(
             pattern_file,
             root_dir,
+            None,
             inspect_pattern_bytes,
             warnings,
         )?;

@@ -391,18 +391,10 @@ Expected result:
 - Python should not raise
 - /bar/.ignore/ should be read, ignoring `.drop2` within `/bar/` only
 
-TODO: have Rust read /bar/.hgignore too.
-
   $ echo 'include:foo/.hgignore' > .hgignore
   $ echo 'subinclude:bar/.hgignore' > foo/.hgignore
-#if no-rust no-rhg
   $ hg status -i
   I bar/drop1
-#else
-  $ hg status -i
-  I foo/bar/drop2 (known-bad-output !)
-  I bar/drop1 (missing-correct-output !)
-#endif
 
 Chaining a subinclude with an include
 -------------------------------------

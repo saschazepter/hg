@@ -8,7 +8,6 @@
 //! Handling of Mercurial-specific patterns.
 
 use std::mem;
-use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 use std::vec::Vec;
@@ -743,14 +742,23 @@ pub type PatternResult<T> = Result<T, PatternError>;
 ///
 /// The former are expanded in place, while `PatternSyntax::ExpandedSubInclude`
 /// is used for the latter to form a tree of patterns.
+///
+/// `outer_kind` is the kind whose contents we're normalizing (`None` at top
+/// level, otherwise include/subinclude).
 pub fn get_patterns_from_file(
     pattern_file: &Path,
     root_dir: &Path,
+    outer_kind: Option<PatternSyntax>,
     inspect_pattern_bytes: &mut impl FnMut(&Path, &[u8]),
     warnings: &HgWarningSender,
 ) -> PatternResult<Vec<FilePattern>> {
     let patterns =
         read_pattern_file(pattern_file, true, inspect_pattern_bytes, warnings)?;
+    let scope_dir = if outer_kind == Some(PatternSyntax::SubInclude) {
+        pattern_file.parent().unwrap_or(root_dir)
+    } else {
+        root_dir
+    };
     let patterns = patterns
         .into_iter()
         .flat_map(|entry| -> PatternResult<_> {
@@ -762,16 +770,18 @@ pub fn get_patterns_from_file(
                     get_patterns_from_file(
                         &inner_include,
                         root_dir,
+                        Some(PatternSyntax::Include),
                         inspect_pattern_bytes,
                         warnings,
                     )?
                 }
                 PatternSyntax::SubInclude => {
                     let mut sub_include =
-                        SubInclude::new(root_dir, &entry.raw, &entry.source)?;
+                        SubInclude::new(root_dir, &entry.raw, scope_dir)?;
                     let inner_patterns = get_patterns_from_file(
                         &sub_include.path,
                         &sub_include.root,
+                        Some(PatternSyntax::SubInclude),
                         inspect_pattern_bytes,
                         warnings,
                     )?;
@@ -811,17 +821,12 @@ impl SubInclude {
     pub fn new(
         root_dir: &Path,
         pattern: &[u8],
-        source: &Path,
+        scope_dir: &Path,
     ) -> Result<SubInclude, HgPathError> {
-        let normalized_source =
-            normalize_path_bytes(&get_bytes_from_path(source));
-
-        let source_root = get_path_from_bytes(&normalized_source);
-        let source_root = source_root.parent().unwrap_or(source_root);
-
-        let path = source_root.join(get_path_from_bytes(pattern));
-        let new_root = path.parent().unwrap_or_else(|| path.deref());
-
+        let raw_path = scope_dir.join(get_path_from_bytes(pattern));
+        let normalized = normalize_path_bytes(&get_bytes_from_path(&raw_path));
+        let path = get_path_from_bytes(&normalized);
+        let new_root = path.parent().unwrap_or(path);
         let prefix = canonical_path(root_dir, root_dir, new_root)?;
 
         Ok(Self {
