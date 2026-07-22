@@ -183,7 +183,10 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
                 )
             }
             // TODO better error codes
-            Err(_) => reply.error(fuser::Errno::EIO),
+            Err(e) => {
+                tracing::debug!(error = ?e);
+                reply.error(fuser::Errno::EIO)
+            }
         }
     }
 
@@ -224,7 +227,10 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
             // TODO answer the correct error for folders
             Ok(None) => reply.error(fuser::Errno::ENOENT),
             // TODO better error codes
-            Err(_) => reply.error(fuser::Errno::EIO),
+            Err(e) => {
+                tracing::debug!(error = ?e);
+                reply.error(fuser::Errno::EIO)
+            }
         }
     }
 
@@ -241,7 +247,10 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
             // TODO answer the correct error for folders
             Ok(None) => reply.error(fuser::Errno::EIO),
             // TODO better error codes
-            Err(_) => reply.error(fuser::Errno::EIO),
+            Err(e) => {
+                tracing::debug!(error = ?e);
+                reply.error(fuser::Errno::EIO)
+            }
         }
     }
 
