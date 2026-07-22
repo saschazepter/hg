@@ -689,7 +689,7 @@ where
 /// A function that is called for every on-disk [`Node`] being written to the
 /// dirstate data file. Each node is called in order of serialization.
 /// The function is called with the full path of the node, whether it's a
-/// root node and its offset in the full dirstate serialization.
+/// directory node and its offset in the full dirstate serialization.
 ///
 /// Used in the context of hg-fuse to create a mapping of offset -> filenodeid,
 /// with inodes being derived from offsets.
@@ -888,11 +888,12 @@ impl Writer<'_, '_> {
                 // of the buffer we're based on, since we're incremental
                 node.full_path_appended(&self.out, on_disk_end)?
             };
-            let is_child_of_root = !full_path.contains(b'/');
             let node_offset = idx * std::mem::size_of::<Node>();
+            // We cannot have a directory with an entry
+            let is_directory = !node.has_entry();
             visit_in_order(
                 full_path,
-                is_child_of_root,
+                is_directory,
                 u_u64(on_disk_offset + node_offset),
             );
         }

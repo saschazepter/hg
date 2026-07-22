@@ -552,10 +552,15 @@ impl RevisionInodeEncoder {
 
         // Called on every node, in serialization order, to store the mapping
         // of path -> filenodeid (or nothing for directories).
-        let visit: WriteNodeVisit = &|path, is_root_node, offset| {
+        let visit: WriteNodeVisit = &|path, is_directory, offset| {
             let ino = Self::offset_to_ino(self.files_root_inode, u64_u(offset));
-            if is_root_node {
+            latest_ino.store(ino.0, Ordering::Relaxed);
+
+            if !path.contains(b'/') {
                 root_nodes.lock().expect("propagate the panic").push(ino);
+            }
+            if is_directory {
+                return;
             }
 
             // Remember the inode to token mapping to answer reads
@@ -566,7 +571,6 @@ impl RevisionInodeEncoder {
                     .expect("propagate the panic")
                     .insert(offset, *token)
             });
-            latest_ino.store(ino.0, Ordering::Relaxed);
         };
 
         let packed_res = dirstate
