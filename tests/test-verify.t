@@ -337,8 +337,8 @@ This is a problem because streamclone would omit the file.
 
   $ hg fileindex-remove file --config extensions.edit_fileindex="$TESTTMP/edit_fileindex.py"
   $ hg verify -q
-   warning: revlog 'file' not in file index! (missing-correct-output !)
-  1 warnings encountered! (missing-correct-output !)
+   warning: revlog 'file' not in file index!
+  1 warnings encountered!
   $ cp -R .hg/store-full/. .hg/store
 
 File index inconsistency case 2a: extra entry (nonexistent).
