@@ -70,7 +70,7 @@ pub struct Node {
 
 impl fmt::Debug for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let n = format!("{:x?}", self.data);
+        let n = format!("{:x}", self);
         // We're using debug_tuple because it makes the output a little
         // more compact without losing data.
         f.debug_tuple("Node").field(&n).finish()
