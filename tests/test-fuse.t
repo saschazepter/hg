@@ -297,6 +297,26 @@ TODO improve error reporting
   ls: cannot access '$TESTTMP/fuse-mount/commits/8630f295ab69f8a5c51bb86a4e33ed94fd492b5f/files': Input/output error
   [2]
 
+Test fuse not erroring on narrow
+--------------------------------
+
+  $ cd $TESTTMP # move out of the FUSE so we can unmount it
+  $ fusermount -u $FUSE_ROOT
+  $ killdaemons.py
+  $ . "$TESTDIR/narrow-library.sh"
+  $ hg clone source narrowed --quiet --narrow --include otherdir
+  $ mount_FUSE $FUSE_ROOT -R "$TESTTMP/narrowed"
+  hgvfs on $TESTTMP/fuse-mount type fuse (ro,nosuid,nodev,noatime,user_id=1000,group_id=1000)
+
+Non-incremental run lists files without tripping on narrow
+  $ ls $FUSE_ROOT/commits/$rev0/files
+  otherdir
+
+Incremental run builds and lists files without tripping on narrow
+  $ ls $FUSE_ROOT/commits/$rev3/files
+  otherdir
+  $ grep -r a $FUSE_ROOT/commits/$rev3/files/otherdir
+  $TESTTMP/fuse-mount/commits/fa7188024a9ab44e839c0d82d6dc934077511460/files/otherdir/incremental_ancestor/changed:changed
 
 Cleanup
 -------
