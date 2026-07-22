@@ -273,16 +273,16 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     }
 
     /// Return the contents of the file at this inoode, if it exists.
-    pub fn read(&self, ino: INodeNo) -> Result<Option<RawData>, HgError> {
+    pub fn read(&self, ino: INodeNo) -> Result<Option<RawData>, StoreError<T>> {
         if RootInodeEncoder::is_reserved(ino) {
             return Ok(RootInodeEncoder::data_for_reserved(ino));
         }
-        if let Some(Ok(Some(data))) =
-            self.with_revision(ino, |revision| revision.read(ino, &self.store))
+        match self
+            .with_revision(ino, |revision| revision.read(ino, &self.store))
         {
-            Ok(Some(data))
-        } else {
-            Ok(None)
+            Some(Ok(Some(data))) => Ok(Some(data)),
+            Some(Err(e)) => Err(e),
+            _ => Ok(None),
         }
     }
 
