@@ -121,6 +121,13 @@ remote_opts: CmdOptionsT = [
         b'',
         b'remotecmd',
         b'',
+        _(b'(DEPRECATED)'),
+        _(b'CMD'),
+    ),
+    (
+        b'',
+        b'remote-cmd',
+        b'',
         _(b'specify hg command to run on the remote side'),
         _(b'CMD'),
     ),

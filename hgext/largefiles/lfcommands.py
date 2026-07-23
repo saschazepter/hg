@@ -634,7 +634,7 @@ def updatelfiles(
     b'lfpull',
     [(b'r', b'rev', [], _(b'pull largefiles for these revisions'))]
     + cmdutil.remoteopts,
-    _(b'-r REV... [-e CMD] [--remotecmd CMD] [SOURCE]'),
+    _(b'-r REV... [-e CMD] [--remote-cmd CMD] [SOURCE]'),
 )
 def lfpull(ui, repo, source=b"default", **opts):
     """pull largefiles for the specified revisions from the specified source

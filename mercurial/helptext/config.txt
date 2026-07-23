@@ -2952,7 +2952,7 @@ User interface controls.
 ``relative-paths``
     Prefer relative paths in the UI.
 
-``remotecmd``
+``remote-cmd``
     Remote command to use for clone/push/pull operations.
     (default: ``hg``)
 

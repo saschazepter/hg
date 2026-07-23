@@ -4622,7 +4622,8 @@ def debugwireargs(ui, repopath, *vals, **opts):
     repo = repo_factory.peer(ui, pycompat.byteskwargs(opts), repopath)
     try:
         for opt in cmdutil.remoteopts:
-            del opts[pycompat.sysstr(opt[1])]
+            arg_name = opt[1].replace(b'-', b'_')
+            del opts[pycompat.sysstr(arg_name)]
         args = {}
         for k, v in opts.items():
             if v:

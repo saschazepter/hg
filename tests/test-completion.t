@@ -422,9 +422,9 @@ Show all commands + options
   bookmarks: force, rev, delete, rename, inactive, list, template
   branch: force, clean, rev
   branches: active, closed, rev, template
-  bundle: exact, force, rev, branch, base, all, type, ssh, remotecmd, insecure
+  bundle: exact, force, rev, branch, base, all, type, ssh, remotecmd, remote-cmd, insecure
   cat: output, rev, decode, include, exclude, template
-  clone: noupdate, updaterev, rev, branch, pull, uncompressed, stream, ssh, remotecmd, insecure
+  clone: noupdate, updaterev, rev, branch, pull, uncompressed, stream, ssh, remotecmd, remote-cmd, insecure
   commit: addremove, close-branch, amend, secret, draft, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos, template
   config: untrusted, exp-all-known, edit, local, source, shared, non-shared, global, template
   continue: dry-run
@@ -462,7 +462,7 @@ Show all commands + options
   debugdeltachain: rev, all-info, size-info, dist-info, sparse-info, changelog, manifest, dir, template
   debugdirstateignorepatternshash: 
   debugdirstate: nodates, dates, datesort, docket, all
-  debugdiscovery: old, nonheads, rev, seed, local-as-revs, remote-as-revs, ssh, remotecmd, insecure, template
+  debugdiscovery: old, nonheads, rev, seed, local-as-revs, remote-as-revs, ssh, remotecmd, remote-cmd, insecure, template
   debugdownload: output
   debugextensions: template
   debugfileset: rev, all-files, show-matcher, show-stage
@@ -512,8 +512,8 @@ Show all commands + options
   debugupgraderepo: optimize, run, backup, changelog, manifest, filelogs
   debugwalk: include, exclude
   debugwhyunstable: 
-  debugwireargs: three, four, five, ssh, remotecmd, insecure
-  debugwireproto: localssh, peer, noreadstderr, nologhandshake, ssh, remotecmd, insecure
+  debugwireargs: three, four, five, ssh, remotecmd, remote-cmd, insecure
+  debugwireproto: localssh, peer, noreadstderr, nologhandshake, ssh, remotecmd, remote-cmd, insecure
   diff: rev, from, to, change, ignore-changes-from-ancestors, text, git, binary, nodates, noprefix, show-function, reverse, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, unified, stat, root, include, exclude, subrepos
   export: bookmark, output, switch-parent, rev, text, git, binary, nodates, template
   files: rev, print0, include, exclude, template, subrepos
@@ -522,21 +522,21 @@ Show all commands + options
   grep: print0, all, diff, text, follow, ignore-case, files-with-matches, line-number, rev, all-files, user, date, template, include, exclude
   heads: rev, topo, active, closed, style, template
   help: extension, command, keyword, system
-  identify: rev, num, id, branch, tags, bookmarks, ssh, remotecmd, insecure, template
+  identify: rev, num, id, branch, tags, bookmarks, ssh, remotecmd, remote-cmd, insecure, template
   import: strip, base, secret, edit, force, no-commit, bypass, partial, exact, prefix, import-branch, message, logfile, date, user, similarity
-  incoming: force, newest-first, bundle, rev, bookmarks, branch, remote-hidden, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
-  init: ssh, remotecmd, insecure
+  incoming: force, newest-first, bundle, rev, bookmarks, branch, remote-hidden, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, remote-cmd, insecure, subrepos
+  init: ssh, remotecmd, remote-cmd, insecure
   locate: rev, print0, fullpath, include, exclude
   log: follow, follow-first, date, copies, keyword, rev, line-range, removed, only-merges, user, only-branch, branch, bookmark, prune, patch, git, limit, no-merges, stat, graph, style, template, include, exclude
   manifest: rev, all, template
   merge: force, rev, preview, abort, tool
-  outgoing: force, rev, newest-first, bookmarks, branch, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, insecure, subrepos
+  outgoing: force, rev, newest-first, bookmarks, branch, patch, git, limit, no-merges, stat, graph, style, template, ssh, remotecmd, remote-cmd, insecure, subrepos
   parents: rev, style, template
   paths: template
   phase: public, draft, secret, force, rev
-  pull: update, force, confirm, rev, bookmark, branch, remote-hidden, ssh, remotecmd, insecure
+  pull: update, force, confirm, rev, bookmark, branch, remote-hidden, ssh, remotecmd, remote-cmd, insecure
   purge: abort-on-err, all, ignored, dirs, files, print, print0, confirm, include, exclude
-  push: force, rev, bookmark, all-bookmarks, branch, new-branch, pushvars, publish, ssh, remotecmd, insecure
+  push: force, rev, bookmark, all-bookmarks, branch, new-branch, pushvars, publish, ssh, remotecmd, remote-cmd, insecure
   recover: verify
   remove: after, force, subrepos, include, exclude, dry-run
   rename: forget, after, at-rev, force, include, exclude, dry-run

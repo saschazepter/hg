@@ -452,6 +452,13 @@ test that remote command is preserved on clone
   searching for changes
   no changes found
 
+With both form of the option
+
+  $ hg clone ssh://user@dummy/local --remote-cmd=$HGTEST_REAL_HG --quiet clone-rcmd-dash
+  $ hg paths -R clone-rcmd-dash
+  default = ssh://user@dummy/local
+  default:remote-cmd = $HGTEST_REAL_HG
+
 Test hg-ssh in read-only mode:
 
   $ cat > ssh.sh << EOF
@@ -629,6 +636,7 @@ debug output
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
   Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
   Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio

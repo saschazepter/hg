@@ -6,6 +6,8 @@
 * status: added support for `--from` and `--to` options.
 * paths: add a `remote-cmd` suboption for ssh allowing to define the remote
   command for each named path.
+* exchange: rename the `ui.remotecmd` config and `--remotecmd` command flag to
+  `ui.remote-cmd` and `--remote-cmd` (with backward compatibility.
 
 == Default Format Change ==
 

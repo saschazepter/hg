@@ -2010,7 +2010,7 @@ Test section lookup
   
         Remote command to use for clone/push/pull operations. This is only used
         when accessing a peer over ssh. when empty (the default) the value of
-        the 'ui.remotecmd' configuration is used.
+        the 'ui.remote-cmd' configuration is used.
   
         Has no effect for non-ssh peer (http, local, etc).
   

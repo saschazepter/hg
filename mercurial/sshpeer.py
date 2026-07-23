@@ -725,7 +725,7 @@ def make_peer(
     sshcmd = ui.config(b'ui', b'ssh')
     remotecmd = path.remote_cmd
     if remotecmd is None:
-        remotecmd = ui.config(b'ui', b'remotecmd')
+        remotecmd = ui.config(b'ui', b'remote-cmd')
     sshaddenv = dict(ui.configitems(b'sshenv'))
     sshenv = procutil.shellenviron(sshaddenv)
     remotepath = u.path or b'.'

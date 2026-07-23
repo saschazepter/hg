@@ -1995,7 +1995,7 @@ documentation = """Remote command to access `hg` over ssh.
 
 Remote command to use for clone/push/pull operations. This is only used when
 accessing a peer over ssh. when empty (the default) the value of the
-`ui.remotecmd` configuration is used.
+`ui.remote-cmd` configuration is used.
 
 Has no effect for non-ssh peer (http, local, etc).
 """
@@ -2961,8 +2961,9 @@ default = "legacy"
 
 [[items]]
 section = "ui"
-name = "remotecmd"
+name = "remote-cmd"
 default = "hg"
+alias = [["ui", "remotecmd"]]
 
 [[items]]
 section = "ui"

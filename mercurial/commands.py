@@ -4009,7 +4009,7 @@ def incoming(ui, repo, source=b"default", **opts):
 @command(
     b'init',
     remoteopts,
-    _(b'[-e CMD] [--remotecmd CMD] [DEST]'),
+    _(b'[-e CMD] [--remote-cmd CMD] [DEST]'),
     helpcategory=command.CATEGORY_REPO_CREATION,
     helpbasic=True,
     norepo=True,
@@ -4954,7 +4954,7 @@ def phase(ui, repo, *revs, **opts):
         ),
     ]
     + remoteopts,
-    _(b'[-u] [-f] [-r REV]... [-e CMD] [--remotecmd CMD] [SOURCE]...'),
+    _(b'[-u] [-f] [-r REV]... [-e CMD] [--remote-cmd CMD] [SOURCE]...'),
     helpcategory=command.CATEGORY_REMOTE_REPO_MANAGEMENT,
     helpbasic=True,
 )

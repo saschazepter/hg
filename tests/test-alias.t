@@ -93,10 +93,10 @@ help
   
   options:
   
-   -e --ssh CMD       specify ssh command to use
-      --remotecmd CMD specify hg command to run on the remote side
-      --insecure      do not verify server certificate (ignoring web.cacerts
-                      config)
+   -e --ssh CMD        specify ssh command to use
+      --remote-cmd CMD specify hg command to run on the remote side
+      --insecure       do not verify server certificate (ignoring web.cacerts
+                       config)
   
   (some details hidden, use --verbose to show complete help)
 

@@ -92,8 +92,15 @@ def _remoteui(src, opts):
     else:  # assume it's a global ui object
         dst = src.copy()  # keep all global options
 
+    # `--remotecmd` is deprecated, merge it in `--remote-cmd` if the later is
+    # not set.
+    if (rcmd := opts.get(b'remotecmd')) is not None:
+        if not opts.get(b"remote-cmd"):
+            opts[b"remote-cmd"] = rcmd
+    opts.pop(b"remotecmd", None)
+
     # copy ssh-specific options
-    for o in b'ssh', b'remotecmd':
+    for o in b'ssh', b'remote-cmd':
         v = opts.get(o) or src.config(b'ui', o)
         if v:
             dst.setconfig(b"ui", o, v, b'copied')
@@ -126,13 +133,15 @@ def peer(
 ):
     '''return a repository peer for the specified path'''
     ui = getattr(uiorrepo, 'ui', uiorrepo)
+    # upgrade '_' back to '-'
+    opts = {k.replace(b'_', b'-'): v for k, v in opts.items()}
     rui = _remoteui(uiorrepo, opts)
     if hasattr(path, 'url'):
         # this is already a urlutil.path object
         peer_path = path
     else:
         peer_path = urlutil.path(ui, None, rawloc=path, validate_path=False)
-    if rcmd := opts.get(b'remotecmd'):
+    if rcmd := opts.get(b'remote-cmd'):
         peer_path.remote_cmd = rcmd
     scheme = peer_path.url.scheme  # pytype: disable=attribute-error
     if scheme in peer_schemes:
