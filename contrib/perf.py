@@ -1195,7 +1195,7 @@ def perfdiscovery(ui, repo, path, **opts):
             path = ui.expandpath(path)
 
     def s():
-        repos[1] = repo_factory.peer(ui, opts, path)
+        repos[1] = repo_factory.peer(ui, _byteskwargs(opts), path)
 
     def d():
         setdiscovery.findcommonheads(ui, *repos)

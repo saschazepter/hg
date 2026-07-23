@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 import stat
 
+from typing import Any
+
 from ..i18n import _
 from .. import (
     bundlerepo,
@@ -115,7 +117,7 @@ def _remoteui(src, opts):
 @util.rust_tracing_span("repo.factory.repository")
 def peer(
     uiorrepo,
-    opts,
+    opts: dict[bytes, Any],
     path,
     create=False,
     intents=None,
