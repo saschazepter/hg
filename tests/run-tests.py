@@ -1125,6 +1125,7 @@ class Test(unittest.TestCase):
         shell=None,
         python=None,
         hgcommand=None,
+        real_hg=None,
         slowtimeout=None,
         usechg=False,
         chgdebug=False,
@@ -1188,6 +1189,7 @@ class Test(unittest.TestCase):
         assert python is not None
         self._python = python
         self._hgcommand = hgcommand or b'hg'
+        self._real_hg = real_hg
         self._usechg = usechg
         self._chgdebug = chgdebug
         self._useipv6 = useipv6
@@ -1471,6 +1473,8 @@ class Test(unittest.TestCase):
                 # same as TESTDIR and the replacement won't work well.
             ]
         )
+        if (real_hg := getattr(self, "_real_hg")) is not None:
+            r.append((self._escapepath(real_hg), b"$HGTEST_REAL_HG"))
 
         if WINDOWS:
             # JSON output escapes backslashes in Windows paths, so also catch a
@@ -3877,6 +3881,7 @@ class TestRunner:
             extraconfigopts=self.options.extra_config_opt,
             shell=self.options.shell,
             hgcommand=self._hgcommand,
+            real_hg=self._real_hg,
             usechg=bool(self.options.with_chg or self.options.chg),
             chgdebug=self.options.chg_debug,
             useipv6=useipv6,
