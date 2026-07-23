@@ -441,6 +441,17 @@ Test the path's suboption for remote command
   abort: no suitable response from remote hg
   [255]
 
+test that remote command is preserved on clone
+
+  $ hg clone ssh://user@dummy/local --remotecmd=$HGTEST_REAL_HG --quiet clone-rcmd
+  $ hg paths -R clone-rcmd
+  default = ssh://user@dummy/local
+  default:remote-cmd = $HGTEST_REAL_HG
+  $ hg pull -R clone-rcmd
+  pulling from ssh://user@dummy/local
+  searching for changes
+  no changes found
+
 Test hg-ssh in read-only mode:
 
   $ cat > ssh.sh << EOF
@@ -618,6 +629,8 @@ debug output
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   changegroup-in-remote hook: HG_BUNDLE2=1
   HG_HOOKNAME=changegroup

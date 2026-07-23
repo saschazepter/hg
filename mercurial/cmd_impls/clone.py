@@ -474,9 +474,16 @@ def clone(
             u = urlutil.url(abspath)
             u.passwd = None
             defaulturl = bytes(u)
-            content = util.tonativeeol(
-                template % defaulturl
-            ) + destrepo.vfs.tryread(b'hgrc')
+            args = {
+                b"default-path": defaulturl,
+                b"remote-cmd-config": b"",
+            }
+            if srcpeer.path.remote_cmd is not None:
+                args[b"remote-cmd-config"] = (
+                    b"\ndefault:remote-cmd = " + src_path.remote_cmd
+                )
+            content = template % args
+            content = util.tonativeeol(content) + destrepo.vfs.tryread(b'hgrc')
             destrepo.vfs.write(b'hgrc', content)
             destrepo.ui.setconfig(b'paths', b'default', defaulturl, b'clone')
 

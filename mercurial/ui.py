@@ -152,7 +152,7 @@ username =
 """,
     b'cloned': b"""# example repository config (see 'hg help config' for more info)
 [paths]
-default = %s
+default = %(default-path)s%(remote-cmd-config)s
 
 # path aliases to other clones of this repo in URLs or filesystem paths
 # (see 'hg help config.paths' for more info)
