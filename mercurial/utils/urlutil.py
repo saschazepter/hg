@@ -748,6 +748,11 @@ SUPPORTED_BOOKMARKS_MODES = {
 }
 
 
+@pathsuboption(b'remote-cmd', 'remote_cmd')
+def remote_cmd_option(ui, path: path, value: bytes) -> bytes | None:
+    return value if value else None
+
+
 @pathsuboption(b'bookmarks.mode', 'bookmarks_mode')
 def bookmarks_mode_option(ui, path, value):
     if value not in SUPPORTED_BOOKMARKS_MODES:

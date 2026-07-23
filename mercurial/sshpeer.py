@@ -723,7 +723,9 @@ def make_peer(
         raise error.RepoError(_(b'password in URL not supported'))
 
     sshcmd = ui.config(b'ui', b'ssh')
-    remotecmd = ui.config(b'ui', b'remotecmd')
+    remotecmd = path.remote_cmd
+    if remotecmd is None:
+        remotecmd = ui.config(b'ui', b'remotecmd')
     sshaddenv = dict(ui.configitems(b'sshenv'))
     sshenv = procutil.shellenviron(sshaddenv)
     remotepath = u.path or b'.'

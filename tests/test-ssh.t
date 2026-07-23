@@ -423,6 +423,24 @@ parameters:
   Illegal command "'hg' -R 'a'repo' serve --stdio": No closing quotation
   [255]
 
+Test the path's suboption for remote command
+
+  $ cat << EOF >> .hg/hgrc
+  > [paths]
+  > foo-base = ssh://user@dummy/a repo
+  > foo-base:remote-cmd=
+  > foo-hacking = ssh://user@dummy/a repo
+  > foo-hacking:remote-cmd=hacking
+  > EOF
+
+  $ hg id --ssh "sh ssh.sh" foo-base
+  73649e48688a
+
+  $ hg id --ssh "sh ssh.sh" foo-hacking
+  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  abort: no suitable response from remote hg
+  [255]
+
 Test hg-ssh in read-only mode:
 
   $ cat > ssh.sh << EOF

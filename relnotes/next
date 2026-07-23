@@ -4,6 +4,8 @@
 
 * automated setup of shell compression through the `hg admin::setup-shell-completion` command.
 * status: added support for `--from` and `--to` options.
+* paths: add a `remote-cmd` suboption for ssh allowing to define the remote
+  command for each named path.
 
 == Default Format Change ==
 

@@ -2005,6 +2005,15 @@ Test section lookup
          Revsets specifying bookmarks will not result in the bookmark being
          pushed.
   
+      "remote-cmd"
+        Remote command to access 'hg' over ssh.
+  
+        Remote command to use for clone/push/pull operations. This is only used
+        when accessing a peer over ssh. when empty (the default) the value of
+        the 'ui.remotecmd' configuration is used.
+  
+        Has no effect for non-ssh peer (http, local, etc).
+  
       "bookmarks.mode"
         How bookmark will be dealt during the exchange. It support the following
         value

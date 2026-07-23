@@ -1937,6 +1937,9 @@ The following sub-options can be defined:
    Revsets specifying bookmarks will not result in the bookmark being
    pushed.
 
+``remote-cmd``
+  :config-doc:`paths..*:remote-cmd`
+
 ``bookmarks.mode``
   How bookmark will be dealt during the exchange. It support the following value
 

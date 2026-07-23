@@ -130,6 +130,8 @@ def peer(
         peer_path = path
     else:
         peer_path = urlutil.path(ui, None, rawloc=path, validate_path=False)
+    if rcmd := opts.get(b'remotecmd'):
+        peer_path.remote_cmd = rcmd
     scheme = peer_path.url.scheme  # pytype: disable=attribute-error
     if scheme in peer_schemes:
         cls = peer_schemes[scheme]
