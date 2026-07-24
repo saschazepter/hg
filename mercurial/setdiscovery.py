@@ -369,6 +369,7 @@ def findcommonheads(
     #     "simple" graph on the server. This is a fairly usual case and have
     #     not been met in the wild so far.
     sample = []
+    yesno = []
     if initial_head_exchange:
         if remote.limitedarguments:
             sample = _limitsample(ownheads, initialsamplesize)
@@ -377,12 +378,14 @@ def findcommonheads(
         else:
             sample = ownheads
 
+    msg = b"query 1; heads"
     if sample:
-        msg = b"query 1; heads + initial-local-heads (sample size is %d)\n"
-        dbg(msg % len(sample))
-        roundtrips += 1
-        with remote.commandexecutor() as e:
-            fheads = e.callcommand(b'heads', {})
+        msg += b" + initial-local-heads (sample size is %d)" % len(sample)
+    dbg(msg + b"\n")
+    roundtrips += 1
+    with remote.commandexecutor() as e:
+        fheads = e.callcommand(b'heads', {})
+        if sample:
             if audit is not None:
                 audit[b'total-queries'] += len(sample)
             fknown = e.callcommand(
@@ -391,16 +394,9 @@ def findcommonheads(
                     b'nodes': [clnode(r) for r in sample],
                 },
             )
-
-        srvheadhashes, yesno = fheads.result(), fknown.result()
-    else:
-        dbg(b"query 1; heads\n")
-        roundtrips += 1
-        # we still need the remote head for the function return
-        with remote.commandexecutor() as e:
-            fheads = e.callcommand(b'heads', {})
-        srvheadhashes = fheads.result()
-        yesno = []
+    srvheadhashes = fheads.result()
+    if sample:
+        yesno = fknown.result()
 
     if disco_debug:
         msg = b"         received %d server heads\n"
