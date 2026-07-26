@@ -442,8 +442,6 @@ def clone(
                         srcpeer,
                         heads=revs,
                         streamclonerequested=stream,
-                        includepats=storeincludepats,
-                        excludepats=storeexcludepats,
                         depth=depth,
                     )
             elif srcrepo:
