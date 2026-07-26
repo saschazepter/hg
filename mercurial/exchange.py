@@ -1751,6 +1751,17 @@ def pull(
     if includepats is not None or excludepats is not None:
         includepats = includepats or set()
         excludepats = excludepats or set()
+        # If we specify pattern they are the same repo.narrowpats always.
+        #
+        # There are no other case
+        assert repo.narrowpats == (
+            includepats,
+            excludepats,
+        ), (
+            repo.narrowpats,
+            includepats,
+            excludepats,
+        )
     else:
         includepats, excludepats = repo.narrowpats
 
