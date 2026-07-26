@@ -1529,8 +1529,6 @@ class pulloperation(i_exc.IPullOperation):
         bookmarks=(),
         remotebookmarks=None,
         streamclonerequested=None,
-        includepats=None,
-        excludepats=None,
         depth=None,
     ):
         # repo we pull into
@@ -1563,12 +1561,22 @@ class pulloperation(i_exc.IPullOperation):
         self.stepsdone: set[bytes] = set()
         # Whether we attempted a clone from pre-generated bundles.
         self.clonebundleattempted: bool = False
-        # Set of file patterns to include.
-        self.includepats: set[bytes] = includepats
-        # Set of file patterns to exclude.
-        self.excludepats: set[bytes] = excludepats
         # Number of ancestor changesets to pull from each pulled head.
         self.depth: int | None = depth
+
+    @util.propertycache
+    def includepats(self):
+        """Set of file patterns to include
+
+        Offered for compatibility while we cleanup the callers."""
+        return self.repo.narrowpats[0]
+
+    @util.propertycache
+    def excludepats(self):
+        """Set of file patterns to exclude
+
+        Offered for compatibility while we cleanup the callers."""
+        return self.repo.narrowpats[1]
 
     @util.propertycache
     def pulledsubset(self):
@@ -1710,8 +1718,6 @@ def pull(
     bookmarks=(),
     opargs=None,
     streamclonerequested=None,
-    includepats=None,
-    excludepats=None,
     depth=None,
     confirm=None,
 ):
@@ -1732,9 +1738,6 @@ def pull(
     of revlogs from the server. This only works when the local repository is
     empty. The default value of ``None`` means to respect the server
     configuration for preferring stream clones.
-    ``includepats`` and ``excludepats`` define explicit file patterns to
-    include and exclude in storage, respectively. If not defined, narrow
-    patterns from the repo instance are used, if available.
     ``depth`` is an integer indicating the DAG depth of history we're
     interested in. If defined, for each revision specified in ``heads``, we
     will fetch up to this many of its ancestors and data associated with them.
@@ -1746,28 +1749,6 @@ def pull(
     if opargs is None:
         opargs = {}
 
-    # We allow the narrow patterns to be passed in explicitly to provide more
-    # flexibility for API consumers.
-    if includepats is not None or excludepats is not None:
-        includepats = includepats or set()
-        excludepats = excludepats or set()
-        # If we specify pattern they are the same repo.narrowpats always.
-        #
-        # There are no other case
-        assert repo.narrowpats == (
-            includepats,
-            excludepats,
-        ), (
-            repo.narrowpats,
-            includepats,
-            excludepats,
-        )
-    else:
-        includepats, excludepats = repo.narrowpats
-
-    narrowspec.validatepatterns(includepats)
-    narrowspec.validatepatterns(excludepats)
-
     pullop = pulloperation(
         repo,
         remote,
@@ -1775,8 +1756,6 @@ def pull(
         force=force,
         bookmarks=bookmarks,
         streamclonerequested=streamclonerequested,
-        includepats=includepats,
-        excludepats=excludepats,
         depth=depth,
         **pycompat.strkwargs(opargs),
     )
