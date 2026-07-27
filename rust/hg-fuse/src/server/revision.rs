@@ -9,7 +9,6 @@ use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 use std::time::SystemTime;
 
-use dashmap::DashMap;
 use format_bytes::format_bytes;
 use fuser::INodeNo;
 use hg::DirstateParents;
@@ -245,7 +244,7 @@ struct RevisionTree<T> {
     /// The full dirstate for this revision
     dirstate: OwningDirstateMap,
     /// Mapping of offset in the dirstate to file token, so we can answer reads
-    offset_to_token: DashMap<u64, T>,
+    offset_to_token: FastHashMap<u64, T>,
     /// Inode for the "files" folder for this revision
     files_root_ino: INodeNo,
     /// Mapping of all reserved inodes to their FUSE entries
@@ -286,7 +285,7 @@ impl<T: FileToken> RevisionTree<T> {
         changeset: Node,
         start_time: SystemTime,
     ) -> Result<
-        (OwningDirstateMap, DashMap<u64, T>, RevisionInodeEncoder),
+        (OwningDirstateMap, FastHashMap<u64, T>, RevisionInodeEncoder),
         StoreError<T>,
     > {
         let revision_idx = store.idx_for_node(changeset)?;
@@ -519,8 +518,14 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
         path_to_token: FastHashMap<&HgPath, T>,
-    ) -> Result<(OwningDirstateMap, DashMap<u64, T>), StoreError<T>> {
-        let offset_to_token = DashMap::with_capacity(dirstate.len());
+    ) -> Result<(OwningDirstateMap, FastHashMap<u64, T>), StoreError<T>> {
+        // The mutex will be uncontended since the dirstate does not support
+        // parallel inserts, this is purely so we can satisfy the callback being
+        // immutable
+        let mut offset_to_token = FastHashMap::default();
+        offset_to_token.reserve(dirstate.len());
+        let offset_to_token = Mutex::new(offset_to_token);
+
         let latest_ino = AtomicU64::new(self.files_root_inode.0);
         // Insert them in the files root
         let files_root_entry = self
@@ -544,8 +549,12 @@ impl RevisionInodeEncoder {
 
             // Remember the inode to token mapping to answer reads
             let path_to_token_entry = path_to_token.get(path);
-            path_to_token_entry
-                .map(|token| offset_to_token.insert(offset, *token));
+            path_to_token_entry.map(|token| {
+                offset_to_token
+                    .lock()
+                    .expect("propagate the panic")
+                    .insert(offset, *token)
+            });
             latest_ino.store(ino.0, Ordering::Relaxed);
         };
 
@@ -605,7 +614,10 @@ impl RevisionInodeEncoder {
             None,
         )
         .expect("in-memory creation of a brand-new dirstate should not fail");
-        Ok((new_dirstate, offset_to_token))
+        Ok((
+            new_dirstate,
+            offset_to_token.into_inner().expect("propagate the panic"),
+        ))
     }
 
     fn add_reserved_directory(
