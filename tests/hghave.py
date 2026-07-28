@@ -714,6 +714,20 @@ def has_defaultcacertsloaded():
     return len(ctx.get_ca_certs()) > 0
 
 
+@check("tls1.0", "TLS 1.0 protocol support")
+def has_tls1_0():
+    from mercurial import sslutil
+
+    return b'tls1.0' in sslutil.supportedprotocols
+
+
+@check("tls1.1", "TLS 1.1 protocol support")
+def has_tls1_1():
+    from mercurial import sslutil
+
+    return b'tls1.1' in sslutil.supportedprotocols
+
+
 @check("tls1.2", "TLS 1.2 protocol support")
 def has_tls1_2():
     from mercurial import sslutil
