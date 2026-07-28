@@ -718,14 +718,24 @@ def has_defaultcacertsloaded():
 def has_tls1_0():
     from mercurial import sslutil
 
-    return b'tls1.0' in sslutil.supportedprotocols
+    # If ssl is not compiled with the option, bail out immediately
+    if b'tls1.0' not in sslutil.supportedprotocols:
+        return False
+
+    # If openssl reports no ciphers, the protocol version is blocked by security policies
+    return not matchoutput("openssl ciphers -s -tls1", b"")
 
 
 @check("tls1.1", "TLS 1.1 protocol support")
 def has_tls1_1():
     from mercurial import sslutil
 
-    return b'tls1.1' in sslutil.supportedprotocols
+    # If ssl is not compiled with the option, bail out immediately
+    if b'tls1.1' not in sslutil.supportedprotocols:
+        return False
+
+    # If openssl reports no ciphers, the protocol version is blocked by security policies
+    return not matchoutput("openssl ciphers -s -tls1_1", b"")
 
 
 @check("tls1.2", "TLS 1.2 protocol support")
