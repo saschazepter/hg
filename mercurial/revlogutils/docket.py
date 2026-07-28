@@ -19,7 +19,12 @@ from __future__ import annotations
 
 import struct
 
-from typing import Iterator
+from typing import (
+    Dict,
+    Iterator,
+    Tuple,
+    TypedDict,
+)
 
 from ..interfaces.types import (
     HgPathT,
@@ -75,10 +80,17 @@ UidT = int
 FileType = constants.V2FileType
 EXT = constants.V2_FILE_TYPE_EXT
 
+_UuidT = bytes
+"""type alias that helps to clarify type signature"""
+
 
 def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
     """compute a file path from a revlog radix, a uuid and a file type"""
     return b"%s-%s.%s" % (radix, uuid, EXT[file_type])
+
+
+_BlockIndexT = Dict[FileType, Tuple[int, _UuidT]]
+"""Type alias to simplify and align definitions"""
 
 
 class RevlogDocket:
@@ -86,6 +98,10 @@ class RevlogDocket:
 
     # short hand to avoid having to import the module all around
     FT = FileType
+
+    _initial: _BlockIndexT
+    _current: _BlockIndexT
+    _pending: _BlockIndexT
 
     def __init__(
         self,
@@ -95,9 +111,9 @@ class RevlogDocket:
         use_pending: bool = False,
         version_header: int | None = None,
         default_compression_header: revlogutils.CompModeT | None = None,
-        current: dict[FileType, tuple[int, bytes]] | None = None,
-        pending: dict[FileType, tuple[int, bytes]] | None = None,
-        outdated_uuids: list[tuple[FileType, bytes]] | None = None,
+        current: _BlockIndexT | None = None,
+        pending: _BlockIndexT | None = None,
+        outdated_uuids: list[tuple[FileType, _UuidT]] | None = None,
     ):
         assert version_header is not None
         self._version_header: int = version_header
@@ -108,10 +124,10 @@ class RevlogDocket:
         self._opener: VfsT = vfs
         if current is None:
             current = {}
-        self._initial: dict[FileType, tuple[int, bytes]] = current
+        self._initial: _BlockIndexT = current
         if pending is None:
             pending = {}
-        self._pending: dict[FileType, tuple[int, bytes]] = pending
+        self._pending: _BlockIndexT = pending
 
         for ft, (end, uuid) in sorted(current.items()):
             assert ft in pending
@@ -119,12 +135,12 @@ class RevlogDocket:
                 assert end <= pending[ft][0]
 
         if use_pending:
-            self._current = self._pending.copy()
+            self._current: _BlockIndexT = self._pending.copy()
         else:
-            self._current = self._initial.copy()
+            self._current: _BlockIndexT = self._initial.copy()
         if outdated_uuids is None:
             outdated_uuids = []
-        self._outdated_uuids: list[tuple[FileType, bytes]] = outdated_uuids
+        self._outdated_uuids: list[tuple[FileType, _UuidT]] = outdated_uuids
         assert default_compression_header is not None
         self.default_compression_header = default_compression_header
 
@@ -156,7 +172,7 @@ class RevlogDocket:
         """file path of that docket"""
         return self._path
 
-    def _filepath(self, file_type: FileType, uuid: bytes) -> bytes:
+    def _filepath(self, file_type: FileType, uuid: _UuidT) -> bytes:
         return file_path(file_type, self._radix, uuid)
 
     def filepath(self, file_type: FileType) -> bytes:
@@ -275,7 +291,16 @@ def default_docket(
     return docket
 
 
-def parse_docket_args(data) -> dict:
+class _DocketArgsT(TypedDict):
+    version_header: int
+    default_compression_header: int
+    current: _BlockIndexT
+    current: _BlockIndexT
+    pending: _BlockIndexT
+    outdated_uuids: list[tuple[FileType, _UuidT]]
+
+
+def parse_docket_args(data) -> _DocketArgsT:
     """given some docket data return the argument to initialize a docket"""
     header = S_HEADER.unpack(data[: S_HEADER.size])
 
