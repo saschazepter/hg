@@ -444,6 +444,9 @@ mercurial don't crash
 Check transaction related property
 ==================================
 
+Check writing pending nodemap
+-----------------------------
+
 An up to date nodemap should be available to shell hooks,
 
   $ echo dsljfl > a
@@ -524,9 +527,13 @@ Another process does not see the pending nodemap content during run.
 
   $ cat output.txt
 
-Check that a failing transaction will properly revert the data
+Check failing transactions
+--------------------------
 
   $ echo plakfe > a
+
+Check that a failing transaction will properly revert the data
+
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
