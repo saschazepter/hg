@@ -532,13 +532,15 @@ Check failing transactions
 
   $ echo plakfe > a
 
-Check that a failing transaction will properly revert the data
+Check that a failing transaction will properly revert the data (vacuum-mode=never)
 
+#if no-pure no-rust
+The C implementation cannot do incremental updates.
+#else
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
-  $ hg ci -m a3 --config devel.debug.abort-transaction=abort-post-finalize
+  $ hg ci -m a3 --config devel.debug.abort-transaction=abort-post-finalize --config devel.persistent-nodemap.vacuum-mode=never
   transaction abort!
   rollback completed
   abort: requested abort-post-finalize
@@ -549,28 +551,27 @@ Check that a failing transaction will properly revert the data
   tip-node: 90d5d3ba2fc47db50f712570487cb261a68c8ffe
   data-length: 121536 (pure !)
   data-length: 121536 (rust !)
-  data-length: 121088 (no-pure no-rust !)
   data-unused: 448 (pure !)
   data-unused: 448 (rust !)
-  data-unused: 0 (no-pure no-rust !)
   data-unused: 0.369% (pure !)
   data-unused: 0.369% (rust !)
-  data-unused: 0.000% (no-pure no-rust !)
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
+#endif
 
 Check abandoned transactions
 ----------------------------
 
-Check that we can recover from an abandoned transaction
+Check that we can recover from an abandoned transaction (vacuum-mode=never)
 
+#if no-pure no-rust
+The C implementation cannot do incremental updates.
+#else
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
-  $ hg ci -m a3 --config devel.debug.abort-transaction=kill-9-post-finalize || echo exit=$?
+  $ hg ci -m a3 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.persistent-nodemap.vacuum-mode=never || echo exit=$?
   *Killed* (glob) (no-chg !)
   exit=137 (no-chg !)
   exit=255 (chg !)
@@ -583,20 +584,14 @@ Check that we can recover from an abandoned transaction
   tip-node: 90d5d3ba2fc47db50f712570487cb261a68c8ffe
   data-length: 121536 (pure !)
   data-length: 121536 (rust !)
-  data-length: 121088 (no-pure no-rust !)
   data-unused: 448 (pure !)
   data-unused: 448 (rust !)
-  data-unused: 0 (no-pure no-rust !)
   data-unused: 0.369% (pure !)
   data-unused: 0.369% (rust !)
-  data-unused: 0.000% (no-pure no-rust !)
-The no-pure no-rust case has two data files because the C implementation always
-writes a new data file, and it gets left behind.
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=8a534e4aaa488e42a61c1cad018590c3e6be5b0d844ac8bec52c442807794750 (glob) (no-pure no-rust !)
+#endif
 
 Check that removing content does not confuse the nodemap
 --------------------------------------------------------
