@@ -5094,8 +5094,12 @@ def debugwireproto(ui, repo, path=None, **opts):
                         _(b'remote output: %s\n') % stringutil.escapestr(output)
                     )
             else:
-                with peer.commandexecutor() as e:
-                    res = e.callcommand(command, args).result()
+                try:
+                    with peer.commandexecutor() as e:
+                        res = e.callcommand(command, args).result()
+                except Exception:
+                    peer.close()
+                    raise
 
                 ui.status(
                     _(b'response: %s\n')
