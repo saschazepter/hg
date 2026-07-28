@@ -194,6 +194,8 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
         new_length = target_docket.data_length + len(data)
         new_unused = target_docket.data_unused + data_changed_count
         if src_docket != target_docket:
+            # TODO: This race can result in excessive nodemap rebuilding.
+            # It should be fixed, like we did for Rust in d2ac587520b3.
             data = None
         elif new_length <= (new_unused * 10):  # under 10% of unused data
             data = None
