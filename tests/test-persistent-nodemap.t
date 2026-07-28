@@ -560,8 +560,45 @@ The C implementation cannot do incremental updates.
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
 #endif
 
+Check that a failing transaction will properly revert the data (vacuum-mode=always)
+
+  $ f --size --sha256 .hg/store/00changelog-*.nd
+  .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
+  .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
+  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
+  $ hg ci -m a3 --config devel.debug.abort-transaction=abort-post-finalize --config devel.persistent-nodemap.vacuum-mode=always
+  transaction abort!
+  rollback completed
+  abort: requested abort-post-finalize
+  [255]
+  $ hg debugnodemap --metadata
+  uid: ???????? (glob)
+  tip-rev: 5005
+  tip-node: 90d5d3ba2fc47db50f712570487cb261a68c8ffe
+  data-length: 121536 (pure !)
+  data-length: 121536 (rust !)
+  data-length: 121088 (no-pure no-rust !)
+  data-unused: 448 (pure !)
+  data-unused: 448 (rust !)
+  data-unused: 0 (no-pure no-rust !)
+  data-unused: 0.369% (pure !)
+  data-unused: 0.369% (rust !)
+  data-unused: 0.000% (no-pure no-rust !)
+  $ f --size --sha256 .hg/store/00changelog-*.nd
+  .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
+  .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
+  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
+
 Check abandoned transactions
 ----------------------------
+
+Helper to garbage collect data files
+  $ gc_data_files() {
+  >   uid=$(hg debugnodemap --changelog --metadata | grep '^uid:' | sed 's/uid: //')
+  >   rm -f $(ls .hg/store/00changelog*.nd | grep -v $uid)
+  >   uid=$(hg debugnodemap --manifest --metadata | grep '^uid:' | sed 's/uid: //')
+  >   rm -f $(ls .hg/store/00manifest*.nd | grep -v $uid)
+  > }
 
 Check that we can recover from an abandoned transaction (vacuum-mode=never)
 
@@ -592,6 +629,46 @@ The C implementation cannot do incremental updates.
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
 #endif
+
+Check that we can recover from an abandoned transaction (vacuum-mode=always)
+TODO: Clean up the extra data files, like the file index does.
+
+  $ f --size --sha256 .hg/store/00changelog-*.nd
+  .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
+  .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
+  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
+  $ hg ci -m a3 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.persistent-nodemap.vacuum-mode=always || echo exit=$?
+  *Killed* (glob) (no-chg !)
+  exit=137 (no-chg !)
+  exit=255 (chg !)
+  $ hg recover
+  rolling back interrupted transaction
+  (verify step skipped, run `hg verify` to check your repository content)
+  $ hg debugnodemap --metadata
+  uid: ???????? (glob)
+  tip-rev: 5005
+  tip-node: 90d5d3ba2fc47db50f712570487cb261a68c8ffe
+  data-length: 121536 (pure !)
+  data-length: 121536 (rust !)
+  data-length: 121088 (no-pure no-rust !)
+  data-unused: 448 (pure !)
+  data-unused: 448 (rust !)
+  data-unused: 0 (no-pure no-rust !)
+  data-unused: 0.369% (pure !)
+  data-unused: 0.369% (rust !)
+  data-unused: 0.000% (no-pure no-rust !)
+  $ f --size --sha256 .hg/store/00changelog-*.nd
+  .hg/store/00changelog-????????.nd: size=121088, sha256=8a534e4aaa488e42a61c1cad018590c3e6be5b0d844ac8bec52c442807794750 (glob) (pure !)
+  .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
+  .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
+  .hg/store/00changelog-????????.nd: size=121088, sha256=400e4f48c38713692c942331404a3f0d9dcbe0ff1e29c42ce764876407a393a6 (glob) (rust !)
+  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
+  .hg/store/00changelog-????????.nd: size=121088, sha256=8a534e4aaa488e42a61c1cad018590c3e6be5b0d844ac8bec52c442807794750 (glob) (no-pure no-rust !)
+  $ gc_data_files
+  $ f --size --sha256 .hg/store/00changelog-*.nd
+  .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
+  .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
+  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
 
 Check that removing content does not confuse the nodemap
 --------------------------------------------------------
@@ -659,7 +736,7 @@ read/write patterns.
   $ hg -R ./other-wc update 'min(head())'
   3 files updated, 0 files merged, 2 files removed, 0 files unresolved
   $ hg -R ./race-repo debugnodemap --metadata
-  uid: 43c37dde
+  uid: 5e69c5d1
   tip-rev: 5005
   tip-node: 90d5d3ba2fc47db50f712570487cb261a68c8ffe
   data-length: 121088
@@ -718,13 +795,13 @@ read/write patterns.
   $ sh "$RUNTESTDIR"/testlib/wait-on-file 10 sync-files/left-done
   $ cat outputs/left.txt
   docket-details:
-    uid:         43c37dde
+    uid:         5e69c5d1
     actual-tip:  5005
     tip-rev:     5005
     data-length: 121088
   nodemap-race: left side locked and ready to commit
   docket-details:
-    uid:         43c37dde
+    uid:         5e69c5d1
     actual-tip:  5005
     tip-rev:     5005
     data-length: 121088
@@ -733,7 +810,7 @@ read/write patterns.
     new data start at 121088
   persisted changelog nodemap
   docket-details:
-    uid:         43c37dde
+    uid:         5e69c5d1
     actual-tip:  5006
     tip-rev:     5006
     data-length: 121280
@@ -743,14 +820,14 @@ read/write patterns.
   nodemap-race: right side reading changelog
   nodemap-race: right side reading of changelog is done
   docket-details:
-    uid:         43c37dde
+    uid:         5e69c5d1
     actual-tip:  5006
     tip-rev:     5005
     data-length: 121088
   nodemap-race: right side ready to wait for the lock
   nodemap-race: right side locked and ready to commit
   docket-details:
-    uid:         43c37dde
+    uid:         5e69c5d1
     actual-tip:  5006
     tip-rev:     5006
     data-length: 121280
@@ -761,7 +838,7 @@ read/write patterns.
     new data start at 121280
   persisted changelog nodemap
   docket-details:
-    uid:         43c37dde
+    uid:         5e69c5d1
     actual-tip:  5007
     tip-rev:     5007
     data-length: 121536
@@ -775,7 +852,7 @@ read/write patterns.
   file-actual-length: 121536
   reader: changelog read
   docket-details:
-    uid:         43c37dde
+    uid:         5e69c5d1
     actual-tip:  5006
     tip-rev:     5006
     data-length: 121280
