@@ -8,9 +8,11 @@
 
 from __future__ import annotations
 
+import enum
 import re
 import struct
 
+from ..i18n import _
 from ..node import hex
 
 from .. import (
@@ -19,6 +21,14 @@ from .. import (
     util,
 )
 from ..utils import docket as docket_mod
+
+
+class VacuumMode(enum.Enum):
+    """Values of the config ``devel.persistent-nodemap.vacuum-mode``."""
+
+    AUTO = b"auto"
+    NEVER = b"never"
+    ALWAYS = b"always"
 
 
 class NodeMap(dict):
@@ -181,10 +191,22 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
     ondisk_docket = revlog._nodemap_docket
     feed_data = hasattr(revlog.index, "update_nodemap_data")
     use_mmap = revlog.opener.options.get(b"persistent-nodemap.mmap")
+    vacuum_mode = revlog.opener.options[b"persistent-nodemap.vacuum-mode"]
+
+    if vacuum_mode == VacuumMode.NEVER and not can_incremental:
+        msg = _(
+            b"ignoring devel.persistent-nodemap.vacuum-mode=never because "
+            b"this implementation always rewrites from scratch"
+        )
+        tr._report(msg)
 
     data = None
-    # first attemp an incremental update of the data
-    if can_incremental and ondisk_docket is not None:
+    if (
+        can_incremental
+        and ondisk_docket is not None
+        and vacuum_mode in (VacuumMode.AUTO, VacuumMode.NEVER)
+    ):
+        # first attemp an incremental update of the data
         target_docket = revlog._nodemap_docket.copy()
         (
             src_docket,
@@ -197,7 +219,7 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
             # TODO: This race can result in excessive nodemap rebuilding.
             # It should be fixed, like we did for Rust in d2ac587520b3.
             data = None
-        elif new_unused >= new_length // 10:
+        elif vacuum_mode == VacuumMode.AUTO and new_unused >= new_length // 10:
             # over 10% of unused data, rewrite from scratch instead
             data = None
         else:

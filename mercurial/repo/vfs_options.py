@@ -21,6 +21,7 @@ from .. import (
 from ..revlogutils import (
     config as revlog_config,
     constants as revlogconst,
+    nodemap,
 )
 from ..store_utils import file_index
 
@@ -351,6 +352,19 @@ def resolve_revlog_store_vfs_options(ui, requirements, features):
         options[b'persistent-nodemap.mmap'] = True
     if ui.configbool(b'devel', b'persistent-nodemap.reference'):
         options[b'devel-force-nodemap'] = True
+
+    value = ui.config(b'devel', b'persistent-nodemap.vacuum-mode')
+    try:
+        value = nodemap.VacuumMode(value)
+    except ValueError:
+        fallback = ui.configdefault(b'devel', b'persistent-nodemap.vacuum-mode')
+        msg = _(
+            b'warning: invalid devel.persistent-nodemap.vacuum-mode '
+            b'value "%s"; falling back to "%s"\n'
+        )
+        ui.warn(msg % (value, fallback))
+        value = nodemap.VacuumMode(fallback)
+    options[b'persistent-nodemap.vacuum-mode'] = value
 
     delta_config.validate_base = ui.configbool(
         b'storage', b'revlog.validate-delta-base'

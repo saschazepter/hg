@@ -681,6 +681,18 @@ nodemap, that is not performant but is "known" to behave properly."""
 
 [[items]]
 section = "devel"
+name = "persistent-nodemap.vacuum-mode"
+default = "auto"
+documentation = """Controls when to rewrite a persistent nodemap data file
+from scratch instead of appending to it. Possible values:
+- ``auto`` (default): rewrite when more than 10% of the data file is unused
+- ``never``: always append to the existing data file, aborting if not possible
+- ``always``: always rewrite the data file from scratch
+This config only has an effect if the operation writes the persistent nodemap.
+"""
+
+[[items]]
+section = "devel"
 name = "server-insecure-exact-protocol"
 default = ""
 
