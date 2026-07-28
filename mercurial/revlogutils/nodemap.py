@@ -197,7 +197,8 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
             # TODO: This race can result in excessive nodemap rebuilding.
             # It should be fixed, like we did for Rust in d2ac587520b3.
             data = None
-        elif new_length <= (new_unused * 10):  # under 10% of unused data
+        elif new_unused >= new_length // 10:
+            # over 10% of unused data, rewrite from scratch instead
             data = None
         else:
             datafile = _rawdata_filepath(revlog, target_docket)
