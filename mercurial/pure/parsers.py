@@ -1253,6 +1253,66 @@ def parse_index_cl_v2(data: tuple[ByteString, ...]) -> IndexChangelogV2:
     return IndexChangelogV2(data)
 
 
+class StructArray:
+    """A small object that expose a blob of binary data as an array of tuple
+
+    The underlying struct is used to deserialize the binary data encoded in the
+    blob. A cache of the unpacked value is kept.
+    """
+
+    def __init__(
+        self,
+        item_format: struct.Struct,
+        data: bytes | bytearray,
+    ) -> None:
+        if not hasattr(data, "append"):
+            data = bytearray(data)
+        self._data: bytearray = data
+        self._fmt = item_format
+        self._size = self._fmt.size
+        length = len(self._data) // self._size
+        self._cache = [None] * length
+        assert (len(self._data) % self._size) == 0
+
+    def __len__(self) -> int:
+        """number of item in the array"""
+        return len(self._cache)
+
+    def bin(self, idx: int) -> bytes:
+        """the binary form of entry at index <idx>"""
+        start = idx * self._size
+        end = start + self._size
+        if end > len(self._data):
+            raise IndexError(idx)
+        return self._data[start:end]
+
+    def __getitem__(self, idx: int) -> tuple:
+        """Get the deserialized tuple for item as index `idx`"""
+        if (cached := self._cache[idx]) is not None:
+            return cached
+        item = self._fmt.unpack_from(self._data, idx * self._size)
+        self._cache[idx] = item
+        return item
+
+    def __setitem__(self, idx: int, value: bytes) -> None:
+        """Set the serialized bytes for item as index `idx`
+
+        NOTE: this is asymetrical with `__getitem__` that return the tuple.
+        """
+        assert self._size == len(value)
+        start = idx * self._size
+        end = start + self._size
+        self._data[start:end] = value
+        # reset the cache entry
+        self._cache[idx] = None
+
+    def delete_from(self, idx: int) -> None:
+        """drop all items starting at index `idx`"""
+        start = idx * self._size
+        del self._data[start:]
+        del self._cache[idx:]
+
+
 class MultiBlockIndex(BaseIndex):
     _index_formats: tuple[struct.Struct, ...]
 
@@ -1270,9 +1330,9 @@ class MultiBlockIndex(BaseIndex):
             count.append(len_data // entry_size)
         assert len(set(count)) == 1, count
 
-        data = tuple(bytearray(d) for d in data)
-
-        self._data = data
+        self._data: tuple[StructArray] = tuple(
+            StructArray(s, d) for (d, s) in zip(data, self._index_formats)
+        )
         self._lgt = count[0]
         self._extra: list[tuple[bytes, ...]] = []
         super().__init__(uses_generaldelta=uses_generaldelta)
@@ -1282,10 +1342,8 @@ class MultiBlockIndex(BaseIndex):
         self._check_index(i)
         self._stripnodes(i)
         if i < self._lgt:
-            self._data = tuple(
-                block[: i * entry_size]
-                for entry_size, block in zip(self.entry_sizes, self._data)
-            )
+            for block in self._data:
+                block.delete_from(i)
             self._lgt = i
             self._extra = []
         else:
@@ -1318,10 +1376,7 @@ class MultiBlockIndex(BaseIndex):
         if rev >= self._lgt:
             return self._extra[rev - self._lgt]
         else:
-            return tuple(
-                data[rev * size : (rev + 1) * size]
-                for data, size in zip(self._data, self.entry_sizes)
-            )
+            return tuple(data.bin(rev) for data in self._data)
 
     @functools.lru_cache(_LRU_CACHE_SIZE)
     def _entry(self, rev: RevnumT) -> revlogutils.EntryTupleT:
@@ -1418,9 +1473,7 @@ class MultiBlockIndex(BaseIndex):
                 if bin is None:
                     continue
                 else:
-                    size = len(bin)
-                    offset = rev * size
-                    data[offset : offset + size] = bin
+                    data[rev] = bin
         self._entry.cache_clear()
         self._rich_entry.cache_clear()
         return updated_bins
