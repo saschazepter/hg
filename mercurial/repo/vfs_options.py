@@ -349,7 +349,7 @@ def resolve_revlog_store_vfs_options(ui, requirements, features):
                 raise error.Abort(msg, hint=hint)
     if ui.configbool(b'storage', b'revlog.persistent-nodemap.mmap'):
         options[b'persistent-nodemap.mmap'] = True
-    if ui.configbool(b'devel', b'persistent-nodemap'):
+    if ui.configbool(b'devel', b'persistent-nodemap.reference'):
         options[b'devel-force-nodemap'] = True
 
     delta_config.validate_base = ui.configbool(

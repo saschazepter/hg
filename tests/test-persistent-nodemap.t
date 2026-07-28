@@ -16,7 +16,7 @@ Test the persistent on-disk nodemap
   > [format]
   > use-persistent-nodemap=yes
   > [devel]
-  > persistent-nodemap=yes
+  > persistent-nodemap.reference=yes
   > EOF
 
 #endif
@@ -963,7 +963,7 @@ This helps client without supports for persistent nodemap.
 
   $ hg clone -U --stream ssh://user@dummy/test-repo stream-clone-no-nm \
   >     --config format.use-persistent-nodemap=no \
-  >     --config devel.persistent-nodemap=no \
+  >     --config devel.persistent-nodemap.reference=no \
   >     --config revlog.persistent-nodemap.slow-path=no \
   >     --quiet
   $ hg debugformat -R stream-clone-no-nm | grep persistent-nodemap

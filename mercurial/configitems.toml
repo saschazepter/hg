@@ -674,7 +674,7 @@ and it assumes that its result is correct."""
 
 [[items]]
 section = "devel"
-name = "persistent-nodemap"
+name = "persistent-nodemap.reference"
 default = false
 documentation = """When true, revlogs use a special reference version of the \
 nodemap, that is not performant but is "known" to behave properly."""

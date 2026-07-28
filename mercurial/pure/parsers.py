@@ -1055,7 +1055,7 @@ class PersistentNodeMapIndex(Index):
 
     We need a simple python object to test API and higher level behavior. See
     the Rust implementation for  more serious usage. This should be used only
-    through the dedicated `devel.persistent-nodemap` config.
+    through the dedicated `devel.persistent-nodemap.reference` config.
     """
 
     # TODO: add type info

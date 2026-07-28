@@ -20,7 +20,7 @@ Setup
   > [format]
   > use-persistent-nodemap=yes
   > [devel]
-  > persistent-nodemap=yes
+  > persistent-nodemap.reference=yes
   > [storage]
   > # to avoid spamming the test
   > revlog.persistent-nodemap.slow-path=allow
