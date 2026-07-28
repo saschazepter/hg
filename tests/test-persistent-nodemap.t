@@ -702,6 +702,27 @@ removing data with strip
   data-unused: 0
   data-unused: 0.000%
 
+Check aborted pull into a new repo with pretxnchangegroup hook
+--------------------------------------------------------------
+
+  $ hg init ../test-repo-clone
+  $ hg -R ../test-repo-clone pull . --config devel.debug.abort-transaction=abort-post-finalize --config hooks.pretxnchangegroup=true
+  pulling from .
+  requesting all changes
+  adding changesets
+  adding manifests
+  adding file changes
+  transaction abort!
+  rollback failed - please run hg recover (pure known-bad-output !)
+  rollback failed - please run hg recover (rust known-bad-output !)
+  rollback completed (no-pure no-rust !)
+  (failure reason: attempted to truncate 00changelog-*.nd to 121088 bytes, but it was already 0 bytes (glob) (pure known-bad-output !)
+  (failure reason: attempted to truncate 00changelog-*.nd to 121088 bytes, but it was already 0 bytes (glob) (rust known-bad-output !)
+  ) (pure known-bad-output !)
+  ) (rust known-bad-output !)
+  abort: requested abort-post-finalize
+  [255]
+
 Check race condition when multiple process write new data to the repository
 ---------------------------------------------------------------------------
 
