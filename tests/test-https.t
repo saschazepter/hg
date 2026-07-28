@@ -359,10 +359,14 @@ Start servers running supported TLS versions
 
 Clients talking same TLS versions work
 
+#if tls1.0
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.0 --config hostsecurity.ciphers="DEFAULT:@SECLEVEL=0" id https://localhost:$HGPORT/
   5fed3813f7f5
+#endif
+#if tls1.1
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.1 --config hostsecurity.ciphers="DEFAULT:@SECLEVEL=0" id https://localhost:$HGPORT1/
   5fed3813f7f5
+#endif
   $ P="$CERTSDIR" hg --config hostsecurity.minimumprotocol=tls1.2 id https://localhost:$HGPORT2/
   5fed3813f7f5
 #if tls1.3
@@ -422,9 +426,11 @@ Clients requiring newer TLS version than what server supports fail
 
 --insecure will allow TLS 1.0 connections and override configs
 
+#if tls1.0
   $ hg --config hostsecurity.minimumprotocol=tls1.2 id --insecure https://localhost:$HGPORT1/
   warning: connection security to localhost is disabled per current settings; communication is susceptible to eavesdropping and tampering
   5fed3813f7f5
+#endif
 
 #if tls1.3
   $ hg --config hostsecurity.minimumprotocol=tls1.3 id --insecure https://localhost:$HGPORT2/
@@ -434,11 +440,13 @@ Clients requiring newer TLS version than what server supports fail
 
 The per-host config option overrides the default
 
+#if tls1.0
   $ P="$CERTSDIR" hg id https://localhost:$HGPORT/ \
   > --config hostsecurity.ciphers="DEFAULT:@SECLEVEL=0" \
   > --config hostsecurity.minimumprotocol=tls1.2 \
   > --config hostsecurity.localhost:minimumprotocol=tls1.0
   5fed3813f7f5
+#endif
 
 The per-host config option by itself works
 
