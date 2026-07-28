@@ -199,7 +199,10 @@ class RevlogDocket:
         return initial_offset <= offset
 
     def write(
-        self, transaction, pending: bool = False, stripping: bool = False
+        self,
+        transaction,
+        pending: bool = False,
+        stripping: bool = False,
     ) -> bool:
         """write the modification of disk if any
 
