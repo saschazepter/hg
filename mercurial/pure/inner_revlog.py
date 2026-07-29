@@ -1887,15 +1887,33 @@ class InnerRevlogV2(BaseInnerRevlog):
             return self._read_one_lkr(idx)[0] >= min_link
         return False
 
+    def _strip_one_file(self, file_type: docket_mod.FileType, end: int):
+        """move the docket to a copy of the file without the extra bytes
+
+        This ensure all the data are in a "pending" state and their content
+        might be updated if needed.
+
+        Used during revision stripping.
+        """
+        assert self._writinghandles is None
+        current_end = self.docket.get_end(file_type)
+        if current_end <= end:
+            # nothing to strip
+            return
+        old_path = self.opener.join(self.docket.filepath(file_type))
+        new_name = self.docket.new_filepath(file_type)
+        new_path = self.opener.join(new_name)
+        self.docket.set_end(file_type, end)
+        util.copyfile(old_path, new_path, copystat=True, nb_bytes=end)
+
     def _strip_after(self, transaction, rev, min_link):
         """truncate the revlog on the first revision with a linkrev >= minlink
 
         It remove all revisions after `rev`."""
-        docket = self.docket
-
         if self.feature_config.link_revs:
             lkr_updates, lkr_cutoff = self._strip_precomp_link_revs(min_link)
 
+        assert self._writinghandles is None
         if rev < len(self):
             if self.feature_config.children:
                 children_updates = self._strip_precomp_children(rev)
@@ -1906,18 +1924,14 @@ class InnerRevlogV2(BaseInnerRevlog):
             # not powerfull enough at the time of this comment
             for ft, entry_size in zip(self._index_fts, self.index.entry_sizes):
                 end = rev * entry_size
-                docket.set_end(ft, end)
-                transaction.add(docket.filepath(ft), end)
-            docket.set_end(self.docket.FT.DATA, data_end)
-            docket.set_end(self.docket.FT.SIDEDATA, sidedata_end)
-            transaction.add(docket.filepath(docket.FT.DATA), data_end)
-            transaction.add(docket.filepath(docket.FT.SIDEDATA), sidedata_end)
+                self._strip_one_file(ft, end)
+            self._strip_one_file(self.docket.FT.DATA, data_end)
+            self._strip_one_file(self.docket.FT.SIDEDATA, sidedata_end)
 
             if self.feature_config.children:
                 self._strip_apply_children(transaction, children_updates)
         if self.feature_config.link_revs:
-            docket.set_end(self.docket.FT.LINK_REVS, lkr_cutoff)
-            transaction.add(docket.filepath(docket.FT.LINK_REVS), lkr_cutoff)
+            self._strip_one_file(self.docket.FT.LINK_REVS, lkr_cutoff)
             self._strip_apply_link_revs(transaction, lkr_updates)
         self.docket.write(transaction, stripping=True)
 
