@@ -186,8 +186,12 @@ class RevlogDocket:
         The previous index UID is moved to the "older" list."""
         # XXX if the old size is 0, we could skip adding it and delete it on
         # XXX the spot.
-        self._outdated_uuids.append((file_type, self._current[file_type][1]))
-        self._current[file_type] = (0, make_uid())
+        end, old_uuid = self._current[file_type]
+        new_uuid = make_uid()
+        assert new_uuid != old_uuid
+        self._outdated_uuids.append((file_type, old_uuid))
+        self._current[file_type] = (end, new_uuid)
+        self._dirty = True
         return self.filepath(file_type)
 
     def old_filepaths(self) -> Iterator[HgPathT]:
@@ -208,8 +212,8 @@ class RevlogDocket:
         if file_type not in self._initial:
             return True
         assert file_type in self._current
-        initial_uuid, initial_offset = self._initial[file_type]
-        uuid = self._current[file_type]
+        initial_offset, initial_uuid = self._initial[file_type]
+        uuid = self._current[file_type][1]
         if initial_uuid != uuid:
             return True
         return initial_offset <= offset

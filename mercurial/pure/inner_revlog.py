@@ -137,6 +137,7 @@ class BaseInnerRevlog(abc.ABC):
 
         # tuple of file handles being used for active writing.
         self._writinghandles = None
+        self._write_stack = None
 
         self._segmentfile = segment_file
 
@@ -1378,19 +1379,13 @@ class InnerRevlogV2(BaseInnerRevlog):
     def _writing(self, transaction):
         docket = self.docket
 
-        # NOTE: I suspect we don't need check_ambig for the index, but only on
-        # the docket.
-        check_ambig = self.data_config.check_ambig
         handles = {}
         with contextlib.ExitStack() as stack:
+            self._write_stack = stack
             for ft in self._active_fts[::-1]:
                 path = docket.filepath(ft)
                 end = docket.get_end(ft)
-
-                if ft.is_index:
-                    fh = self.opener.wopen(path, checkambig=check_ambig)
-                else:
-                    fh = self.opener.wopen(path)
+                fh = self.opener.wopen(path)
                 stack.enter_context(fh)
                 fh.seek(end, os.SEEK_SET)
                 transaction.add(path, end)
@@ -1400,6 +1395,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             self._writinghandles = handles
             yield
             self._writinghandles = None
+            self._write_stack = None
             for segment_file in self._segment_files.values():
                 segment_file.writing_handle = None
 
@@ -1407,7 +1403,13 @@ class InnerRevlogV2(BaseInnerRevlog):
         """Returns the current offset in the (in-transaction) data file."""
         return self.docket.get_end(self.docket.FT.DATA)
 
-    def _prepare_update(self, transaction, file_type, pos):
+    def _prepare_update(
+        self,
+        transaction: TransactionT,
+        file_type: docket_mod.FileType,
+        pos: int,
+        stripping: bool = False,
+    ):
         """ensure the data we are about to write are in a mutable block
 
         NOTE: This is currently not very efficent as we don't splits the block
@@ -1418,11 +1420,24 @@ class InnerRevlogV2(BaseInnerRevlog):
             # data already updatable, nothing to do
             return
 
+        self._writinghandles[file_type].close()
         old_path = self.opener.join(docket.filepath(file_type))
         new_name = docket.new_filepath(file_type)
         new_path = self.opener.join(new_name)
-        util.copyfile(old_path, new_path)
-        transaction.add(new_path, 0)
+        if not stripping:
+            # If we are stripping, we should NOT registre the file to the
+            # transaction as the transaction will be rollback as part of a
+            # succesful strip.
+            transaction.add(new_name, 0)
+        assert old_path != new_path, (old_path, new_path)
+        util.copyfile(old_path, new_path, copystat=True)
+        fh = self.opener.wopen(new_name)
+        self._write_stack.enter_context(fh)
+        self._writinghandles[file_type] = fh
+        if file_type in self._segment_files:
+            self._segment_files[file_type].writing_handle = fh
+        assert docket.is_pending_offset(file_type, pos)
+        fh.seek(pos, os.SEEK_SET)
 
     def _rewrite_index(
         self,
@@ -1430,6 +1445,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         rev: RevnumT,
         idx_bins: tuple[None | bytes],
         pending_only: bool = False,
+        stripping: bool = False,
     ):
         """rewrite on-disk index data for revision
 
@@ -1452,7 +1468,12 @@ class InnerRevlogV2(BaseInnerRevlog):
             # however if that transaction has not been committed yet,
             # nobody is reading it and this won't be a problem.
             if not pending_only:
-                self._prepare_update(transaction, idx_ft, idx_pos)
+                self._prepare_update(
+                    transaction,
+                    idx_ft,
+                    idx_pos,
+                    stripping=stripping,
+                )
             elif not self.docket.is_pending_offset(idx_ft, idx_pos):
                 msg = "invalid rewrite of a non-pending revision"
                 raise error.ProgrammingError(msg)
@@ -1905,6 +1926,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         new_path = self.opener.join(new_name)
         self.docket.set_end(file_type, end)
         util.copyfile(old_path, new_path, copystat=True, nb_bytes=end)
+        assert self.docket.is_pending_offset(file_type, 0)
 
     def _strip_after(self, transaction, rev, min_link):
         """truncate the revlog on the first revision with a linkrev >= minlink
@@ -2053,7 +2075,12 @@ class InnerRevlogV2(BaseInnerRevlog):
                 old_idx = index.link_revs_last_idx(rev)
                 if (new_idx := updates.get(old_idx)) is not None:
                     idx_bins = index.update_link_revs_last_idx(rev, new_idx)
-                    self._rewrite_index(transaction, rev, idx_bins)
+                    self._rewrite_index(
+                        transaction,
+                        rev,
+                        idx_bins,
+                        stripping=True,
+                    )
 
     def file_cutoffs(self, first_excl_rev):
         docket = self.docket
