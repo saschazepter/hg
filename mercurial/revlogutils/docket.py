@@ -200,7 +200,7 @@ class RevlogDocket:
         return self._current[file_type][0]
 
     def set_end(self, file_type: FileType, new_size: int) -> None:
-        if new_size != self._current[file_type]:
+        if new_size != self._current[file_type][0]:
             self._current[file_type] = (new_size, self._current[file_type][1])
             self._dirty = True
 
