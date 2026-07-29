@@ -184,6 +184,10 @@ class RevlogDocket:
         """switch index file to a new UID
 
         The previous index UID is moved to the "older" list."""
+        if self._read_only:
+            msg = b'updating read-only docket: %s'
+            msg %= self._path
+            raise error.ProgrammingError(msg)
         # XXX if the old size is 0, we could skip adding it and delete it on
         # XXX the spot.
         end, old_uuid = self._current[file_type]
@@ -204,6 +208,10 @@ class RevlogDocket:
         return self._current[file_type][0]
 
     def set_end(self, file_type: FileType, new_size: int) -> None:
+        if self._read_only:
+            msg = b'updating read-only docket: %s'
+            msg %= self._path
+            raise error.ProgrammingError(msg)
         if new_size != self._current[file_type][0]:
             self._current[file_type] = (new_size, self._current[file_type][1])
             self._dirty = True
