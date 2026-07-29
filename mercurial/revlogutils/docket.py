@@ -99,6 +99,13 @@ class BlockInfo:
     end = attr.ib(type=int, default=0)
     """The number of bytes marking the end of the active data"""
 
+    immutable_end = attr.ib(type=int, default=0)
+    """The number of bytes that are can't be mutated
+
+    This is the part of the file that is accessible to other process and can't
+    be mutated.
+    """
+
     def serialize(self, file_type: FileType) -> bytes:
         return S_ENTRY.pack(
             int(file_type),
@@ -112,6 +119,7 @@ class BlockInfo:
         block = BlockInfo(
             uuid=pieces[2],
             end=pieces[1],
+            immutable_end=pieces[1],
         )
         return (FileType(pieces[0]), block)
 
@@ -273,14 +281,8 @@ class RevlogDocket:
 
     def is_pending_offset(self, file_type: FileType, offset: int) -> bool:
         assert self._initial is not None
-        if file_type not in self._initial:
-            return True
-        assert file_type in self._current
-        initial = self._initial[file_type]
         current = self._current[file_type]
-        if initial.uuid != current.uuid:
-            return True
-        return initial.end <= offset
+        return current.immutable_end <= offset
 
     def write(
         self,
