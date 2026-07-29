@@ -18,11 +18,11 @@
 from __future__ import annotations
 
 import struct
+import typing
 
 from typing import (
     Dict,
     Iterator,
-    Tuple,
     TypedDict,
 )
 
@@ -31,12 +31,17 @@ from ..interfaces.types import (
     VfsT,
 )
 
+from ..thirdparty import attr
 from .. import error, revlogutils, util
 from ..utils import docket as docket_mod
 
 from . import (
     constants,
 )
+
+if typing.TYPE_CHECKING:
+    import attr
+
 
 make_uid = docket_mod.make_uid
 
@@ -84,12 +89,29 @@ _UuidT = bytes
 """type alias that helps to clarify type signature"""
 
 
+@attr.s
+class BlockInfo:
+    """hold attributes of a index/data block tracked by a docket"""
+
+    uuid = attr.ib(type=_UuidT)
+    """The uuid used for that data block"""
+
+    end = attr.ib(type=int, default=0)
+    """The number of bytes marking the end of the active data"""
+
+    def copy(self) -> BlockInfo:
+        return self.__class__(
+            uuid=self.uuid,
+            end=self.end,
+        )
+
+
 def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
     """compute a file path from a revlog radix, a uuid and a file type"""
     return b"%s-%s.%s" % (radix, uuid, EXT[file_type])
 
 
-_BlockIndexT = Dict[FileType, Tuple[int, _UuidT]]
+_BlockIndexT = Dict[FileType, BlockInfo]
 """Type alias to simplify and align definitions"""
 
 
@@ -129,15 +151,19 @@ class RevlogDocket:
             pending = {}
         self._pending: _BlockIndexT = pending
 
-        for ft, (end, uuid) in sorted(current.items()):
+        for ft, block in sorted(current.items()):
             assert ft in pending
-            if pending[ft][1] == uuid:
-                assert end <= pending[ft][0]
+            if pending[ft].uuid == block.uuid:
+                assert block.end <= pending[ft].end
 
         if use_pending:
-            self._current: _BlockIndexT = self._pending.copy()
+            self._current: _BlockIndexT = {
+                k: v.copy() for (k, v) in self._pending.items()
+            }
         else:
-            self._current: _BlockIndexT = self._initial.copy()
+            self._current: _BlockIndexT = {
+                k: v.copy() for (k, v) in self._initial.items()
+            }
         if outdated_uuids is None:
             outdated_uuids = []
         self._outdated_uuids: list[tuple[FileType, _UuidT]] = outdated_uuids
@@ -177,8 +203,8 @@ class RevlogDocket:
 
     def filepath(self, file_type: FileType) -> bytes:
         if self._current.get(file_type) is None:
-            self._current[file_type] = (0, make_uid())
-        return self._filepath(file_type, self._current[file_type][1])
+            self._current[file_type] = BlockInfo(uuid=make_uid())
+        return self._filepath(file_type, self._current[file_type].uuid)
 
     def new_filepath(self, file_type: FileType) -> HgPathT:
         """switch index file to a new UID
@@ -190,11 +216,11 @@ class RevlogDocket:
             raise error.ProgrammingError(msg)
         # XXX if the old size is 0, we could skip adding it and delete it on
         # XXX the spot.
-        end, old_uuid = self._current[file_type]
+        old = self._current[file_type]
         new_uuid = make_uid()
-        assert new_uuid != old_uuid
-        self._outdated_uuids.append((file_type, old_uuid))
-        self._current[file_type] = (end, new_uuid)
+        assert new_uuid != old.uuid
+        self._outdated_uuids.append((file_type, old.uuid))
+        self._current[file_type] = BlockInfo(uuid=new_uuid, end=old.end)
         self._dirty = True
         return self.filepath(file_type)
 
@@ -205,26 +231,26 @@ class RevlogDocket:
             yield self._filepath(file_type, uuid)
 
     def get_end(self, file_type: FileType) -> int:
-        return self._current[file_type][0]
+        return self._current[file_type].end
 
     def set_end(self, file_type: FileType, new_size: int) -> None:
         if self._read_only:
             msg = b'updating read-only docket: %s'
             msg %= self._path
             raise error.ProgrammingError(msg)
-        if new_size != self._current[file_type][0]:
-            self._current[file_type] = (new_size, self._current[file_type][1])
+        if new_size != self._current[file_type].end:
+            self._current[file_type].end = new_size
             self._dirty = True
 
     def is_pending_offset(self, file_type: FileType, offset: int) -> bool:
         if file_type not in self._initial:
             return True
         assert file_type in self._current
-        initial_offset, initial_uuid = self._initial[file_type]
-        uuid = self._current[file_type][1]
-        if initial_uuid != uuid:
+        initial = self._initial[file_type]
+        current = self._current[file_type]
+        if initial.uuid != current.uuid:
             return True
-        return initial_offset <= offset
+        return initial.end <= offset
 
     def write(
         self,
@@ -269,11 +295,11 @@ class RevlogDocket:
         s = []
         s.append(S_HEADER.pack(*data))
 
-        for ft, (size, uuid) in sorted(info.items()):
-            s.append(S_ENTRY.pack(int(ft), size, uuid))
+        for ft, block in sorted(info.items()):
+            s.append(S_ENTRY.pack(int(ft), block.end, block.uuid))
 
-        for ft, (size, uuid) in sorted(self._current.items()):
-            s.append(S_ENTRY.pack(int(ft), size, uuid))
+        for ft, block in sorted(self._current.items()):
+            s.append(S_ENTRY.pack(int(ft), block.end, block.uuid))
 
         for ft, uuid in self._outdated_uuids:
             s.append(S_OLD_ENTRY.pack(ft, uuid))
@@ -342,12 +368,12 @@ def parse_docket_args(data) -> _DocketArgsT:
     current_data = {}
     for __ in range(0, current_count):
         ft, end, uuid = S_ENTRY.unpack(get_data(S_ENTRY.size))
-        current_data[FileType(ft)] = (end, uuid)
+        current_data[FileType(ft)] = BlockInfo(uuid=uuid, end=end)
 
     pending_data = {}
     for __ in range(0, pending_count):
         ft, end, uuid = S_ENTRY.unpack(get_data(S_ENTRY.size))
-        pending_data[FileType(ft)] = (end, uuid)
+        pending_data[FileType(ft)] = BlockInfo(uuid=uuid, end=end)
 
     older_uuids = []
     for __ in range(outdated_count):

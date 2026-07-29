@@ -518,8 +518,8 @@ class revlog:
         else:
             docket_bytes = header_bytes + main_fp.read()
             d_args = docketutil.parse_docket_args(docket_bytes)
-            for ft, (_end, uuid) in sorted(d_args['current'].items()):
-                yield docketutil.file_path(ft, b'', uuid)
+            for ft, block in sorted(d_args['current'].items()):
+                yield docketutil.file_path(ft, b'', block.uuid)
             # note: the docket might reference old files that we don't really
             # want to propagate, so we don't list them there.
 
