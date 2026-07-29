@@ -105,6 +105,22 @@ class BlockInfo:
             end=self.end,
         )
 
+    def serialize(self, file_type: FileType) -> bytes:
+        return S_ENTRY.pack(
+            int(file_type),
+            self.end,
+            self.uuid,
+        )
+
+    @staticmethod
+    def deserialize(data: bytes) -> tuple[FileType, BlockInfo]:
+        pieces = S_ENTRY.unpack(data)
+        block = BlockInfo(
+            uuid=pieces[2],
+            end=pieces[1],
+        )
+        return (FileType(pieces[0]), block)
+
 
 def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
     """compute a file path from a revlog radix, a uuid and a file type"""
@@ -296,10 +312,10 @@ class RevlogDocket:
         s.append(S_HEADER.pack(*data))
 
         for ft, block in sorted(info.items()):
-            s.append(S_ENTRY.pack(int(ft), block.end, block.uuid))
+            s.append(block.serialize(ft))
 
         for ft, block in sorted(self._current.items()):
-            s.append(S_ENTRY.pack(int(ft), block.end, block.uuid))
+            s.append(block.serialize(ft))
 
         for ft, uuid in self._outdated_uuids:
             s.append(S_OLD_ENTRY.pack(ft, uuid))
@@ -367,13 +383,13 @@ def parse_docket_args(data) -> _DocketArgsT:
 
     current_data = {}
     for __ in range(0, current_count):
-        ft, end, uuid = S_ENTRY.unpack(get_data(S_ENTRY.size))
-        current_data[FileType(ft)] = BlockInfo(uuid=uuid, end=end)
+        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size))
+        current_data[ft] = block
 
     pending_data = {}
     for __ in range(0, pending_count):
-        ft, end, uuid = S_ENTRY.unpack(get_data(S_ENTRY.size))
-        pending_data[FileType(ft)] = BlockInfo(uuid=uuid, end=end)
+        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size))
+        pending_data[ft] = block
 
     older_uuids = []
     for __ in range(outdated_count):
