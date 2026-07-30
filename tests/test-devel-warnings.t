@@ -102,6 +102,7 @@
   $ hg buggylocking --traceback
   devel-warn: "wlock" acquired after "lock" at:
    $HGTEST_REAL_HG:* in <module> (glob)
+   */mercurial/__main__.py:* in run (glob)
    */mercurial/dispatch.py:* in run (glob)
    */mercurial/dispatch.py:* in dispatch (glob)
    */mercurial/dispatch.py:* in _rundispatch (glob)
@@ -122,6 +123,7 @@
   $ hg buggylocking --traceback
   devel-warn: "wlock" acquired after "lock" at:
    $HGTEST_REAL_HG:* in <module> (glob) (?)
+   */mercurial/__main__.py:* in run (glob)
    */mercurial/dispatch.py:* in run (glob)
    */mercurial/dispatch.py:* in dispatch (glob)
    */mercurial/dispatch.py:* in _rundispatch (glob)
@@ -210,6 +212,7 @@ Stripping from a transaction
   devel-warn: foorbar is deprecated, go shopping
   (compatibility will be dropped after Mercurial-42.1337, update your code.) at:
    $HGTEST_REAL_HG:* in <module> (glob)
+   */mercurial/__main__.py:* in run (glob)
    */mercurial/dispatch.py:* in run (glob)
    */mercurial/dispatch.py:* in dispatch (glob)
    */mercurial/dispatch.py:* in _rundispatch (glob)
@@ -230,6 +233,7 @@ Stripping from a transaction
   devel-warn: foorbar is deprecated, go shopping
   (compatibility will be dropped after Mercurial-42.1337, update your code.) at:
    $HGTEST_REAL_HG:* in <module> (glob)
+   */mercurial/__main__.py:* in run (glob)
    */mercurial/dispatch.py:* in run (glob)
    */mercurial/dispatch.py:* in dispatch (glob)
    */mercurial/dispatch.py:* in _rundispatch (glob)
@@ -299,6 +303,7 @@ Stripping from a transaction
   1970-01-01 00:00:00.000 bob @cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b (5000)> devel-warn: foorbar is deprecated, go shopping
   (compatibility will be dropped after Mercurial-42.1337, update your code.) at:
    $HGTEST_REAL_HG:* in <module> (glob)
+   */mercurial/__main__.py:* in run (glob)
    */mercurial/dispatch.py:* in run (glob)
    */mercurial/dispatch.py:* in dispatch (glob)
    */mercurial/dispatch.py:* in _rundispatch (glob)
@@ -326,6 +331,7 @@ Stripping from a transaction
   1970-01-01 00:00:00.000 bob @cb9a9f314b8b07ba71012fcdbc544b5a4d82ff5b (5000)> devel-warn: foorbar is deprecated, go shopping
   (compatibility will be dropped after Mercurial-42.1337, update your code.) at:
    $HGTEST_REAL_HG:* in <module> (glob)
+   */mercurial/__main__.py:* in run (glob)
    */mercurial/dispatch.py:* in run (glob)
    */mercurial/dispatch.py:* in dispatch (glob)
    */mercurial/dispatch.py:* in _rundispatch (glob)
