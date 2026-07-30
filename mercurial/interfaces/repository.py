@@ -377,6 +377,15 @@ class ipeercommands(Protocol):
         Returns the integer number of heads added to the peer.
         """
 
+    @abc.abstractmethod
+    def store_shape(
+        self,
+        *,
+        name: bytes,
+        **kwargs,
+    ) -> tuple[set[bytes], set[bytes]]:
+        """Returns the narrow patterns for the shape of this name"""
+
 
 class ipeerlegacycommands(Protocol):
     """Interface for implementing support for legacy wire protocol commands.

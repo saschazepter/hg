@@ -857,6 +857,15 @@ name = "to"
 
 [[items]]
 section = "experimental"
+name = "advertise-shapes"
+default = true
+documentation = """
+Server-side boolean that if true will advertise to wireproto clients that it
+supports exchanging narrow store shapes.
+"""
+
+[[items]]
+section = "experimental"
 name = "archivemetatemplate"
 default-type = "dynamic"
 

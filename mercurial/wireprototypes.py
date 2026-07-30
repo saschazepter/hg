@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import abc
+import enum
 import typing
 
 from typing import (
@@ -41,6 +42,7 @@ if typing.TYPE_CHECKING:
 SSHV1: Final[bytes] = b'ssh-v1'
 
 NARROWCAP: Final[bytes] = b'exp-narrow-1'
+SHAPECAP: Final[bytes] = b'exp-shape-1'
 ELLIPSESCAP1: Final[bytes] = b'exp-ellipses-1'
 ELLIPSESCAP: Final[bytes] = b'exp-ellipses-2'
 SUPPORTED_ELLIPSESCAP: Final[tuple[bytes, bytes]] = (ELLIPSESCAP1, ELLIPSESCAP)
@@ -56,6 +58,16 @@ TRANSPORTS = {
         b'version': 1,
     },
 }
+
+
+class ShapeReturnCode(enum.IntEnum):
+    """Header part of the `store_shape` command response"""
+
+    OK = 1
+    """A shape of this name was found on this server"""
+
+    SHAPE_NOT_FOUND = 2
+    """No shape of this name was found on this server"""
 
 
 class bytesresponse:

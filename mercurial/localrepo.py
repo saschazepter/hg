@@ -51,6 +51,7 @@ from . import (
     obsolete,
     pathutil,
     phases,
+    policy,
     pushkey,
     pycompat,
     repo as repomod,
@@ -127,6 +128,7 @@ if typing.TYPE_CHECKING:
     _C = TypeVar('_C', bound=Callable)
     _IdentityCtxT = TypeVar("_IdentityCtxT", bound=context.basectx)
 
+shapemod = policy.importrust("shape")
 
 release = lockmod.release
 urlerr = util.urlerr
@@ -450,6 +452,31 @@ class localpeer(peer.Peer, repository.ipeercommands):
 
     def pushkey(self, namespace, key, old, new):
         return self._repo.pushkey(namespace, key, old, new)
+
+    def store_shape(
+        self,
+        *,
+        name: bytes,
+        **kwargs,
+    ) -> tuple[set[bytes], set[bytes]]:
+        """Returns the narrow patterns for the shape of this name"""
+        if not policy.has_rust():
+            raise error.Abort(
+                _(b"server has no shapes support"),
+                hint=_(b"lacking Rust extensions"),
+            )
+        store_shards = shapemod.get_store_shards(self._repo.root)
+        shape = store_shards.shape(encoding.strfromlocal(name))
+        if shape is None:
+            msg = _(b"shape not found on remote: '%s'") % name
+            raise error.RepoLookupError(msg)
+        includes, excludes = shape.patterns()
+
+        (legacy_includes, legacy_excludes) = narrowspec.to_legacy_patterns(
+            includes, excludes
+        )
+        # Checking the fingerprint is useless: we're the same implementation
+        return legacy_includes, legacy_excludes
 
     def stream_out(self):
         raise error.Abort(_(b'cannot perform stream clone against local peer'))
@@ -1332,6 +1359,15 @@ class localrepository(_localrepo_base_classes):
             caps.add(b'bundle2=' + urlreq.quote(capsblob))
         if self.ui.configbool(b'experimental', b'narrow'):
             caps.add(wireprototypes.NARROWCAP)
+
+            advertise_shapes = self.ui.configbool(
+                b'experimental', b'advertise-shapes'
+            )
+
+            if shapemod is not None and advertise_shapes:
+                # Only advertise support for shapes if we have Rust enabled
+                # because required logic is only implemented in Rust
+                caps.add(wireprototypes.SHAPECAP)
         return caps
 
     # Don't cache auditor/nofsauditor, or you'll end up with reference cycle:

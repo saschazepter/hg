@@ -18,12 +18,15 @@ from mercurial import (
     extensions,
     hg,
     narrowspec,
+    policy,
     wireprototypes,
     wireprotov1peer,
     wireprotov1server,
 )
 
 from . import narrowbundle2
+
+shapemod = policy.importrust("shape")
 
 
 def uisetup():

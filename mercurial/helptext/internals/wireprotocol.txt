@@ -1101,6 +1101,20 @@ the user. This may include output from hooks, etc.
 The integer result varies by namespace. ``0`` means an error has occurred
 and there should be additional output to display to the user.
 
+store_shape
+-----------
+
+Obtain the narrow patterns (includes and excludes) for a given store shape.
+
+The response format is line-based (``\n`` is the delimiter):
+
+   line 0: return code as ascii bytes.
+           ``1`` if successful, ``2`` if the shape isn't found. Other error
+           codes are reserved for future use. If ``2``, the response is over.
+   line 1: the hexadecimal representation of the fingerprint for this shape
+   rest  : the serialized shape, using the the same serialization used for
+           fingerprints (refer to either Rust or Python implementations)
+
 stream_out
 ----------
 

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import weakref
+from typing import Iterable
 
 from .i18n import _
 from . import (
@@ -331,3 +332,19 @@ def checkworkingcopynarrowspec(repo):
             _(b"working copy's narrowspec is stale"),
             hint=_(b"run 'hg tracked --update-working-copy'"),
         )
+
+
+def to_legacy_patterns(
+    includes: Iterable[bytes],
+    excludes: Iterable[bytes],
+) -> tuple[set[bytes], set[bytes]]:
+    """Convert plain paths-based patterns (from a shape) to the legacy
+    narrowspec format"""
+    # TODO remove this once we move all of the verification, fingerprinting
+    # and other code to the new system.
+    legacy_includes = {b"path:%s" % p if p else b'path:.' for p in includes}
+    legacy_excludes = {b"path:%s" % p if p else b'path:.' for p in excludes}
+
+    validatepatterns(legacy_includes)
+    validatepatterns(legacy_excludes)
+    return legacy_includes, legacy_excludes

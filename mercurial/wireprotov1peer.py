@@ -21,8 +21,11 @@ from . import (
     changegroup as changegroupmod,
     encoding,
     error,
+    narrowspec,
+    policy,
     pushkey as pushkeymod,
     pycompat,
+    shape as shapemod,
     util,
     wireprototypes,
 )
@@ -33,6 +36,9 @@ from .interfaces import (
     repository,
 )
 from .utils import hashutil
+
+if policy.has_rust():
+    shapemod = policy.importrust("shape")
 
 urlreq = util.urlreq
 
@@ -367,6 +373,71 @@ class wirepeer(
             return d[:-1]
 
         return {b"store_fingerprint": b'1'}, decode
+
+    @batchable
+    def store_shape(self, *, name: bytes, **kwargs):
+        """Ask the narrow server information about this shape. The server
+        will return the includes, excludes and fingerprint of this shape,
+        allowing us to check that we agree on how they're computed."""
+        self.requirecap(wireprototypes.SHAPECAP, _(b'use store shapes'))
+
+        def decode(d):
+            lines = d.splitlines()
+            if not lines:
+                msg = b"invalid response, expected status line"
+                self._abort(error.ResponseError(msg, d))
+
+            try:
+                return_code = int(lines[0])
+            except ValueError:
+                msg = b"invalid return code line, expected an integer"
+                self._abort(error.ResponseError(msg, d))
+
+            codes = wireprototypes.ShapeReturnCode
+            if return_code != codes.OK:
+                if return_code == codes.SHAPE_NOT_FOUND:
+                    msg = _(b"shape not found on remote: '%s'" % name)
+                    self._abort(error.RepoLookupError(msg))
+                msg = _(b"unknown shape error code: %d" % return_code)
+                self._abort(error.ResponseError(msg, d))
+
+            if len(lines) < 4:
+                msg = (
+                    b"invalid store_shapes response, "
+                    b"expected at least 4 lines, got %d"
+                )
+                self._abort(error.ResponseError(msg % len(lines), d))
+
+            received_fingerprint = lines[1]
+            shape_offset = (
+                len(lines[0]) + len(lines[1]) + 2
+            )  # account for lines
+            (includes, excludes) = shapemod.deserialize(d[shape_offset:])
+
+            (includes, excludes) = narrowspec.to_legacy_patterns(
+                includes, excludes
+            )
+
+            # Check the fingerprint
+            computed_fingerprint = shapemod.fingerprint_for_patterns(
+                includes, excludes
+            )
+            if computed_fingerprint is None:
+                msg = _(b"couldn't compute the fingerprint for server patterns")
+                self._abort(error.ResponseError(msg, d))
+
+            if computed_fingerprint != received_fingerprint:
+                # Sanity check
+                # Should only happen if we change how fingerprints are computed
+                msg = _(
+                    b"fingerprint differ for shape '%s': received %s, not %s"
+                )
+                msg = msg % (name, received_fingerprint, computed_fingerprint)
+                self._abort(error.Abort(msg))
+
+            return includes, excludes
+
+        return {b"name": encoding.fromlocal(name)}, decode
 
     def _finish_inline_clone_bundle(self, stream):
         pass  # allow override for httppeer

@@ -23,6 +23,7 @@ from . import (
     error,
     exchange,
     hook,
+    policy,
     pushkey as pushkeymod,
     pycompat,
     requirements as requirementsmod,
@@ -40,6 +41,9 @@ from .exchanges import (
     bundle_caps,
     peer,
 )
+
+shapemod = policy.importrust("shape")
+
 
 if typing.TYPE_CHECKING:
     from typing import (
@@ -354,6 +358,34 @@ def clonebundles_2(repo, proto, args):
     return wireprototypes.bytesresponse(b''.join(manifest_lines))
 
 
+@wireprotocommand(b'store_shape', b'name *', permission=b'pull')
+def store_shape(repo, proto, name, args):
+    """Server command for returning information about a store shape.
+
+    Clients will use this to get the includes and excludes of that shape, and
+    check their fingerprint computation against that of this server, to make
+    sure that they are the same.
+
+    The broader context is that this is used for exchange between a server and
+    a narrow clone, to make sure both sides (still) agree."""
+    if not policy.has_rust():
+        # This is redundant with the capabilities check, but better than a crash
+        raise error.Abort(
+            _(b"server has no shapes support"),
+            hint=_(b"lacking Rust extensions"),
+        )
+    store_shards = shapemod.get_store_shards(repo.root)
+    shape = store_shards.shape(name.decode())
+    codes = wireprototypes.ShapeReturnCode
+    if shape is None:
+        return wireprototypes.bytesresponse(b"%d\n" % codes.SHAPE_NOT_FOUND)
+    serialized = shape.serialized()
+    fingerprint = shape.fingerprint()
+
+    res = (b"%d" % codes.OK, fingerprint, serialized)
+    return wireprototypes.bytesresponse(b"\n".join(res))
+
+
 wireprotocaps = [
     b'lookup',
     b'branchmap',
@@ -403,6 +435,13 @@ def _capabilities(repo, proto):
         caps.append(wireprototypes.NARROWCAP)
         if repo.ui.configbool(b'experimental', b'narrowservebrokenellipses'):
             caps.append(wireprototypes.ELLIPSESCAP)
+        advertise_shapes = repo.ui.configbool(
+            b'experimental', b'advertise-shapes'
+        )
+        if shapemod is not None and advertise_shapes:
+            # Only advertise support for shapes if we have Rust enabled
+            # because required logic is only implemented in Rust
+            caps.append(wireprototypes.SHAPECAP)
 
     return proto.addcapabilities(repo, caps)
 
