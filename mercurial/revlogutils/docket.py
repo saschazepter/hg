@@ -149,7 +149,7 @@ class RevlogDocket:
         use_pending: bool = False,
         version_header: int | None = None,
         default_compression_header: revlogutils.CompModeT | None = None,
-        current: _BlockIndexT | None = None,
+        blocks: tuple[_BlockIndexT, _BlockIndexT] | None = None,
         pending: _BlockIndexT | None = None,
         outdated_uuids: list[tuple[FileType, _UuidT]] | None = None,
     ):
@@ -160,11 +160,11 @@ class RevlogDocket:
         self._radix: HgPathT = radix
         self._path: HgPathT = file_path
         self._opener: VfsT = vfs
-        if current is None:
-            current = {}
+        if blocks is None:
+            current, pending = {}, {}
+        else:
+            current, pending = blocks
         self._initial: _BlockIndexT = current
-        if pending is None:
-            pending = {}
         self._pending: _BlockIndexT = pending
 
         for ft, block in sorted(current.items()):
@@ -348,9 +348,7 @@ def default_docket(
 class _DocketArgsT(TypedDict):
     version_header: int
     default_compression_header: int
-    current: _BlockIndexT
-    current: _BlockIndexT
-    pending: _BlockIndexT
+    blocks: tuple[_BlockIndexT, _BlockIndexT]
     outdated_uuids: list[tuple[FileType, _UuidT]]
 
 
@@ -399,8 +397,7 @@ def parse_docket_args(data) -> _DocketArgsT:
     return {
         'version_header': version_header,
         'default_compression_header': default_compression_header,
-        'current': current_data,
-        'pending': pending_data,
+        'blocks': (current_data, pending_data),
         'outdated_uuids': older_uuids,
     }
 
