@@ -363,8 +363,30 @@ class changelog(revlog.revlog):
         self._filteredrevs_hashcache = {}
 
     def _write_docket(self, tr):
-        if not self._v2_delayed:
-            super()._write_docket(tr)
+        super()._write_docket(tr, pending=self._v2_delayed)
+
+    def clone(
+        self,
+        tr,
+        destrevlog,
+        addrevisioncb=None,
+        deltareuse=revlog.revlog.DELTAREUSESAMEREVS,
+        reuse_compression=None,
+        forcedeltabothparents=None,
+        sidedata_helpers=None,
+        hasmeta_change=None,
+    ):
+        destrevlog.delayupdate(tr)
+        return super().clone(
+            tr=tr,
+            destrevlog=destrevlog,
+            addrevisioncb=addrevisioncb,
+            deltareuse=deltareuse,
+            reuse_compression=reuse_compression,
+            forcedeltabothparents=forcedeltabothparents,
+            sidedata_helpers=sidedata_helpers,
+            hasmeta_change=hasmeta_change,
+        )
 
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""

@@ -2201,14 +2201,14 @@ class revlog:
     def is_delaying(self):
         return self._inner.is_delaying
 
-    def _write_docket(self, transaction):
+    def _write_docket(self, transaction, pending=False):
         """write the current docket on disk
 
         Exist as a method to help changelog to implement transaction logic
 
         We could also imagine using the same transaction logic for all revlog
         since docket are cheap."""
-        self._inner.docket.write(transaction)
+        self._inner.docket.write(transaction, pending=pending)
 
     def addrevision(
         self,
