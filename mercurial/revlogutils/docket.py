@@ -123,6 +123,24 @@ class BlockInfo:
         )
         return (FileType(pieces[0]), block)
 
+    def freeze(self) -> BlockInfo:
+        """Mark the pending data as immutable
+
+        To be used when data are persisted on disk at transaction end.
+
+        Return a copy of the object to keep as the new reference
+        """
+        # mark the previously pending data as immutable
+        self.immutable_end = self.end
+        # return a copy of the object to be used as reference. Using the same
+        # object for reference and current data would mean mutating the
+        # reference when we mutate the current data.
+        return BlockInfo(
+            uuid=self.uuid,
+            end=self.end,
+            immutable_end=self.immutable_end,
+        )
+
 
 def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
     """compute a file path from a revlog radix, a uuid and a file type"""
@@ -304,30 +322,32 @@ class RevlogDocket:
                 # XXX we could, leverage the docket while stripping. However it
                 # is not powerfull enough at the time of this comment
                 transaction.addbackup(self._path, location=b'store')
+            if not pending:
+                self._initial = {
+                    k: v.freeze() for (k, v) in self._current.items()
+                }
             with self._opener(self._path, mode=b'w', atomictemp=True) as f:
                 f.write(self._serialize(pending=pending))
             # if pending we still need to the write final data eventually
+            #
+            # We could maybe have a `_dirty_pending` attribut to avoid
+            # rewriting the same pending data over and over.
             self._dirty = pending
             return True
 
     def _serialize(self, pending: bool = False) -> bytes:
-        if pending:
-            info = self._initial
-        else:
-            info = self._current
-
         data = (
             self._version_header,
             self.default_compression_header,
             # currently fixed to index, data, sidedata
-            len(info),
+            len(self._initial),
             len(self._current),
             len(self._outdated_uuids),
         )
         s = []
         s.append(S_HEADER.pack(*data))
 
-        for ft, block in sorted(info.items()):
+        for ft, block in sorted(self._initial.items()):
             s.append(block.serialize(ft))
 
         for ft, block in sorted(self._current.items()):
