@@ -22,6 +22,40 @@ be at least 1.0.1).
     print(error, file=sys.stderr)
     sys.exit(1)
 
+
+def read_argument(argument, default=None):
+    """read a command line argument if it exists"""
+    argv = sys.argv
+    value = default
+    exec_name = argv[0]
+    argv = argv[1:]
+    suffix = []
+    ARG_END = "--"
+    if ARG_END in argv:
+        args_end = argv.index("--")
+        suffix = argv[args_end:]
+        argv = argv[:args_end]
+
+    argument = "--" + argument
+
+    if argument in argv:
+        index = argv.index(argument)
+        if index + 1 == len(argv):
+            error = "%s requires a value" % argument
+            print(error, file=sys.stderr)
+            sys.exit(2)
+        value = argv[index + 1]
+        del argv[index]
+        del argv[index]
+    # update sys.argv arguments
+    sys.argv[:] = [exec_name] + argv + suffix
+    return value
+
+
+# must run early to clean up sys.argv before it is used by setup tool
+exec_type = read_argument('hg-exec-type', "default")
+
+
 DYLIB_SUFFIX = sysconfig.get_config_vars()['EXT_SUFFIX']
 
 # Solaris Python packaging brain damage
@@ -114,7 +148,35 @@ def write_if_changed(path, content):
             fh.write(content)
 
 
-scripts = ['hg']
+VALID_EXEC_TYPE = (
+    # the default option (script)
+    "default",
+    # pass the `hg` script as `scripts` argument
+    "script",
+    # pass `mercurial.__main__.run` as an entry point
+    "entry-point",
+)
+if exec_type == "default":
+    exec_type = "script"
+
+scripts = []
+console_scripts = []
+entry_points = {'console_scripts': console_scripts}
+
+if exec_type == "script":
+    scripts.append('hg')
+elif exec_type == "entry-point":
+    console_scripts.append("hg = mercurial.__main__:run")
+else:
+    error = "invalid hg-exec-type: %s" % exec_type
+    print(error, file=sys.stderr)
+    error = "use one of: %s" % ', '.join(VALID_EXEC_TYPE)
+    print(error, file=sys.stderr)
+    sys.exit(2)
+
+print("using executable type for 'hg':", exec_type)
+
+
 if os.name == 'nt':
     # We remove hg.bat if we are able to build hg.exe.
     scripts.append('contrib/win32/hg.bat')
@@ -1429,6 +1491,7 @@ setup(
     ),
     long_description_content_type='text/x-rst',
     scripts=scripts,
+    entry_points=entry_points,
     packages=packages,
     ext_modules=extmodules,
     package_data=packagedata,
