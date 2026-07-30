@@ -650,6 +650,11 @@ def getparser():
         help="use pure Python code instead of C extensions",
     )
     hgconf.add_argument(
+        "--hg-exec-type",
+        metavar="EXEC_TYPE",
+        help="how to create the `hg` executable",
+    )
+    hgconf.add_argument(
         "--rust",
         action="store_true",
         help="use Rust code alongside C extensions",
@@ -4035,6 +4040,12 @@ class TestRunner:
             setup_opts = b"--rust"
         elif self.options.no_rust:
             setup_opts = b"--no-rust"
+
+        if self.options.hg_exec_type is not None:
+            hg_exec_type = self.options.hg_exec_type.encode('ascii')
+            if setup_opts:
+                setup_opts += b" "
+            setup_opts += b"--hg-exec-type %s" % hg_exec_type
 
         script = _sys2bytes(os.path.realpath(sys.argv[0]))
         hgroot = os.path.dirname(os.path.dirname(script))
