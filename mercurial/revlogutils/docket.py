@@ -99,12 +99,6 @@ class BlockInfo:
     end = attr.ib(type=int, default=0)
     """The number of bytes marking the end of the active data"""
 
-    def copy(self) -> BlockInfo:
-        return self.__class__(
-            uuid=self.uuid,
-            end=self.end,
-        )
-
     def serialize(self, file_type: FileType) -> bytes:
         return S_ENTRY.pack(
             int(file_type),
@@ -137,9 +131,8 @@ class RevlogDocket:
     # short hand to avoid having to import the module all around
     FT = FileType
 
-    _initial: _BlockIndexT
+    _initial: _BlockIndexT | None
     _current: _BlockIndexT
-    _pending: _BlockIndexT
 
     def __init__(
         self,
@@ -155,36 +148,56 @@ class RevlogDocket:
     ):
         assert version_header is not None
         self._version_header: int = version_header
-        self._read_only: bool = bool(use_pending)
         self._dirty: bool = False
         self._radix: HgPathT = radix
         self._path: HgPathT = file_path
         self._opener: VfsT = vfs
+        self._initial: _BlockIndexT | None = None
         if blocks is None:
-            current, pending = {}, {}
+            base, pending = {}, {}
+            has_pending = False
         else:
-            current, pending = blocks
-        self._initial: _BlockIndexT = current
-        self._pending: _BlockIndexT = pending
+            base, pending = blocks
+            # if the pending data are different from the current data, we are
+            # reading a docket written during a pending transaction by another
+            # "process". We can't start updating data with such docket as we
+            # need to let the other process commit or rollback its transaction
+            # first. We will have to reload the docket with up to date
+            # information at that time.
+            #
+            # This means we have three case overall:
+            # - explicit use of `pending` data:
+            #   → read only use of  "pending"   data.
+            # - reading data that highlight another writer active:
+            #   → read only use of "current" data.
+            # - base == pending:
+            #   →  read write, base will not change, we will write the updated
+            #   version as pending.
+            has_pending = base != pending
 
-        for ft, block in sorted(current.items()):
-            assert ft in pending
-            if pending[ft].uuid == block.uuid:
-                assert block.end <= pending[ft].end
+            if has_pending:
+                for ft, block in sorted(base.items()):
+                    assert ft in pending
+                    if pending[ft].uuid == block.uuid:
+                        assert block.end <= pending[ft].end
 
         if use_pending:
-            self._current: _BlockIndexT = {
-                k: v.copy() for (k, v) in self._pending.items()
-            }
+            self._current = pending
+        elif has_pending:
+            self._current = base
         else:
-            self._current: _BlockIndexT = {
-                k: v.copy() for (k, v) in self._initial.items()
-            }
+            self._initial = base
+            self._current = pending
+
         if outdated_uuids is None:
             outdated_uuids = []
         self._outdated_uuids: list[tuple[FileType, _UuidT]] = outdated_uuids
         assert default_compression_header is not None
         self.default_compression_header = default_compression_header
+
+    @util.propertycache
+    def _read_only(self) -> bool:
+        return self._initial is None
 
     @util.propertycache
     def active_fts(self) -> tuple[FileType]:
@@ -259,6 +272,7 @@ class RevlogDocket:
             self._dirty = True
 
     def is_pending_offset(self, file_type: FileType, offset: int) -> bool:
+        assert self._initial is not None
         if file_type not in self._initial:
             return True
         assert file_type in self._current
