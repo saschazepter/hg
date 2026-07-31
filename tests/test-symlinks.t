@@ -340,23 +340,17 @@ filenodes match, so only the flag differs:
 
 symlink -> regular file:
 
-Bug: the absence of this file makes the next [hg update] crash.
-Avoid that, since that's not the bug we're trying to reproduce:
-  $ echo > ../target-content 'target-content-content'
   $ hg update -C -r 0 -q
   $ f --type f
   f: link
   $ hg update -r 1 -q
   $ f --type f
-  f: file (no-rust !)
-  f: link (rust known-bad-output !)
+  f: file
   $ cat f
-  target-content-content (rust known-bad-output !)
-  ../target-content (no-eol) (no-rust !)
+  ../target-content (no-eol)
 
   $ advance_fs_time
   $ hg status
-  M f (rust known-bad-output !)
 
 regular file -> symlink:
 

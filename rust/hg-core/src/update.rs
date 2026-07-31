@@ -5,6 +5,7 @@ use std::fs::Permissions;
 use std::io::Write;
 use std::ops::Deref;
 use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -46,6 +47,7 @@ use crate::sparse;
 use crate::utils::cap_default_rayon_threads;
 use crate::utils::files::filesystem_now;
 use crate::utils::files::find_dirs_recursive_no_root;
+use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::hg_path::HgPath;
@@ -382,10 +384,26 @@ pub fn apply_flags_to_file(
         return Ok(None);
     }
     if !flags_link && disk_link {
-        // Switch link to file
+        // Switch link to file: write the link target as the file contents
         let target = std::fs::read_link(path).when_reading_file(path)?;
+        let target_bytes = get_bytes_from_path(target);
         std::fs::remove_file(path).when_writing_file(path)?;
-        std::os::unix::fs::symlink(target, path).when_writing_file(path)?;
+        let mode = if flags_exec { 0o777 } else { 0o666 };
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(mode)
+            .open(path)
+            .when_writing_file(path)?;
+        f.write_all(&target_bytes).when_writing_file(path)?;
+        let meta = f.metadata().when_reading_file(path)?;
+        let truncated_timestamp =
+            TruncatedTimestamp::for_mtime_of(&meta).when_reading_file(path)?;
+        return Ok(Some((
+            meta.mode(),
+            meta.len().try_into().expect("file too large"),
+            truncated_timestamp,
+        )));
     }
     if meta.nlink() > 1 && flags_exec != disk_exec {
         // The file is a hardlink, break it
@@ -1524,6 +1542,73 @@ mod test {
 
     use super::*;
     use crate::revlog::manifest::ManifestFlags;
+
+    /// Convert a symlink into a regular file with `flags`, and assert
+    /// the file ends up with exactly the contents and  mode we expect.
+    /// `base_mode` is the mode `apply_flags_to_file` asks the kernel to
+    /// create the file with; the file's actual mode should be that with
+    /// the current umask applied.
+    fn check_link_to_file(flags: ManifestFlags, base_mode: u32) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f");
+        let target = b"some-other-file.txt";
+        std::os::unix::fs::symlink(get_path_from_bytes(target), &path).unwrap();
+
+        let res = apply_flags_to_file(&path, flags).unwrap();
+
+        let meta = path.symlink_metadata().unwrap();
+        assert!(meta.is_file(), "should now be a regular file, not a symlink");
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            target,
+            "file contents should be the former link target",
+        );
+
+        // The file is created with `base_mode`, so its actual mode is that
+        // with the process umask applied by the kernel at open time.
+        let expected_mode = base_mode & !get_umask();
+        assert_eq!(
+            meta.mode() & 0o777,
+            expected_mode,
+            "file mode should be the requested mode with umask applied",
+        );
+
+        // The conversion changed the file, so its metadata must be reported to
+        // the dirstate (otherwise `hg status` would show it as modified). The
+        // reported mode and size must match the file we just created.
+        let (reported_mode, reported_size, _mtime) =
+            res.expect("must report the new file's metadata to the dirstate");
+        assert_eq!(reported_mode, meta.mode(), "reported mode matches file");
+        assert_eq!(reported_size, target.len(), "reported size matches file");
+    }
+
+    #[test]
+    fn test_apply_flags_link_to_file() {
+        // A plain (non-exec) file is created with base mode 0o666.
+        check_link_to_file(ManifestFlags::new_empty(), 0o666);
+        // An executable file is created with base mode 0o777.
+        check_link_to_file(ManifestFlags::new_exec(), 0o777);
+    }
+
+    #[test]
+    fn test_apply_flags_file_to_link() {
+        // The reverse direction: a regular file whose contents are a path
+        // becomes a symlink to that path.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f");
+        let target = b"some-other-file.txt";
+        std::fs::write(&path, target).unwrap();
+
+        apply_flags_to_file(&path, ManifestFlags::new_link()).unwrap();
+
+        let meta = path.symlink_metadata().unwrap();
+        assert!(meta.is_symlink(), "should now be a symlink");
+        assert_eq!(
+            get_bytes_from_path(std::fs::read_link(&path).unwrap()),
+            target,
+            "symlink should point at the former file contents",
+        );
+    }
 
     #[test]
     fn test_chunk_tracked_files() {
