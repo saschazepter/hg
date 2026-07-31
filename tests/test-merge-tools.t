@@ -121,7 +121,7 @@ unexecutable file in $PATH shouldn't be found:
 
   $ echo "echo fail" > false
   $ hg up -qC 1
-  $ PATH="`pwd`:/usr/sbin" "$PYTHON" "$BINDIR"/hg merge -r 2
+  $ PATH="`pwd`:/usr/sbin" "$BINDIR"/hg merge -r 2
   merging f
   warning: conflicts while merging f! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
@@ -135,7 +135,7 @@ executable directory in $PATH shouldn't be found:
 
   $ mkdir false
   $ hg up -qC 1
-  $ PATH="`pwd`:/usr/sbin" "$PYTHON" "$BINDIR"/hg merge -r 2
+  $ PATH="`pwd`:/usr/sbin" "$BINDIR"/hg merge -r 2
   merging f
   warning: conflicts while merging f! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
