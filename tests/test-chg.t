@@ -41,6 +41,17 @@ ill-formed config
 
   $ cp $HGRCPATH.orig $HGRCPATH
 
+--config-file affecting the config hash should not cause a redirect loop
+
+  $ cat > config-file.rc <<'EOF'
+  > [alias]
+  > config-file-alias = version -q
+  > EOF
+  $ chg --config-file config-file.rc config alias.config-file-alias
+  chg: abort: too many redirections.
+  Please make sure * is not a wrapper which changes sensitive environment variables before executing hg. If you have to use a wrapper, wrap chg instead of hg. (glob)
+  [255]
+
 long socket path
 
   $ sockpath=$TESTTMP/this/path/should/be/longer/than/one-hundred-and-seven/characters/where/107/is/the/typical/size/limit/of/unix-domain-socket
