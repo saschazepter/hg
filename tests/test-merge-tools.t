@@ -71,10 +71,8 @@ default is internal merge:
   # hg update -C 1
 
 hg merge -r 2
-override $PATH to ensure hgmerge not visible; use $PYTHON in case we're
-running from a devel copy, not a temp installation
 
-  $ PATH="/usr/sbin" "$PYTHON" "$BINDIR"/hg merge -r 2
+  $ hg merge -r 2
   merging f
   warning: conflicts while merging f! (edit, then use 'hg resolve --mark')
   0 files updated, 0 files merged, 0 files removed, 1 files unresolved
