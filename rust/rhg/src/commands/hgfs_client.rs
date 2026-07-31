@@ -1,10 +1,15 @@
 //! `hgfs_client` is the client that interacts with the hg virtual-filesystem
 //! control server (`hgfs_server`).
 
+use std::ffi::OsString;
+use std::os::unix::ffi::OsStrExt;
+
 use clap::Arg;
+use clap::ArgMatches;
 use clap::Command;
 use vfs_api::DEFAULT_SOCKET_URI;
 use vfs_api::vfs::HealthRequest;
+use vfs_api::vfs::MountRequest;
 use vfs_api::vfs::vfs_control_client::VfsControlClient;
 
 use crate::error::CommandError;
@@ -24,41 +29,85 @@ pub fn args() -> clap::Command {
                     Arg::new("clone")
                         .long("clone")
                         .required(true)
+                        .value_parser(clap::value_parser!(OsString))
                         .help("path to the clone to serve"),
                 )
                 .arg(
                     Arg::new("mount")
                         .long("mount")
                         .required(true)
+                        .value_parser(clap::value_parser!(OsString))
                         .help("path to mount the virtual filesystem at"),
                 ),
         )
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
-    let (name, _sub_args) = invocation
+    let (name, sub_args) = invocation
         .subcommand_args
         .subcommand()
         .expect("subcommand is required");
 
-    dispatch(name).map_err(|e| {
+    dispatch(name, sub_args).map_err(|e| {
         CommandError::abort(format!("abort: hgfs-client error: {e}"))
     })
 }
 
 #[tokio::main]
-async fn dispatch(name: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn dispatch(
+    name: &str,
+    sub_args: &ArgMatches,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client =
+        VfsControlClient::connect(DEFAULT_SOCKET_URI).await.map_err(|e| {
+            format!("cannot reach hgfs-server (is it running?): {e}")
+        })?;
+
     match name {
         "health" => {
-            let mut client =
-                VfsControlClient::connect(DEFAULT_SOCKET_URI).await?;
-            let resp = client.health(HealthRequest {}).await?.into_inner();
+            let resp = client
+                .health(HealthRequest {})
+                .await
+                .map_err(map_status)?
+                .into_inner();
             println!("Health: version={} pid={}", resp.version, resp.pid);
         }
         "mount" => {
-            println!("hgfs-client mount: not implemented yet");
+            let clone = get_arg(sub_args, "clone");
+            let mount = get_arg(sub_args, "mount");
+            let request = MountRequest {
+                clone_path: clone.as_bytes().to_vec(),
+                mount_point: mount.as_bytes().to_vec(),
+            };
+            let resp =
+                client.mount(request).await.map_err(map_status)?.into_inner();
+            println!(
+                "mounted {} at {} (created {})",
+                clone.display(),
+                mount.display(),
+                format_time(resp.created_at)
+            );
         }
         other => return Err(format!("unknown subcommand: {other}").into()),
     }
     Ok(())
+}
+
+/// Map a gRPC failure to the bare message without tonic's verbose wrapper.
+fn map_status(status: tonic::Status) -> Box<dyn std::error::Error> {
+    status.message().to_string().into()
+}
+
+/// Format an epoch-seconds mount time as a UTC timestamp for display.
+fn format_time(secs: u64) -> String {
+    chrono::DateTime::from_timestamp(secs as i64, 0)
+        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+        .unwrap_or_else(|| secs.to_string())
+}
+
+fn get_arg(matches: &ArgMatches, name: &str) -> OsString {
+    matches
+        .get_one::<OsString>(name)
+        .cloned()
+        .expect("required argument is present")
 }
