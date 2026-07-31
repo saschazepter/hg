@@ -1,5 +1,5 @@
 [workspace]
-members = ["hg-core", "hg-pyo3", "rhg", "pyo3-sharedref", "hg-fuse"]
+members = ["hg-core", "hg-pyo3", "rhg", "pyo3-sharedref", "hg-fuse", "hg-bin"]
 exclude = ["chg", "hgcli"]
 resolver = "3"
 

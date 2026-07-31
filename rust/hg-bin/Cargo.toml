@@ -1,0 +1,14 @@
+[package]
+name = "hg-bin"
+version = "0.1.0"
+edition = "2024"
+description = "A small binary front desc for Mercurial"
+
+[dependencies]
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "hg"
+path = "src/main.rs"

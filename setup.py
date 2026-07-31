@@ -155,18 +155,32 @@ VALID_EXEC_TYPE = (
     "script",
     # pass `mercurial.__main__.run` as an entry point
     "entry-point",
+    # a minimal binary frontend that call the python after
+    "rust-front",
 )
 if exec_type == "default":
     exec_type = "script"
 
 scripts = []
 console_scripts = []
+rust_extensions = []
+
 entry_points = {'console_scripts': console_scripts}
 
 if exec_type == "script":
     scripts.append('hg')
 elif exec_type == "entry-point":
     console_scripts.append("hg = mercurial.__main__:run")
+elif exec_type == "rust-front":
+    from setuptools_rust import RustBin
+
+    rust_extensions.append(
+        RustBin(
+            "hg",
+            path="rust/hg-bin/Cargo.toml",
+        )
+    )
+    console_scripts.append(".__hg_internal__ = mercurial.__main__:run")
 else:
     error = "invalid hg-exec-type: %s" % exec_type
     print(error, file=sys.stderr)
@@ -1492,6 +1506,7 @@ setup(
     long_description_content_type='text/x-rst',
     scripts=scripts,
     entry_points=entry_points,
+    rust_extensions=rust_extensions,
     packages=packages,
     ext_modules=extmodules,
     package_data=packagedata,
