@@ -15,5 +15,11 @@ Start the server
 Health ping
 -----------
 
-  $ hg debug::hgfs-client
+  $ hg debug::hgfs-client health
   Health: version=* pid=* (glob)
+
+Mount is wired up but does not mount yet
+----------------------------------------
+
+  $ hg debug::hgfs-client mount --clone "$TESTTMP/clone" --mount "$TESTTMP/mnt"
+  hgfs-client mount: not implemented yet

@@ -4,10 +4,23 @@ package vfs;
 service VfsControl {
   // Check that the server is healthy and can be contacted.
   rpc Health (HealthRequest) returns (HealthResponse);
+
+  // Create a new mount at the given mount point, returning the new mount. Fails with
+  // ALREADY_EXISTS if the mount point is already in use.
+  rpc Mount (MountRequest) returns (MountResponse);
 }
 
 message HealthRequest {}
 message HealthResponse {
   string version = 1;
   uint32 pid = 2;
+}
+
+message MountRequest {
+  bytes clone_path = 1;
+  bytes mount_point = 2;
+}
+message MountResponse {
+  // When the mount was established, in seconds since the Unix epoch.
+  uint64 created_at = 1;
 }

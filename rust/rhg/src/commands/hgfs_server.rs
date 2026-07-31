@@ -9,6 +9,8 @@ use tonic::transport::Server;
 use vfs_api::DEFAULT_SOCKET;
 use vfs_api::vfs::HealthRequest;
 use vfs_api::vfs::HealthResponse;
+use vfs_api::vfs::MountRequest;
+use vfs_api::vfs::MountResponse;
 use vfs_api::vfs::vfs_control_server::VfsControl;
 use vfs_api::vfs::vfs_control_server::VfsControlServer;
 
@@ -34,6 +36,13 @@ impl VfsControl for VfsControlService {
             version: env!("CARGO_PKG_VERSION").to_string(),
             pid: std::process::id(),
         }))
+    }
+
+    async fn mount(
+        &self,
+        _req: Request<MountRequest>,
+    ) -> Result<Response<MountResponse>, Status> {
+        Err(Status::unimplemented("mount is not implemented yet"))
     }
 }
 
