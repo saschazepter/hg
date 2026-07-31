@@ -2065,6 +2065,7 @@ dependencies = [
  "fuser",
  "hg-core",
  "hg-fuse",
+ "hg-vfs",
  "home",
  "lazy_static",
  "libc",

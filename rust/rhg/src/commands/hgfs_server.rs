@@ -1,5 +1,16 @@
 //! `hgfs_server` is the hg virtual-filesystem control server.
 
+use std::sync::Arc;
+
+use hg::config::Config;
+use hg::errors::HgError;
+use hg::repo::Repo;
+use hg::utils::files::get_path_from_bytes;
+use hg_vfs::BackendMode;
+use hg_vfs::MountError;
+use hg_vfs::MountManager;
+use hg_vfs::MountOptions;
+use hg_vfs::SessionACL;
 use tokio::net::UnixListener;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::Request;
@@ -24,7 +35,12 @@ pub fn args() -> clap::Command {
 }
 
 /// gRPC service implementing the `VfsControl` interface.
-struct VfsControlService;
+struct VfsControlService {
+    /// Shared registry of live mounts.
+    manager: Arc<MountManager>,
+    /// Non-repo config, loaded once at startup and reused for every mount.
+    config: Arc<Config>,
+}
 
 #[tonic::async_trait]
 impl VfsControl for VfsControlService {
@@ -32,6 +48,7 @@ impl VfsControl for VfsControlService {
         &self,
         _req: Request<HealthRequest>,
     ) -> Result<Response<HealthResponse>, Status> {
+        tracing::info!("Health requested");
         Ok(Response::new(HealthResponse {
             version: env!("CARGO_PKG_VERSION").to_string(),
             pid: std::process::id(),
@@ -40,9 +57,63 @@ impl VfsControl for VfsControlService {
 
     async fn mount(
         &self,
-        _req: Request<MountRequest>,
+        req: Request<MountRequest>,
     ) -> Result<Response<MountResponse>, Status> {
-        Err(Status::unimplemented("mount is not implemented yet"))
+        let request = req.into_inner();
+        let clone_path = get_path_from_bytes(&request.clone_path).to_path_buf();
+        let mount_point =
+            get_path_from_bytes(&request.mount_point).to_path_buf();
+        tracing::info!(
+            clone_path = %clone_path.display(),
+            mount_point = %mount_point.display(),
+            "Mount requested"
+        );
+
+        let manager = Arc::clone(&self.manager);
+        let config = Arc::clone(&self.config);
+        let info = tokio::task::spawn_blocking(
+            move || -> Result<hg_vfs::MountInfo, Status> {
+                let repo = Repo::find(&config, Some(clone_path)).map_err(
+                    |e| match e {
+                        HgError::RepoNotFound { .. } => Status::not_found(
+                            format!("no repository at clone path: {e}"),
+                        ),
+                        _ => Status::internal(format!("opening clone: {e}")),
+                    },
+                )?;
+                manager
+                    .mount_all_revs(repo, mount_point, default_mount_options())
+                    .map_err(mount_error_to_status)
+            },
+        )
+        .await
+        .map_err(|e| Status::internal(format!("mount: {e}")))??;
+
+        Ok(Response::new(to_proto_mount_info(info)))
+    }
+}
+
+fn to_proto_mount_info(info: hg_vfs::MountInfo) -> MountResponse {
+    MountResponse { created_at: info.created_at }
+}
+
+fn mount_error_to_status(e: MountError) -> Status {
+    match e {
+        MountError::AlreadyMounted(path, _) => Status::already_exists(format!(
+            "already mounted at {}",
+            path.display()
+        )),
+        MountError::Hg(e) => Status::internal(e.to_string()),
+    }
+}
+
+fn default_mount_options() -> MountOptions {
+    MountOptions {
+        backend_mode: BackendMode::default(),
+        session_acl: SessionACL::Owner,
+        user_id: None,
+        group_id: None,
+        max_revisions_loaded: None,
     }
 }
 
@@ -57,8 +128,16 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     let listener = UnixListener::bind(DEFAULT_SOCKET)?;
     println!("hgfs-server listening on {DEFAULT_SOCKET}");
 
+    // Load the non-repo config once; every mount request reuses it.
+    let config = Arc::new(
+        Config::load_non_repo()
+            .map_err(|e| format!("loading config: {e:?}"))?,
+    );
+    let manager = Arc::new(MountManager::new());
+    let service = VfsControlService { manager, config };
+
     Server::builder()
-        .add_service(VfsControlServer::new(VfsControlService))
+        .add_service(VfsControlServer::new(service))
         .serve_with_incoming(UnixListenerStream::new(listener))
         .await?;
 
