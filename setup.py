@@ -1161,7 +1161,13 @@ class RustExtension(Extension):
         env['PYTHON_SYS_EXECUTABLE'] = sys.executable
         env['PYTHONEXECUTABLE'] = sys.executable
         env['PYTHON'] = sys.executable
-        env['PYO3_PYTHON'] = sys.executable
+        # PyO3 uses this environment variable as a re-compile trigger
+        # It only concerns itself with compile-time info to get information
+        # about the Python it's building against (like compilation flags, etc..
+        # None of this information can change in a virtualenv, so use the base
+        # interpreter path, otherwise we re-build PyO3 every single time, which
+        # can add tens of seconds to the build time for no reason.
+        env['PYO3_PYTHON'] = os.path.realpath(sys._base_executable)
 
         cargocmd = ['cargo', 'rustc', '--release']
 
