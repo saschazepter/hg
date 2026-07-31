@@ -16,6 +16,7 @@ full-tracing = [
     "hg-fuse/full-tracing",
     "dep:tracing-chrome",
 ]
+hgfs = ["dep:vfs-api", "dep:tonic", "dep:tokio", "dep:tokio-stream"]
 
 [dependencies]
 hg-core = { path = "../hg-core", default-features = false }
@@ -41,3 +42,9 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter"]}
 serde_json = "1.0.149"
 shlex = "1.3.0"
 parking_lot = "0.12.5"
+
+# Optional; part of the `hgfs` feature.
+vfs-api = { path = "../vfs-api", optional = true }
+tonic = { version = "0.13", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "signal"], optional = true }
+tokio-stream = { version = "0.1", features = ["net"], optional = true }

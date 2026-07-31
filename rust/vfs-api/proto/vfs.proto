@@ -1,0 +1,13 @@
+syntax = "proto3";
+package vfs;
+
+service VfsControl {
+  // Check that the server is healthy and can be contacted.
+  rpc Health (HealthRequest) returns (HealthResponse);
+}
+
+message HealthRequest {}
+message HealthResponse {
+  string version = 1;
+  uint32 pid = 2;
+}
