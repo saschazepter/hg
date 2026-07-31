@@ -201,8 +201,6 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
             data = None
         else:
             datafile = _rawdata_filepath(revlog, target_docket)
-            # EXP-TODO: if this is a cache, this should use a cache vfs, not a
-            # store vfs
             tr.add(datafile, target_docket.data_length)
             with revlog.opener(datafile, b'r+') as fd:
                 fd.seek(target_docket.data_length)
@@ -225,8 +223,6 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
             data = revlog.index.nodemap_data_all()
         else:
             data = persistent_data(revlog.index)
-        # EXP-TODO: if this is a cache, this should use a cache vfs, not a
-        # store vfs
 
         tryunlink = revlog.opener.tryunlink
 
@@ -249,8 +245,6 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
         target_docket.data_length = len(data)
     target_docket.tip_rev = revlog.tiprev()
     target_docket.tip_node = revlog.node(target_docket.tip_rev)
-    # EXP-TODO: if this is a cache, this should use a cache vfs, not a
-    # store vfs
     file_path = revlog._nodemap_file
     if pending:
         file_path += b'.a'
