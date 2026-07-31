@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
-use std::thread::available_parallelism;
 use std::time::Duration;
 
 use clap::Arg;
@@ -9,10 +8,7 @@ use clap::builder::EnumValueParser;
 use fuser::SessionACL;
 use hg::errors::IoResultExt;
 use hg::repo::Repo;
-use hg::utils::u32_u;
 use hg_fuse::fuse::HgFuse;
-use hg_fuse::server::Server;
-use hg_fuse::server::local::LocalBackend;
 use hg_fuse::server::store::BackendMode;
 use libc::SIGHUP;
 use libc::SIGINT;
@@ -114,15 +110,6 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         repo.config(),
         Some(repo.working_directory_path().to_path_buf()),
     )?;
-    let store = LocalBackend::new(backend_repo, backend_mode)?;
-    let server = Server::new(
-        store,
-        user_id,
-        group_id,
-        destination,
-        max_revisions_loaded,
-    )?;
-
     // Set up non-fatal signals to break our loop
     let should_terminate = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(SIGINT, Arc::clone(&should_terminate))
@@ -132,16 +119,16 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     signal_hook::flag::register(SIGHUP, Arc::clone(&should_terminate))
         .expect("signal should be valid to register");
 
-    let num_threads = repo
-        .config()
-        .get_u32(b"fuse", b"event-loop-threads")?
-        .map(u32_u)
-        .unwrap_or_else(|| {
-            let max_threads = available_parallelism();
-            max_threads.map(usize::from).unwrap_or(1)
-        });
     // Dropping this handle will unmount the filesystem
-    let session = HgFuse::mount(server, destination, session_acl, num_threads)?;
+    let session = HgFuse::mount_all_revs(
+        backend_repo,
+        destination,
+        backend_mode,
+        user_id,
+        group_id,
+        max_revisions_loaded,
+        session_acl,
+    )?;
     loop {
         std::thread::sleep(Duration::from_millis(250));
         let was_unmounted = session.guard.is_finished();

@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
+use std::thread::available_parallelism;
 use std::time::Duration;
 
 use fuser::BackgroundSession;
@@ -19,6 +20,7 @@ use fuser::SessionACL;
 use hg::Node;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
+use hg::repo::Repo;
 use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
 use hg::utils::u32_u;
@@ -26,6 +28,9 @@ use hg::utils::u64_u;
 
 use crate::server::ATTRIBUTES_FOR_NEGATIVE_LOOKUP;
 use crate::server::Server;
+use crate::server::local::LocalBackend;
+use crate::server::local::LocalToken;
+use crate::server::store::BackendMode;
 use crate::server::store::FileToken;
 use crate::server::store::RevisionIdx;
 use crate::server::store::StoreBackend;
@@ -75,6 +80,38 @@ impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
         };
         Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
+    }
+}
+
+impl HgFuse<LocalBackend, LocalToken> {
+    /// Mount `repo`'s read-only virtual filesystem at `destination`,
+    /// exposing every revision at once (under `commits/<rev>/`).
+    pub fn mount_all_revs(
+        repo: Repo,
+        destination: impl AsRef<Path>,
+        backend_mode: BackendMode,
+        user_id: Option<u32>,
+        group_id: Option<u32>,
+        max_revisions_loaded: Option<usize>,
+        session_acl: SessionACL,
+    ) -> Result<BackgroundSession, HgError> {
+        let mountpoint = destination.as_ref();
+        let thread_count = repo
+            .config()
+            .get_u32(b"fuse", b"event-loop-threads")?
+            .map(u32_u)
+            .unwrap_or_else(|| {
+                available_parallelism().map(usize::from).unwrap_or(1)
+            });
+        let store = LocalBackend::new(repo, backend_mode)?;
+        let server = Server::new(
+            store,
+            user_id,
+            group_id,
+            mountpoint,
+            max_revisions_loaded,
+        )?;
+        Self::mount(server, mountpoint, session_acl, thread_count)
     }
 }
 
