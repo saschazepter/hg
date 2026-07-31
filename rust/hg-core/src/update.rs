@@ -355,8 +355,8 @@ impl<'paths> MergeActions<'paths> {
 }
 
 /// Change the file to a symlink or set executable permissions, if any flag
-/// information asks for it, and return the mode, size and mtime for exec
-/// file changes.
+/// information asks for it. Return the new mode, size and mtime to put
+/// into dirstate, if any change was made.
 pub fn apply_flags_to_file(
     path: &Path,
     flags: ManifestFlags,
@@ -377,11 +377,16 @@ pub fn apply_flags_to_file(
             .is_err()
         {
             // failed to create the link, rewrite the file
-            std::fs::write(path, contents).when_writing_file(path)?;
-            return Ok(None);
+            std::fs::write(path, &contents).when_writing_file(path)?;
         }
-
-        return Ok(None);
+        let meta = path.symlink_metadata().when_reading_file(path)?;
+        let truncated_timestamp =
+            TruncatedTimestamp::for_mtime_of(&meta).when_reading_file(path)?;
+        return Ok(Some((
+            meta.mode(),
+            meta.len().try_into().expect("file too large"),
+            truncated_timestamp,
+        )));
     }
     if !flags_link && disk_link {
         // Switch link to file: write the link target as the file contents
@@ -1599,7 +1604,7 @@ mod test {
         let target = b"some-other-file.txt";
         std::fs::write(&path, target).unwrap();
 
-        apply_flags_to_file(&path, ManifestFlags::new_link()).unwrap();
+        let res = apply_flags_to_file(&path, ManifestFlags::new_link()).unwrap();
 
         let meta = path.symlink_metadata().unwrap();
         assert!(meta.is_symlink(), "should now be a symlink");
@@ -1608,6 +1613,9 @@ mod test {
             target,
             "symlink should point at the former file contents",
         );
+        let (reported_mode, ..) = res
+            .expect("must report the new symlink's metadata to the dirstate");
+        assert_eq!(reported_mode, meta.mode(), "reported mode matches symlink");
     }
 
     #[test]

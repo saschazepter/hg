@@ -362,6 +362,5 @@ regular file -> symlink:
 
   $ advance_fs_time
   $ hg status
-  M f (rust known-bad-output !)
 
   $ cd ..
