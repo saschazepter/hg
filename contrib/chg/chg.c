@@ -64,8 +64,9 @@ static size_t testsensitiveflag(const char *arg)
 		const char *name;
 		size_t narg;
 	} flags[] = {
-	    {"--config", 1},     {"--cwd", 1},       {"--repo", 1},
-	    {"--repository", 1}, {"--traceback", 0}, {"-R", 1},
+	    {"--config", 1}, {"--config-file", 1}, {"--cwd", 1},
+	    {"--repo", 1},   {"--repository", 1},  {"--traceback", 0},
+	    {"-R", 1},
 	};
 	size_t i;
 	for (i = 0; i < sizeof(flags) / sizeof(flags[0]); ++i) {

@@ -48,9 +48,7 @@ ill-formed config
   > config-file-alias = version -q
   > EOF
   $ chg --config-file config-file.rc config alias.config-file-alias
-  chg: abort: too many redirections.
-  Please make sure * is not a wrapper which changes sensitive environment variables before executing hg. If you have to use a wrapper, wrap chg instead of hg. (glob)
-  [255]
+  version -q
 
 long socket path
 
