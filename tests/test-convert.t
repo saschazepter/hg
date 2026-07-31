@@ -489,7 +489,7 @@ converting empty dir should fail "nicely
 override $PATH to ensure p4 not visible; use $PYTHON in case we're
 running from a devel copy, not a temp installation
 
-  $ PATH="$BINDIR" "$PYTHON" "$BINDIR"/hg convert emptydir
+  $ PATH="$BINDIR" hg convert emptydir
   assuming destination emptydir-hg
   initializing destination emptydir-hg repository
   emptydir does not look like a CVS checkout
