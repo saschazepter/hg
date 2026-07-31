@@ -592,14 +592,6 @@ Check that a failing transaction will properly revert the data (vacuum-mode=alwa
 Check abandoned transactions
 ----------------------------
 
-Helper to garbage collect data files
-  $ gc_data_files() {
-  >   uid=$(hg debugnodemap --changelog --metadata | grep '^uid:' | sed 's/uid: //')
-  >   rm -f $(ls .hg/store/00changelog*.nd | grep -v $uid)
-  >   uid=$(hg debugnodemap --manifest --metadata | grep '^uid:' | sed 's/uid: //')
-  >   rm -f $(ls .hg/store/00manifest*.nd | grep -v $uid)
-  > }
-
 Check that we can recover from an abandoned transaction (vacuum-mode=never)
 
 #if no-pure no-rust
@@ -631,7 +623,6 @@ The C implementation cannot do incremental updates.
 #endif
 
 Check that we can recover from an abandoned transaction (vacuum-mode=always)
-TODO: Clean up the extra data files, like the file index does.
 
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
@@ -657,14 +648,6 @@ TODO: Clean up the extra data files, like the file index does.
   data-unused: 0.369% (pure !)
   data-unused: 0.369% (rust !)
   data-unused: 0.000% (no-pure no-rust !)
-  $ f --size --sha256 .hg/store/00changelog-*.nd
-  .hg/store/00changelog-????????.nd: size=121088, sha256=8a534e4aaa488e42a61c1cad018590c3e6be5b0d844ac8bec52c442807794750 (glob) (pure !)
-  .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
-  .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=400e4f48c38713692c942331404a3f0d9dcbe0ff1e29c42ce764876407a393a6 (glob) (rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
-  .hg/store/00changelog-????????.nd: size=121088, sha256=8a534e4aaa488e42a61c1cad018590c3e6be5b0d844ac8bec52c442807794750 (glob) (no-pure no-rust !)
-  $ gc_data_files
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
@@ -713,13 +696,7 @@ Check aborted pull into a new repo with pretxnchangegroup hook
   adding manifests
   adding file changes
   transaction abort!
-  rollback failed - please run hg recover (pure known-bad-output !)
-  rollback failed - please run hg recover (rust known-bad-output !)
-  rollback completed (no-pure no-rust !)
-  (failure reason: attempted to truncate 00changelog-*.nd to 121088 bytes, but it was already 0 bytes (glob) (pure known-bad-output !)
-  (failure reason: attempted to truncate 00changelog-*.nd to 121088 bytes, but it was already 0 bytes (glob) (rust known-bad-output !)
-  ) (pure known-bad-output !)
-  ) (rust known-bad-output !)
+  rollback completed
   abort: requested abort-post-finalize
   [255]
 

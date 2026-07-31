@@ -247,16 +247,9 @@ def persist_nodemap(tr, revlog, pending=False, force=False):
         else:
             data = persistent_data(revlog.index)
 
-        tryunlink = revlog.opener.tryunlink
-
-        def abortck(tr):
-            tryunlink(datafile)
-
-        callback_id = b"delete-%s" % datafile
-
+        tr.add(datafile, 0)
         # some flavor of the transaction abort does not cleanup new file, it
         # simply empty them.
-        tr.addabort(callback_id, abortck)
         with revlog.opener(datafile, b'w+') as fd:
             fd.write(data)
             if feed_data:
