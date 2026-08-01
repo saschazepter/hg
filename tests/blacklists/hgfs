@@ -1,0 +1,7 @@
+# The hgfs daemon test needs rhg built with `--features hgfs`, which the default
+# CI rhg build does not enable, so it is skipped in CI via this blacklist.
+#
+# To run it locally, build a rhg with the feature first:
+#   cargo build --release -p rhg --features hgfs
+#   tests/run-tests.py --with-rhg rust/target/release/rhg test-hgfs-daemon.t
+test-hgfs-daemon.t
