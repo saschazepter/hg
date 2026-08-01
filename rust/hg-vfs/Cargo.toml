@@ -1,0 +1,16 @@
+[package]
+authors = ["Mercurial developers"]
+description = "Mount manager for the Mercurial virtual filesystem"
+edition = "2024"
+name = "hg-vfs"
+version = "0.1.0"
+
+[lints]
+workspace = true
+
+[dependencies]
+derive_more = { version = "2.1.1", features = ["from"] }
+fuser = "0.17.0"
+hg-core = {path = "../hg-core"}
+hg-fuse = {path = "../hg-fuse"}
+parking_lot = "0.12.5"

@@ -8,6 +8,7 @@ members = [
     "hg-bin",
     "jif",
     "vfs-api",
+    "hg-vfs",
 ]
 exclude = [
     "chg",
