@@ -55,8 +55,10 @@ Mounting a nonexistent mount point fails
   abort: hgfs-client error: * (glob)
   [255]
 
-Cleanup
--------
+Graceful shutdown unmounts
+--------------------------
 
   $ cd "$TESTTMP"
-  $ fusermount -u "$TESTTMP/mnt"
+  $ killdaemons.py
+  $ mount | grep "hgvfs on $TESTTMP/mnt" || echo "not mounted"
+  not mounted

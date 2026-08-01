@@ -12,6 +12,9 @@ use hg_vfs::MountManager;
 use hg_vfs::MountOptions;
 use hg_vfs::SessionACL;
 use tokio::net::UnixListener;
+use tokio::signal::unix::Signal;
+use tokio::signal::unix::SignalKind;
+use tokio::signal::unix::signal;
 use tokio_stream::wrappers::UnixListenerStream;
 use tonic::Request;
 use tonic::Response;
@@ -138,8 +141,35 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
 
     Server::builder()
         .add_service(VfsControlServer::new(service))
-        .serve_with_incoming(UnixListenerStream::new(listener))
+        .serve_with_incoming_shutdown(
+            UnixListenerStream::new(listener),
+            shutdown_signal(),
+        )
         .await?;
 
     Ok(())
+}
+
+async fn shutdown_signal() {
+    fn listen(kind: SignalKind, name: &str) -> Option<Signal> {
+        match signal(kind) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                tracing::error!("failed to create a listener for {name}: {e}");
+                None
+            }
+        }
+    }
+    let (Some(mut sigterm), Some(mut sigint), Some(mut sighup)) = (
+        listen(SignalKind::terminate(), "SIGTERM"),
+        listen(SignalKind::interrupt(), "SIGINT"),
+        listen(SignalKind::hangup(), "SIGHUP"),
+    ) else {
+        return;
+    };
+    tokio::select! {
+        _ = sigterm.recv() => {}
+        _ = sigint.recv() => {}
+        _ = sighup.recv() => {}
+    }
 }
