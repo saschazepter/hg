@@ -8,6 +8,7 @@ use hg::file_patterns::parse_one_pattern;
 use hg::narrow::shape::Shape;
 use hg::narrow::shape::ShardTreeNode;
 use hg::narrow::shape::StoreShards;
+use hg::utils::hg_path::HgPathBuf;
 use hg::utils::strings::SliceExt;
 use pyo3::Bound;
 use pyo3::PyResult;
@@ -49,20 +50,38 @@ impl PyShape {
 
     /// The patterns as expected by legacy narrow code, i.e. a tuple of lists
     /// of file patterns.
-    pub fn patterns(&self, py: Python) -> (Vec<Py<PyBytes>>, Vec<Py<PyBytes>>) {
+    pub fn patterns(&self, py: Python) -> PyNarrowPatterns {
         let (includes, excludes) = self.inner.patterns();
-        (
-            includes
-                .iter()
-                .map(|path| PyBytes::new(py, path.as_bytes()).unbind())
-                .collect(),
-            excludes
-                .iter()
-                .map(|path| PyBytes::new(py, path.as_bytes()).unbind())
-                .collect(),
-        )
+        patterns_to_python(py, includes, excludes)
+    }
+
+    /// Serialize this shape for use in the wireprotocol
+    pub fn serialized(&self, py: Python) -> PyResult<Py<PyBytes>> {
+        PyBytes::new_with_writer(py, 0, |writer| {
+            Ok(self.inner.serialize(writer)?)
+        })
+        .map(|b| b.unbind())
     }
 }
+
+fn patterns_to_python(
+    py: Python,
+    includes: Vec<HgPathBuf>,
+    excludes: Vec<HgPathBuf>,
+) -> PyNarrowPatterns {
+    (
+        includes
+            .iter()
+            .map(|path| PyBytes::new(py, path.as_bytes()).unbind())
+            .collect(),
+        excludes
+            .iter()
+            .map(|path| PyBytes::new(py, path.as_bytes()).unbind())
+            .collect(),
+    )
+}
+
+type PyNarrowPatterns = (Vec<Py<PyBytes>>, Vec<Py<PyBytes>>);
 
 /// A useful object to query the shapes for this repo's store
 #[pyclass(frozen, name = "StoreShards")]
@@ -99,6 +118,13 @@ pub fn get_store_shards(repo_path: &Bound<PyBytes>) -> PyResult<PyStoreShards> {
     let inner =
         StoreShards::from_repo_config(&repo).into_pyerr(repo_path.py())?;
     Ok(PyStoreShards { inner })
+}
+
+#[pyfunction]
+fn deserialize(py: Python, serialized: &[u8]) -> PyResult<PyNarrowPatterns> {
+    let (includes, excludes) =
+        ShardTreeNode::deserialize(serialized).into_pyerr(py)?;
+    Ok(patterns_to_python(py, includes, excludes))
 }
 
 /// Return the fingerprint for the given include and exclude patterns. Returns
@@ -145,6 +171,7 @@ pub fn init_module<'py>(
     m.add_class::<PyStoreShards>()?;
     m.add_function(wrap_pyfunction!(get_store_shards, &m)?)?;
     m.add_function(wrap_pyfunction!(fingerprint_for_patterns, &m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize, &m)?)?;
 
     Ok(m)
 }

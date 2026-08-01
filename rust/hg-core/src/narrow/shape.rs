@@ -29,6 +29,7 @@ use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::hg_path::ZeroPath;
+use crate::utils::u64_u;
 
 lazy_static! {
     /// Only lower case ASCII alpha num, `-` and `.`
@@ -72,6 +73,35 @@ pub enum ErrorKind {
     UnknownVersion(usize),
     /// The config failed to parse, here is the error
     ParseError(toml::de::Error),
+    /// Deserialization of the shape failed
+    Deserialization(DeserializationError),
+}
+
+/// All error cases specific to shape deserialization
+#[derive(Debug, PartialEq)]
+pub enum DeserializationError {
+    /// Missing/incorrect magic marker
+    InvalidMarker,
+    /// Missing/Invalid number of paths
+    InvalidLength,
+    /// Missing/Invalid path prefix
+    InvalidPrefix {
+        /// The raw prefix bytes
+        prefix: Vec<u8>,
+    },
+    /// More paths found in the data than expected
+    TooManyPaths {
+        /// The expected number of paths
+        expected: u64,
+        /// How many paths we found
+        got: usize,
+    },
+}
+
+impl From<DeserializationError> for Error {
+    fn from(value: DeserializationError) -> Self {
+        Self::from(ErrorKind::Deserialization(value))
+    }
 }
 
 /// Error specific to handling shapes
@@ -394,6 +424,10 @@ impl Shape {
         self.tree.fingerprint()
     }
 
+    pub fn serialize(&self, buf: impl Write) -> Result<(), std::io::Error> {
+        self.tree.serialize(buf)
+    }
+
     pub fn patterns(&self) -> (Vec<HgPathBuf>, Vec<HgPathBuf>) {
         self.tree.flat()
     }
@@ -490,6 +524,13 @@ impl TempShardTreeNode {
         }
     }
 }
+
+/// Magic marker to help identify the format easily
+const SERIALIZATION_MARKER: &[u8; 9] = b"shape-v1\n";
+/// Serialization prefix for included paths
+const PREFIX_INCLUDE: &[u8] = b"inc/";
+/// Serialization prefix for excluded paths
+const PREFIX_EXCLUDE: &[u8] = b"exc/";
 
 /// A node within a tree of narrow patterns.
 ///
@@ -713,10 +754,10 @@ impl ShardTreeNode {
     ///   - `<MARKER>` is either the literal ascii bytes `inc` or `exc`,
     ///     depending on whether this path is included or excluded
     ///   - `<PATH>` is the raw bytes of each path, rooted at the empty path
-    fn serialize(&self, mut buf: impl Write) -> Result<(), std::io::Error> {
+    pub fn serialize(&self, mut buf: impl Write) -> Result<(), std::io::Error> {
         let (includes, excludes) = self.flat();
 
-        buf.write_all(b"shape-v1\n")?;
+        buf.write_all(SERIALIZATION_MARKER)?;
         let sorted_paths = includes
             .into_iter()
             .map(|i| (i, true))
@@ -728,13 +769,75 @@ impl ShardTreeNode {
             sorted_paths.len().try_into().expect("too many paths");
         buf.write_all(&number_of_paths.to_le_bytes())?;
         for (path, included) in sorted_paths {
-            buf.write_all(if included { b"inc" } else { b"exc" })?;
-            buf.write_all(b"/")?;
+            buf.write_all(if included {
+                PREFIX_INCLUDE
+            } else {
+                PREFIX_EXCLUDE
+            })?;
             buf.write_all(path.as_bytes())?;
             buf.write_all(b"\n")?;
         }
 
         Ok(())
+    }
+
+    /// Returns the includes and exclude paths, by doing the reverse operation
+    /// of [`Self::serialize`]
+    pub fn deserialize(
+        serialized: &[u8],
+    ) -> Result<(Vec<HgPathBuf>, Vec<HgPathBuf>), Error> {
+        let Some(rest) = serialized.strip_prefix(SERIALIZATION_MARKER) else {
+            return Err(DeserializationError::InvalidMarker)?;
+        };
+
+        let (int_bytes, rest) = rest.split_at(size_of::<u64>());
+        let len = u64::from_le_bytes(
+            int_bytes
+                .try_into()
+                .map_err(|_| DeserializationError::InvalidLength)?,
+        );
+
+        let mut includes = vec![];
+        let mut excludes = vec![];
+
+        for (idx, line) in rest.split(|b| *b == b'\n').enumerate() {
+            if idx >= u64_u(len) {
+                // There must be an empty line
+                if idx == u64_u(len) && line.is_empty() {
+                    // Don't break, let it fail if it loops more than expected
+                    continue;
+                } else {
+                    return Err(DeserializationError::TooManyPaths {
+                        expected: len,
+                        got: rest.split(|b| *b == b'\n').count(),
+                    })?;
+                }
+            }
+            let Some((prefix, path)) = line.split_at_checked(4) else {
+                return Err(DeserializationError::InvalidPrefix {
+                    prefix: line.to_vec(),
+                })?;
+            };
+            let hg_path = HgPathBuf::from_bytes(path);
+            hg_path
+                .check_state()
+                .map_err(|e| ErrorKind::InvalidPath(e.into()))?;
+            match prefix {
+                PREFIX_INCLUDE => {
+                    includes.push(hg_path);
+                }
+                PREFIX_EXCLUDE => {
+                    excludes.push(hg_path);
+                }
+                prefix => {
+                    return Err(DeserializationError::InvalidPrefix {
+                        prefix: prefix.to_vec(),
+                    })?;
+                }
+            }
+        }
+
+        Ok((includes, excludes))
     }
 }
 
@@ -926,6 +1029,21 @@ mod tests {
                 .collect::<Vec<_>>(),
         );
         (store_shards, all_shape_names)
+    }
+
+    #[test]
+    fn test_serialization() {
+        let (store_shards, _) = valid_store_shards();
+        for (name, shard) in store_shards.shards.iter() {
+            let mut serialized = vec![];
+            let internal_shape =
+                Shape::new(name.to_owned(), &store_shards, &[shard]).unwrap();
+            let patterns = internal_shape.patterns();
+            internal_shape.tree.serialize(&mut serialized).unwrap();
+            let patterns_from_serialized =
+                ShardTreeNode::deserialize(&serialized).unwrap();
+            assert_eq!(patterns, patterns_from_serialized);
+        }
     }
 
     #[test]

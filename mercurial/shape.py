@@ -8,8 +8,10 @@ import itertools
 import struct
 import typing
 
+from .i18n import _
 from .thirdparty import attr
 from . import (
+    error,
     match as matchmod,
     pycompat,
     util,
@@ -142,7 +144,7 @@ class ShardTreeNode:
         for a semantically different node, allowing for quick comparison."""
         includes, excludes = self.flat()
 
-        buf = [b"shape-v1\n"]
+        buf = [SERIALIZATION_SHAPE_MARKER]
         sorted_paths = sorted(
             itertools.chain(includes, excludes), key=lambda x: zero_path(x)
         )
@@ -150,10 +152,66 @@ class ShardTreeNode:
         buf.append(struct.pack(b"<Q", len(sorted_paths)))
 
         for path in sorted_paths:
-            prefix = b"inc/" if path in includes else b"exc/"
+            prefix = PREFIX_INCLUDE if path in includes else PREFIX_EXCLUDE
             buf.append(b"%s%s\n" % (prefix, path))
 
         return pycompat.sysbytes(hashlib.sha256(b"".join(buf)).hexdigest())
+
+
+# Magic marker to help identify the format easily
+SERIALIZATION_SHAPE_MARKER = b"shape-v1\n"
+# Serialization prefix for included paths
+PREFIX_INCLUDE = b"inc/"
+# Serialization prefix for excluded paths
+PREFIX_EXCLUDE = b"exc/"
+
+
+def deserialize(data: bytes) -> tuple[list[bytes], list[bytes]]:
+    """Returns the includes and exclude paths, by doing the reverse operation
+    of the serialization used for fingerprints"""
+    rest = data.removeprefix(SERIALIZATION_SHAPE_MARKER)
+    if rest == data:
+        raise error.Abort(_(b"error deserializing shape: missing marker"))
+
+    SIZE_OF_LEN = 8
+    int_buffer = rest[:SIZE_OF_LEN]
+    if len(int_buffer) < SIZE_OF_LEN:
+        raise error.Abort(_(b"error deserializing shape: invalid length"))
+    length = int.from_bytes(int_buffer, byteorder='little', signed=False)
+
+    rest = rest[SIZE_OF_LEN:]
+    includes = []
+    excludes = []
+
+    SIZE_OF_PREFIXES = 4
+
+    for idx, line in enumerate(rest.splitlines()):
+        if idx >= length:
+            # There must be an empty line
+            if idx == length and not line:
+                # Don't break, let it fail if it loops more than expected
+                continue
+            else:
+                msg = _(
+                    b"error deserializing shape: too many paths, "
+                    b"expected %d, got %d"
+                )
+                raise error.Abort(msg % (length, len(rest.splitlines())))
+        prefix = line[:SIZE_OF_PREFIXES]
+        if len(prefix) < SIZE_OF_PREFIXES:
+            msg = _(b"error deserializing shape: invalid prefix '%s'")
+            raise error.Abort(msg % prefix)
+
+        path = line[SIZE_OF_PREFIXES:]
+        if prefix == PREFIX_EXCLUDE:
+            excludes.append(path)
+        elif prefix == PREFIX_INCLUDE:
+            includes.append(path)
+        else:
+            msg = _(b"error deserializing shape: invalid prefix '%s'")
+            raise error.Abort(msg % prefix)
+
+    return (includes, excludes)
 
 
 def zero_path(path: bytes) -> bytes:

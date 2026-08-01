@@ -14,6 +14,7 @@ use crate::exit_codes;
 use crate::file_index::Error as FileIndexError;
 use crate::file_index::ErrorKind as FileIndexErrorKind;
 use crate::file_patterns::PatternError;
+use crate::narrow::shape::DeserializationError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
 use crate::revlog::RevlogError;
@@ -526,6 +527,32 @@ impl fmt::Display for HgError {
                     }
                     ShapeErrorKind::PatternError(err) => {
                         return format_pattern_error(f, err);
+                    }
+                    ShapeErrorKind::Deserialization(deserialization_error) => {
+                        let mut msg =
+                            format!("{backtrace}error deserializing shape:\n");
+                        match deserialization_error {
+                            DeserializationError::InvalidMarker => {
+                                write!(msg, "missing marker")?;
+                            }
+                            DeserializationError::InvalidLength => {
+                                write!(msg, "invalid length")?;
+                            }
+                            DeserializationError::InvalidPrefix { prefix } => {
+                                write!(msg, "invalid prefix {:?}", prefix)?;
+                            }
+                            DeserializationError::TooManyPaths {
+                                expected,
+                                got,
+                            } => {
+                                write!(
+                                    msg,
+                                    "too much data (expected: {}, got {})",
+                                    expected, got
+                                )?;
+                            }
+                        }
+                        msg
                     }
                 };
                 f.write_str(&msg)
