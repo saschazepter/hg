@@ -48,6 +48,21 @@ Mounting again at the same point is rejected
   abort: hgfs-client error: already mounted at * (glob)
   [255]
 
+Unmount
+-------
+
+  $ hg debug::hgfs-client unmount --mount "$TESTTMP/mnt"
+  unmounted $TESTTMP/mnt
+  $ mount | grep "hgvfs on $TESTTMP/mnt" || echo "not mounted"
+  not mounted
+
+Unmounting an unknown path fails cleanly
+----------------------------------------
+
+  $ hg debug::hgfs-client unmount --mount "$TESTTMP/mnt"
+  abort: hgfs-client error: nothing mounted at * (glob)
+  [255]
+
 Mounting a nonexistent mount point fails
 ----------------------------------------
 
@@ -58,6 +73,8 @@ Mounting a nonexistent mount point fails
 Graceful shutdown unmounts
 --------------------------
 
+  $ hg debug::hgfs-client mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt"
+  mounted */source at */mnt (created * UTC) (glob)
   $ cd "$TESTTMP"
   $ killdaemons.py
   $ mount | grep "hgvfs on $TESTTMP/mnt" || echo "not mounted"

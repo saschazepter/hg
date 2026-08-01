@@ -25,6 +25,8 @@ use vfs_api::vfs::HealthRequest;
 use vfs_api::vfs::HealthResponse;
 use vfs_api::vfs::MountRequest;
 use vfs_api::vfs::MountResponse;
+use vfs_api::vfs::UnmountRequest;
+use vfs_api::vfs::UnmountResponse;
 use vfs_api::vfs::vfs_control_server::VfsControl;
 use vfs_api::vfs::vfs_control_server::VfsControlServer;
 
@@ -94,6 +96,21 @@ impl VfsControl for VfsControlService {
 
         Ok(Response::new(to_proto_mount_info(info)))
     }
+
+    async fn unmount(
+        &self,
+        req: Request<UnmountRequest>,
+    ) -> Result<Response<UnmountResponse>, Status> {
+        let mount_point =
+            get_path_from_bytes(&req.into_inner().mount_point).to_path_buf();
+        tracing::info!(mount_point = %mount_point.display(), "Unmount requested");
+        let manager = Arc::clone(&self.manager);
+        tokio::task::spawn_blocking(move || manager.unmount(&mount_point))
+            .await
+            .map_err(|e| Status::internal(format!("unmount: {e}")))?
+            .map_err(mount_error_to_status)?;
+        Ok(Response::new(UnmountResponse {}))
+    }
 }
 
 fn to_proto_mount_info(info: hg_vfs::MountInfo) -> MountResponse {
@@ -107,6 +124,12 @@ fn mount_error_to_status(e: MountError) -> Status {
             path.display()
         )),
         MountError::Hg(e) => Status::internal(e.to_string()),
+        MountError::NotMounted(path, _) => {
+            Status::not_found(format!("nothing mounted at {}", path.display()))
+        }
+        MountError::Unmount(e, _) => {
+            Status::internal(format!("unmount failed: {e}"))
+        }
     }
 }
 

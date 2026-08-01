@@ -10,6 +10,8 @@ use clap::Command;
 use vfs_api::DEFAULT_SOCKET_URI;
 use vfs_api::vfs::HealthRequest;
 use vfs_api::vfs::MountRequest;
+use vfs_api::vfs::UnmountRequest;
+use vfs_api::vfs::UnmountResponse;
 use vfs_api::vfs::vfs_control_client::VfsControlClient;
 
 use crate::error::CommandError;
@@ -39,6 +41,15 @@ pub fn args() -> clap::Command {
                         .value_parser(clap::value_parser!(OsString))
                         .help("path to mount the virtual filesystem at"),
                 ),
+        )
+        .subcommand(
+            Command::new("unmount").about("unmount a virtual filesystem").arg(
+                Arg::new("mount")
+                    .long("mount")
+                    .required(true)
+                    .value_parser(clap::value_parser!(OsString))
+                    .help("mount point to unmount"),
+            ),
         )
 }
 
@@ -87,6 +98,14 @@ async fn dispatch(
                 mount.display(),
                 format_time(resp.created_at)
             );
+        }
+        "unmount" => {
+            let mount_point = get_arg(sub_args, "mount");
+            let request =
+                UnmountRequest { mount_point: mount_point.as_bytes().to_vec() };
+            let UnmountResponse {} =
+                client.unmount(request).await.map_err(map_status)?.into_inner();
+            println!("unmounted {}", mount_point.display());
         }
         other => return Err(format!("unknown subcommand: {other}").into()),
     }

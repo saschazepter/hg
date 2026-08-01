@@ -8,6 +8,9 @@ service VfsControl {
   // Create a new mount at the given mount point, returning the new mount. Fails with
   // ALREADY_EXISTS if the mount point is already in use.
   rpc Mount (MountRequest) returns (MountResponse);
+
+  // Unmount the given mount point. Fails with NOT_FOUND if nothing is mounted there.
+  rpc Unmount (UnmountRequest) returns (UnmountResponse);
 }
 
 message HealthRequest {}
@@ -24,3 +27,8 @@ message MountResponse {
   // When the mount was established, in seconds since the Unix epoch.
   uint64 created_at = 1;
 }
+
+message UnmountRequest {
+  bytes mount_point = 1;
+}
+message UnmountResponse {}

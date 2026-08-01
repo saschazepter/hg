@@ -40,7 +40,7 @@ pub struct MountInfo {
     pub created_at: u64,
 }
 
-/// Why a mount failed.
+/// Why a mount or unmount failed.
 #[derive(Debug, derive_more::From)]
 pub enum MountError {
     /// A filesystem is already mounted at this point.
@@ -48,6 +48,10 @@ pub enum MountError {
     /// Setting up the backend or FUSE session failed.
     #[from]
     Hg(HgError),
+    /// Nothing is mounted at this mount point.
+    NotMounted(PathBuf, HgBacktrace),
+    /// Unmounting (the umount syscall or the session thread-join) failed.
+    Unmount(std::io::Error, HgBacktrace),
 }
 
 /// Registry of live read-only FUSE mounts, keyed by mount point.
@@ -104,6 +108,22 @@ impl MountManager {
         };
         mounts.insert(mount_point, session);
         Ok(info)
+    }
+
+    /// Unmount the filesystem at `mount_point`.
+    ///
+    /// Errors with `NotMounted` if nothing is mounted there, or `Unmount` if
+    /// the umount syscall or the session thread-join fails.
+    pub fn unmount(&self, mount_point: &Path) -> Result<(), MountError> {
+        let mount_point = canonical_mount_point(mount_point);
+        let session =
+            self.mounts.lock().remove(&mount_point).ok_or_else(|| {
+                MountError::NotMounted(mount_point, HgBacktrace::capture())
+            })?;
+        session
+            .umount_and_join()
+            .map_err(|e| MountError::Unmount(e, HgBacktrace::capture()))?;
+        Ok(())
     }
 }
 
