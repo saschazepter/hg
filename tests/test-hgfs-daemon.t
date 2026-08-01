@@ -48,6 +48,12 @@ Mounting again at the same point is rejected
   abort: hgfs-client error: already mounted at * (glob)
   [255]
 
+List shows the mount
+--------------------
+
+  $ hg debug::hgfs-client list
+  */mnt clone=*/source created=* (glob)
+
 Unmount
 -------
 
@@ -55,6 +61,12 @@ Unmount
   unmounted $TESTTMP/mnt
   $ mount | grep "hgvfs on $TESTTMP/mnt" || echo "not mounted"
   not mounted
+
+List is now empty
+-----------------
+
+  $ hg debug::hgfs-client list
+  no mounts
 
 Unmounting an unknown path fails cleanly
 ----------------------------------------

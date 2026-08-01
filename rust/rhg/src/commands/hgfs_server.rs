@@ -5,6 +5,7 @@ use std::sync::Arc;
 use hg::config::Config;
 use hg::errors::HgError;
 use hg::repo::Repo;
+use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
 use hg_vfs::BackendMode;
 use hg_vfs::MountError;
@@ -23,8 +24,10 @@ use tonic::transport::Server;
 use vfs_api::DEFAULT_SOCKET;
 use vfs_api::vfs::HealthRequest;
 use vfs_api::vfs::HealthResponse;
+use vfs_api::vfs::ListMountsRequest;
+use vfs_api::vfs::ListMountsResponse;
+use vfs_api::vfs::MountInfo;
 use vfs_api::vfs::MountRequest;
-use vfs_api::vfs::MountResponse;
 use vfs_api::vfs::UnmountRequest;
 use vfs_api::vfs::UnmountResponse;
 use vfs_api::vfs::vfs_control_server::VfsControl;
@@ -63,7 +66,7 @@ impl VfsControl for VfsControlService {
     async fn mount(
         &self,
         req: Request<MountRequest>,
-    ) -> Result<Response<MountResponse>, Status> {
+    ) -> Result<Response<MountInfo>, Status> {
         let request = req.into_inner();
         let clone_path = get_path_from_bytes(&request.clone_path).to_path_buf();
         let mount_point =
@@ -111,10 +114,31 @@ impl VfsControl for VfsControlService {
             .map_err(mount_error_to_status)?;
         Ok(Response::new(UnmountResponse {}))
     }
+
+    async fn list_mounts(
+        &self,
+        _req: Request<ListMountsRequest>,
+    ) -> Result<Response<ListMountsResponse>, Status> {
+        let manager = Arc::clone(&self.manager);
+        let mounts = tokio::task::spawn_blocking(move || {
+            manager
+                .list_mounts()
+                .into_iter()
+                .map(to_proto_mount_info)
+                .collect::<Vec<MountInfo>>()
+        })
+        .await
+        .map_err(|e| Status::internal(format!("list mounts: {e}")))?;
+        Ok(Response::new(ListMountsResponse { mounts }))
+    }
 }
 
-fn to_proto_mount_info(info: hg_vfs::MountInfo) -> MountResponse {
-    MountResponse { created_at: info.created_at }
+fn to_proto_mount_info(info: hg_vfs::MountInfo) -> MountInfo {
+    MountInfo {
+        created_at: info.created_at,
+        clone_path: get_bytes_from_path(&info.clone_path),
+        mount_point: get_bytes_from_path(&info.mount_point),
+    }
 }
 
 fn mount_error_to_status(e: MountError) -> Status {

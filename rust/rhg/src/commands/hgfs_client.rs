@@ -7,8 +7,10 @@ use std::os::unix::ffi::OsStrExt;
 use clap::Arg;
 use clap::ArgMatches;
 use clap::Command;
+use hg::utils::files::get_path_from_bytes;
 use vfs_api::DEFAULT_SOCKET_URI;
 use vfs_api::vfs::HealthRequest;
+use vfs_api::vfs::ListMountsRequest;
 use vfs_api::vfs::MountRequest;
 use vfs_api::vfs::UnmountRequest;
 use vfs_api::vfs::UnmountResponse;
@@ -51,6 +53,7 @@ pub fn args() -> clap::Command {
                     .help("mount point to unmount"),
             ),
         )
+        .subcommand(Command::new("list").about("list current mounts"))
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
@@ -106,6 +109,25 @@ async fn dispatch(
             let UnmountResponse {} =
                 client.unmount(request).await.map_err(map_status)?.into_inner();
             println!("unmounted {}", mount_point.display());
+        }
+        "list" => {
+            let resp = client
+                .list_mounts(ListMountsRequest {})
+                .await
+                .map_err(map_status)?
+                .into_inner();
+            if resp.mounts.is_empty() {
+                println!("no mounts");
+            } else {
+                for m in resp.mounts {
+                    println!(
+                        "{} clone={} created={}",
+                        get_path_from_bytes(&m.mount_point).display(),
+                        get_path_from_bytes(&m.clone_path).display(),
+                        format_time(m.created_at)
+                    );
+                }
+            }
         }
         other => return Err(format!("unknown subcommand: {other}").into()),
     }

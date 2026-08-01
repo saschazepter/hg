@@ -54,10 +54,18 @@ pub enum MountError {
     Unmount(std::io::Error, HgBacktrace),
 }
 
+/// Handle for a live mount.
+struct MountHandle {
+    /// The live FUSE session; unmounts on drop.
+    session: BackgroundSession,
+    /// Metadata reported by `list_mounts`.
+    info: MountInfo,
+}
+
 /// Registry of live read-only FUSE mounts, keyed by mount point.
 #[derive(Default)]
 pub struct MountManager {
-    mounts: Mutex<HashMap<PathBuf, BackgroundSession>>,
+    mounts: Mutex<HashMap<PathBuf, MountHandle>>,
 }
 
 impl MountManager {
@@ -106,7 +114,7 @@ impl MountManager {
             mount_point: mount_point.clone(),
             created_at,
         };
-        mounts.insert(mount_point, session);
+        mounts.insert(mount_point, MountHandle { session, info: info.clone() });
         Ok(info)
     }
 
@@ -116,14 +124,20 @@ impl MountManager {
     /// the umount syscall or the session thread-join fails.
     pub fn unmount(&self, mount_point: &Path) -> Result<(), MountError> {
         let mount_point = canonical_mount_point(mount_point);
-        let session =
+        let handle =
             self.mounts.lock().remove(&mount_point).ok_or_else(|| {
                 MountError::NotMounted(mount_point, HgBacktrace::capture())
             })?;
-        session
+        handle
+            .session
             .umount_and_join()
             .map_err(|e| MountError::Unmount(e, HgBacktrace::capture()))?;
         Ok(())
+    }
+
+    /// Return the info for every live mount.
+    pub fn list_mounts(&self) -> Vec<MountInfo> {
+        self.mounts.lock().values().map(|h| h.info.clone()).collect()
     }
 }
 

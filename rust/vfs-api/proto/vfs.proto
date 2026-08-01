@@ -7,10 +7,13 @@ service VfsControl {
 
   // Create a new mount at the given mount point, returning the new mount. Fails with
   // ALREADY_EXISTS if the mount point is already in use.
-  rpc Mount (MountRequest) returns (MountResponse);
+  rpc Mount (MountRequest) returns (MountInfo);
 
   // Unmount the given mount point. Fails with NOT_FOUND if nothing is mounted there.
   rpc Unmount (UnmountRequest) returns (UnmountResponse);
+
+  // List all current mounts.
+  rpc ListMounts (ListMountsRequest) returns (ListMountsResponse);
 }
 
 message HealthRequest {}
@@ -23,12 +26,19 @@ message MountRequest {
   bytes clone_path = 1;
   bytes mount_point = 2;
 }
-message MountResponse {
+message MountInfo {
   // When the mount was established, in seconds since the Unix epoch.
   uint64 created_at = 1;
+  bytes clone_path = 2;
+  bytes mount_point = 3;
 }
 
 message UnmountRequest {
   bytes mount_point = 1;
 }
 message UnmountResponse {}
+
+message ListMountsRequest {}
+message ListMountsResponse {
+  repeated MountInfo mounts = 1;
+}
