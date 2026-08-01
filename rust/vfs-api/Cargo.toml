@@ -12,6 +12,7 @@ name = "vfs_api"
 [dependencies]
 tonic = "0.13"
 prost = "0.13"
+dirs = "6"
 
 [build-dependencies]
 tonic-build = "0.13"

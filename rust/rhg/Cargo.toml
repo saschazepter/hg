@@ -16,7 +16,7 @@ full-tracing = [
     "hg-fuse/full-tracing",
     "dep:tracing-chrome",
 ]
-hgfs = ["dep:hg-vfs", "dep:vfs-api", "dep:tonic", "dep:tokio", "dep:tokio-stream"]
+hgfs = ["dep:hg-vfs", "dep:vfs-api", "dep:tonic", "dep:tokio", "dep:tokio-stream", "dep:tower", "dep:hyper-util"]
 
 [dependencies]
 hg-core = { path = "../hg-core", default-features = false }
@@ -49,3 +49,5 @@ vfs-api = { path = "../vfs-api", optional = true }
 tonic = { version = "0.13", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "signal"], optional = true }
 tokio-stream = { version = "0.1", features = ["net"], optional = true }
+tower = { version = "0.5", features = ["util"], optional = true }
+hyper-util = { version = "0.1", features = ["tokio"], optional = true }

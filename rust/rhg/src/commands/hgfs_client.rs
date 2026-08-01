@@ -3,12 +3,19 @@
 
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStrExt;
+use std::path::Path;
+use std::path::PathBuf;
 
 use clap::Arg;
 use clap::ArgMatches;
 use clap::Command;
 use hg::utils::files::get_path_from_bytes;
-use vfs_api::DEFAULT_SOCKET_URI;
+use hyper_util::rt::TokioIo;
+use tokio::net::UnixStream;
+use tonic::transport::Channel;
+use tonic::transport::Endpoint;
+use tonic::transport::Uri;
+use tower::service_fn;
 use vfs_api::vfs::HealthRequest;
 use vfs_api::vfs::ListMountsRequest;
 use vfs_api::vfs::MountRequest;
@@ -25,6 +32,13 @@ pub fn args() -> clap::Command {
     clap::command!("debug::hgfs-client")
         .about(HELP_TEXT)
         .subcommand_required(true)
+        .arg(
+            Arg::new("socket")
+                .long("socket")
+                .global(true)
+                .value_parser(clap::value_parser!(OsString))
+                .help("path to the control socket to connect to"),
+        )
         .subcommand(Command::new("health").about("ping the server"))
         .subcommand(
             Command::new("mount")
@@ -57,25 +71,33 @@ pub fn args() -> clap::Command {
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
+    let socket = match invocation.subcommand_args.get_one::<OsString>("socket")
+    {
+        Some(s) => PathBuf::from(s),
+        None => vfs_api::default_socket_path().ok_or_else(|| {
+            CommandError::abort(
+                "abort: no $XDG_RUNTIME_DIR to derive a socket path; \
+                 pass --socket",
+            )
+        })?,
+    };
+
     let (name, sub_args) = invocation
         .subcommand_args
         .subcommand()
         .expect("subcommand is required");
 
-    dispatch(name, sub_args).map_err(|e| {
-        CommandError::abort(format!("abort: hgfs-client error: {e}"))
-    })
+    dispatch(socket, name, sub_args)
+        .map_err(|e| CommandError::abort(format!("abort: {e}")))
 }
 
 #[tokio::main]
 async fn dispatch(
+    socket: PathBuf,
     name: &str,
     sub_args: &ArgMatches,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client =
-        VfsControlClient::connect(DEFAULT_SOCKET_URI).await.map_err(|e| {
-            format!("cannot reach hgfs-server (is it running?): {e}")
-        })?;
+    let mut client = VfsControlClient::new(connect_channel(&socket).await?);
 
     match name {
         "health" => {
@@ -132,6 +154,34 @@ async fn dispatch(
         other => return Err(format!("unknown subcommand: {other}").into()),
     }
     Ok(())
+}
+
+/// Connect to the hgfs-server listening on `socket`.
+///
+/// We use a custom connector rather than a `unix://<path>` URI because tonic
+/// requires a connection URI to be UTF-8.
+async fn connect_channel(
+    socket: &Path,
+) -> Result<Channel, Box<dyn std::error::Error>> {
+    let socket = socket.to_path_buf();
+    let display = socket.display().to_string();
+    // `http://hgfs` is a placeholder that gets ignored.
+    Endpoint::from_static("http://hgfs")
+        .connect_with_connector(service_fn(move |_: Uri| {
+            let socket = socket.clone();
+            async move {
+                Ok::<_, std::io::Error>(TokioIo::new(
+                    UnixStream::connect(socket).await?,
+                ))
+            }
+        }))
+        .await
+        .map_err(|e| {
+            format!(
+                "cannot reach hgfs-server at {display} (is it running?): {e}"
+            )
+            .into()
+        })
 }
 
 /// Map a gRPC failure to the bare message without tonic's verbose wrapper.

@@ -2067,6 +2067,7 @@ dependencies = [
  "hg-fuse",
  "hg-vfs",
  "home",
+ "hyper-util",
  "lazy_static",
  "libc",
  "parking_lot",
@@ -2079,6 +2080,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tonic",
+ "tower",
  "tracing",
  "tracing-chrome",
  "tracing-subscriber",
@@ -2792,6 +2794,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 name = "vfs-api"
 version = "0.1.0"
 dependencies = [
+ "dirs",
  "prost",
  "protox",
  "tonic",
