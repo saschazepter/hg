@@ -4071,6 +4071,17 @@ class TestRunner:
         """
         vlog("# Performing temporary installation of HG")
         install_env = original_env.copy()
+
+        # `setuptools-scm` calls hg multiple times, which can be extremely slow
+        # in this repo: it adds 30s+ on my (alphare) old laptop.
+        # Since we don't care about version determination when testing, we can
+        # just skip it. If we end up breaking `setuptools-scm` compatibilty, we
+        # will know when building wheels outside of this environment.
+        self.set_hash_seed()
+        hash_seed = os.environ["PYTHONHASHSEED"]
+        setuptools_var = "SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MERCURIAL"
+        install_env.setdefault(setuptools_var, f"9999.99.{hash_seed}")
+
         if self.options.wheel is None:
             cmd = self._install_hg_cmd_setup()
         else:
