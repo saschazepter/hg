@@ -11,6 +11,7 @@ use itertools::PutBack;
 use itertools::put_back;
 
 use crate::errors::HgError;
+use crate::narrow;
 use crate::repo::Repo;
 use crate::revlog::Node;
 use crate::revlog::RevlogError;
@@ -18,6 +19,7 @@ use crate::revlog::manifest::Manifest;
 use crate::revlog::manifest::ManifestEntry;
 use crate::utils::RawData;
 use crate::utils::hg_path::HgPath;
+use crate::warnings::HgWarningSender;
 
 pub struct CatOutput<'a> {
     /// Whether any file in the manifest matched the paths given as CLI
@@ -85,6 +87,7 @@ pub fn cat<'a>(
     repo: &Repo,
     revset: &str,
     mut files: Vec<&'a HgPath>,
+    warnings: &HgWarningSender,
 ) -> Result<CatOutput<'a>, HgError> {
     let Some(rev) = crate::revset::resolve_single(revset, repo)?.exclude_wdir()
     else {
@@ -97,8 +100,12 @@ pub fn cat<'a>(
 
     files.sort_unstable();
 
-    let (found, missing) =
-        find_files_in_manifest(&manifest, files.into_iter())?;
+    let narrow_matcher = narrow::matcher(repo, warnings)?;
+
+    let (found, missing) = find_files_in_manifest(
+        &manifest,
+        files.into_iter().filter(|f| narrow_matcher.matches(f)),
+    )?;
 
     for (file_path, file_node) in found {
         found_any = true;

@@ -3,8 +3,10 @@ use std::ffi::OsString;
 use clap::Arg;
 use format_bytes::format_bytes;
 use hg::operations::cat;
+use hg::warnings::HgWarningContext;
 
 use crate::error::CommandError;
+use crate::ui::print_warnings;
 use crate::utils::path_utils::resolve_file_args;
 
 pub const HELP_TEXT: &str = "
@@ -58,7 +60,10 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         None => format!("{:x}", repo.dirstate_parents()?.p1),
     };
 
-    let output = cat(repo, &rev, files)?;
+    let warnings = HgWarningContext::new();
+    let output = cat(repo, &rev, files, warnings.sender())?;
+    print_warnings(invocation.ui, warnings, repo.working_directory_path());
+
     for (_file, contents) in output.results {
         invocation.ui.write_stdout(&contents)?;
     }

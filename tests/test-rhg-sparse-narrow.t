@@ -67,11 +67,8 @@ We support most things when narrow is enabled, too, with a couple of caveats.
   $ "$real_hg" cat -r "$tip" dir1/x
   x
 
-TODO: bad error message
-
   $ $NO_FALLBACK rhg cat -r "$tip" hide
-  abort: invalid revision identifier: 1406e74118627694268417491f018a4a883152f0
-  [255]
+  [1]
   $ "$real_hg" cat -r "$tip" hide
   [1]
 
@@ -111,11 +108,7 @@ Adding "orphaned" index files:
   dir1/x
   dir1/y
 
-# TODO: even though [hg files] hides the orphaned dir2/z, [hg cat] still shows it.
-# rhg has the same issue, but at least it's not specific to rhg.
-# This is despite [hg verify] succeeding above.
-
   $ $NO_FALLBACK rhg cat -r "$tip" dir2/z
-  z
+  [1]
   $ "$real_hg" cat -r "$tip" dir2/z
   [1]

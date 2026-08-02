@@ -284,14 +284,17 @@ fn patterns_for_rev(
             }
             visited.insert(profile.to_owned());
 
-            let output =
-                cat(repo, &rev.to_string(), vec![HgPath::new(&profile)])
-                    .map_err(|_| {
-                        HgError::corrupted(
-                            "dirstate points to non-existent parent node"
-                                .to_string(),
-                        )
-                    })?;
+            let output = cat(
+                repo,
+                &rev.to_string(),
+                vec![HgPath::new(&profile)],
+                warnings,
+            )
+            .map_err(|_| {
+                HgError::corrupted(
+                    "dirstate points to non-existent parent node".to_string(),
+                )
+            })?;
             if output.results.is_empty() {
                 warnings.send(SparseNarrowWarning::ProfileNotFound {
                     profile: profile.to_owned(),
