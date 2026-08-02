@@ -12,4 +12,20 @@ repository = "https://foss.heptapod.net/mercurial/mercurial-devel"
 [lints]
 workspace = true
 
+[[bin]]
+name = "jf"
+path = "src/bin/jf.rs"
+
+
+[features]
+full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
+
 [dependencies]
+clap = { version = "4.5.54", features = ["derive"] }
+format-bytes = "0.3.0"
+hg-core = { path = "../hg-core", default-features = false }
+memchr = "2.7.6"
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-chrome = { version = "0.7", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter"]}
+rayon = "1.11.0"
