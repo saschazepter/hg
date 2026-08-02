@@ -2729,6 +2729,8 @@ def cat(ui, repo, ctx, matcher, basefm, fntemplate, prefix, **opts):
     # for performance to avoid the cost of parsing the manifest.
     if len(matcher.files()) == 1 and not matcher.anypats():
         file = matcher.files()[0]
+        if not repo.narrowmatch()(file):
+            return err
         mfl = repo.manifestlog
         mfnode = ctx.manifestnode()
         try:

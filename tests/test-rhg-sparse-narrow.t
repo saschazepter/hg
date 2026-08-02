@@ -118,4 +118,4 @@ Adding "orphaned" index files:
   $ $NO_FALLBACK rhg cat -r "$tip" dir2/z
   z
   $ "$real_hg" cat -r "$tip" dir2/z
-  z
+  [1]
