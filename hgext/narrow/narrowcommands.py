@@ -80,6 +80,14 @@ def setup():
                 _(b"do not fetch this file/directory, even if included"),
             )
         )
+        entry[1].append(
+            (
+                b'',
+                b'shape',
+                b'',
+                _(b"fetch files and directories for this shape name"),
+            )
+        )
 
     entry = extensions.wrapcommand(commands.table, b'pull', pullnarrowcmd)
     entry[1].append(

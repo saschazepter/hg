@@ -1829,6 +1829,14 @@ def clone(ui, source, dest=None, **opts):
     """
     cmdutil.check_at_most_one_arg(opts, 'noupdate', 'updaterev')
 
+    cmdutil.check_incompatible_arguments(
+        opts,
+        'shape',
+        ['narrow', 'include', 'exclude', 'narrowspec'],
+    )
+
+    shape = opts.get('shape') or None
+
     # --include/--exclude can come from narrow or sparse.
     includepats, excludepats = None, None
 
@@ -1861,6 +1869,7 @@ def clone(ui, source, dest=None, **opts):
         storeincludepats=includepats,
         storeexcludepats=excludepats,
         depth=opts.get('depth') or None,
+        shape=shape,
     )
 
     return r is None

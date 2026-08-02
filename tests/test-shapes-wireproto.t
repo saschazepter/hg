@@ -1,4 +1,12 @@
+#testcases python-client rust-client
+#testcases ssh local
 #require rust
+
+#if local python-client
+
+Can't test local with Python since it acts as its own server
+  $ exit 80
+#endif
 
 Setup the repo
   $ hg init server
@@ -128,3 +136,68 @@ Test valid cases
       b'path:secret'
     ])
   )
+
+Test narrow clone with `--shape`
+--------------------------------
+
+  $ cat > $TESTTMP/server-hg.sh << EOF
+  > #!/bin/sh
+  > HGMODULEPOLICY=rust+c
+  > export HGMODULEPOLICY
+  > hg "\$@"
+  > EOF
+  $ chmod +x $TESTTMP/server-hg.sh
+
+#if python-client
+  $ POLICY="env HGMODULEPOLICY=py"
+#else
+  $ POLICY="env HGMODULEPOLICY=rust+c"
+#endif
+
+
+#if ssh
+  $ hg serve -p $HGPORT -d --pid-file=hg.pid -E $TESTTMP/server-errors.log
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ remote_url="ssh://user@dummy/server"
+  $ remote_cmd="--remotecmd=$TESTTMP/server-hg.sh"
+#else
+  $ remote_url="server"
+#endif
+
+  $ cd ..
+
+Test the error case
+
+  $ $POLICY hg clone $remote_url narrow-clone $remote_cmd --shape unknown-shape
+  abort: shape not found on remote: 'unknown-shape'
+  [10]
+
+Test a valid shape
+
+  $ $POLICY hg clone $remote_url narrow-clone $remote_cmd --shape default --quiet
+  $ cd narrow-clone
+
+Check that we track the correct paths
+  $ hg tracked
+  I path:.
+  X path:foo/bar/other-secret
+  X path:secret
+  $ hg files
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/file1
+  foo/file2
+
+Check that a removed file outside the shape is not available
+  $ hg cat secret/secret-file
+  [1]
+
+Check that a file outside the shape is not available
+  $ hg cat foo/bar/other-secret/secret-file
+  [1]
+
+Check that a file inside the shape is available
+  $ hg cat file1
+  file1 contents

@@ -327,3 +327,75 @@ The rest works correctly
   foo
   $ hg cat dir2/b
   foobar
+
+Testing that cloning with --shape works the same
+------------------------------------------------
+
+Start a narrow server that doesn't understand shapes
+  $ killdaemons.py
+
+  $ cat >> $HGRCPATH << EOF
+  > [experimental]
+  > advertise-shapes=no
+  > EOF
+
+  $ hg serve -d -p $HGPORT --pid-file hg.pid
+  $ cat hg.pid > $DAEMON_PIDS
+  $ hg clone ssh://user@dummy/source clone-shaped2 --shape foobaz
+  abort: cannot use store shapes; remote repository does not support the 'exp-shape-1' capability
+  [255]
+  $ killdaemons.py
+
+Restore the capability
+
+  $ cat >> $HGRCPATH << EOF
+  > [experimental]
+  > advertise-shapes=yes
+  > EOF
+
+Restart the normal server
+  $ hg serve -d -p $HGPORT --pid-file hg.pid --errorlog error.log --accesslog access.log
+  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg clone ssh://user@dummy/source clone-shaped2 --shape unknown-shape
+  abort: shape not found on remote: 'unknown-shape'
+  [10]
+
+  $ hg clone ssh://user@dummy/source clone-shaped2 --shape foobaz | grep "bundle from"
+  applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
+  $ cd clone-shaped2
+  $ hg debug-revlog-stats --filelogs -T'{revlog_target}\n'
+  dir2/a
+  dir2/b
+  excluded/a
+  excluded/b
+
+The client has the same fingerprint than the streamclone
+
+  $ hg admin::narrow-client --store-fingerprint
+  bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e
+
+The client has the expected narrowspec
+
+  $ hg tracked
+  I path:.hgignore
+  I path:.hgsub
+  I path:.hgsubstate
+  I path:.hgtags
+  I path:dir2
+  I path:excluded
+  X path:.
+
+Accessing a file outside of the shape is not possible
+
+  $ hg cat a
+  [1]
+  $ hg cat excluded/a
+  foo
+
+The rest works correctly
+  $ hg cat excluded/a
+  foo
+  $ hg cat dir2/a
+  foo
+  $ hg cat dir2/b
+  foobar
