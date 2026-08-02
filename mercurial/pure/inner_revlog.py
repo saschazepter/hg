@@ -1874,7 +1874,20 @@ class InnerRevlogV2(BaseInnerRevlog):
                 transaction,
                 rev,
                 idx_bins,
-                pending_only=True,
+                # allowing to rewrite pending data might create some problem,
+                # however, the pending-data is in a grey area for non-changelog
+                # revlog as they got their "immutable write" long before the
+                # transation finish ans some postprocessing might be needed. So
+                # data that are actually still pending are seen as non-pending.
+                #
+                # To not have seens problem, we would need the docket of all
+                # revlog to to be written as pending which is impractical in
+                # the current states of things with so many revlog around.
+                #
+                # So we allow rewrite_sidedata to rewrite any side data for now
+                # especialy because the fearture is mostly on its way out
+                # anyway.
+                pending_only=False,
             )
 
     def sidedata_cut_off(self, rev):
