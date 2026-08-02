@@ -636,9 +636,12 @@ debug output
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
   Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
-  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
-  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
-  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio (no-windows !)
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio (no-windows !)
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio (no-windows !)
+  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R local serve --stdio (windows !)
+  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R local serve --stdio (windows !)
+  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R local serve --stdio (windows !)
   Got arguments 1:user@dummy 2:hg -R remote serve --stdio
   changegroup-in-remote hook: HG_BUNDLE2=1
   HG_HOOKNAME=changegroup
