@@ -3357,10 +3357,7 @@ class TestRunner:
             previoustimes = dict(loadtimes(self._outputdir))
         sorttests(testdescs, previoustimes, shuffle=self.options.random)
 
-        if 'PYTHONHASHSEED' not in os.environ:
-            # use a random python hash seed all the time
-            # we do the randomness ourself to know what seed is used
-            os.environ['PYTHONHASHSEED'] = str(random.getrandbits(32))
+        self.set_hash_seed()
 
         # Rayon (Rust crate for multi-threading) will use all logical CPU cores
         # by default, causing thrashing on high-cpu-count systems.
@@ -4137,6 +4134,11 @@ class TestRunner:
                 pass
 
             osenvironb[b'COVERAGE_DIR'] = covdir
+
+    def set_hash_seed(self):
+        """Use a random Python hash seed all the time. We do the randomness
+        ourselves to know what seed is used"""
+        os.environ.setdefault('PYTHONHASHSEED', str(random.getrandbits(32)))
 
     def _check_hg(self, verb):
         """Ensure that the 'mercurial' package imported by python is
