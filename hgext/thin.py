@@ -156,6 +156,11 @@ class ThinRepo:
         # XXX Actually support narrow at some point
         return matchmod.always()
 
+    @localrepo.unfilteredpropertycache
+    def is_narrow(self) -> bool:
+        # XXX Actually support narrow at some point
+        return False
+
     def narrowmatch(self, match=None, includeexact=False):
         """matcher corresponding the the repo's narrowspec
 

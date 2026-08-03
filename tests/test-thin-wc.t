@@ -495,3 +495,19 @@ Thin works when blackbox is enabled
   $ cat .hg/blackbox.log | tail -1
   1970-01-01 00:00:00.000 * @2f59e5e739ea8552cbbc99f46a58175392dc08b2 (*)> status (glob)
   $ cd ..
+
+Thin works when narrow extension is enabled, but thin
+working copies will always appear not to have narrow enabled
+------------------------------------------------------------
+
+  $ hg -R repo devel::create-thin-wc thin-narrow
+  $ cd thin-narrow
+  $ cat << EOF >> .hg/hgrc
+  > [extensions]
+  > narrow=
+  > EOF
+  $ hg status
+  $ hg tracked
+  abort: the tracked command is only supported on repositories cloned with --narrow
+  [10]
+  $ cd ..
