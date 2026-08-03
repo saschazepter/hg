@@ -27,6 +27,7 @@ pub mod files;
 pub mod hg_path;
 pub mod path_auditor;
 pub mod strings;
+pub mod umask;
 
 #[inline(always)]
 pub fn u64_u(i: u64) -> usize {

@@ -60,9 +60,9 @@ use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::path_auditor::PathAuditor;
 use crate::utils::path_auditor::check_filesystem_single;
+use crate::utils::umask::get_umask;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
-use crate::vfs::get_umask;
 use crate::vfs::is_on_nfs_mount;
 use crate::warnings::HgWarningSender;
 
