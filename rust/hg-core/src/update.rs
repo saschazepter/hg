@@ -381,6 +381,16 @@ impl<'a> DirstateUpdate<'a> {
     }
 }
 
+struct IsExec(bool);
+
+fn mode_for_create_syscall(IsExec(is_exec): IsExec) -> u32 {
+    if is_exec {
+        0o777
+    } else {
+        0o666
+    }
+}
+
 /// Change the file to a symlink or set executable permissions, if any flag
 /// information asks for it. Return the new mode, size and mtime to put
 /// into dirstate, if any change was made.
@@ -418,7 +428,7 @@ pub fn apply_flags_to_file<'a>(
         let target = std::fs::read_link(path).when_reading_file(path)?;
         let target_bytes = get_bytes_from_path(target);
         std::fs::remove_file(path).when_writing_file(path)?;
-        let mode = if flags_exec { 0o777 } else { 0o666 };
+        let mode = mode_for_create_syscall(IsExec(flags_exec));
         let mut f = std::fs::OpenOptions::new()
             .write(true)
             .create_new(true)
@@ -1375,7 +1385,7 @@ fn working_copy_worker<'a: 'b, 'b>(
         if !flags.is_link() && (flags_differ || flags.is_exec()) {
             // Respect umask since this is an after-creation update
             let mode =
-                if flags.is_exec() { 0o777 } else { 0o666 } & !get_umask();
+                mode_for_create_syscall(IsExec(flags.is_exec())) & !get_umask();
             std::fs::set_permissions(&path, Permissions::from_mode(mode))
                 .when_writing_file(&path)?;
         }
