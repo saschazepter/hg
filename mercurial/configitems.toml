@@ -1244,6 +1244,26 @@ default = false
 
 [[items]]
 section = "experimental"
+name = "skip-changeset-discovery"
+default = false
+documentation = """An experimental option to play around with skipping
+changeset discovery. Don't use unless you really know why and what you are
+doing.
+
+Use `experimental.skip-changeset-discovery.common` to list the set of common
+head you are manually providing.
+
+Will not work with unqualified (no --rev) pull.
+"""
+
+[[items]]
+section = "experimental"
+name = "skip-changeset-discovery.common"
+default-type = "list_type"
+documentation = """see `experimental.skip-changeset-discovery`"""
+
+[[items]]
+section = "experimental"
 name = "single-head-per-branch"
 default = false
 

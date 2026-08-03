@@ -71,6 +71,22 @@ def findcommonincoming(
     Please use findcommonoutgoing to compute the set of outgoing nodes to give
     extensions a good hook into outgoing.
     """
+    skip = repo.ui.configbool(b"experimental", b"skip-changeset-discovery")
+    if skip:
+        common_ids = repo.ui.configlist(
+            b"experimental",
+            b"skip-changeset-discovery.common",
+        )
+        common = [repo[c].node() for c in common_ids]
+        # XXX since `heads` could be ancestors of `common` so we need to
+        # improve the logic a bit on the other hand if something decide to
+        # overwrite discovery we can assume it checked for that already.
+        if heads is None:
+            heads = common
+            any_inc = False
+        else:
+            any_inc = not set(heads).issubset(set(common))
+        return (common, any_inc, heads)
 
     if not remote.capable(b'getbundle'):
         return treediscovery.findcommonincoming(repo, remote, heads, force)
