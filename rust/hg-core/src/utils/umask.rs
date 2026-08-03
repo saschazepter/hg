@@ -3,6 +3,10 @@ use std::sync::OnceLock;
 /// Store the umask for the whole process since it's expensive to get.
 static UMASK: OnceLock<u32> = OnceLock::new();
 
+/// Cache the process umask.
+///
+/// Call this during process initialization, before spawning threads or
+/// performing concurrent filesystem operations.
 pub fn initialize() {
     let _ = UMASK.get_or_init(|| unsafe {
         // TODO is there any way of getting the umask without temporarily
