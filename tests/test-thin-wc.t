@@ -511,3 +511,8 @@ working copies will always appear not to have narrow enabled
   abort: the tracked command is only supported on repositories cloned with --narrow
   [10]
   $ cd ..
+
+Thin hg status works when commands.status.verbose=true
+------------------------------------------------------
+
+  $ hg -R repo status --config commands.status.verbose=true

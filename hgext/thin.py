@@ -36,6 +36,7 @@ from mercurial import (
     localrepo,
     lock as lockmod,
     match as matchmod,
+    mergestate as mergestatemod,
     requirements as req_mod,
     sparse,
     util,
@@ -267,6 +268,9 @@ class ThinRepo:
             )
 
         return l
+
+    def mergestate(self):
+        return mergestatemod.mergestate.read(self)
 
     @util.rust_tracing_span("wlock")
     def wlock(self, wait=True, steal_from=None) -> lockmod.lock:
