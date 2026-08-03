@@ -278,6 +278,8 @@ fn main_with_result(
 }
 
 fn rhg_main(argv: Vec<OsString>) -> ! {
+    hg::utils::umask::initialize();
+
     // Run this first, before we find out if the blackbox extension is even
     // enabled, in order to include everything in-between in the duration
     // measurements. Reading config files can be slow if they’re on NFS.
