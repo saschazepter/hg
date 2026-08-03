@@ -1,6 +1,7 @@
 //! Tools for moving the repository to a given revision
 
 use std::collections::HashSet;
+use std::fs::Metadata;
 use std::fs::Permissions;
 use std::io::Write;
 use std::ops::Deref;
@@ -354,13 +355,40 @@ impl<'paths> MergeActions<'paths> {
     }
 }
 
+/// A change to the dirstate required after a workspace update done
+/// by hg itself
+pub struct DirstateUpdate<'a> {
+    pub path: &'a HgPath,
+    pub mode: u32,
+    pub size: usize,
+    pub timestamp: TruncatedTimestamp,
+}
+
+impl<'a> DirstateUpdate<'a> {
+    fn from_metadata(
+        path: &'a HgPath,
+        full_path: &Path,
+        meta: Metadata,
+    ) -> Result<Self, HgError> {
+        let truncated_timestamp = TruncatedTimestamp::for_mtime_of(&meta)
+            .when_reading_file(full_path)?;
+        Ok(Self {
+            path,
+            mode: meta.mode(),
+            size: meta.len().try_into().expect("file too large"),
+            timestamp: truncated_timestamp,
+        })
+    }
+}
+
 /// Change the file to a symlink or set executable permissions, if any flag
 /// information asks for it. Return the new mode, size and mtime to put
 /// into dirstate, if any change was made.
-pub fn apply_flags_to_file(
+pub fn apply_flags_to_file<'a>(
+    path_in_repo: &'a HgPath,
     path: &Path,
     flags: ManifestFlags,
-) -> Result<Option<(u32, usize, TruncatedTimestamp)>, HgError> {
+) -> Result<Option<DirstateUpdate<'a>>, HgError> {
     let meta = path.symlink_metadata().when_reading_file(path)?;
     let flags_link = flags.is_link();
     let disk_link = meta.is_symlink();
@@ -379,13 +407,11 @@ pub fn apply_flags_to_file(
             std::fs::write(path, &contents).when_writing_file(path)?;
         }
         let meta = path.symlink_metadata().when_reading_file(path)?;
-        let truncated_timestamp =
-            TruncatedTimestamp::for_mtime_of(&meta).when_reading_file(path)?;
-        return Ok(Some((
-            meta.mode(),
-            meta.len().try_into().expect("file too large"),
-            truncated_timestamp,
-        )));
+        return Ok(Some(DirstateUpdate::from_metadata(
+            path_in_repo,
+            path,
+            meta,
+        )?));
     }
     if !flags_link && disk_link {
         // Switch link to file: write the link target as the file contents
@@ -401,13 +427,11 @@ pub fn apply_flags_to_file(
             .when_writing_file(path)?;
         f.write_all(&target_bytes).when_writing_file(path)?;
         let meta = f.metadata().when_reading_file(path)?;
-        let truncated_timestamp =
-            TruncatedTimestamp::for_mtime_of(&meta).when_reading_file(path)?;
-        return Ok(Some((
-            meta.mode(),
-            meta.len().try_into().expect("file too large"),
-            truncated_timestamp,
-        )));
+        return Ok(Some(DirstateUpdate::from_metadata(
+            path_in_repo,
+            path,
+            meta,
+        )?));
     }
     let disk_exec = is_executable(&meta);
     if meta.nlink() > 1 && flags_exec != disk_exec {
@@ -435,15 +459,15 @@ pub fn apply_flags_to_file(
     } else {
         None
     };
-    let truncated_timestamp =
-        TruncatedTimestamp::for_mtime_of(&meta).when_reading_file(path)?;
-    Ok(mode.map(|mode| {
-        (
-            mode,
-            meta.len().try_into().expect("file too large"),
-            truncated_timestamp,
-        )
-    }))
+    match mode {
+        None => Ok(None),
+        Some(mode) => {
+            let mut update =
+                DirstateUpdate::from_metadata(path_in_repo, path, meta)?;
+            update.mode = mode;
+            Ok(Some(update))
+        }
+    }
 }
 
 fn working_copy_remove(
@@ -477,7 +501,7 @@ fn apply_actions<'a: 'b, 'b>(
     repo: &Repo,
     actions: MergeActions<'a>,
     progress: &dyn Progress,
-    file_updates: Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
+    file_updates: Sender<DirstateUpdate<'b>>,
     file_removals: Sender<&'b HgPath>,
     warnings: &HgWarningSender,
     update_config: &UpdateConfig,
@@ -546,12 +570,10 @@ fn apply_actions<'a: 'b, 'b>(
         progress.increment(1, None);
         let full_path =
             repo.working_directory_vfs().join(hg_path_to_path_buf(path)?);
-        if let Some((mode, size, mtime)) =
-            apply_flags_to_file(&full_path, flags)?
+        if let Some(distate_update) =
+            apply_flags_to_file(path, &full_path, flags)?
         {
-            file_updates
-                .send((path, mode, size, mtime))
-                .expect("channel must be open");
+            file_updates.send(distate_update).expect("channel must be open");
         }
     }
 
@@ -1093,7 +1115,7 @@ fn create_working_copy<'a: 'b, 'b>(
     working_copy_vfs: &VfsImpl,
     store_vfs: &VfsImpl,
     options: RevlogOpenOptions,
-    files_sender: &Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
+    files_sender: &Sender<DirstateUpdate<'b>>,
     progress: &dyn Progress,
     update_config: &UpdateConfig,
 ) -> Result<(), HgError> {
@@ -1223,7 +1245,7 @@ fn working_copy_worker<'a: 'b, 'b>(
     working_copy_vfs: &VfsImpl,
     store_vfs: &VfsImpl,
     options: RevlogOpenOptions,
-    files_sender: &Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
+    files_sender: &Sender<DirstateUpdate<'b>>,
     auditor: &PathAuditor,
     update_config: &UpdateConfig,
 ) -> Result<(), HgError> {
@@ -1364,13 +1386,13 @@ fn working_copy_worker<'a: 'b, 'b>(
         let mode = metadata.mode();
 
         files_sender
-            .send((
-                file,
+            .send(DirstateUpdate {
+                path: file,
                 mode,
-                file_data.len(),
-                TruncatedTimestamp::for_mtime_of(&metadata)
+                size: file_data.len(),
+                timestamp: TruncatedTimestamp::for_mtime_of(&metadata)
                     .when_reading_file(&path)?,
-            ))
+            })
             .expect("channel should not be closed");
     }
     Ok(())
@@ -1381,7 +1403,7 @@ fn working_copy_worker<'a: 'b, 'b>(
 fn update_dirstate(
     repo: &Repo,
     dirstate: &mut OwningDirstateMap,
-    files_receiver: Receiver<(&HgPath, u32, usize, TruncatedTimestamp)>,
+    files_receiver: Receiver<DirstateUpdate>,
     removals_receiver: Option<Receiver<&HgPath>>,
     devel_abort: bool,
     update_kind: UpdateKind,
@@ -1453,7 +1475,9 @@ fn update_dirstate(
 
     let mut updated = 0;
     let mut added = 0;
-    for (filename, mode, size, mtime) in files_receiver.into_iter() {
+    for DirstateUpdate { path: filename, mode, size, timestamp: mtime } in
+        files_receiver.into_iter()
+    {
         updated += 1;
         // When using dirstate-v2 on a filesystem with reasonable performance
         // this is basically always true unless you get a mtime from the
@@ -1553,14 +1577,23 @@ mod test {
     #[test]
     fn test_apply_flags_link_to_file_regular() {
         let dir = tempfile::tempdir().unwrap();
+        let path_in_repo = HgPathBuf::from_bytes(b"f");
         let path = dir.path().join("f");
         let target = b"some-other-file.txt";
         std::os::unix::fs::symlink(get_path_from_bytes(target), &path).unwrap();
 
-        let (reported_mode, reported_size, _mtime) =
-            apply_flags_to_file(&path, ManifestFlags::new_empty())
-                .unwrap()
-                .expect("should report change");
+        let DirstateUpdate {
+            path: _,
+            mode: reported_mode,
+            size: reported_size,
+            timestamp: _,
+        } = apply_flags_to_file(
+            &path_in_repo,
+            &path,
+            ManifestFlags::new_empty(),
+        )
+        .unwrap()
+        .expect("should report change");
 
         let meta = path.symlink_metadata().unwrap();
         assert!(meta.is_file());
@@ -1576,14 +1609,23 @@ mod test {
     #[test]
     fn test_apply_flags_link_to_file_executable() {
         let dir = tempfile::tempdir().unwrap();
+        let path_in_repo = HgPathBuf::from_bytes(b"f");
         let path = dir.path().join("f");
         let target = b"some-other-file.txt";
         std::os::unix::fs::symlink(get_path_from_bytes(target), &path).unwrap();
 
-        let (reported_mode, reported_size, _mtime) =
-            apply_flags_to_file(&path, ManifestFlags::new_exec())
-                .unwrap()
-                .expect("should report change");
+        let DirstateUpdate {
+            path: _,
+            mode: reported_mode,
+            size: reported_size,
+            timestamp: _,
+        } = apply_flags_to_file(
+            &path_in_repo,
+            &path,
+            ManifestFlags::new_exec(),
+        )
+        .unwrap()
+        .expect("should report change");
 
         let meta = path.symlink_metadata().unwrap();
         assert!(meta.is_file());
@@ -1599,14 +1641,23 @@ mod test {
     #[test]
     fn test_apply_flags_file_to_link() {
         let dir = tempfile::tempdir().unwrap();
+        let path_in_repo = HgPathBuf::from_bytes(b"f");
         let path = dir.path().join("f");
         let content = b"some-other-file.txt";
         std::fs::write(&path, content).unwrap();
 
-        let (reported_mode, reported_size, _mtime) =
-            apply_flags_to_file(&path, ManifestFlags::new_link())
-                .unwrap()
-                .expect("should report change");
+        let DirstateUpdate {
+            path: _,
+            mode: reported_mode,
+            size: reported_size,
+            timestamp: _,
+        } = apply_flags_to_file(
+            &path_in_repo,
+            &path,
+            ManifestFlags::new_link(),
+        )
+        .unwrap()
+        .expect("should report change");
 
         let meta = path.symlink_metadata().unwrap();
         assert!(meta.is_symlink());
