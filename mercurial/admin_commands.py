@@ -305,6 +305,8 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                     ui.username(acceptempty=True) or b'',
                     action=b'shape-update',
                 )
+            # Make sure contents are valid
+            shapemod.get_store_shards_from_bytes(shapes)
             with repo.lock():
                 repo.svfs.write(shapemod.SHAPES_FILE, shapes, atomictemp=True)
             return

@@ -366,14 +366,10 @@ Without `-f`, the editor is opened on the current contents
   paths = ["dir1"]
   shape = true
 
-Contents are currently not validated before writing
-TODO: fix
+Updating to invalid contents is not allowed
 
   $ echo 'invalid contents' > ../invalid-shapes
   $ hg admin::narrow-server --shape-update -f ../invalid-shapes
-  $ cat .hg/store/server-shapes
-  invalid contents
-  $ hg admin::narrow-server --shape-fingerprints
   config error: error parsing `server-shapes`:
   TOML parse error at line 1, column 9
     |
@@ -382,6 +378,15 @@ TODO: fix
   key with no value, expected `=`
   
   [30]
+  $ cat .hg/store/server-shapes
+  version = 0
+  [[shards]]
+  name = "from-file"
+  paths = ["dir1"]
+  shape = true
+  $ hg admin::narrow-server --shape-fingerprints
+  b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 from-file
+  00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
   $ cat ../new-shapes > .hg/store/server-shapes
 
 Test behavior of concurrent updates

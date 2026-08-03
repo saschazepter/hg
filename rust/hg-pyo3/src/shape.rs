@@ -121,6 +121,17 @@ pub fn get_store_shards(repo_path: &Bound<PyBytes>) -> PyResult<PyStoreShards> {
     Ok(PyStoreShards { inner })
 }
 
+/// Same as `get_store_shards` but directly from bytes instead of from file.
+/// Used to validate a requested update to `server-shapes`.
+#[pyfunction]
+pub fn get_store_shards_from_bytes(
+    data: &Bound<PyBytes>,
+) -> PyResult<PyStoreShards> {
+    let inner =
+        StoreShards::from_bytes(data.as_bytes()).into_pyerr(data.py())?;
+    Ok(PyStoreShards { inner })
+}
+
 #[pyfunction]
 fn deserialize(py: Python, serialized: &[u8]) -> PyResult<PyNarrowPatterns> {
     let (includes, excludes) =
@@ -172,6 +183,7 @@ pub fn init_module<'py>(
     m.add_class::<PyShape>()?;
     m.add_class::<PyStoreShards>()?;
     m.add_function(wrap_pyfunction!(get_store_shards, &m)?)?;
+    m.add_function(wrap_pyfunction!(get_store_shards_from_bytes, &m)?)?;
     m.add_function(wrap_pyfunction!(fingerprint_for_patterns, &m)?)?;
     m.add_function(wrap_pyfunction!(deserialize, &m)?)?;
 
