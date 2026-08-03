@@ -516,3 +516,18 @@ Thin hg status works when commands.status.verbose=true
 ------------------------------------------------------
 
   $ hg -R repo status --config commands.status.verbose=true
+
+Thin supports hg addremove with similarity = 0
+----------------------------------------------
+
+  $ hg -R repo devel::create-thin-wc thin-addremove
+  $ cd thin-addremove
+  $ rm cousin
+  $ echo z > flora
+  $ hg addremove -s 0
+  removing cousin
+  adding flora
+  $ hg status
+  A flora
+  R cousin
+  $ cd ..
