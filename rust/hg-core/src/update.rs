@@ -365,7 +365,6 @@ pub fn apply_flags_to_file(
     let flags_link = flags.is_link();
     let disk_link = meta.is_symlink();
     let flags_exec = flags.is_exec();
-    let disk_exec = is_executable(&meta);
 
     if flags_link && !disk_link {
         // Switch file to link
@@ -410,6 +409,7 @@ pub fn apply_flags_to_file(
             truncated_timestamp,
         )));
     }
+    let disk_exec = is_executable(&meta);
     if meta.nlink() > 1 && flags_exec != disk_exec {
         // The file is a hardlink, break it
         let contents = std::fs::read(path).when_reading_file(path)?;
