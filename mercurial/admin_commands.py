@@ -14,6 +14,7 @@ from .i18n import _
 from .admin import verify
 from . import (
     cmdutil,
+    encoding,
     error,
     policy,
     pycompat,
@@ -21,6 +22,7 @@ from . import (
     shape as shapemod,
     tables,
     transaction,
+    util,
 )
 from .cmd_impls import completion as completion_impl
 
@@ -146,6 +148,22 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
             b'',
             _(b"list this shape's files that are not in the working copy"),
         ),
+        (
+            b'',
+            b'shape-update',
+            None,
+            _(b"update the server-shape file for this repo"),
+        ),
+        (
+            b'f',
+            b'file',
+            b'',
+            _(
+                b'read the new server-shapes file from path; '
+                b'if not passed, opens the editor'
+            ),
+            _(b'FILE'),
+        ),
     ]
     + cmdutil.formatteropts,
     helpcategory=command.CATEGORY_MAINTENANCE,
@@ -177,9 +195,13 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         "shape_narrow_patterns",
         "shape_files",
         "shape_files_hidden",
+        "shape_update",
     )
     if subcommand is None:
         raise error.InputError("need at least one flag")
+
+    if subcommand != "shape_update":
+        cmdutil.check_incompatible_arguments(opts, subcommand, ["file"])
 
     store_shards = shapemod.get_store_shards(repo.root)
 
@@ -267,6 +289,24 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 )
                 fm.data(is_hidden=not known)
                 fm.write(b"path", b"%s\n", file, label=label)
+            return
+        elif subcommand == "shape_update":
+            if file := opts.get("file"):
+                try:
+                    shapes = util.readfile(file)
+                except OSError as inst:
+                    raise error.InputError(
+                        _(b"can't read file '%s': %s")
+                        % (file, encoding.strtolocal(inst.strerror))
+                    )
+            else:
+                shapes = ui.edit(
+                    repo.svfs.tryread(shapemod.SHAPES_FILE),
+                    ui.username(acceptempty=True) or b'',
+                    action=b'shape-update',
+                )
+            with repo.lock():
+                repo.svfs.write(shapemod.SHAPES_FILE, shapes, atomictemp=True)
             return
         else:
             assert False, "unreachable"

@@ -412,7 +412,7 @@ Show all commands + options
   addremove: similarity, subrepos, include, exclude, dry-run
   admin::chainsaw-update: purge-unknown, purge-ignored, rev, source, dest, initial-clone-minimal
   admin::narrow-client: store-fingerprint
-  admin::narrow-server: shape-fingerprints, shape-patterns, shape-narrow-patterns, shape-files, shape-files-hidden, template
+  admin::narrow-server: shape-fingerprints, shape-patterns, shape-narrow-patterns, shape-files, shape-files-hidden, shape-update, file, template
   admin::setup-shell-completion: list, show-script, shell
   admin::verify: check, option
   annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, line-range, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template

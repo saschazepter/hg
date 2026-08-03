@@ -321,3 +321,121 @@ We also list hidden files in `--shape-files` (and test color output)
     "path": "secret/secret-file2"
    }
   ]
+
+Test updating the shapes file
+-----------------------------
+
+Update from file
+
+  $ cat > ../new-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "from-file"
+  > paths = ["dir1"]
+  > shape = true
+  > EOF
+  $ hg admin::narrow-server --shape-update -f ../new-shapes
+  $ cat .hg/store/server-shapes
+  version = 0
+  [[shards]]
+  name = "from-file"
+  paths = ["dir1"]
+  shape = true
+  $ hg admin::narrow-server --shape-fingerprints
+  b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 from-file
+  00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+
+Fail if `-f` is a path that does not exist
+
+  $ hg admin::narrow-server --shape-update -f ../does-not-exist
+  abort: can't read file '../does-not-exist': $ENOENT$
+  [10]
+
+Without `-f`, the editor is opened on the current contents
+
+  $ HGEDITOR=cat hg admin::narrow-server --shape-update
+  version = 0
+  [[shards]]
+  name = "from-file"
+  paths = ["dir1"]
+  shape = true
+  $ cat .hg/store/server-shapes
+  version = 0
+  [[shards]]
+  name = "from-file"
+  paths = ["dir1"]
+  shape = true
+
+Contents are currently not validated before writing
+TODO: fix
+
+  $ echo 'invalid contents' > ../invalid-shapes
+  $ hg admin::narrow-server --shape-update -f ../invalid-shapes
+  $ cat .hg/store/server-shapes
+  invalid contents
+  $ hg admin::narrow-server --shape-fingerprints
+  config error: error parsing `server-shapes`:
+  TOML parse error at line 1, column 9
+    |
+  1 | invalid contents
+    |         ^
+  key with no value, expected `=`
+  
+  [30]
+  $ cat ../new-shapes > .hg/store/server-shapes
+
+Test behavior of concurrent updates
+-----------------------------------
+
+  $ cat > .hg/store/server-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "before"
+  > paths = ["dir1"]
+  > shape = true
+  > EOF
+
+  $ cat > ../concurrent_update <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "concurrent"
+  > paths = ["dir1"]
+  > shape = true
+  > EOF
+
+Start an update and hold it in the editor
+
+  $ cat > ../blocking-editor.sh <<EOF
+  > cat ../new-shapes > "\$1"
+  > "$RUNTESTDIR/testlib/wait-on-file" 10 "$TESTTMP/editor-continue" "$TESTTMP/editor-waiting"
+  > EOF
+  $ HGEDITOR="sh ../blocking-editor.sh" hg admin::narrow-server --shape-update \
+  > > ../editor-update.out 2>&1 &
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $TESTTMP/editor-waiting
+
+While the first update is still in the editor, a second update goes through (allowed
+because the lock is only taken upon save & close), updating name to "concurrent"
+
+  $ hg admin::narrow-server --shape-update -f ../concurrent_update
+  $ cat .hg/store/server-shapes
+  version = 0
+  [[shards]]
+  name = "concurrent"
+  paths = ["dir1"]
+  shape = true
+
+Letting the first update finish then silently discards the "concurrent" update
+TODO: fix
+
+  $ touch $TESTTMP/editor-continue
+  $ wait
+  $ cat ../editor-update.out
+  $ cat .hg/store/server-shapes
+  version = 0
+  [[shards]]
+  name = "from-file"
+  paths = ["dir1"]
+  shape = true
+  $ hg admin::narrow-server --shape-fingerprints
+  b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 from-file
+  00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
