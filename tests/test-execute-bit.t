@@ -43,7 +43,7 @@ The Rust update-from-null path should behave the same way.
   $ hg up -q null
   $ (umask 0002; hg up -q 1 --config rust.update-from-null=true)
   $ f --mode a
-  a: mode=755
+  a: mode=775
 #endif
 
 #endif

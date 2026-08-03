@@ -1375,7 +1375,7 @@ fn working_copy_worker<'a: 'b, 'b>(
         if !flags.is_link() && (flags_differ || flags.is_exec()) {
             // Respect umask since this is an after-creation update
             let mode =
-                if flags.is_exec() { 0o755 } else { 0o666 } & !get_umask();
+                if flags.is_exec() { 0o777 } else { 0o666 } & !get_umask();
             std::fs::set_permissions(&path, Permissions::from_mode(mode))
                 .when_writing_file(&path)?;
         }
