@@ -1548,74 +1548,72 @@ mod test {
     use super::*;
     use crate::revlog::manifest::ManifestFlags;
 
-    /// Convert a symlink into a regular file with `flags`, and assert
-    /// the file ends up with exactly the contents and  mode we expect.
-    /// `base_mode` is the mode `apply_flags_to_file` asks the kernel to
-    /// create the file with; the file's actual mode should be that with
-    /// the current umask applied.
-    fn check_link_to_file(flags: ManifestFlags, base_mode: u32) {
+    // Test `apply_flags` converting a symlink to a file (not executable).
+    // The file contents should be the symlink's target, mode should be 666.
+    #[test]
+    fn test_apply_flags_link_to_file_regular() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("f");
         let target = b"some-other-file.txt";
         std::os::unix::fs::symlink(get_path_from_bytes(target), &path).unwrap();
 
-        let res = apply_flags_to_file(&path, flags).unwrap();
+        let (reported_mode, reported_size, _mtime) =
+            apply_flags_to_file(&path, ManifestFlags::new_empty())
+                .unwrap()
+                .expect("should report change");
 
         let meta = path.symlink_metadata().unwrap();
-        assert!(meta.is_file(), "should now be a regular file, not a symlink");
-        assert_eq!(
-            std::fs::read(&path).unwrap(),
-            target,
-            "file contents should be the former link target",
-        );
-
-        // The file is created with `base_mode`, so its actual mode is that
-        // with the process umask applied by the kernel at open time.
-        let expected_mode = base_mode & !get_umask();
-        assert_eq!(
-            meta.mode() & 0o777,
-            expected_mode,
-            "file mode should be the requested mode with umask applied",
-        );
-
-        // The conversion changed the file, so its metadata must be reported to
-        // the dirstate (otherwise `hg status` would show it as modified). The
-        // reported mode and size must match the file we just created.
-        let (reported_mode, reported_size, _mtime) =
-            res.expect("must report the new file's metadata to the dirstate");
-        assert_eq!(reported_mode, meta.mode(), "reported mode matches file");
-        assert_eq!(reported_size, target.len(), "reported size matches file");
+        assert!(meta.is_file());
+        assert_eq!(std::fs::read(&path).unwrap(), target);
+        let expected_mode = 0o666 & !get_umask();
+        assert_eq!(meta.mode() & 0o777, expected_mode);
+        assert_eq!(reported_mode, meta.mode());
+        assert_eq!(reported_size, target.len());
     }
 
+    // Test `apply_flags` converting a symlink to a file (executable).
+    // The file contents should be the symlink's target, mode should be 777.
     #[test]
-    fn test_apply_flags_link_to_file() {
-        // A plain (non-exec) file is created with base mode 0o666.
-        check_link_to_file(ManifestFlags::new_empty(), 0o666);
-        // An executable file is created with base mode 0o777.
-        check_link_to_file(ManifestFlags::new_exec(), 0o777);
-    }
-
-    #[test]
-    fn test_apply_flags_file_to_link() {
-        // The reverse direction: a regular file whose contents are a path
-        // becomes a symlink to that path.
+    fn test_apply_flags_link_to_file_executable() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("f");
         let target = b"some-other-file.txt";
-        std::fs::write(&path, target).unwrap();
+        std::os::unix::fs::symlink(get_path_from_bytes(target), &path).unwrap();
 
-        let res = apply_flags_to_file(&path, ManifestFlags::new_link()).unwrap();
+        let (reported_mode, reported_size, _mtime) =
+            apply_flags_to_file(&path, ManifestFlags::new_exec())
+                .unwrap()
+                .expect("should report change");
 
         let meta = path.symlink_metadata().unwrap();
-        assert!(meta.is_symlink(), "should now be a symlink");
-        assert_eq!(
-            get_bytes_from_path(std::fs::read_link(&path).unwrap()),
-            target,
-            "symlink should point at the former file contents",
-        );
-        let (reported_mode, ..) = res
-            .expect("must report the new symlink's metadata to the dirstate");
-        assert_eq!(reported_mode, meta.mode(), "reported mode matches symlink");
+        assert!(meta.is_file());
+        assert_eq!(std::fs::read(&path).unwrap(), target);
+        let expected_mode = 0o777 & !get_umask();
+        assert_eq!(meta.mode() & 0o777, expected_mode);
+        assert_eq!(reported_mode, meta.mode());
+        assert_eq!(reported_size, target.len());
+    }
+
+    // Test `apply_flags` converting a file to a symlink.
+    // The symlink target should be the file's contents.
+    #[test]
+    fn test_apply_flags_file_to_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("f");
+        let content = b"some-other-file.txt";
+        std::fs::write(&path, content).unwrap();
+
+        let (reported_mode, reported_size, _mtime) =
+            apply_flags_to_file(&path, ManifestFlags::new_link())
+                .unwrap()
+                .expect("should report change");
+
+        let meta = path.symlink_metadata().unwrap();
+        assert!(meta.is_symlink());
+        let target = get_bytes_from_path(std::fs::read_link(&path).unwrap());
+        assert_eq!(target, content);
+        assert_eq!(reported_mode, meta.mode());
+        assert_eq!(reported_size, content.len());
     }
 
     #[test]
