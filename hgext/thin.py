@@ -115,6 +115,7 @@ class ThinRepo:
         self.filtername = None
         self._wlockref = None
         self._dirstate = None
+        self._wlockfreeprefix = localrepo.localrepository._wlockfreeprefix
 
         backend_url = self.vfs.read(b"thin-backend")
         assert backend_url.startswith(b"local://")

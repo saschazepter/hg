@@ -481,3 +481,17 @@ Test listing empty shelves
   > EOF
   $ hg shelve --list
   $ cd ..
+
+Thin works when blackbox is enabled
+-----------------------------------
+
+  $ hg -R repo devel::create-thin-wc thin-blackbox
+  $ cd thin-blackbox
+  $ cat << EOF >> .hg/hgrc
+  > [extensions]
+  > blackbox=
+  > EOF
+  $ hg status
+  $ cat .hg/blackbox.log | tail -1
+  1970-01-01 00:00:00.000 * @2f59e5e739ea8552cbbc99f46a58175392dc08b2 (*)> status (glob)
+  $ cd ..
