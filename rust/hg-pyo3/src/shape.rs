@@ -5,6 +5,7 @@ use std::path::Path;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternSyntax;
 use hg::file_patterns::parse_one_pattern;
+use hg::narrow::shape::SHAPES_FILE;
 use hg::narrow::shape::Shape;
 use hg::narrow::shape::ShardTreeNode;
 use hg::narrow::shape::StoreShards;
@@ -167,6 +168,7 @@ pub fn init_module<'py>(
     package: &str,
 ) -> PyResult<Bound<'py, PyModule>> {
     let m = new_submodule(py, package, "shape")?;
+    m.add("SHAPES_FILE", PyBytes::new(py, SHAPES_FILE.as_bytes()))?;
     m.add_class::<PyShape>()?;
     m.add_class::<PyStoreShards>()?;
     m.add_function(wrap_pyfunction!(get_store_shards, &m)?)?;

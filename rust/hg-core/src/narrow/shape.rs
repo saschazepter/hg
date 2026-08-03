@@ -129,6 +129,9 @@ impl From<HgPathError> for Error {
 
 const HG_FILES_SHARD: &str = ".hg-files";
 
+/// Store file in which a repo declares its shards and shapes
+pub const SHAPES_FILE: &str = "server-shapes";
+
 /// Canonical name within a repo for a [`Shard`].
 /// Is restricted in which bytes can be used, see [`Self::new`].
 #[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -186,7 +189,7 @@ pub struct StoreShards {
 impl StoreShards {
     #[tracing::instrument(level = "debug", skip_all)]
     pub fn from_repo_config(repo: &Repo) -> Result<Self, HgError> {
-        let config = match repo.store_vfs().try_read("server-shapes")? {
+        let config = match repo.store_vfs().try_read(SHAPES_FILE)? {
             Some(data) => toml::from_slice(&data).map_err(|e| -> Error {
                 // We've failed to parse this to the expected structure,
                 // it could be for many different reasons.
