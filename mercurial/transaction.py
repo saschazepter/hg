@@ -842,12 +842,13 @@ class transaction(util.transactional, itxn.ITransaction):
             self._releasefn(self, True)  # notify success of closing transaction
             self._releasefn = None  # Help prevent cycles.
 
-        # run post close action
-        categories = sorted(self._postclosecallback)
-        for cat in categories:
-            self._postclosecallback[cat](self)
-        # Prevent double usage and help clear cycles.
-        self._postclosecallback = None
+        with util.rust_tracing_span("transaction.close.post-close-callback"):
+            # run post close action
+            categories = sorted(self._postclosecallback)
+            for cat in categories:
+                self._postclosecallback[cat](self)
+            # Prevent double usage and help clear cycles.
+            self._postclosecallback = None
 
     @active
     def abort(self) -> None:
