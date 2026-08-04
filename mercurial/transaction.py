@@ -761,7 +761,10 @@ class transaction(util.transactional, itxn.ITransaction):
                 for category in sorted(self._validatecallback):
                     self._validatecallback[category](self)
             self._validatecallback = None  # Help prevent cycles.
-            self._generatefiles(group=GEN_GROUP_PRE_FINALIZE)
+            with util.rust_tracing_span(
+                "transaction.close.pre-finalize-gen-files"
+            ):
+                self._generatefiles(group=GEN_GROUP_PRE_FINALIZE)
             while self._finalizecallback:
                 callbacks = self._finalizecallback
                 self._finalizecallback = {}
