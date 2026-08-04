@@ -818,26 +818,24 @@ class transaction(util.transactional, itxn.ITransaction):
                 self._opener.unlink(self._backupjournal)
             if self._opener.isfile(self._journal):
                 self._opener.unlink(self._journal)
+        with util.rust_tracing_span("transaction.close.cleanup-backups"):
+            for l, _f, b, c in self._backupentries:
+                if l not in self._vfsmap and c:
+                    msg = b"couldn't remove %s: unknown cache location %s\n"
+                    self._report(msg % (b, l))
+                    continue
+                vfs = self._vfsmap[l]
+                if b and vfs.exists(b):
+                    try:
+                        vfs.unlink(b)
+                    except (OSError, error.Abort) as inst:
+                        if not c:
+                            raise
+                        # Abort may be raise by read only opener
+                        msg = b"couldn't remove %s: %s\n"
+                        self._report(msg % (vfs.join(b), inst))
+            self._backupentries = []
 
-        for l, _f, b, c in self._backupentries:
-            if l not in self._vfsmap and c:
-                self._report(
-                    b"couldn't remove %s: unknown cache location"
-                    b"%s\n" % (b, l)
-                )
-                continue
-            vfs = self._vfsmap[l]
-            if b and vfs.exists(b):
-                try:
-                    vfs.unlink(b)
-                except (OSError, error.Abort) as inst:
-                    if not c:
-                        raise
-                    # Abort may be raise by read only opener
-                    self._report(
-                        b"couldn't remove %s: %s\n" % (vfs.join(b), inst)
-                    )
-        self._backupentries = []
         self._journal = None
 
         self._releasefn(self, True)  # notify success of closing transaction
