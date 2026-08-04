@@ -806,16 +806,19 @@ class transaction(util.transactional, itxn.ITransaction):
                         # Abort may be raise by read only opener
                         msg = b"couldn't remove %s: %s\n"
                         self._report(msg % (vfs.join(b), inst))
-        self._offsetmap = {}
-        self._newfiles = set()
-        self._writeundo()
-        if self._after:
-            self._after()
-            self._after = None  # Help prevent cycles.
-        if self._opener.isfile(self._backupjournal):
-            self._opener.unlink(self._backupjournal)
-        if self._opener.isfile(self._journal):
-            self._opener.unlink(self._journal)
+
+        with util.rust_tracing_span("transaction.close.setup-undo"):
+            self._offsetmap = {}
+            self._newfiles = set()
+            self._writeundo()
+            if self._after:
+                self._after()
+                self._after = None  # Help prevent cycles.
+            if self._opener.isfile(self._backupjournal):
+                self._opener.unlink(self._backupjournal)
+            if self._opener.isfile(self._journal):
+                self._opener.unlink(self._journal)
+
         for l, _f, b, c in self._backupentries:
             if l not in self._vfsmap and c:
                 self._report(
