@@ -19,6 +19,11 @@ pub fn initialize() {
 }
 
 pub fn get_umask() -> u32 {
+    // The original plan was to drop this `initialize` call, and thus have
+    // `get_umask` safely crash if it's used without `initialize`.
+    // However, that makes it awkward to write tests, since all tests that
+    // exercise this function need to call `initialize` at the beginning.
+    // We're sacrificing a little bit of safety for convenience here,
     initialize();
     *UMASK.get().unwrap()
 }
