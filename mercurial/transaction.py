@@ -838,8 +838,9 @@ class transaction(util.transactional, itxn.ITransaction):
 
         self._journal = None
 
-        self._releasefn(self, True)  # notify success of closing transaction
-        self._releasefn = None  # Help prevent cycles.
+        with util.rust_tracing_span("transaction.close.release-fn"):
+            self._releasefn(self, True)  # notify success of closing transaction
+            self._releasefn = None  # Help prevent cycles.
 
         # run post close action
         categories = sorted(self._postclosecallback)
