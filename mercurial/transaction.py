@@ -765,14 +765,15 @@ class transaction(util.transactional, itxn.ITransaction):
                 "transaction.close.pre-finalize-gen-files"
             ):
                 self._generatefiles(group=GEN_GROUP_PRE_FINALIZE)
-            while self._finalizecallback:
-                callbacks = self._finalizecallback
-                self._finalizecallback = {}
-                categories = sorted(callbacks)
-                for cat in categories:
-                    callbacks[cat](self)
-            # Prevent double usage and help clear cycles.
-            self._finalizecallback = None
+            with util.rust_tracing_span("transaction.close.finalize"):
+                while self._finalizecallback:
+                    callbacks = self._finalizecallback
+                    self._finalizecallback = {}
+                    categories = sorted(callbacks)
+                    for cat in categories:
+                        callbacks[cat](self)
+                # Prevent double usage and help clear cycles.
+                self._finalizecallback = None
             self._generatefiles(group=GEN_GROUP_POST_FINALIZE)
 
             if self._debug_abort == ABORT_POST_FINALIZE:
