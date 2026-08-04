@@ -757,8 +757,9 @@ class transaction(util.transactional, itxn.ITransaction):
     def close(self) -> None:
         '''commit the transaction'''
         if self._count == 1:
-            for category in sorted(self._validatecallback):
-                self._validatecallback[category](self)
+            with util.rust_tracing_span("transaction.close.validate"):
+                for category in sorted(self._validatecallback):
+                    self._validatecallback[category](self)
             self._validatecallback = None  # Help prevent cycles.
             self._generatefiles(group=GEN_GROUP_PRE_FINALIZE)
             while self._finalizecallback:
