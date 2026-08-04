@@ -16,6 +16,7 @@ use hg::FastHashMap;
 use hg::NULL_NODE;
 use hg::Node;
 use hg::dirstate::dirstate_map::DirstateEntryReset;
+use hg::dirstate::dirstate_map::DirstateFuseExt;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
 use hg::dirstate::dirstate_map::FuseNodeInfo;
 use hg::dirstate::entry::ParentFileData;
@@ -122,7 +123,8 @@ impl<T: FileToken> OwnedRevision<T> {
         if let Some(reserved) = revision.reserved.get(&ino) {
             return Some(reserved.entry.clone());
         }
-        let info = self.revision.dirstate.get_map().fuse_node_info(
+        let dirstate_map = self.revision.dirstate.get_map();
+        let info = dirstate_map.fuse_node_info(
             RevisionInodeEncoder::ino_to_offset(revision.files_root_ino, ino),
         )?;
 
@@ -143,7 +145,8 @@ impl<T: FileToken> OwnedRevision<T> {
             });
         }
 
-        let info = self.revision.dirstate.get_map().fuse_lookup(
+        let dirstate_map = self.revision.dirstate.get_map();
+        let info = dirstate_map.fuse_lookup(
             RevisionInodeEncoder::ino_to_offset(
                 revision.files_root_ino,
                 parent,
@@ -202,7 +205,8 @@ impl<T: FileToken> OwnedRevision<T> {
             };
         }
 
-        let Some(info) = self.revision.dirstate.get_map().fuse_node_info(
+        let dirstate_map = self.revision.dirstate.get_map();
+        let Some(info) = dirstate_map.fuse_node_info(
             RevisionInodeEncoder::ino_to_offset(revision.files_root_ino, ino),
         ) else {
             return Ok(None);

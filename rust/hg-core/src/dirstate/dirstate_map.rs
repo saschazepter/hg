@@ -1054,22 +1054,24 @@ impl<'on_disk> DirstateMap<'on_disk> {
     }
 }
 
-// FUSE-related methods
-impl<'on_disk> DirstateMap<'on_disk> {
+/// Extension trait that groups FUSE-related methods together
+#[allow(private_bounds)]
+pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
     /// Returns the information that the FUSE needs for the node at this offset
-    pub fn fuse_node_info(&self, offset: usize) -> Option<FuseNodeInfo<'_>> {
-        let node = on_disk::Node::from_bytes(&self.on_disk[offset..]).ok()?;
+    fn fuse_node_info(&self, offset: usize) -> Option<FuseNodeInfo<'_>> {
+        let node = on_disk::Node::from_bytes(&self.on_disk()[offset..]).ok()?;
         self.fuse_info_from_dirstate_node(node.0, offset).ok()
     }
 
     /// Returns the [`FuseNodeInfo`] for all children of the node at this offset
-    pub fn fuse_children_entries(
+    fn fuse_children_entries(
         &self,
         offset: usize,
     ) -> Option<Vec<FuseNodeInfo<'_>>> {
-        let node = on_disk::Node::from_bytes(&self.on_disk[offset..]).ok()?.0;
+        let node = on_disk::Node::from_bytes(&self.on_disk()[offset..]).ok()?.0;
         let mut entries = vec![];
-        for (idx, child) in node.children(self.on_disk).ok()?.iter().enumerate()
+        for (idx, child) in
+            node.children(self.on_disk()).ok()?.iter().enumerate()
         {
             entries.push(
                 self.fuse_info_from_dirstate_node(
@@ -1084,18 +1086,18 @@ impl<'on_disk> DirstateMap<'on_disk> {
 
     /// Returns the [`FuseNodeInfo`] for the child node matching `name` of the
     /// parent node at the given offset.
-    pub fn fuse_lookup(
+    fn fuse_lookup(
         &self,
         parent_offset: usize,
         name: &[u8],
     ) -> Option<FuseNodeInfo<'_>> {
-        let relevant_slice = &self.on_disk[parent_offset..];
+        let relevant_slice = &self.on_disk()[parent_offset..];
         let node = on_disk::Node::from_bytes(relevant_slice).ok()?.0;
-        let child_nodes_ref = node.children(self.on_disk).ok()?;
+        let child_nodes_ref = node.children(self.on_disk()).ok()?;
         let base_name = HgPath::new(name);
         let (child, idx) =
             child_nodes_ref.iter().enumerate().find_map(|(idx, child)| {
-                if child.base_name(self.on_disk) == Ok(base_name) {
+                if child.base_name(self.on_disk()) == Ok(base_name) {
                     return Some((child, idx));
                 }
                 None
@@ -1103,6 +1105,13 @@ impl<'on_disk> DirstateMap<'on_disk> {
         let offset = node.child_offset(idx);
         self.fuse_info_from_dirstate_node(child, offset).ok()
     }
+}
+
+/// Extension trait for FUSE-related operations that peek into the private
+/// dirstate structure
+pub(super) trait DirstateInternalFuseExt<'on_disk> {
+    /// Returns a reference to the immutable bytes this dirstate is based on
+    fn on_disk(&self) -> &[u8];
 
     /// Returns info relevant to the FUSE for this node, given its offset into
     /// the packed dirstate.
@@ -1112,13 +1121,21 @@ impl<'on_disk> DirstateMap<'on_disk> {
         offset: usize,
     ) -> Result<FuseNodeInfo<'_>, DirstateV2ParseError> {
         Ok(FuseNodeInfo {
-            path: node.full_path(self.on_disk)?,
+            path: node.full_path(self.on_disk())?,
             size: node.size(),
             flags: node.manifest_flags(),
             offset,
         })
     }
 }
+
+impl<'on_disk> DirstateInternalFuseExt<'on_disk> for &DirstateMap<'on_disk> {
+    fn on_disk(&self) -> &[u8] {
+        self.on_disk
+    }
+}
+
+impl<'on_disk> DirstateFuseExt<'on_disk> for &DirstateMap<'on_disk> {}
 
 /// Sets the parameters for resetting a dirstate entry
 pub struct DirstateEntryReset<'a> {

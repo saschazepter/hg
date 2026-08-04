@@ -219,7 +219,8 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     fn load_revision(
         &self,
         changeset: Node,
-    ) -> Result<(Arc<OwnedRevision<T>>, DirstateBaseInfo), StoreError<T>> {
+    ) -> Result<(Arc<OwnedRevision<T>>, DirstateBaseInfo<T>), StoreError<T>>
+    {
         let (revision_data, new_dirstate_base) = OwnedRevision::from_revision(
             &self.store,
             changeset,
