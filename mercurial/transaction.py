@@ -774,7 +774,10 @@ class transaction(util.transactional, itxn.ITransaction):
                         callbacks[cat](self)
                 # Prevent double usage and help clear cycles.
                 self._finalizecallback = None
-            self._generatefiles(group=GEN_GROUP_POST_FINALIZE)
+            with util.rust_tracing_span(
+                "transaction.close.post-finalize-gen-files"
+            ):
+                self._generatefiles(group=GEN_GROUP_POST_FINALIZE)
 
             if self._debug_abort == ABORT_POST_FINALIZE:
                 raise error.Abort(_(b"requested %s" % ABORT_POST_FINALIZE))
