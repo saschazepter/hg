@@ -1222,6 +1222,7 @@ class localrepository(_localrepo_base_classes):
         self._transref: weakref.ref[TransactionT] | None = None
         self._wlockref: weakref.ref[lockmod.lock] | None = None
         self._lockref: weakref.ref[lockmod.lock] | None = None
+        self._store_shapes_lockref: weakref.ref[lockmod.lock] | None = None
 
         # A cache for various files under .hg/ that tracks file changes,
         # (used by the filecache decorator)
@@ -3132,6 +3133,29 @@ class localrepository(_localrepo_base_classes):
         self._wlockref = weakref.ref(l)
         return l
 
+    @util.rust_tracing_span("store shapes lock")
+    def store_shapes_lock(self, wait: bool = True) -> lockmod.lock:
+        """Lock the store shapes and return a weak reference to the lock.
+
+        This is held for a server-shapes update so that a concurrent update cannot be
+        silently thrown away.
+        """
+        l = self._currentlock(self._store_shapes_lockref)
+        if l is not None:
+            l.lock()
+            return l
+
+        l = self._lock(
+            vfs=self.svfs,
+            lockname=b"store-shapes-lock",
+            wait=wait,
+            releasefn=None,
+            acquirefn=None,
+            desc=_(b'store shapes of %s') % self.origroot,
+        )
+        self._store_shapes_lockref = weakref.ref(l)
+        return l
+
     def _currentlock(
         self,
         lockref: weakref.ref[lockmod.lock] | None,
@@ -3150,6 +3174,10 @@ class localrepository(_localrepo_base_classes):
     def currentlock(self) -> lockmod.lock | None:
         """Returns the lock if it's held, or None if it's not."""
         return self._currentlock(self._lockref)
+
+    def current_store_shapes_lock(self) -> lockmod.lock | None:
+        """Returns the store shapes lock if it's held, or None if it's not."""
+        return self._currentlock(self._store_shapes_lockref)
 
     def checkcommitpatterns(
         self,

@@ -73,3 +73,6 @@ SideDataKeyT = int
 
 SideDataT = dict[SideDataKeyT, bytes]
 """The full sidedata mapping for one revision"""
+
+# TODO: make a protocol class for this
+LockT = Any

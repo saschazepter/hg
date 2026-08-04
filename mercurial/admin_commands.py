@@ -291,24 +291,27 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 fm.write(b"path", b"%s\n", file, label=label)
             return
         elif subcommand == "shape_update":
-            if file := opts.get("file"):
-                try:
-                    shapes = util.readfile(file)
-                except OSError as inst:
-                    raise error.InputError(
-                        _(b"can't read file '%s': %s")
-                        % (file, encoding.strtolocal(inst.strerror))
+            with repo.store_shapes_lock(wait=False):
+                if file := opts.get("file"):
+                    try:
+                        shapes = util.readfile(file)
+                    except OSError as inst:
+                        raise error.InputError(
+                            _(b"can't read file '%s': %s")
+                            % (file, encoding.strtolocal(inst.strerror))
+                        )
+                else:
+                    shapes = ui.edit(
+                        repo.svfs.tryread(shapemod.SHAPES_FILE),
+                        ui.username(acceptempty=True) or b'',
+                        action=b'shape-update',
                     )
-            else:
-                shapes = ui.edit(
-                    repo.svfs.tryread(shapemod.SHAPES_FILE),
-                    ui.username(acceptempty=True) or b'',
-                    action=b'shape-update',
-                )
-            # Make sure contents are valid
-            shapemod.get_store_shards_from_bytes(shapes)
-            with repo.lock():
-                repo.svfs.write(shapemod.SHAPES_FILE, shapes, atomictemp=True)
+                # Make sure contents are valid
+                shapemod.get_store_shards_from_bytes(shapes)
+                with repo.lock():
+                    repo.svfs.write(
+                        shapemod.SHAPES_FILE, shapes, atomictemp=True
+                    )
             return
         else:
             assert False, "unreachable"

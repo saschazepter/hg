@@ -31,6 +31,7 @@ if typing.TYPE_CHECKING:
 
     from ._basetypes import (
         HgPathT,
+        LockT,
         NeedsTypeHint,
         NodeIdT,
         RevnumT,
@@ -2328,6 +2329,19 @@ class IRepo(Protocol):
     @abc.abstractmethod
     def currentwlock(self):
         """Return the wlock if it's held or None."""
+
+    @abc.abstractmethod
+    def store_shapes_lock(self, wait: bool = True) -> LockT:
+        """Lock the store shapes of the repository.
+
+        This is meant to be held for the whole of a shapes update, which
+        includes waiting for the user to edit them. The store lock is still what
+        protects the write itself.
+        """
+
+    @abc.abstractmethod
+    def current_store_shapes_lock(self) -> LockT | None:
+        """Return the store shapes lock if it's held or None."""
 
     @abc.abstractmethod
     def checkcommitpatterns(

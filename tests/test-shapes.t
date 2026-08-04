@@ -418,19 +418,22 @@ Start an update and hold it in the editor
   > > ../editor-update.out 2>&1 &
   $ $RUNTESTDIR/testlib/wait-on-file 10 $TESTTMP/editor-waiting
 
-While the first update is still in the editor, a second update goes through (allowed
-because the lock is only taken upon save & close), updating name to "concurrent"
+The shapes lock is held for the whole update, so a second update fails
 
   $ hg admin::narrow-server --shape-update -f ../concurrent_update
+  abort: store shapes of $TESTTMP/server: timed out waiting for lock held by * (glob)
+  [20]
+
+Nothing was written, the first update still owns the file
+
   $ cat .hg/store/server-shapes
   version = 0
   [[shards]]
-  name = "concurrent"
+  name = "before"
   paths = ["dir1"]
   shape = true
 
-Letting the first update finish then silently discards the "concurrent" update
-TODO: fix
+Letting the first update finish applies it
 
   $ touch $TESTTMP/editor-continue
   $ wait
@@ -441,6 +444,10 @@ TODO: fix
   name = "from-file"
   paths = ["dir1"]
   shape = true
+
+The lock is released afterwards, so now another update can now go through
+
+  $ hg admin::narrow-server --shape-update -f ../concurrent_update
   $ hg admin::narrow-server --shape-fingerprints
-  b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 from-file
+  b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 concurrent
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
