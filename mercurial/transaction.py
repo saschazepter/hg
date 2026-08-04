@@ -789,24 +789,23 @@ class transaction(util.transactional, itxn.ITransaction):
             return
         self._file.close()
         self._backupsfile.close()
-        # cleanup temporary files
-        for l, f, b, c in self._backupentries:
-            if l not in self._vfsmap and c:
-                self._report(
-                    b"couldn't remove %s: unknown cache location %s\n" % (b, l)
-                )
-                continue
-            vfs = self._vfsmap[l]
-            if not f and b and vfs.exists(b):
-                try:
-                    vfs.unlink(b)
-                except (OSError, error.Abort) as inst:
-                    if not c:
-                        raise
-                    # Abort may be raise by read only opener
-                    self._report(
-                        b"couldn't remove %s: %s\n" % (vfs.join(b), inst)
-                    )
+        with util.rust_tracing_span("transaction.close.cleanup-tmp-files"):
+            # cleanup temporary files
+            for l, f, b, c in self._backupentries:
+                if l not in self._vfsmap and c:
+                    msg = b"couldn't remove %s: unknown cache location %s\n"
+                    self._report(msg % (b,))
+                    continue
+                vfs = self._vfsmap[l]
+                if not f and b and vfs.exists(b):
+                    try:
+                        vfs.unlink(b)
+                    except (OSError, error.Abort) as inst:
+                        if not c:
+                            raise
+                        # Abort may be raise by read only opener
+                        msg = b"couldn't remove %s: %s\n"
+                        self._report(msg % (vfs.join(b), inst))
         self._offsetmap = {}
         self._newfiles = set()
         self._writeundo()
