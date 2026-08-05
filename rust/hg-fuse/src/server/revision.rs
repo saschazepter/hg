@@ -380,6 +380,9 @@ impl<T: FileToken> RevisionTree<T> {
         start_time: TruncatedTimestamp,
         inode_encoder: &mut RevisionInodeEncoder,
     ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
+        let files_diff =
+            store.changeset_files_diff(base_info.node, changeset)?;
+
         let map_span = tracing::debug_span!("building the dirstate").entered();
         let old_dirstate = OwningDirstateMap::new_v2(
             RawData::clone(&base_info.serialized),
@@ -397,9 +400,6 @@ impl<T: FileToken> RevisionTree<T> {
             None,
         )
         .map_err(HgError::from)?;
-
-        let files_diff =
-            store.changeset_files_diff(base_info.node, changeset)?;
 
         let mut path_to_token = FastHashMap::default();
         for hunk in files_diff.iter_diff() {
