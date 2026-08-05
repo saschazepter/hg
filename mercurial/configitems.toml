@@ -866,6 +866,14 @@ supports exchanging narrow store shapes.
 
 [[items]]
 section = "experimental"
+name = "fast-sha1-for-new-manifest"
+default = false
+documentation = """
+Skip using sha1dc when computing the hash of newly commited manifest.
+"""
+
+[[items]]
+section = "experimental"
 name = "archivemetatemplate"
 default-type = "dynamic"
 

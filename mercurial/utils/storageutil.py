@@ -28,6 +28,7 @@ from .. import (
 from ..utils import hashutil
 
 _nullhash = hashutil.sha1(sha1nodeconstants.nullid)
+_fast_nullhash = hashutil.fast_sha1(sha1nodeconstants.nullid)
 
 # revision data contains extra metadata not part of the official digest
 # Only used in changegroup >= v5.
@@ -35,7 +36,7 @@ CG_FLAG_SIDEDATA = 1
 CG_FLAG_FULL_TEXT = 2
 
 
-def hashrevisionsha1(text, p1, p2):
+def hashrevisionsha1(text, p1, p2, fast=False):
     """Compute the SHA-1 for revision data and its parents.
 
     This hash combines both the current file contents and its history
@@ -45,7 +46,10 @@ def hashrevisionsha1(text, p1, p2):
     # As of now, if one of the parent node is null, p2 is null
     if p2 == sha1nodeconstants.nullid:
         # deep copy of a hash is faster than creating one
-        s = _nullhash.copy()
+        if fast:
+            s = _fast_nullhash.copy()
+        else:
+            s = _nullhash.copy()
         s.update(p1)
     else:
         # none of the parent nodes are nullid
@@ -55,7 +59,10 @@ def hashrevisionsha1(text, p1, p2):
         else:
             a = p2
             b = p1
-        s = hashutil.sha1(a)
+        if fast:
+            s = hashutil.fast_sha1(a)
+        else:
+            s = hashutil.sha1(a)
         s.update(b)
     s.update(text)
     return s.digest()

@@ -472,6 +472,9 @@ class revlog:
     # use by large file to signal it might affect some filelog
     _large_file_enabled = False
 
+    # should faster hashing be used for new content
+    _new_hash_fast = False
+
     # XXX this work around the buggy baserev in bundle revlog,
     # We should fix that instead
     may_emit_compressed = True
@@ -2031,13 +2034,13 @@ class revlog:
         """
         return self._revisiondata(nodeorrev, raw=True, validate=validate)
 
-    def hash(self, text, p1, p2):
+    def hash(self, text, p1, p2, fast=False):
         """Compute a node hash.
 
         Available as a function so that subclasses can replace the hash
         as needed.
         """
-        return storageutil.hashrevisionsha1(text, p1, p2)
+        return storageutil.hashrevisionsha1(text, p1, p2, fast=fast)
 
     def checkhash(self, text, node, p1=None, p2=None, rev=None):
         """Check node hash integrity.
@@ -2264,7 +2267,7 @@ class revlog:
             rawtext = text
         else:
             if node is None:
-                node = self.hash(text, p1, p2)
+                node = self.hash(text, p1, p2, fast=self._new_hash_fast)
 
             rawtext, validatehash = flagutil.processflagswrite(
                 self, text, flags

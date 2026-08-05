@@ -1724,6 +1724,8 @@ class manifestrevlog(repository.imanifeststorage):
             radix=radix,
             configs=rl_conf,
         )
+        fast_hash = opts.get(b'fast-sha1-for-new-manifest', False)
+        self._revlog._new_hash_fast = fast_hash
 
         self.index = self._revlog.index
 
@@ -1869,7 +1871,12 @@ class manifestrevlog(repository.imanifeststorage):
 
         text = util.buffer(arraytext)
         rev = self._revlog.addrevision(
-            text, transaction, link, p1, p2, cachedelta
+            text,
+            transaction,
+            link,
+            p1,
+            p2,
+            cachedelta,
         )
         n = self._revlog.node(rev)
         self.fulltextcache[n] = arraytext
