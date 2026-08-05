@@ -436,6 +436,11 @@ The shapes lock is held for the whole update, so a second update fails
   abort: store shapes of $TESTTMP/server: timed out waiting for lock held by * (glob)
   [20]
 
+Read-only commands emit a warning
+  $ hg admin::narrow-server --shape-files before
+  warning: store shapes are currently being updated (lock held by *) (glob)
+  dir1/file1
+
 Nothing was written, the first update still owns the file
 
   $ cat .hg/store/server-shapes

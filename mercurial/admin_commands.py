@@ -202,6 +202,14 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
 
     if subcommand != "shape_update":
         cmdutil.check_incompatible_arguments(opts, subcommand, ["file"])
+        try:
+            locker = repo.svfs.readlock(b'store-shapes-lock')
+            msg = _(
+                b'warning: store shapes are currently being updated (lock held by %s)\n'
+            )
+            ui.warn(msg % locker)
+        except FileNotFoundError:
+            pass
 
     store_shards = shapemod.get_store_shards(repo.root)
 
