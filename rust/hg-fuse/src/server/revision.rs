@@ -656,7 +656,7 @@ impl RevisionInodeEncoder {
         // attached to the files root. The mutex will be uncontended since
         // the dirstate does not support parallel inserts, this is purely so we
         // can satisfy the callback being immutable.
-        let root_nodes = Mutex::new(&mut files_root_entry.children);
+        let top_level_nodes = Mutex::new(&mut files_root_entry.children);
 
         // Called on every node, in serialization order, to store the mapping
         // of path -> filenodeid (or nothing for directories).
@@ -665,7 +665,7 @@ impl RevisionInodeEncoder {
             latest_ino.store(ino.0, Ordering::Relaxed);
 
             if !path.contains(b'/') {
-                root_nodes.lock().expect("propagate the panic").push(ino);
+                top_level_nodes.lock().expect("propagate the panic").push(ino);
             }
             if is_directory {
                 return;
