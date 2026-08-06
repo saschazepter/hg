@@ -20,6 +20,7 @@ use hg::dirstate::entry::DirstateEntry;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::DirstateV2ParseError;
+use hg::dirstate::on_disk::V2SerializationInfo;
 use hg::dirstate::on_disk::WriteNodeVisit;
 use hg::dirstate::owning::OwningDirstateMap;
 use hg::utils::files::normalize_case;
@@ -305,18 +306,17 @@ impl DirstateMap {
                 2 => DirstateMapWriteMode::ForceAppend,
                 _ => DirstateMapWriteMode::Auto, // XXX should we error out?
             };
-            let (packed, tree_metadata, append, _old_data_size) = inner
+            let V2SerializationInfo { data, metadata, appended } = inner
                 .pack_v2(rust_write_mode, None::<WriteNodeVisit>)
                 .map_err(|e| dirstate_error(py, e))?;
             // TODO optim. In theory we should be able to avoid these copies,
-            // since we have full ownership of `packed` and `tree_metadata`.
+            // since we have full ownership of `data` and `metadata`.
             // But the copy is done by CPython itself, in
             // `PyBytes_FromStringAndSize()`. Perhaps something better can
             // be done with `PyBytes_FromObject` (buffer protocol).
-            let packed = PyBytes::new(py, &packed).unbind();
-            let tree_metadata =
-                PyBytes::new(py, tree_metadata.as_bytes()).unbind();
-            Ok((packed, tree_metadata, append).into_pyobject(py)?.into())
+            let packed = PyBytes::new(py, &data).unbind();
+            let tree_metadata = PyBytes::new(py, metadata.as_bytes()).unbind();
+            Ok((packed, tree_metadata, appended).into_pyobject(py)?.into())
         })
     }
 

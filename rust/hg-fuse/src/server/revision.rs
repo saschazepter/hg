@@ -22,6 +22,7 @@ use hg::dirstate::dirstate_map::FuseNodeInfo;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::Docket;
+use hg::dirstate::on_disk::V2SerializationInfo;
 use hg::dirstate::on_disk::WriteNodeVisit;
 use hg::dirstate::on_disk::write_tracked_key_to;
 use hg::dirstate::owning::OwningDirstateMap;
@@ -708,7 +709,7 @@ impl RevisionInodeEncoder {
             DirstateMapWriteMode::ForceNewDataFile
         };
         let packed_res = dirstate.pack_v2(write_mode, Some(visit));
-        let (mut data, tree_metadata, _, _) = packed_res
+        let V2SerializationInfo { mut data, metadata, appended } = packed_res
             .expect("in-memory serialization of a dirstate should not fail");
         let new_inode = latest_ino
             .load(Ordering::Relaxed)
@@ -719,10 +720,11 @@ impl RevisionInodeEncoder {
             "inode overflow"
         );
         self.current_ino = AtomicU64::new(new_inode);
-        if should_append {
+        if let Some(len) = appended {
             // TODO stop copying the previous dirstate and build an abstraction
             // to reuse the old buffer
             let mut buf = dirstate.on_disk().to_owned();
+            assert_eq!(len, buf.len());
             buf.extend_from_slice(&data);
             data = buf;
         }
@@ -737,7 +739,7 @@ impl RevisionInodeEncoder {
         // Create the docket file
         let docket_data = Docket::serialize(
             parents,
-            tree_metadata,
+            metadata,
             u_u64(data_size),
             uuid.as_bytes(),
         )
@@ -760,7 +762,7 @@ impl RevisionInodeEncoder {
         let new_dirstate = OwningDirstateMap::new_v2(
             RawData::clone(&packed_data),
             data_size,
-            tree_metadata.as_bytes(),
+            metadata.as_bytes(),
             uuid.as_bytes().to_vec(),
             None,
         )
@@ -769,7 +771,7 @@ impl RevisionInodeEncoder {
             new_dirstate,
             DirstateBaseInfo {
                 serialized: packed_data,
-                metadata: tree_metadata.as_bytes().to_vec(),
+                metadata: metadata.as_bytes().to_vec(),
                 uuid: uuid.as_bytes().to_vec(),
                 node: parents.p1,
                 offset_to_token: offset_to_token

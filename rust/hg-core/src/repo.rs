@@ -18,6 +18,7 @@ use crate::dirstate::DirstateParents;
 use crate::dirstate::dirstate_map::DirstateIdentity;
 use crate::dirstate::dirstate_map::DirstateMapWriteMode;
 use crate::dirstate::on_disk::Docket as DirstateDocket;
+use crate::dirstate::on_disk::V2SerializationInfo;
 use crate::dirstate::on_disk::WriteNodeVisit;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::dirstate::status::IgnoreFnType;
@@ -641,7 +642,7 @@ impl Repo {
             } else {
                 DirstateMapWriteMode::ForceNewDataFile
             };
-            let (data, tree_metadata, append, old_data_size) =
+            let V2SerializationInfo { data, metadata, appended } =
                 map.pack_v2(write_mode, None::<WriteNodeVisit>)?;
 
             // Reuse the uuid, or generate a new one, keeping the old for
@@ -655,7 +656,7 @@ impl Repo {
                             )
                         })?
                         .to_owned();
-                    if append {
+                    if appended.is_some() {
                         (as_str, None)
                     } else {
                         (DirstateDocket::new_uid(), Some(as_str))
@@ -683,7 +684,7 @@ impl Repo {
             //   about a Solaris bug, but we also saw some ZFS bug: https://github.com/openzfs/zfs/pull/3124,
             //   https://github.com/openzfs/zfs/issues/13370
             //
-            if !append {
+            if appended.is_none() {
                 tracing::debug!("creating a new dirstate data file");
                 options.create_new(true);
             } else {
@@ -695,7 +696,7 @@ impl Repo {
                 // returns `ErrorKind::AlreadyExists`? Collision chance of two
                 // random IDs is one in 2**32
                 let mut file = options.open(&data_filename)?;
-                if append {
+                if let Some(old_data_size) = appended {
                     file.seek(SeekFrom::Start(old_data_size as u64))?;
                 }
                 file.write_all(&data)?;
@@ -706,7 +707,7 @@ impl Repo {
 
             let packed_dirstate = DirstateDocket::serialize(
                 parents,
-                tree_metadata,
+                metadata,
                 data_size,
                 uuid.as_bytes(),
             )

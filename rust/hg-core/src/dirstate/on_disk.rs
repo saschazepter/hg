@@ -695,6 +695,18 @@ where
 /// with inodes being derived from offsets.
 pub type WriteNodeVisit<'a> = &'a dyn Fn(&HgPath, bool, u64);
 
+/// Contains information about a V2 dirstate having been serialized
+pub struct V2SerializationInfo {
+    /// The new data that was serialized. Explicitly, this only contains
+    /// the appended data, not the previous data for appends
+    pub data: Vec<u8>,
+    /// The docket metadata about the new data
+    pub metadata: TreeMetadata,
+    /// If this was an append and not a full write, contains the previous
+    /// data size
+    pub appended: Option<usize>,
+}
+
 /// Returns new data and metadata, together with whether that data should be
 /// appended to the existing data file whose content is at
 /// `dirstate_map.on_disk` (true), instead of written to a new data file
@@ -703,7 +715,7 @@ pub(super) fn write(
     dirstate_map: &DirstateMap,
     write_mode: DirstateMapWriteMode,
     visit_in_order: Option<WriteNodeVisit>,
-) -> Result<(Vec<u8>, TreeMetadata, bool, usize), DirstateError> {
+) -> Result<V2SerializationInfo, DirstateError> {
     let append = match write_mode {
         DirstateMapWriteMode::Auto => dirstate_map.write_should_append(),
         DirstateMapWriteMode::ForceNewDataFile => false,
@@ -752,7 +764,11 @@ pub(super) fn write(
         unused: [0; 4],
         ignore_patterns_hash: dirstate_map.ignore_patterns_hash,
     };
-    Ok((writer.out, meta, append, dirstate_map.old_data_size))
+    Ok(V2SerializationInfo {
+        data: writer.out,
+        metadata: meta,
+        appended: append.then_some(dirstate_map.old_data_size),
+    })
 }
 
 struct Writer<'dmap, 'on_disk> {

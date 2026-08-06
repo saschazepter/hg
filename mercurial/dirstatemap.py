@@ -824,9 +824,10 @@ if rustmod is not None:
             # We can only append to an existing data file if there is one
             if docket is None or docket.uuid is None:
                 write_mode = WRITE_MODE_FORCE_NEW
-            packed, meta, append = self._map.write_v2(write_mode)
-            if append:
+            packed, meta, appended = self._map.write_v2(write_mode)
+            if appended is not None:
                 docket = self.docket
+                assert docket.data_size == appended
                 data_filename = docket.data_filename()
                 # We mark it for backup to make sure a future `hg rollback` (or
                 # `hg recover`?) call find the data it needs to restore a

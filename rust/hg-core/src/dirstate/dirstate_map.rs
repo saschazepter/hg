@@ -1539,8 +1539,7 @@ impl OwningDirstateMap {
         &self,
         write_mode: DirstateMapWriteMode,
         visit_in_order: Option<WriteNodeVisit>,
-    ) -> Result<(Vec<u8>, on_disk::TreeMetadata, bool, usize), DirstateError>
-    {
+    ) -> Result<on_disk::V2SerializationInfo, DirstateError> {
         let map = self.get_map();
         on_disk::write(map, write_mode, visit_in_order)
     }
@@ -1787,6 +1786,7 @@ impl OwningDirstateMap {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dirstate::on_disk::V2SerializationInfo;
 
     /// Shortcut to return tracked descendants of a path.
     /// Panics if the path does not exist.
@@ -2213,7 +2213,8 @@ mod tests {
         };
         map.reset_state(reset)?;
 
-        let (packed, metadata, _should_append, _old_data_size) = map.pack_v2(
+        let V2SerializationInfo { data: packed, metadata, appended: _ } = map
+            .pack_v2(
             DirstateMapWriteMode::ForceNewDataFile,
             None::<WriteNodeVisit>,
         )?;
