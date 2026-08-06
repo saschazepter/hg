@@ -631,9 +631,6 @@ impl RevisionInodeEncoder {
         path_to_token: FastHashMap<&HgPath, T>,
         base: Option<(DirstateBaseInfo<T>, OwningDirstateMap)>,
     ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
-        // The mutex will be uncontended since the dirstate does not support
-        // parallel inserts, this is purely so we can satisfy the callback being
-        // immutable
         let should_append = base.is_some();
         let (mut offset_to_token, old_dirstate) = match base {
             Some((base_info, old_dirstate)) => {
@@ -643,10 +640,12 @@ impl RevisionInodeEncoder {
         };
         offset_to_token
             .reserve(dirstate.len().saturating_sub(offset_to_token.len()));
+        // The mutex will be uncontended since the dirstate does not support
+        // parallel inserts, this is purely so we can satisfy the callback being
+        // immutable
         let offset_to_token = Mutex::new(offset_to_token);
 
         let latest_ino = AtomicU64::new(self.files_root_inode.0);
-        // Insert them in the files root
         let files_root_entry = self
             .reserved_entries
             .get_mut(&self.files_root_inode)
