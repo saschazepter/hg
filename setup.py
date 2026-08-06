@@ -23,10 +23,9 @@ be at least 1.0.1).
     sys.exit(1)
 
 
-def read_argument(argument, default=None):
+def _split_arguments():
     """read a command line argument if it exists"""
     argv = sys.argv
-    value = default
     exec_name = argv[0]
     argv = argv[1:]
     suffix = []
@@ -36,8 +35,15 @@ def read_argument(argument, default=None):
         suffix = argv[args_end:]
         argv = argv[:args_end]
 
+    return ([exec_name], argv, suffix)
+
+
+def read_argument(argument, default=None):
+    """read a command line argument if it exists"""
+    exec_part, argv, suffix = _split_arguments()
     argument = "--" + argument
 
+    value = default
     if argument in argv:
         index = argv.index(argument)
         if index + 1 == len(argv):
@@ -48,7 +54,7 @@ def read_argument(argument, default=None):
         del argv[index]
         del argv[index]
     # update sys.argv arguments
-    sys.argv[:] = [exec_name] + argv + suffix
+    sys.argv[:] = exec_part + argv + suffix
     return value
 
 
