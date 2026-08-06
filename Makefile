@@ -97,12 +97,15 @@ help:
 
 .PHONY: local
 local:
+	rm -f hg-local
+	rm -f rhg-local
 	uv venv -p $(PYTHON_FOR_UV) .local-venv --clear --system-site-packages
 	env CARGO_NET_OFFLINE=$(CARGO_NET_OFFLINE) uv pip install -e . $(OFFLINE_UV_OPTION) \
 	  -p .local-venv/$(PYBINDIRNAME)/python$(EXE) \
 	  -C=--global-option="$(FLAVOR)"
 	env HGRCPATH= .local-venv/$(PYBINDIRNAME)/hg$(EXE) version
 	test -e .local-venv/$(PYBINDIRNAME)/hg$(EXE) && ln -s -f .local-venv/$(PYBINDIRNAME)/hg$(EXE) hg-local$(EXE)
+	if test -e .local-venv/$(PYBINDIRNAME)/rhg; then ln -s -f .local-venv/$(PYBINDIRNAME)/rhg rhg-local; fi
 
 .PHONY: build-chg
 build-chg:
