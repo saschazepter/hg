@@ -58,8 +58,26 @@ def read_argument(argument, default=None):
     return value
 
 
+def read_flag(argument, default=False):
+    """read a command line argument if it exists"""
+    exec_part, argv, suffix = _split_arguments()
+
+    argument = '--' + argument
+
+    value = argument in argv
+    if argument in argv:
+        index = argv.index(argument)
+        del argv[index]
+    # update sys.argv arguments
+    sys.argv[:] = exec_part + argv + suffix
+    return value
+
+
 # must run early to clean up sys.argv before it is used by setup tool
 exec_type = read_argument('hg-exec-type', "default")
+
+# Should we build and ship `--rhg` too.
+with_rhg = read_flag('rhg')
 
 
 DYLIB_SUFFIX = sysconfig.get_config_vars()['EXT_SUFFIX']
@@ -193,6 +211,16 @@ else:
     error = "use one of: %s" % ', '.join(VALID_EXEC_TYPE)
     print(error, file=sys.stderr)
     sys.exit(2)
+
+if with_rhg:
+    from setuptools_rust import RustBin
+
+    rust_extensions.append(
+        RustBin(
+            "rhg",
+            path="rust/rhg/Cargo.toml",
+        )
+    )
 
 print("using executable type for 'hg':", exec_type)
 
