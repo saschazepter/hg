@@ -804,8 +804,8 @@ def parseargs(args, parser):
         pathandattrs = [(path_local_hg, 'with_hg')]
         if options.chg:
             pathandattrs.append((b'contrib/chg/chg', 'with_chg'))
-        if options.rhg:
-            pathandattrs.append((b'rust/target/release/rhg', 'with_rhg'))
+        # if options.rhg:
+        #     pathandattrs.append((b'rust/target/release/rhg', 'with_rhg'))
         for relpath, attr in pathandattrs:
             binpath = os.path.join(reporootdir, relpath)
             if not (WINDOWS or os.access(binpath, os.X_OK)):
@@ -3781,9 +3781,6 @@ class TestRunner:
                 if self.options.chg:
                     assert self._installdir
                     self._installchg()
-                if self.options.rhg:
-                    assert self._installdir
-                    self._installrhg()
                 elif self.options.pyoxidized:
                     self._build_pyoxidized()
                 self._use_correct_mercurial()
@@ -4035,6 +4032,10 @@ class TestRunner:
             setup_opts = b"--rust"
         elif self.options.no_rust:
             setup_opts = b"--no-rust"
+        if self.options.rhg:
+            if setup_opts:
+                setup_opts += b" "
+            setup_opts += b" --rhg"
 
         if self.options.hg_exec_type is not None:
             hg_exec_type = self.options.hg_exec_type.encode('ascii')
@@ -4304,30 +4305,6 @@ class TestRunner:
             b'prefix': self._installdir,
         }
         cwd = os.path.join(self._hgroot, b'contrib', b'chg')
-        vlog("# Running", cmd)
-        proc = subprocess.Popen(
-            cmd,
-            shell=True,
-            cwd=cwd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        out, _err = proc.communicate()
-        if proc.returncode != 0:
-            sys.stdout.buffer.write(out)
-            sys.exit(1)
-
-    def _installrhg(self):
-        """Install rhg into the test environment"""
-        vlog('# Performing temporary installation of rhg')
-        assert os.path.dirname(self._bindir) == self._installdir
-        assert self._hgroot, 'must be called after _installhg()'
-        cmd = b'"%(make)s" install-rhg PREFIX="%(prefix)s"' % {
-            b'make': b'make',  # TODO: switch by option or environment?
-            b'prefix': self._installdir,
-        }
-        cwd = self._hgroot
         vlog("# Running", cmd)
         proc = subprocess.Popen(
             cmd,
