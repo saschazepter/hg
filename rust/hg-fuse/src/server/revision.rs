@@ -632,6 +632,90 @@ impl RevisionInodeEncoder {
         path_to_token: FastHashMap<&HgPath, T>,
         base: Option<(DirstateBaseInfo<T>, OwningDirstateMap)>,
     ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
+        let (info, latest_ino, offset_to_token) =
+            self.attach_dirstate(base, &dirstate, path_to_token);
+
+        let V2SerializationInfo { mut data, metadata, appended } = info;
+
+        let new_inode = latest_ino
+            .load(Ordering::Relaxed)
+            .checked_add(1)
+            .expect("inode overflow");
+        assert!(
+            self.available_range.contains(&INodeNo(new_inode)),
+            "inode overflow"
+        );
+        self.current_ino = AtomicU64::new(new_inode);
+        if let Some(len) = appended {
+            // TODO stop copying the previous dirstate and build an abstraction
+            // to reuse the old buffer
+            let mut buf = dirstate.on_disk().to_owned();
+            assert_eq!(len, buf.len());
+            buf.extend_from_slice(&data);
+            data = buf;
+        }
+        let data_size = data.len();
+        let uuid = Docket::new_uid();
+
+        // Create the data file
+        let packed_data: RawData = data.into();
+        let data_ino = self
+            .add_reserved_file(format!("dirstate.{uuid}"), packed_data.clone());
+
+        // Create the docket file
+        let docket_data = Docket::serialize(
+            parents,
+            metadata,
+            u_u64(data_size),
+            uuid.as_bytes(),
+        )
+        .expect("dirstate overflow");
+
+        let docket_data: RawData = docket_data.into();
+        let docket_ino = self.add_reserved_file("dirstate", docket_data);
+
+        // Insert them in .hg
+        if let Some(dot_hg_ino) = self.dot_hg_ino.as_ref() {
+            let dot_hg_entry = self
+                .reserved_entries
+                .get_mut(dot_hg_ino)
+                .expect(".hg node should exist");
+            dot_hg_entry.children.push(data_ino);
+            dot_hg_entry.children.push(docket_ino);
+        }
+
+        // Return a new dirstate based off the packed data
+        let new_dirstate = OwningDirstateMap::new_v2(
+            RawData::clone(&packed_data),
+            data_size,
+            metadata.as_bytes(),
+            uuid.as_bytes().to_vec(),
+            None,
+        )
+        .expect("in-memory creation of a brand-new dirstate should not fail");
+        Ok((
+            new_dirstate,
+            DirstateBaseInfo {
+                serialized: packed_data,
+                metadata: metadata.as_bytes().to_vec(),
+                uuid: uuid.as_bytes().to_vec(),
+                node: parents.p1,
+                offset_to_token,
+            },
+        ))
+    }
+
+    /// Serializes the new dirstate and derives the file offsets
+    ///
+    /// The serialization is used for:
+    ///    - materializing it on disk for clients with no knowledge of the FUSE
+    ///    - assigning unique inodes to each file
+    fn attach_dirstate<T: FileToken>(
+        &mut self,
+        base: Option<(DirstateBaseInfo<T>, OwningDirstateMap)>,
+        dirstate: &OwningDirstateMap,
+        path_to_token: FastHashMap<&HgPath, T>,
+    ) -> (V2SerializationInfo, AtomicU64, FastHashMap<u64, T>) {
         let should_append = base.is_some();
         let (mut offset_to_token, old_dirstate) = match base {
             Some((base_info, old_dirstate)) => {
@@ -709,76 +793,13 @@ impl RevisionInodeEncoder {
             DirstateMapWriteMode::ForceNewDataFile
         };
         let packed_res = dirstate.pack_v2(write_mode, Some(visit));
-        let V2SerializationInfo { mut data, metadata, appended } = packed_res
+        let info = packed_res
             .expect("in-memory serialization of a dirstate should not fail");
-        let new_inode = latest_ino
-            .load(Ordering::Relaxed)
-            .checked_add(1)
-            .expect("inode overflow");
-        assert!(
-            self.available_range.contains(&INodeNo(new_inode)),
-            "inode overflow"
-        );
-        self.current_ino = AtomicU64::new(new_inode);
-        if let Some(len) = appended {
-            // TODO stop copying the previous dirstate and build an abstraction
-            // to reuse the old buffer
-            let mut buf = dirstate.on_disk().to_owned();
-            assert_eq!(len, buf.len());
-            buf.extend_from_slice(&data);
-            data = buf;
-        }
-        let data_size = data.len();
-        let uuid = Docket::new_uid();
-
-        // Create the data file
-        let packed_data: RawData = data.into();
-        let data_ino = self
-            .add_reserved_file(format!("dirstate.{uuid}"), packed_data.clone());
-
-        // Create the docket file
-        let docket_data = Docket::serialize(
-            parents,
-            metadata,
-            u_u64(data_size),
-            uuid.as_bytes(),
+        (
+            info,
+            latest_ino,
+            offset_to_token.into_inner().expect("propagate the panic"),
         )
-        .expect("dirstate overflow");
-
-        let docket_data: RawData = docket_data.into();
-        let docket_ino = self.add_reserved_file("dirstate", docket_data);
-
-        // Insert them in .hg
-        if let Some(dot_hg_ino) = self.dot_hg_ino.as_ref() {
-            let dot_hg_entry = self
-                .reserved_entries
-                .get_mut(dot_hg_ino)
-                .expect(".hg node should exist");
-            dot_hg_entry.children.push(data_ino);
-            dot_hg_entry.children.push(docket_ino);
-        }
-
-        // Return a new dirstate based off the packed data
-        let new_dirstate = OwningDirstateMap::new_v2(
-            RawData::clone(&packed_data),
-            data_size,
-            metadata.as_bytes(),
-            uuid.as_bytes().to_vec(),
-            None,
-        )
-        .expect("in-memory creation of a brand-new dirstate should not fail");
-        Ok((
-            new_dirstate,
-            DirstateBaseInfo {
-                serialized: packed_data,
-                metadata: metadata.as_bytes().to_vec(),
-                uuid: uuid.as_bytes().to_vec(),
-                node: parents.p1,
-                offset_to_token: offset_to_token
-                    .into_inner()
-                    .expect("propagate the panic"),
-            },
-        ))
     }
 
     fn add_reserved_directory(
