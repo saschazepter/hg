@@ -4,7 +4,17 @@ version = "0.1.0"
 edition = "2024"
 description = "A small binary front desc for Mercurial"
 
+[features]
+default = ["chg"]
+# embed the chg client logic (compiled from contrib/chg) so the binary can
+# talk to a long running Mercurial command server
+chg = []
+
 [dependencies]
+
+[build-dependencies]
+# cannot be optional (gated by the "chg" feature): build.rs always compiles
+cc = "1.2"
 
 [lints]
 workspace = true
