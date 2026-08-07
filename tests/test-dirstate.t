@@ -129,7 +129,7 @@ valid.
 
   $ dirstate_uuid_has_not_changed () {
   >   # Non-Rust always rewrites the whole dirstate
-  >   if [ $# -eq 1 ] || ([ -n "$HGMODULEPOLICY" ] && [ -z "${HGMODULEPOLICY##*rust*}" ]) || [ -n "$RHG_INSTALLED_AS_HG" ]; then
+  >   if [ $# -eq 1 ] || hghave rust 2> /dev/null || hghave rhg 2> /dev/null ; then
   >     test $current_uid = $(find_dirstate_uuid)
   >   else
   >     echo "not testing because using Python implementation"
