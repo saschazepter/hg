@@ -5344,3 +5344,13 @@ def debugisancestor(ui, repo, rev1, rev2, **opts):
         return 0
     else:
         return 2
+
+
+@command(
+    b'debug::is-this-rhg',
+    [],
+    norepo=True,
+)
+def debug_is_this_hg(ui):
+    """return 0 if run with rhg 2 otherwise"""
+    return 2

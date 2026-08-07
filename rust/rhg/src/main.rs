@@ -279,6 +279,11 @@ fn main_with_result(
 
 fn rhg_main(argv: Vec<OsString>) -> ! {
     hg::utils::umask::initialize();
+    // We have to do this before any other kind of errors or fallbacks trigger
+    // (making this less awful is left as an exercise for the reader)
+    if argv.len() > 1 && argv[1] == "debug::is-this-rhg" {
+        std::process::exit(0);
+    }
 
     // Run this first, before we find out if the blackbox extension is even
     // enabled, in order to include everything in-between in the duration

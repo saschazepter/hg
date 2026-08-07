@@ -204,7 +204,13 @@ def has_chg():
 
 @check("rhg", "running with rhg as 'hg'")
 def has_rhg():
-    return 'RHG_INSTALLED_AS_HG' in os.environ
+    p = subprocess.Popen(
+        ["hg", "debug::is-this-rhg"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    p.communicate()
+    return p.returncode == 0
 
 
 @check("pyoxidizer", "running with pyoxidizer build as 'hg'")
