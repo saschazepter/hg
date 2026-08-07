@@ -79,6 +79,8 @@ exec_type = read_argument('hg-exec-type', "default")
 # Should we build and ship `--rhg` too.
 with_rhg = read_flag('rhg')
 
+# Should we build and ship `jif` related binary too
+with_jif = read_flag('jif')
 
 DYLIB_SUFFIX = sysconfig.get_config_vars()['EXT_SUFFIX']
 
@@ -219,6 +221,16 @@ if with_rhg:
         RustBin(
             "rhg",
             path="rust/rhg/Cargo.toml",
+        )
+    )
+
+if with_jif:
+    from setuptools_rust import RustBin
+
+    rust_extensions.append(
+        RustBin(
+            "jf",
+            path="rust/jif/Cargo.toml",
         )
     )
 
