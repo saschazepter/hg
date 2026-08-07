@@ -213,6 +213,15 @@ def has_rhg():
     return p.returncode == 0
 
 
+@check("jif", "jif binary available")
+def has_jif():
+    jf_bin = shutil.which("jf", os.X_OK)
+    if jf_bin is None:
+        return False
+    bin_dir = os.environ.get("BINDIR", "")
+    return os.path.dirname(jf_bin) == bin_dir
+
+
 @check("pyoxidizer", "running with pyoxidizer build as 'hg'")
 def has_pyoxidizer():
     return 'PYOXIDIZED_INSTALLED_AS_HG' in os.environ
