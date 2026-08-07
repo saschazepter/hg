@@ -510,7 +510,11 @@ static char *read_procfs_file(const char *path, size_t max_size)
 	return buf;
 }
 
-int main(int argc, const char *argv[])
+/*
+ * Main entry point of the chg logic. The standalone chg binary wraps it in
+ * chg-main.c, keeping it callable from other front-ends.
+ */
+int chg_main(int argc, const char *argv[])
 {
 	if (getenv("CHGDEBUG"))
 		enabledebugmsg();

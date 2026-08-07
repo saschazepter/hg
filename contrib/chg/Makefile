@@ -1,5 +1,5 @@
 TARGET = chg
-SRCS = chg.c hgclient.c procutil.c util.c
+SRCS = chg.c chg-main.c hgclient.c procutil.c util.c
 OBJS = $(SRCS:.c=.o)
 
 CFLAGS ?= -O2 -Wall -Wextra -pedantic -g
