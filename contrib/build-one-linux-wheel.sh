@@ -21,6 +21,8 @@ if [[ "${flavor}" == "c" ]]; then
     :
 elif [[ "$flavor" == "rust" ]]; then
     flavor_arg="--config-setting=--global-option=--rust"
+elif [[ "$flavor" == "rhg" ]]; then
+    flavor_arg="--config-setting=--global-option=--rust --config-setting=--global-option=--rhg"
 else
     echo "unknown flavor: \"$flavor\""
     exit 96
@@ -32,6 +34,11 @@ tmp_wheel_dir=./tmp-wheelhouse
 if [ -e $tmp_wheel_dir ]; then
     rm -rf $tmp_wheel_dir
 fi
-/opt/python/$py_tag/bin/python -m build --outdir $tmp_wheel_dir $flavor_arg
+
+if [[ -n "$flavor_arg" ]]; then
+    /opt/python/$py_tag/bin/python -m build --outdir $tmp_wheel_dir $flavor_arg
+else
+    /opt/python/$py_tag/bin/python -m build --outdir $tmp_wheel_dir
+fi
 # adjust it to make it universal
 auditwheel repair $tmp_wheel_dir/*.whl -w $destination_directory

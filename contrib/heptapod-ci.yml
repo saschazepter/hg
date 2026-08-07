@@ -145,10 +145,11 @@ trigger-nightly-build:
 
 .build-wheel:
   extends: .all
-  image: "$HG_CI_REG/core-wheel-$ARCH-$WHEEL_TYPE:$HG_CI_IMAGE_TAG"
+  image: "$HG_CI_REG/core-wheel-$ARCH-$WHEEL_IMG:$HG_CI_IMAGE_TAG"
   stage: build
   variables:
     ARCH: "x86_64"
+    WHEEL_IMG: ""
     WHEEL_TYPE: ""
     FLAVOR: ""
     CI_CLEVER_CLOUD_FLAVOR: "XS"
@@ -202,12 +203,14 @@ build-c-wheel-libc:
   extends: .build-wheel
   variables:
     ARCH: "x86_64"
+    WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
 
 build-rust-wheel-libc:
   extends: .build-wheel
   variables:
     ARCH: "x86_64"
+    WHEEL_IMG: "rust"
     WHEEL_TYPE: "rust"
     CI_CLEVER_CLOUD_FLAVOR: "M"
 
@@ -215,30 +218,35 @@ build-c-wheel-musl:
   extends: .extra-wheel
   variables:
     ARCH: "x86_64-musl"
+    WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
 
 build-rust-wheel-musl:
   extends: .extra-wheel
   variables:
     ARCH: "x86_64-musl"
+    WHEEL_IMG: "rust"
     WHEEL_TYPE: "rust"
 
 build-c-wheel-i686-libc:
   extends: .extra-wheel
   variables:
     ARCH: "i686"
+    WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
 
 build-c-wheel-i686-musl:
   extends: .extra-wheel
   variables:
     ARCH: "i686-musl"
+    WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
 
 build-c-wheel-arm64-libc:
   extends: .extra-wheel
   variables:
     ARCH: "arm64"
+    WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
   tags:
     - arm64
@@ -247,9 +255,18 @@ build-c-wheel-arm64-musl:
   extends: .extra-wheel
   variables:
     ARCH: "arm64-musl"
+    WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
   tags:
     - arm64
+
+build-rhg-wheel-libc:
+  extends: .build-wheel
+  variables:
+    ARCH: "x86_64"
+    WHEEL_IMG: "rust"
+    WHEEL_TYPE: "rhg"
+    CI_CLEVER_CLOUD_FLAVOR: "M"
 
 .runtests:
     extends: .all
@@ -288,10 +305,6 @@ build-c-wheel-arm64-musl:
              test -n "$WHEEL";
              echo installing from $WHEEL;
              WHEEL_ARG="--hg-wheel $WHEEL";
-             if [[ -n "$FLAVOR"  ]] && [[ "$FLAVOR" != "--rust" ]]; then
-               echo disabling flavor '"'$FLAVOR'"' as this is currently incompatible with '"--hg-wheel"';
-               FLAVOR="";
-             fi
           else
             echo installing from source;
           fi;
@@ -397,8 +410,14 @@ test-rust:
 
 test-rhg:
     extends: .runtests-no-check
-    image: "$HG_CI_REG/hg-core-test-py-dev-rust-dev:$HG_CI_IMAGE_TAG"
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
+    needs:
+      - job: build-rhg-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
     variables:
+        WHEEL_TYPE: "rhg"
         FLAVOR: "--rust --rhg"
 
 test-chg:
