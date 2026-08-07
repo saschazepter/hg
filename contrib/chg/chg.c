@@ -513,6 +513,9 @@ static char *read_procfs_file(const char *path, size_t max_size)
 /*
  * Main entry point of the chg logic. The standalone chg binary wraps it in
  * chg-main.c, keeping it callable from other front-ends.
+ *
+ * WARNING: update the Rust caller in `hg-bin` if the signature of this function
+ * changes.
  */
 int chg_main(int argc, const char *argv[])
 {

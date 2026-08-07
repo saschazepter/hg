@@ -12,6 +12,17 @@
 //! - using pure Rust fast path for some commands when applicable and configured
 //!   to do so,
 //! - adjusting how the Python process runs on Windows (e.g. binary IO mode).
+//!
+//! The `HGDAEMONIZEPOLICY` variable controls the use of a long running
+//! command server through the chg client logic (see the `chg` module):
+//!
+//! - `never`: always start a fresh Python process (the default),
+//! - `always`: use daemonization, but abort when chg support is missing,
+//! - `auto`:   use daemonization when available.
+//!
+//! An unset variable or an unrecognized value falls back to `never`.
+
+mod chg;
 
 use std::os::unix::process::CommandExt;
 
@@ -33,6 +44,12 @@ fn main() {
     };
     let exec_dir = exec_path.parent().expect("binary not in a directory?");
     let hg_py = exec_dir.join(".__hg_internal__");
+
+    // run chg according to policy and availability
+    if chg::enabled() {
+        chg::run(&hg_py)
+    }
+
     let mut command = std::process::Command::new(&hg_py);
     command.args(args);
     let err = command.exec();
