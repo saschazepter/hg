@@ -418,7 +418,7 @@ test-rhg:
             - BUILD_PY_ID: "cp311-cp311"
     variables:
         WHEEL_TYPE: "rhg"
-        FLAVOR: "--rust --rhg"
+        FLAVOR: "--rust --rhg --jif"
 
 test-chg:
     extends: .runtests-no-check
