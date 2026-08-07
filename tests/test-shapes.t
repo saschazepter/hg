@@ -433,6 +433,36 @@ Passing `--override-reshape-and-reshard-check` allows the update anyways
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
   b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 new-shape
 
+Test that a shape keeps its fingerprint
+---------------------------------------
+
+Attempting to change `new-shape` fails because its fingerprint would change
+
+  $ cat > ../new-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "foo"
+  > paths = ["foo"]
+  > [[shards]]
+  > name = "dir1"
+  > paths = ["dir1"]
+  > [[shards]]
+  > name = "new-shape"
+  > requires = ["foo"]
+  > shape = true
+  > EOF
+  $ hg admin::narrow-server --shape-update -f ../new-shapes
+  abort: won't change the fingerprint of existing shapes: "new-shape"
+  (see 'hg help "narrow.updating the shapes config"' for how to publish this as a new shape)
+  [10]
+
+Passing `--override-fingerprint-change-check` allows the update anyways
+
+  $ hg admin::narrow-server --shape-update -f ../new-shapes --override-fingerprint-change-check
+  $ hg admin::narrow-server --shape-fingerprints
+  00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+  f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 new-shape
+
 Test behavior of concurrent updates
 -----------------------------------
 

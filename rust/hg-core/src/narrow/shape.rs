@@ -492,13 +492,27 @@ impl StoreShards {
         Ok(())
     }
 
-    /// The names of the shapes that change (according to their fingerprint)
-    /// between `self` and `new`.
+    /// The names of the shapes that were added, removed, or changed (according
+    /// to their fingerprint) between `self` and `new`.
     pub fn changed_shapes(&self, new: &Self) -> Result<Vec<ShardName>, Error> {
         Ok(changed_names(
             &self.shape_fingerprints()?,
             &new.shape_fingerprints()?,
         ))
+    }
+
+    /// The names of the shapes whose fingerprint changed between `self` and
+    /// `new`.
+    pub fn redefined_shapes(
+        &self,
+        new: &Self,
+    ) -> Result<Vec<ShardName>, Error> {
+        let old = self.shape_fingerprints()?;
+        let new = new.shape_fingerprints()?;
+        Ok(changed_names(&old, &new)
+            .into_iter()
+            .filter(|name| old.contains_key(name) && new.contains_key(name))
+            .collect())
     }
 
     /// Returns map from shape name to its fingerprint.

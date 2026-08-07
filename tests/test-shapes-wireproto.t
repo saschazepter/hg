@@ -296,7 +296,7 @@ Update the server shapes to change the fingerprint of this shape
   > paths = ["foo/bar/other-secret"]
   > shape = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
   $ hg pull
@@ -378,7 +378,7 @@ Update the server shapes to change the fingerprint of this shape
   > paths = ["foo/bar/other-secret"]
   > shape = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
   $ hg pull

@@ -156,8 +156,8 @@ impl PyStoreShards {
         Ok(PyList::new(py, shapes_iter)?.unbind())
     }
 
-    /// The names of the shapes that change (according to their fingerprint)
-    /// between `self` and `new`.
+    /// The names of the shapes that were added, removed, or changed (according
+    /// to their fingerprint) between `self` and `new`.
     pub fn changed_shapes(
         &self,
         py: Python,
@@ -165,6 +165,18 @@ impl PyStoreShards {
     ) -> PyResult<Vec<Vec<u8>>> {
         let changed = self.inner.changed_shapes(&new.inner).into_pyerr(py)?;
         Ok(names(&changed))
+    }
+
+    /// The names of the shapes whose fingerprint changed between `self` and
+    /// `new`.
+    pub fn redefined_shapes(
+        &self,
+        py: Python,
+        new: &PyStoreShards,
+    ) -> PyResult<Vec<Vec<u8>>> {
+        let redefined =
+            self.inner.redefined_shapes(&new.inner).into_pyerr(py)?;
+        Ok(names(&redefined))
     }
 
     /// The names of the shards that change (according to their fingerprint)

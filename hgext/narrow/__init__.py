@@ -238,10 +238,22 @@ Updating the shapes config
 Use :hg:`admin::narrow-server --shape-update` to replace the config. The
 command refuses updates that violate the invariants described below.
 
-An update must be only one of the following, never both at once::
+A shape should keep the same fingerprint for as long as there are clones using
+it. Clients pin themselves to the fingerprint of the shape they cloned, so
+redefining one means every one of them has to re-sync at the same time.
+Instead of changing the shape directly, do the following::
 
-  * a *reshaping*: adding or removing a shape or causing the fingerprint of an
-    existing shape to change.
+  1. Add the new view under a new shape name.
+  2. Move clients over to the new shape.
+  3. Once nobody is cloned at the old shape, remove it.
+
+Passing ``--override-fingerprint-change-check`` skips this check. You should
+rarely want this: it is the update that forces every client cloned at that
+shape to re-sync at once.
+
+An update must also be only one of the following, never both at once::
+
+  * a *reshaping*: adding or removing a shape.
   * a *resharding*: changing how the store is partitioned. For example, a
     single shard with ``paths = ["foo"]`` partitions the store into "paths
     under foo/" and everything else. Adding another shard with any other path

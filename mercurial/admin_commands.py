@@ -178,6 +178,15 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
             None,
             _(b'override the check against reshaping and resharding at once'),
         ),
+        (
+            b'',
+            b'override-fingerprint-change-check',
+            None,
+            _(
+                b"override the check against changing an existing shape's"
+                b" fingerprint"
+            ),
+        ),
     ]
     + cmdutil.formatteropts,
     helpcategory=command.CATEGORY_MAINTENANCE,
@@ -210,7 +219,13 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         return _shape_update(ui, repo, **opts)
 
     cmdutil.check_incompatible_arguments(
-        opts, subcommand, ["file", "override_reshape_and_reshard_check"]
+        opts,
+        subcommand,
+        [
+            "file",
+            "override_reshape_and_reshard_check",
+            "override_fingerprint_change_check",
+        ],
     )
     try:
         locker = repo.svfs.readlock(b'store-shapes-lock')
@@ -318,7 +333,17 @@ def _quote_names(names: list[bytes]) -> bytes:
 
 def _validate_shape_update(old_store_shards, new_store_shards, **opts) -> None:
     """Refuse a `server-shapes` update that is both a reshaping and a
-    resharding, unless the relevant `--override-*` flag was passed."""
+    resharding or that redefines an existing shape, unless the relevant
+    `--override-*` flag was passed."""
+    if not opts.get("override_fingerprint_change_check"):
+        if redefined := old_store_shards.redefined_shapes(new_store_shards):
+            msg = _(b"won't change the fingerprint of existing shapes: %s")
+            hint = _(
+                b"see 'hg help \"narrow.updating the shapes config\"' for"
+                b" how to publish this as a new shape"
+            )
+            raise error.InputError(msg % _quote_names(redefined), hint=hint)
+
     if not opts.get("override_reshape_and_reshard_check"):
         shapes = old_store_shards.changed_shapes(new_store_shards)
         shards = old_store_shards.changed_shards(new_store_shards)
