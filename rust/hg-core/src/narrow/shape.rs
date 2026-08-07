@@ -1,6 +1,7 @@
 //! The core of the logic for narrow shapes, which enable a composable algebra
 //! for slicing a repo's history along its files.
 
+use std::hash::Hash;
 use std::io::Write;
 use std::sync::Arc;
 use std::sync::RwLock;
@@ -155,6 +156,10 @@ impl ShardName {
             return Err(ErrorKind::InvalidShardName(name))?;
         }
         Ok(Self(name))
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
     }
 }
 
@@ -486,6 +491,84 @@ impl StoreShards {
 
         Ok(())
     }
+
+    /// The names of the shapes that change (according to their fingerprint)
+    /// between `self` and `new`.
+    pub fn changed_shapes(&self, new: &Self) -> Result<Vec<ShardName>, Error> {
+        Ok(changed_names(
+            &self.shape_fingerprints()?,
+            &new.shape_fingerprints()?,
+        ))
+    }
+
+    /// Returns map from shape name to its fingerprint.
+    fn shape_fingerprints(
+        &self,
+    ) -> Result<FastHashMap<ShardName, [u8; 32]>, Error> {
+        Ok(self
+            .all_shapes()?
+            .into_iter()
+            .map(|shape| (shape.name().to_owned(), shape.store_fingerprint()))
+            .collect())
+    }
+
+    /// The names of the shards that change (according to their fingerprint)
+    /// between `self` and `new`.
+    ///
+    /// Pure renames do not show up in this list, since non-shape shard names do
+    /// not need to be stable. We only care whether the overall set of shard
+    /// fingerprints has changed, regardless of the shard names. However we
+    /// still return them here for a better error message.
+    pub fn changed_shards(&self, new: &Self) -> Vec<ShardName> {
+        let old = self.shard_fingerprints();
+        let new = new.shard_fingerprints();
+        let removed = old.iter().filter(|&(id, _)| !new.contains_key(id));
+        let added = new.iter().filter(|&(id, _)| !old.contains_key(id));
+        removed
+            .chain(added)
+            .map(|(_, name)| name.to_owned())
+            .sorted()
+            .dedup()
+            .collect()
+    }
+
+    /// Returns map from the fingerprint of the files a shard owns to its name.
+    /// The fingerprint is what identifies a shard; the name is just for
+    /// reporting to the user.
+    ///
+    /// This is not the same thing as the shard's `paths`; a shard nested inside
+    /// another one carves its paths out of the outer shard, so adding or
+    /// removing one shard changes the files owned by another.
+    fn shard_fingerprints(&self) -> FastHashMap<[u8; 32], ShardName> {
+        self.shards
+            .iter()
+            .filter_map(|(name, shard)| {
+                let shard_shape = ShardShape::new(self, shard)?;
+                Some((shard_shape.fingerprint(), name.to_owned()))
+            })
+            .collect()
+    }
+}
+
+/// The names that differ between the two maps, whether because only one of them
+/// has the name or because the values differ.
+///
+/// Note that this is sensitive to the names themselves, which is what we want
+/// for shapes, since a client pins itself to the name it cloned as well as to
+/// the fingerprint. Shards are compared differently, see [`changed_shards`].
+///
+/// [`changed_shards`]: StoreShards::changed_shards
+fn changed_names<V: Hash + Eq>(
+    old: &FastHashMap<ShardName, V>,
+    new: &FastHashMap<ShardName, V>,
+) -> Vec<ShardName> {
+    let old: FastHashSet<(&ShardName, &V)> = old.iter().collect();
+    let new: FastHashSet<(&ShardName, &V)> = new.iter().collect();
+    old.symmetric_difference(&new)
+        .map(|(name, _)| (*name).to_owned())
+        .sorted()
+        .dedup()
+        .collect()
 }
 
 /// Represents a named narrow view into the repo's files (at the history level).
@@ -1842,5 +1925,238 @@ mod tests {
                 .expect_err("should be an error at this stage");
             assert_eq!(*expected_error, *actual_error.kind);
         }
+    }
+
+    const SIMPLE_CONFIG: &str = r#"
+        version = 0
+
+        [[shards]]
+        name = "foo"
+        paths = ["foo"]
+
+        [[shards]]
+        name = "default"
+        requires = ["base"]
+        shape = true
+    "#;
+
+    fn changed(
+        f: impl Fn(&StoreShards, &StoreShards) -> Vec<ShardName>,
+        old: &str,
+        new: &str,
+    ) -> Vec<String> {
+        let old = StoreShards::from_bytes(old.as_bytes()).unwrap();
+        let new = StoreShards::from_bytes(new.as_bytes()).unwrap();
+        let forwards = f(&old, &new);
+        let backwards = f(&new, &old);
+        assert_eq!(forwards, backwards);
+        forwards.iter().map(ShardName::to_string).collect()
+    }
+
+    fn changed_shapes(old: &str, new: &str) -> Vec<String> {
+        changed(|old, new| old.changed_shapes(new).unwrap(), old, new)
+    }
+
+    fn changed_shards(old: &str, new: &str) -> Vec<String> {
+        changed(|old, new| old.changed_shards(new), old, new)
+    }
+
+    const NO_CHANGE: [&str; 0] = [];
+
+    #[test]
+    fn test_unchanged() {
+        assert_eq!(changed_shapes(SIMPLE_CONFIG, SIMPLE_CONFIG), NO_CHANGE);
+        assert_eq!(changed_shards(SIMPLE_CONFIG, SIMPLE_CONFIG), NO_CHANGE);
+
+        // Comments, whitespace, and the order of shards are not meaningful
+        // changes
+        let reformatted = r#"
+            version = 0
+            # this is the default shape
+            [[shards]]
+            name = "default"
+            shape = true
+            requires = ["base"]
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+        "#;
+        assert_eq!(changed_shapes(SIMPLE_CONFIG, reformatted), NO_CHANGE);
+        assert_eq!(changed_shards(SIMPLE_CONFIG, reformatted), NO_CHANGE);
+
+        // Order of paths is not a meaningful change
+        let old = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo", "bar"]
+            shape = true
+        "#;
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["bar", "foo"]
+            shape = true
+        "#;
+        assert_eq!(changed_shapes(old, new), NO_CHANGE);
+        assert_eq!(changed_shards(old, new), NO_CHANGE);
+    }
+
+    #[test]
+    fn test_adding_shape() {
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+
+            [[shards]]
+            name = "default"
+            requires = ["base"]
+            shape = true
+
+            [[shards]]
+            name = "everything"
+            requires = ["foo", "default"]
+            shape = true
+        "#;
+        assert_eq!(changed_shapes(SIMPLE_CONFIG, new), vec!["everything"]);
+        assert_eq!(changed_shards(SIMPLE_CONFIG, new), NO_CHANGE);
+    }
+
+    #[test]
+    fn test_adding_shard() {
+        // Simply adding a shard can affect shapes
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+
+            [[shards]]
+            name = "bar"
+            paths = ["bar"]
+
+            [[shards]]
+            name = "default"
+            requires = ["base"]
+            shape = true
+        "#;
+        assert_eq!(changed_shapes(SIMPLE_CONFIG, new), vec!["default"]);
+        // `base` owned the files under `bar` until now
+        assert_eq!(changed_shards(SIMPLE_CONFIG, new), vec!["bar", "base"]);
+
+        // If we adjust the shape as well, we can prevent it from changing
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+
+            [[shards]]
+            name = "bar"
+            paths = ["bar"]
+
+            [[shards]]
+            name = "default"
+            requires = ["base", "bar"]
+            shape = true
+        "#;
+        assert_eq!(changed_shapes(SIMPLE_CONFIG, new), NO_CHANGE);
+        assert_eq!(changed_shards(SIMPLE_CONFIG, new), vec!["bar", "base"]);
+    }
+
+    #[test]
+    fn test_removing_shard() {
+        // Removing a shard can also affect shapes
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "default"
+            requires = ["base"]
+            shape = true
+        "#;
+        assert_eq!(changed_shapes(SIMPLE_CONFIG, new), vec!["default"]);
+        // `base` picks up the files that `foo` owned
+        assert_eq!(changed_shards(SIMPLE_CONFIG, new), vec!["base", "foo"]);
+
+        // We must first remove the shape, and only then can we remove the shard
+        let remove_shape = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+        "#;
+        assert_eq!(
+            changed_shapes(SIMPLE_CONFIG, remove_shape),
+            vec!["default"]
+        );
+        assert_eq!(changed_shards(SIMPLE_CONFIG, remove_shape), NO_CHANGE);
+
+        let remove_shard = r#"
+            version = 0
+            shards = []
+        "#;
+        assert_eq!(changed_shapes(remove_shape, remove_shard), NO_CHANGE);
+        assert_eq!(
+            changed_shards(remove_shape, remove_shard),
+            vec!["base", "foo"]
+        );
+    }
+
+    #[test]
+    fn test_changing_existing_shard() {
+        let old = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo", "bar"]
+
+            [[shards]]
+            name = "baz"
+            paths = ["baz"]
+        "#;
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+
+            [[shards]]
+            name = "baz"
+            paths = ["baz"]
+        "#;
+        assert_eq!(changed_shards(old, new), vec!["base", "foo"]);
+    }
+
+    #[test]
+    fn test_renaming_a_shard() {
+        // The name of a (non-shape) shard is an internal detail. A pure rename
+        // does not count as resharding.
+        let old = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+        "#;
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "renamed"
+            paths = ["foo"]
+        "#;
+        assert_eq!(changed_shards(old, new), NO_CHANGE);
     }
 }

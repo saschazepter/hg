@@ -7,6 +7,7 @@ use hg::file_patterns::PatternSyntax;
 use hg::file_patterns::parse_one_pattern;
 use hg::narrow::shape::SHAPES_FILE;
 use hg::narrow::shape::Shape;
+use hg::narrow::shape::ShardName;
 use hg::narrow::shape::ShardTreeNode;
 use hg::narrow::shape::StoreShards;
 use hg::utils::hg_path::HgPathBuf;
@@ -154,6 +155,27 @@ impl PyStoreShards {
             .map(|shape| PyShape { inner: shape });
         Ok(PyList::new(py, shapes_iter)?.unbind())
     }
+
+    /// The names of the shapes that change (according to their fingerprint)
+    /// between `self` and `new`.
+    pub fn changed_shapes(
+        &self,
+        py: Python,
+        new: &PyStoreShards,
+    ) -> PyResult<Vec<Vec<u8>>> {
+        let changed = self.inner.changed_shapes(&new.inner).into_pyerr(py)?;
+        Ok(names(&changed))
+    }
+
+    /// The names of the shards that change (according to their fingerprint)
+    /// between `self` and `new`.
+    pub fn changed_shards(&self, new: &PyStoreShards) -> Vec<Vec<u8>> {
+        names(&self.inner.changed_shards(&new.inner))
+    }
+}
+
+fn names(names: &[ShardName]) -> Vec<Vec<u8>> {
+    names.iter().map(|name| name.as_bytes().to_vec()).collect()
 }
 
 /// Return an object useful for querying shapes and shards for this repository
