@@ -607,6 +607,11 @@ def getparser():
         help="install and use rhg Rust implementation in place of hg",
     )
     hgconf.add_argument(
+        "--jif",
+        action="store_true",
+        help="also install and use binary related to `jif`",
+    )
+    hgconf.add_argument(
         "--pyoxidized",
         action="store_true",
         help="build the hg binary using pyoxidizer",
@@ -4036,6 +4041,10 @@ class TestRunner:
             if setup_opts:
                 setup_opts += b" "
             setup_opts += b" --rhg"
+        if self.options.jif:
+            if setup_opts:
+                setup_opts += b" "
+            setup_opts += b" --jif"
 
         if self.options.hg_exec_type is not None:
             hg_exec_type = self.options.hg_exec_type.encode('ascii')
