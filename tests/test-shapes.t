@@ -396,6 +396,43 @@ Updating to invalid contents is not allowed
   f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 from-file
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
 
+Test that an update either reshapes or reshards, not both
+---------------------------------------------------------
+
+  $ cat > .hg/store/server-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "foo"
+  > paths = ["foo"]
+  > EOF
+
+Adding a new shard together with a new shape that uses it is not a safe update. The new
+bundles need to be generated from the new shards before we are ready to add the new shape.
+
+  $ cp .hg/store/server-shapes ../new-shapes
+  $ cat >> ../new-shapes <<EOF
+  > [[shards]]
+  > name = "dir1"
+  > paths = ["dir1"]
+  > [[shards]]
+  > name = "new-shape"
+  > requires = ["dir1"]
+  > shape = true
+  > EOF
+  $ hg admin::narrow-server --shape-update -f ../new-shapes
+  abort: cannot reshape and reshard in the same update
+  shapes changed: "new-shape"
+  shards changed: "base", "dir1"
+  (see 'hg help "narrow.updating the shapes config"' for how to split this in two updates)
+  [10]
+
+Passing `--override-reshape-and-reshard-check` allows the update anyways
+
+  $ hg admin::narrow-server --shape-update -f ../new-shapes --override-reshape-and-reshard-check
+  $ hg admin::narrow-server --shape-fingerprints
+  00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+  b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 new-shape
+
 Test behavior of concurrent updates
 -----------------------------------
 

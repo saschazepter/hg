@@ -172,12 +172,13 @@ Usage
 Server configuration
 ....................
 
-For Mercurial 7.2, the ``.hg/store/server-shapes`` file is a TOML file, to be
-created and modified directly by the narrow server's administrators.
+For Mercurial 7.2, the ``.hg/store/server-shapes`` file is a TOML file,
+maintained by the narrow server's administrators.
 
-**Warning**: using dedicated ``hg`` command to modify the shapes config will
-become mandatory in future releases, once such a command exists,
-as changing shapes can lead to (sometimes surprising) client breakage.
+**Warning**: modify it with :hg:`admin::narrow-server --shape-update`, which
+checks that the update is safe (see ``Updating the shapes config`` below).
+Editing the file by hand is unsupported and will likely result in unexpected
+client breakage.
 
 The current (experimental!) format is the following::
 
@@ -230,6 +231,42 @@ Example::
     name = "full-stack"
     requires = ["backend", "foo"]
     shape = true
+
+Updating the shapes config
+..........................
+
+Use :hg:`admin::narrow-server --shape-update` to replace the config. The
+command refuses updates that violate the invariants described below.
+
+An update must be only one of the following, never both at once::
+
+  * a *reshaping*: adding or removing a shape or causing the fingerprint of an
+    existing shape to change.
+  * a *resharding*: changing how the store is partitioned. For example, a
+    single shard with ``paths = ["foo"]`` partitions the store into "paths
+    under foo/" and everything else. Adding another shard with any other path
+    (whether or not it is under foo/) partitions it once more.
+
+Note that shards and shapes are not independent, so a resharding may have to
+touch the shapes as well to avoid changing fingerprints. A shard is judged by
+the files it ends up owning, not by the ``paths`` it declares: adding a shard
+takes files away from whichever shard held them before, so a single edit can
+change several shards.
+
+As a result, most real changes take two updates. For example, to add a new shard
+and publish a shape for it::
+
+  1. Add the shard and add its name to the ``requires`` of every shape that
+     already covered those paths. Those shapes then still cover the same files
+     and keep their fingerprint, so this is a pure resharding.
+  2. Generate the new bundles.
+  3. Add the shape that requires the new shard. No shard changes, so this is a
+     pure reshaping.
+  4. Clients can begin using the new shape.
+
+Passing ``--override-reshape-and-reshard-check`` applies the update regardless.
+You should rarely want this: a mixed update can publish a shape before the
+necessary bundles are generated.
 
 Bundle generation
 .................

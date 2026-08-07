@@ -32,7 +32,7 @@ Setup the server shapes config
   > paths = ["foo/bar/other-secret"]
   > shape = true
   > EOF
-  $ hg admin::narrow-server --shape-update -f $TESTTMP/starting-shapes
+  $ hg admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 
 Add files
@@ -328,7 +328,7 @@ Update the server shapes to remove the shape
   > paths = ["dir1"]
   > shape = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
 
 #if local
   $ hg pull
@@ -346,7 +346,7 @@ Update the server shapes to remove the shape
 #endif
 
 Reset the shapes
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 Create another commit to pull
   $ cd $TESTTMP/server
@@ -410,7 +410,7 @@ Update the server shapes to remove the shape
   > paths = ["dir1"]
   > shape = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
 
 #if local
   $ hg pull
@@ -428,7 +428,7 @@ Update the server shapes to remove the shape
 #endif
 
 Reset the shapes
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 
 Test widening/narrowing

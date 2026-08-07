@@ -88,7 +88,7 @@ Create shapes config
   > shape = true
   > requires = ["excluded1", "foobar"]
   > EOF
-  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes
+  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes --override-reshape-and-reshard-check
 
 Test with an unknown shape
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foo" outfile-shaped.hg
