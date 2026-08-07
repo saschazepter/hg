@@ -357,6 +357,8 @@ mod tests {
     fn rejects_unsupported() {
         assert!(parse_template(br#"{\"foo\"}"#).is_err()); // legacy escape-quoted string
         assert!(parse_template(br"a\xb").is_err()); // unrecognized escape
+        assert!(parse_template(br"a\000b").is_err()); // octal escape
+        assert!(parse_template(br"{'\000'}").is_err()); // octal escape in a string
         assert!(parse_template(b"{}").is_err()); // empty substitution
         assert!(parse_template(b"{f(a,)}").is_err()); // trailing comma
     }
@@ -367,6 +369,15 @@ mod tests {
         assert_eq!(
             parse_template(br"a\nb").unwrap(),
             Node::Template(vec![Node::Text(b"a\nb".to_vec())]),
+        );
+        // `\0` is only rejected when an octal escape follows it.
+        assert_eq!(
+            parse_template(br"a\0b").unwrap(),
+            Node::Template(vec![Node::Text(b"a\0b".to_vec())]),
+        );
+        assert_eq!(
+            parse_template(br"a\08b").unwrap(),
+            Node::Template(vec![Node::Text(b"a\x008b".to_vec())]),
         );
     }
 

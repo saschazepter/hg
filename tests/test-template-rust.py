@@ -15,6 +15,9 @@ SUPPORTED = [
     rb'{if(rev, "rev is {rev}\n")}',
     b"{'on branch {branch}'}",
     rb"{r'a\nb'}",
+    rb"a\0b",
+    rb"a\08b",
+    rb'{"a\0b"}',
     b"{node|short}",
     b"{-(1 + 2) * 3}",
     rb'{files % "{file}\n"}',
@@ -29,6 +32,8 @@ SUPPORTED = [
 FALLBACK = [
     rb'{\"foo\n\"}',  # legacy escape-quoted string literal
     rb"\a",  # unrecognized backslash escape
+    rb"a\000b",  # octal escape
+    rb"{join(files, '\000')}",  # octal escape in a string literal
 ]
 
 

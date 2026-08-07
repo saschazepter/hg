@@ -3,9 +3,10 @@ WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 // `text` handles plain text outside substitutions; `string` handles quoted string
 // literals inside substitutions, potentially with further nested substitutions.
 
+// Octal escapes (e.g. `\000`) are not supported in the Rust parser.
 text_escape  = @{
   "\\"
-  ~ ("t" | "r" | "n" | "0" | "\\" | "'" | "\"" | "{")
+  ~ ("t" | "r" | "n" | ("0" ~ !ASCII_OCT_DIGIT) | "\\" | "'" | "\"" | "{")
 }
 text_content = @{ (!("{" | "\\") ~ ANY)+ }
 text         = ${ (text_content | text_escape)+ }
