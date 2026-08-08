@@ -1225,6 +1225,13 @@ def has_lzma():
         return False
 
 
+@check(name="zlib-ng", desc="zlib module is zlib-ng")
+def has_zlib_ng():
+    import zlib
+
+    return zlib.ZLIB_RUNTIME_VERSION.endswith(".zlib-ng")
+
+
 @check("bash", "bash shell")
 def has_bash():
     return matchoutput("bash -c 'echo hi'", b'^hi$')

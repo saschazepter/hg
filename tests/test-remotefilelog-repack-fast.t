@@ -90,12 +90,21 @@
 
   $ hg repack --traceback
 
+#if zlib-ng
+  $ find $CACHEDIR -type f | sort
+  $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histidx
+  $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histpack
+  $TESTTMP/hgcache/master/packs/fdc91307b118a1dae474fa3602f40450ccdd471b.dataidx
+  $TESTTMP/hgcache/master/packs/fdc91307b118a1dae474fa3602f40450ccdd471b.datapack
+  $TESTTMP/hgcache/repos
+#else
   $ find $CACHEDIR -type f | sort
   $TESTTMP/hgcache/master/packs/78840d69389c7404327f7477e3931c89945c37d1.dataidx
   $TESTTMP/hgcache/master/packs/78840d69389c7404327f7477e3931c89945c37d1.datapack
   $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histidx
   $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histpack
   $TESTTMP/hgcache/repos
+#endif
 
 # Verify all the file data is still available
   $ hg cat -r . x
@@ -109,12 +118,21 @@
 # Test that repacking again without new data does not delete the pack files
 # and did not change the pack names
   $ hg repack
+#if zlib-ng
+  $ find $CACHEDIR -type f | sort
+  $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histidx
+  $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histpack
+  $TESTTMP/hgcache/master/packs/fdc91307b118a1dae474fa3602f40450ccdd471b.dataidx
+  $TESTTMP/hgcache/master/packs/fdc91307b118a1dae474fa3602f40450ccdd471b.datapack
+  $TESTTMP/hgcache/repos
+#else
   $ find $CACHEDIR -type f | sort
   $TESTTMP/hgcache/master/packs/78840d69389c7404327f7477e3931c89945c37d1.dataidx
   $TESTTMP/hgcache/master/packs/78840d69389c7404327f7477e3931c89945c37d1.datapack
   $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histidx
   $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histpack
   $TESTTMP/hgcache/repos
+#endif
 
 # Run two repacks at once
   $ hg repack --config "hooks.prerepack=sleep 3" &
@@ -131,6 +149,15 @@
   $ hg pull -q
   $ hg up -q tip
   1 files fetched over 1 fetches - (1 misses, 0.00% hit ratio) over * (glob)
+#if zlib-ng
+  $ find $CACHEDIR -type f | sort
+  $TESTTMP/hgcache/master/11/f6ad8ec52a2984abaafd7c3b516503785c2072/1bb2e6237e035c8f8ef508e281f1ce075bc6db72
+  $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histidx
+  $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histpack
+  $TESTTMP/hgcache/master/packs/fdc91307b118a1dae474fa3602f40450ccdd471b.dataidx
+  $TESTTMP/hgcache/master/packs/fdc91307b118a1dae474fa3602f40450ccdd471b.datapack
+  $TESTTMP/hgcache/repos
+#else
   $ find $CACHEDIR -type f | sort
   $TESTTMP/hgcache/master/11/f6ad8ec52a2984abaafd7c3b516503785c2072/1bb2e6237e035c8f8ef508e281f1ce075bc6db72
   $TESTTMP/hgcache/master/packs/78840d69389c7404327f7477e3931c89945c37d1.dataidx
@@ -138,19 +165,41 @@
   $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histidx
   $TESTTMP/hgcache/master/packs/8abe7889aae389337d12ebe6085d4ee13854c7c9.histpack
   $TESTTMP/hgcache/repos
+#endif
 
   $ hg repack --background
   (running background repack)
+#if zlib-ng
+  $ find $CACHEDIR -type f | sort
+  $TESTTMP/hgcache/master/packs/12fd37df9f66576974961b6bf5575429798d5634.dataidx
+  $TESTTMP/hgcache/master/packs/12fd37df9f66576974961b6bf5575429798d5634.datapack
+  $TESTTMP/hgcache/master/packs/604552d403a1381749faf656feca0ca265a6d52c.histidx
+  $TESTTMP/hgcache/master/packs/604552d403a1381749faf656feca0ca265a6d52c.histpack
+  $TESTTMP/hgcache/repos
+#else
   $ find $CACHEDIR -type f | sort
   $TESTTMP/hgcache/master/packs/39443fa1064182e93d968b5cba292eb5283260d0.dataidx
   $TESTTMP/hgcache/master/packs/39443fa1064182e93d968b5cba292eb5283260d0.datapack
   $TESTTMP/hgcache/master/packs/604552d403a1381749faf656feca0ca265a6d52c.histidx
   $TESTTMP/hgcache/master/packs/604552d403a1381749faf656feca0ca265a6d52c.histpack
   $TESTTMP/hgcache/repos
+#endif
 
 # Test debug commands
 
-  $ hg debugdatapack $TESTTMP/hgcache/master/packs/*.datapack
+  $ hg debugdatapack $TESTTMP/hgcache/master/packs/*.datapack > ../remotefilelog-repack-fast-1.txt
+#if zlib-ng
+  $ cat ../remotefilelog-repack-fast-1.txt
+  $TESTTMP/hgcache/master/packs/12fd37df9f66576974961b6bf5575429798d5634:
+  x:
+  Node          Delta Base    Delta Length  Blob Size
+  1bb2e6237e03  000000000000  8             8
+  d4a3ed9310e5  1bb2e6237e03  12            6
+  aee31534993a  d4a3ed9310e5  12            4
+  
+  Total:                      32            18        (77.8% bigger)
+#else
+  $ cat ../remotefilelog-repack-fast-1.txt
   $TESTTMP/hgcache/master/packs/39443fa1064182e93d968b5cba292eb5283260d0:
   x:
   Node          Delta Base    Delta Length  Blob Size
@@ -159,7 +208,20 @@
   aee31534993a  d4a3ed9310e5  12            4
   
   Total:                      32            18        (77.8% bigger)
-  $ hg debugdatapack --long $TESTTMP/hgcache/master/packs/*.datapack
+#endif
+  $ hg debugdatapack --long $TESTTMP/hgcache/master/packs/*.datapack > ../remotefilelog-repack-fast-2.txt
+#if zlib-ng
+  $ cat ../remotefilelog-repack-fast-2.txt
+  $TESTTMP/hgcache/master/packs/12fd37df9f66576974961b6bf5575429798d5634:
+  x:
+  Node                                      Delta Base                                Delta Length  Blob Size
+  1bb2e6237e035c8f8ef508e281f1ce075bc6db72  0000000000000000000000000000000000000000  8             8
+  d4a3ed9310e5bd9887e3bf779da5077efab28216  1bb2e6237e035c8f8ef508e281f1ce075bc6db72  12            6
+  aee31534993a501858fb6dd96a065671922e7d51  d4a3ed9310e5bd9887e3bf779da5077efab28216  12            4
+  
+  Total:                                                                              32            18        (77.8% bigger)
+#else
+  $ cat ../remotefilelog-repack-fast-2.txt
   $TESTTMP/hgcache/master/packs/39443fa1064182e93d968b5cba292eb5283260d0:
   x:
   Node                                      Delta Base                                Delta Length  Blob Size
@@ -168,7 +230,19 @@
   aee31534993a501858fb6dd96a065671922e7d51  d4a3ed9310e5bd9887e3bf779da5077efab28216  12            4
   
   Total:                                                                              32            18        (77.8% bigger)
-  $ hg debugdatapack $TESTTMP/hgcache/master/packs/*.datapack --node d4a3ed9310e5bd9887e3bf779da5077efab28216
+#endif
+  $ hg debugdatapack $TESTTMP/hgcache/master/packs/*.datapack --node d4a3ed9310e5bd9887e3bf779da5077efab28216 > ../remotefilelog-repack-fast-3.txt
+#if zlib-ng
+  $ cat ../remotefilelog-repack-fast-3.txt
+  $TESTTMP/hgcache/master/packs/12fd37df9f66576974961b6bf5575429798d5634:
+  
+  x
+  Node                                      Delta Base                                Delta SHA1                                Delta Length
+  d4a3ed9310e5bd9887e3bf779da5077efab28216  1bb2e6237e035c8f8ef508e281f1ce075bc6db72  77029ab56e83ea2115dd53ff87483682abe5d7ca  12
+  Node                                      Delta Base                                Delta SHA1                                Delta Length
+  1bb2e6237e035c8f8ef508e281f1ce075bc6db72  0000000000000000000000000000000000000000  7ca8c71a64f7b56380e77573da2f7a5fdd2ecdb5  8
+#else
+  $ cat ../remotefilelog-repack-fast-3.txt
   $TESTTMP/hgcache/master/packs/39443fa1064182e93d968b5cba292eb5283260d0:
   
   x
@@ -176,6 +250,7 @@
   d4a3ed9310e5bd9887e3bf779da5077efab28216  1bb2e6237e035c8f8ef508e281f1ce075bc6db72  77029ab56e83ea2115dd53ff87483682abe5d7ca  12
   Node                                      Delta Base                                Delta SHA1                                Delta Length
   1bb2e6237e035c8f8ef508e281f1ce075bc6db72  0000000000000000000000000000000000000000  7ca8c71a64f7b56380e77573da2f7a5fdd2ecdb5  8
+#endif
   $ hg debughistorypack $TESTTMP/hgcache/master/packs/*.histidx
   
   x
@@ -217,11 +292,19 @@
   $ hg up -q tip
   2 files fetched over 2 fetches - (2 misses, 0.00% hit ratio) over * (glob)
   $ hg repack
+#if zlib-ng
+  $ ls $TESTTMP/hgcache/master/packs
+  881e7f7b9cef5b0cfdfaed4ad7f2e68af03d6168.dataidx
+  881e7f7b9cef5b0cfdfaed4ad7f2e68af03d6168.datapack
+  bfd60adb76018bb952e27cd23fc151bf94865d7d.histidx
+  bfd60adb76018bb952e27cd23fc151bf94865d7d.histpack
+#else
   $ ls $TESTTMP/hgcache/master/packs
   bfd60adb76018bb952e27cd23fc151bf94865d7d.histidx
   bfd60adb76018bb952e27cd23fc151bf94865d7d.histpack
   fb3aa57b22789ebcc45706c352e2d6af099c5816.dataidx
   fb3aa57b22789ebcc45706c352e2d6af099c5816.datapack
+#endif
   $ hg debughistorypack $TESTTMP/hgcache/master/packs/*.histidx
   
   x
@@ -249,7 +332,24 @@
 # Test repacking datapack without history
   $ rm -rf $CACHEDIR/master/packs/*hist*
   $ hg repack
-  $ hg debugdatapack $TESTTMP/hgcache/master/packs/*.datapack
+  $ hg debugdatapack $TESTTMP/hgcache/master/packs/*.datapack > ../remotefilelog-repack-fast-4.txt
+#if zlib-ng
+  $ cat ../remotefilelog-repack-fast-4.txt
+  $TESTTMP/hgcache/master/packs/b5da8a3614ba3c246edcf26a56a7852ca1d35716:
+  x:
+  Node          Delta Base    Delta Length  Blob Size
+  1bb2e6237e03  000000000000  8             8
+  d4a3ed9310e5  1bb2e6237e03  12            6
+  aee31534993a  d4a3ed9310e5  12            4
+  
+  Total:                      32            18        (77.8% bigger)
+  y:
+  Node          Delta Base    Delta Length  Blob Size
+  577959738234  000000000000  70            8
+  
+  Total:                      70            8         (775.0% bigger)
+#else
+  $ cat ../remotefilelog-repack-fast-4.txt
   $TESTTMP/hgcache/master/packs/922aca43dbbeda4d250565372e8892ec7b08da6a:
   x:
   Node          Delta Base    Delta Length  Blob Size
@@ -263,6 +363,7 @@
   577959738234  000000000000  70            8
   
   Total:                      70            8         (775.0% bigger)
+#endif
 
   $ hg cat -r ".^" x
   x
@@ -303,18 +404,30 @@ Single pack - repack does nothing
   $ ls_l $TESTTMP/hgcache/master/packs/ | grep histpack
   -r--r--r--      90 955a622173324b2d8b53e1147f209f1cf125302e.histpack
   $ hg repack --incremental
+#if zlib-ng
+  $ ls_l $TESTTMP/hgcache/master/packs/ | grep datapack
+  -r--r--r--      70 052643fdcdebbd42d7c180a651a30d46098e6fe1.datapack
+  -r--r--r--     230 12fd37df9f66576974961b6bf5575429798d5634.datapack
+#else
   $ ls_l $TESTTMP/hgcache/master/packs/ | grep datapack
   -r--r--r--      70 052643fdcdebbd42d7c180a651a30d46098e6fe1.datapack
   -r--r--r--     226 39443fa1064182e93d968b5cba292eb5283260d0.datapack
+#endif
   $ ls_l $TESTTMP/hgcache/master/packs/ | grep histpack
   -r--r--r--     336 604552d403a1381749faf656feca0ca265a6d52c.histpack
   -r--r--r--      90 955a622173324b2d8b53e1147f209f1cf125302e.histpack
 
 1 gen3 pack, 1 gen0 pack - does nothing
   $ hg repack --incremental
+#if zlib-ng
+  $ ls_l $TESTTMP/hgcache/master/packs/ | grep datapack
+  -r--r--r--      70 052643fdcdebbd42d7c180a651a30d46098e6fe1.datapack
+  -r--r--r--     230 12fd37df9f66576974961b6bf5575429798d5634.datapack
+#else
   $ ls_l $TESTTMP/hgcache/master/packs/ | grep datapack
   -r--r--r--      70 052643fdcdebbd42d7c180a651a30d46098e6fe1.datapack
   -r--r--r--     226 39443fa1064182e93d968b5cba292eb5283260d0.datapack
+#endif
   $ ls_l $TESTTMP/hgcache/master/packs/ | grep histpack
   -r--r--r--     336 604552d403a1381749faf656feca0ca265a6d52c.histpack
   -r--r--r--      90 955a622173324b2d8b53e1147f209f1cf125302e.histpack
@@ -339,8 +452,13 @@ Pull should run background repack
   searching for changes
   no changes found
   (running background incremental repack)
+#if zlib-ng
+  $ ls_l $TESTTMP/hgcache/master/packs/ | grep datapack
+  -r--r--r--     309 0e8efd1fd414977cb75e6d00e08b9b7a342e56f0.datapack
+#else
   $ ls_l $TESTTMP/hgcache/master/packs/ | grep datapack
   -r--r--r--     303 156a6c1c83aeb69422d7936e0a46ba9bc06a71c0.datapack
+#endif
   $ ls_l $TESTTMP/hgcache/master/packs/ | grep histpack
   -r--r--r--     336 604552d403a1381749faf656feca0ca265a6d52c.histpack
 

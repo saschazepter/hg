@@ -1106,6 +1106,23 @@ Binary files work but without diff hunks filtering.
   >>> open('binary', 'wb').write(b'this\nis\na\nbinary\0') and None
   $ hg add binary
   $ hg ci -m 'add a binary file' --quiet
+#if zlib-ng
+  $ hg log -f -L binary,1:2 -p
+  changeset:   11:dc865b608edf
+  tag:         tip
+  user:        test
+  date:        Thu Jan 01 00:00:00 1970 +0000
+  summary:     add a binary file
+  
+  diff --git a/dir/binary b/dir/binary
+  new file mode 100644
+  index 0000000000000000000000000000000000000000..c2e1fbed209fe919b3f189a6a31950e9adf61e45
+  GIT binary patch
+  literal 17
+  Yc$_QA$Smf{Eapn&O3KVjEUIJx05nJinE(I)
+  
+  
+#else
   $ hg log -f -L binary,1:2 -p
   changeset:   11:dc865b608edf
   tag:         tip
@@ -1121,6 +1138,7 @@ Binary files work but without diff hunks filtering.
   Wc$_QA$SmdpqC~Ew%)G>+N(KNlNClYy
   
   
+#endif
   $ hg log -f -L binary,1:2 -p --config diff.git=false
   changeset:   11:dc865b608edf
   tag:         tip

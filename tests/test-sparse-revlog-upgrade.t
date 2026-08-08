@@ -75,8 +75,116 @@ Upgrading to/from delta-info-flags
 
 #if delta-info-flags
   $ f -s .hg/store/data/*.d
-  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=28502223
-  $ cmp ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt | diff -u ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt
+  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=(28502223|27288785) (re)
+#if zlib-ng
+  $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
+  --- ../revlog-stats-pre-upgrade.txt* (glob)
+  +++ ../revlog-stats-post-upgrade.txt* (glob)
+  @@ -1,5 +1,5 @@
+   format : 1
+  -flags  : generaldelta, hasmeta, delta-info
+  +flags  : generaldelta
+   
+   revisions     :     5001
+       merges    :      625 (12.50%)
+  @@ -8,56 +8,59 @@
+       empty     :        0 ( 0.00%)
+                      text  :        0 (100.00%)
+                      delta :        0 (100.00%)
+  -    snapshot  :      189 ( 3.78%)
+  +    snapshot  :      416 ( 8.32%)
+         lvl-0   :              3 ( 0.06%)
+  -      lvl-1   :             19 ( 0.38%)  non-ancestor-bases:        8 (42.11%)
+  -      lvl-2   :             51 ( 1.02%)  non-ancestor-bases:       45 (88.24%)
+  -      lvl-3   :             64 ( 1.28%)  non-ancestor-bases:       61 (95.31%)
+  -      lvl-4   :             37 ( 0.74%)  non-ancestor-bases:       33 (89.19%)
+  -      lvl-5   :             13 ( 0.26%)  non-ancestor-bases:       12 (92.31%)
+  -      lvl-6   :              2 ( 0.04%)  non-ancestor-bases:        2 (100.00%)
+  -    deltas    :     4812 (96.22%)
+  -revision size : 23671272
+  -    snapshot  :  5243811 (22.15%)
+  -      lvl-0   :         561948 ( 2.37%)
+  -      lvl-1   :        1785647 ( 7.54%)
+  -      lvl-2   :        1538726 ( 6.50%)
+  -      lvl-3   :        1019994 ( 4.31%)
+  -      lvl-4   :         278655 ( 1.18%)
+  -      lvl-5   :          53181 ( 0.22%)
+  -      lvl-6   :           5660 ( 0.02%)
+  -    deltas    : 18427461 (77.85%)
+  +      lvl-1   :             26 ( 0.52%)  non-ancestor-bases:       10 (38.46%)
+  +      lvl-2   :             76 ( 1.52%)  non-ancestor-bases:       69 (90.79%)
+  +      lvl-3   :            114 ( 2.28%)  non-ancestor-bases:      111 (97.37%)
+  +      lvl-4   :            111 ( 2.22%)  non-ancestor-bases:      106 (95.50%)
+  +      lvl-5   :             67 ( 1.34%)  non-ancestor-bases:       64 (95.52%)
+  +      lvl-6   :             17 ( 0.34%)  non-ancestor-bases:       17 (100.00%)
+  +      lvl-7   :              2 ( 0.04%)  non-ancestor-bases:        2 (100.00%)
+  +    deltas    :     4585 (91.68%)
+  +revision size : 27288785
+  +    snapshot  :  8059104 (29.53%)
+  +      lvl-0   :         562012 ( 2.06%)
+  +      lvl-1   :        2019509 ( 7.40%)
+  +      lvl-2   :        2032944 ( 7.45%)
+  +      lvl-3   :        1988765 ( 7.29%)
+  +      lvl-4   :        1028243 ( 3.77%)
+  +      lvl-5   :         361599 ( 1.33%)
+  +      lvl-6   :          60733 ( 0.22%)
+  +      lvl-7   :           5299 ( 0.02%)
+  +    deltas    : 19229681 (70.47%)
+   
+   chunks        :     5001
+       0x78 (x)  :     5001 (100.00%)
+  -chunks size   : 23671272
+  -    0x78 (x)  : 23671272 (100.00%)
+  +chunks size   : 27288785
+  +    0x78 (x)  : 27288785 (100.00%)
+   
+   
+   total-stored-content: 1 714 759 864 bytes
+   
+   avg chain length  :        9
+   max chain length  :       15
+  -max chain reach   : 16995912
+  -compression ratio :       72
+  +max chain reach   : 19798279
+  +compression ratio :       62
+   
+   uncompressed data size (min/max/avg) : 340425 / 346470 / 342883
+  -full revision size (min/max/avg)     : 185798 / 189681 / 187316
+  -inter-snapshot size (min/max/avg)    : 2282 / 169783 / 25171
+  -    level-1   (min/max/avg)          : 8332 / 169783 / 93981
+  -    level-2   (min/max/avg)          : 3011 / 77429 / 30171
+  -    level-3   (min/max/avg)          : 2282 / 42232 / 15937
+  -    level-4   (min/max/avg)          : 2515 / 21377 / 7531
+  -    level-5   (min/max/avg)          : 2608 / 9749 / 4090
+  -    level-6   (min/max/avg)          : 2591 / 3069 / 2830
+  -delta size (min/max/avg)             : 1572 / 167593 / 3829
+  +full revision size (min/max/avg)     : 185876 / 189681 / 187337
+  +inter-snapshot size (min/max/avg)    : 2097 / 170379 / 18152
+  +    level-1   (min/max/avg)          : 3128 / 170379 / 77673
+  +    level-2   (min/max/avg)          : 2279 / 83491 / 26749
+  +    level-3   (min/max/avg)          : 2259 / 42376 / 17445
+  +    level-4   (min/max/avg)          : 2097 / 21529 / 9263
+  +    level-5   (min/max/avg)          : 2262 / 10652 / 5397
+  +    level-6   (min/max/avg)          : 2424 / 5123 / 3572
+  +    level-7   (min/max/avg)          : 2605 / 2694 / 2649
+  +delta size (min/max/avg)             : 1572 / 166547 / 4194
+   
+  -deltas against prev  : 1968 (40.90%)
+  -    where prev = p1  : 1968     (100.00%)
+  +deltas against prev  : 3871 (84.43%)
+  +    where prev = p1  : 3871     (100.00%)
+       where prev = p2  :    0     ( 0.00%)
+       other-ancestor   :    0     ( 0.00%)
+       unrelated        :    0     ( 0.00%)
+  -deltas against p1    :  655 (13.61%)
+  -deltas against p2    :   11 ( 0.23%)
+  +deltas against p1    :  644 (14.05%)
+  +deltas against p2    :   70 ( 1.53%)
+   deltas against ancs  :    0 ( 0.00%)
+  -deltas against other : 2178 (45.26%)
+  +deltas against other :    0 ( 0.00%)
+  [1]
+#else
   $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
   --- ../revlog-stats-pre-upgrade.txt* (glob)
   +++ ../revlog-stats-post-upgrade.txt* (glob)
@@ -182,10 +290,120 @@ Upgrading to/from delta-info-flags
   -deltas against other : 2176 (45.15%)
   +deltas against other :    0 ( 0.00%)
   [1]
+#endif
 #else
   $ f -s .hg/store/data/*.d
-  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=24793761
+  .hg/store/data/_s_p_a_r_s_e-_r_e_v_l_o_g-_t_e_s_t-_f_i_l_e.d: size=(24793761|23671272) (re)
   $ cmp ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt | diff -u ../revlog-stats-reference.txt ../revlog-stats-pre-upgrade.txt
+#if zlib-ng
+  $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
+  --- ../revlog-stats-pre-upgrade.txt* (glob)
+  +++ ../revlog-stats-post-upgrade.txt* (glob)
+  @@ -1,5 +1,5 @@
+   format : 1
+  -flags  : generaldelta
+  +flags  : generaldelta, hasmeta, delta-info
+   
+   revisions     :     5001
+       merges    :      625 (12.50%)
+  @@ -8,59 +8,56 @@
+       empty     :        0 ( 0.00%)
+                      text  :        0 (100.00%)
+                      delta :        0 (100.00%)
+  -    snapshot  :      416 ( 8.32%)
+  +    snapshot  :      189 ( 3.78%)
+         lvl-0   :              3 ( 0.06%)
+  -      lvl-1   :             26 ( 0.52%)  non-ancestor-bases:       10 (38.46%)
+  -      lvl-2   :             76 ( 1.52%)  non-ancestor-bases:       69 (90.79%)
+  -      lvl-3   :            114 ( 2.28%)  non-ancestor-bases:      111 (97.37%)
+  -      lvl-4   :            111 ( 2.22%)  non-ancestor-bases:      106 (95.50%)
+  -      lvl-5   :             67 ( 1.34%)  non-ancestor-bases:       64 (95.52%)
+  -      lvl-6   :             17 ( 0.34%)  non-ancestor-bases:       17 (100.00%)
+  -      lvl-7   :              2 ( 0.04%)  non-ancestor-bases:        2 (100.00%)
+  -    deltas    :     4585 (91.68%)
+  -revision size : 27288785
+  -    snapshot  :  8059104 (29.53%)
+  -      lvl-0   :         562012 ( 2.06%)
+  -      lvl-1   :        2019509 ( 7.40%)
+  -      lvl-2   :        2032944 ( 7.45%)
+  -      lvl-3   :        1988765 ( 7.29%)
+  -      lvl-4   :        1028243 ( 3.77%)
+  -      lvl-5   :         361599 ( 1.33%)
+  -      lvl-6   :          60733 ( 0.22%)
+  -      lvl-7   :           5299 ( 0.02%)
+  -    deltas    : 19229681 (70.47%)
+  +      lvl-1   :             19 ( 0.38%)  non-ancestor-bases:        8 (42.11%)
+  +      lvl-2   :             51 ( 1.02%)  non-ancestor-bases:       45 (88.24%)
+  +      lvl-3   :             64 ( 1.28%)  non-ancestor-bases:       61 (95.31%)
+  +      lvl-4   :             37 ( 0.74%)  non-ancestor-bases:       33 (89.19%)
+  +      lvl-5   :             13 ( 0.26%)  non-ancestor-bases:       12 (92.31%)
+  +      lvl-6   :              2 ( 0.04%)  non-ancestor-bases:        2 (100.00%)
+  +    deltas    :     4812 (96.22%)
+  +revision size : 23671272
+  +    snapshot  :  5243811 (22.15%)
+  +      lvl-0   :         561948 ( 2.37%)
+  +      lvl-1   :        1785647 ( 7.54%)
+  +      lvl-2   :        1538726 ( 6.50%)
+  +      lvl-3   :        1019994 ( 4.31%)
+  +      lvl-4   :         278655 ( 1.18%)
+  +      lvl-5   :          53181 ( 0.22%)
+  +      lvl-6   :           5660 ( 0.02%)
+  +    deltas    : 18427461 (77.85%)
+   
+   chunks        :     5001
+       0x78 (x)  :     5001 (100.00%)
+  -chunks size   : 27288785
+  -    0x78 (x)  : 27288785 (100.00%)
+  +chunks size   : 23671272
+  +    0x78 (x)  : 23671272 (100.00%)
+   
+   
+   total-stored-content: 1 714 759 864 bytes
+   
+   avg chain length  :        9
+   max chain length  :       15
+  -max chain reach   : 19798279
+  -compression ratio :       62
+  +max chain reach   : 16995912
+  +compression ratio :       72
+   
+   uncompressed data size (min/max/avg) : 340425 / 346470 / 342883
+  -full revision size (min/max/avg)     : 185876 / 189681 / 187337
+  -inter-snapshot size (min/max/avg)    : 2097 / 170379 / 18152
+  -    level-1   (min/max/avg)          : 3128 / 170379 / 77673
+  -    level-2   (min/max/avg)          : 2279 / 83491 / 26749
+  -    level-3   (min/max/avg)          : 2259 / 42376 / 17445
+  -    level-4   (min/max/avg)          : 2097 / 21529 / 9263
+  -    level-5   (min/max/avg)          : 2262 / 10652 / 5397
+  -    level-6   (min/max/avg)          : 2424 / 5123 / 3572
+  -    level-7   (min/max/avg)          : 2605 / 2694 / 2649
+  -delta size (min/max/avg)             : 1572 / 166547 / 4194
+  +full revision size (min/max/avg)     : 185798 / 189681 / 187316
+  +inter-snapshot size (min/max/avg)    : 2282 / 169783 / 25171
+  +    level-1   (min/max/avg)          : 8332 / 169783 / 93981
+  +    level-2   (min/max/avg)          : 3011 / 77429 / 30171
+  +    level-3   (min/max/avg)          : 2282 / 42232 / 15937
+  +    level-4   (min/max/avg)          : 2515 / 21377 / 7531
+  +    level-5   (min/max/avg)          : 2608 / 9749 / 4090
+  +    level-6   (min/max/avg)          : 2591 / 3069 / 2830
+  +delta size (min/max/avg)             : 1572 / 167593 / 3829
+   
+  -deltas against prev  : 3871 (84.43%)
+  -    where prev = p1  : 3871     (100.00%)
+  +deltas against prev  : 1968 (40.90%)
+  +    where prev = p1  : 1968     (100.00%)
+       where prev = p2  :    0     ( 0.00%)
+       other-ancestor   :    0     ( 0.00%)
+       unrelated        :    0     ( 0.00%)
+  -deltas against p1    :  644 (14.05%)
+  -deltas against p2    :   70 ( 1.53%)
+  +deltas against p1    :  655 (13.61%)
+  +deltas against p2    :   11 ( 0.23%)
+   deltas against ancs  :    0 ( 0.00%)
+  -deltas against other :    0 ( 0.00%)
+  +deltas against other : 2178 (45.26%)
+  [1]
+#else
   $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
   --- ../revlog-stats-pre-upgrade.txt* (glob)
   +++ ../revlog-stats-post-upgrade.txt* (glob)
@@ -291,6 +509,7 @@ Upgrading to/from delta-info-flags
   -deltas against other :    0 ( 0.00%)
   +deltas against other : 2176 (45.15%)
   [1]
+#endif
 #endif
 
   $ cd ..

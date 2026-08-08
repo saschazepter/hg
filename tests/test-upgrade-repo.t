@@ -877,11 +877,11 @@ make sure we have a .d file
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
        size-change:               0 bytes
        elapsed-time:      [0-9 ]{9} seconds (re)
@@ -1012,11 +1012,11 @@ unless --no-backup is passed
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
        size-change:               0 bytes
        elapsed-time:      [0-9 ]{9} seconds (re)
@@ -1072,11 +1072,11 @@ We can restrict optimization to some revlog:
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
   blindly copying data/FooBarDirectory.d/f1.i containing 1 revisions
   blindly copying data/f0.i containing 1 revisions
@@ -1164,11 +1164,11 @@ Check we can select negatively
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
@@ -1229,11 +1229,11 @@ Check that we can select changelog only
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
   blindly copying data/FooBarDirectory.d/f1.i containing 1 revisions
   blindly copying data/f0.i containing 1 revisions
@@ -1294,11 +1294,11 @@ Check that we can select filelog only
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
@@ -1382,11 +1382,11 @@ Check you can't skip revlog clone during important format downgrade
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
@@ -1457,11 +1457,11 @@ Check you can't skip revlog clone during important format upgrade
   creating temporary repository to stage upgraded data: $TESTTMP/upgradegd/.hg/upgrade.* (glob)
   (it is safe to interrupt this process any time before data migration completes)
   migrating 9 total revisions (3 in filelogs, 3 in manifests, 3 in changelog)
-  migrating 519 KB in store; 1.05 MB tracked data
+  migrating (519|516) KB in store; 1.05 MB tracked data (re)
   migrating filelogs:
        revlog-count:              3
        total-revisions:           3
-       store-size:              518 KB
+       store-size:              (518|515) KB (re)
        tracked-size:           1.05 MB
   cloning 1 revisions from data/FooBarDirectory.d/f1.i
   cloning 1 revisions from data/f0.i
