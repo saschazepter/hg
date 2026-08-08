@@ -429,17 +429,17 @@ Compression level can be adjusted for bundle2 bundles
   $ hg bundle -a -t gzip-v2 gzip-v2.hg
   1 changesets found
   $ f --size gzip-v2.hg
-  gzip-v2.hg: size=468
+  gzip-v2.hg: size=(468|467) (re)
 
   $ hg --config experimental.bundlecomplevel=1 bundle -a -t gzip-v2 gzip-v2-level1.hg
   1 changesets found
   $ f --size gzip-v2-level1.hg
-  gzip-v2-level1.hg: size=475
+  gzip-v2-level1.hg: size=(475|474) (re)
 
   $ hg --config experimental.bundlecomplevel.gzip=1 --config experimental.bundlelevel=9 bundle -a -t gzip-v2 gzip-v2-level1.hg
   1 changesets found
   $ f --size gzip-v2-level1.hg
-  gzip-v2-level1.hg: size=475
+  gzip-v2-level1.hg: size=(475|474) (re)
 
   $ cd ..
 

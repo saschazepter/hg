@@ -1063,6 +1063,66 @@ Simple case where it just work: GZ
 ----------------------------------
 
   $ hg bundle2 --compress GZ --rev '8+7+5+4' ../rev.hg2.bz
+#if zlib-ng
+  $ f --hexdump ../rev.hg2.bz
+  ../rev.hg2.bz:
+  0000: 48 47 32 30 00 00 00 0e 43 6f 6d 70 72 65 73 73 |HG20....Compress|
+  0010: 69 6f 6e 3d 47 5a 78 9c 95 94 7f 68 95 55 18 c7 |ion=GZx....h.U..|
+  0020: 9f bb 30 e8 ce fa c3 e5 4f 94 94 56 26 37 e5 9c |..0.....O..V&7..|
+  0030: f3 9e 73 de 73 a2 fe 58 bb 73 b7 c8 39 fa a3 c2 |..s.s..X.s..9...|
+  0040: 81 f6 9e 5f b3 5b cd 15 15 85 0e b7 dc 72 6b d7 |..._.[.......rk.|
+  0050: 30 6c b4 c2 2d 17 8e 58 0d bd a4 bb 62 0c 43 a2 |0l..-..X....b.C.|
+  0060: 35 ad d9 20 8b 06 65 25 4a 05 6b a4 b2 7e 91 19 |5.. ..e%J.k..~..|
+  0070: ef b8 8d 3b 78 13 f7 c0 c3 e1 70 f8 9e e7 c3 39 |...;x.....p....9|
+  0080: df e7 01 80 79 c5 7a 73 50 57 6b 6b 9f de f2 6c |....y.zsPWkk...l|
+  0090: 3d e4 e3 fa 12 00 d8 4f 0e 3e f7 d2 e9 eb 3e af |=......O.>....>.|
+  00a0: 18 18 db b4 ba fe d4 b1 de 9d fd 8d e9 4d df 8e |.............M..|
+  00b0: b5 3d 3c dc 7b ff ba f2 27 ff 59 d6 f7 f5 f6 15 |.=<.{...'.Y.....|
+  00c0: 3d 47 b7 42 44 44 69 f3 47 ab c2 e4 16 3b aa a9 |=G.BDDi.G....;..|
+  00d0: 6f b5 62 9e e7 9c 41 5a 58 46 b4 d1 42 04 4e 71 |o.b...AZXF..B.Nq|
+  00e0: 6d 3c 69 09 d2 71 00 70 00 b0 19 00 8a 92 e1 ee |m<i..q.p........|
+  00f0: 31 00 08 af 8a 25 43 c6 8e e5 13 ef 34 0d 9e 5c |1....%C.....4..\|
+  0100: 70 fc 87 0d 9f 15 f7 94 b3 7d 3f 9d ff 60 24 56 |p........}?..`$V|
+  0110: 9c 19 eb bc d4 b9 64 43 d3 fc 3f d7 ef da ff 5e |......dC..?....^|
+  0120: f5 a3 6d 51 8c 51 da 42 46 6a ac b6 52 0b c2 1d |..mQ.Q.BFj..R...|
+  0130: 97 54 22 86 7c 25 85 e6 9e f0 02 0f 21 a9 88 64 |.T".|%......!..d|
+  0140: c2 f3 cd 0c c6 8a 19 8c 15 00 f0 f6 44 8f bf f6 |............D...|
+  0150: 85 37 bb 8b 2f b7 5e ec ba 7b 4d d7 09 f1 d6 83 |.7../.^..{M.....|
+  0160: eb 4b 73 62 5b 26 73 c0 5f d8 da 78 e9 af 8e 33 |.Ksb[&s._..x...3|
+  0170: 5f 7c ba f4 f7 96 28 9e 28 6d 21 a3 c7 99 92 9e |_|....(.(m!.....|
+  0180: 61 be 33 8e 0a 4c 2d 51 4c 62 6c b8 0a b4 73 44 |a.3..L-QLbl...sD|
+  0190: 61 82 30 a5 14 17 32 42 21 61 65 f8 8a 45 67 ee |a.0...2B!ae..Eg.|
+  01a0: 5d 5c 77 ec dc 9a 8b cd b9 e7 e3 3b 47 4e d4 bd |]\w........;GN..|
+  01b0: f2 6e 2e 8a 30 ea 15 a3 b4 85 84 42 59 4b 85 35 |.n..0......BYK.5|
+  01c0: da f7 b0 60 14 3b 8d 10 f6 ac a5 58 21 21 89 cf |...`.;.....X!!..|
+  01d0: 03 a1 09 55 ee 3f c2 30 8b 52 e1 ae 36 cf 1b 4b |...U.?.0.R..6..K|
+  01e0: e5 ef 6b af bb e5 81 ca f1 01 ef ca e8 f0 f9 3b |..k............;|
+  01f0: bf 69 3d 98 1b 91 67 e7 ba de 7d 8b 16 5e 9e bc |.i=...g...}..^..|
+  0200: 75 ef 4a 51 34 70 24 d8 35 67 69 db b9 59 38 b2 |u.JQ4p$.5gi..Y8.|
+  0210: 29 9f 89 24 68 cf 61 1d 10 49 a8 c6 3c c0 52 21 |)..$h.a..I..<.R!|
+  0220: ce 78 20 a8 44 c8 32 44 2d 53 28 b0 9a 4c fd 77 |.x .D.2D-S(..L.w|
+  0230: fb ba f1 9f 87 6f ff ed b5 dd d5 5b 3b 87 c4 5d |.....o.....[;..]|
+  0240: e8 86 f7 3b 76 34 40 43 a6 ab b5 b9 e4 b6 c9 a1 |...;v4@C........|
+  0250: ac 7e ea 50 4d d5 cb 89 25 3b 66 61 bc 04 00 f4 |.~.PM...%;fa....|
+  0260: 87 6b 05 48 cd 9d 41 1e 43 01 d7 c8 20 4d a5 a1 |.k.H..A.C... M..|
+  0270: 81 d4 0c 61 5f 3b e4 23 ea 39 46 2d 13 53 28 bc |...a_;.#.9F-.S(.|
+  0280: 66 cf 97 db bf 4b dd 7c 76 e0 d5 65 8f f7 5f 49 |f....K.|v..e.._I|
+  0290: cc 8b 25 cb ee e8 6d 1e da 78 61 c5 1f dd b9 f4 |..%...m..xa.....|
+  02a0: 91 d1 c1 f9 f7 34 be f1 e3 a9 28 e4 ff f1 d7 43 |.....4....(....C|
+  02b0: f9 4c ac 05 42 94 d3 ce 70 12 10 1c 78 44 f8 d6 |.L..B...p...xD..|
+  02c0: 28 43 0d 67 9c 60 61 90 63 84 59 e3 f3 20 44 79 |(C.g.`a.c.Y.. Dy|
+  02d0: bd 7d 22 f5 cb 27 b8 a5 ec 6f 28 99 28 cb b6 ad |.}"..'...o(.(...|
+  02e0: 4c 67 4a 3f 8c 42 99 85 91 12 79 14 28 fc ac 14 |LgJ?.B....y.(...|
+  02f0: 08 86 10 16 d2 fa 34 90 16 51 9f 59 41 08 92 9e |......4..Q.YA...|
+  0300: d2 be 51 c8 70 0f 07 56 21 45 e3 79 e9 9c 70 5c |..Q.p..V!E.y..p\|
+  0310: a8 8f 2e 9c 5c 55 7a 3c bd 38 6b d3 cd bb 6f aa |....\Uz<.8k...o.|
+  0320: ae aa 89 8f af 8e 62 99 85 81 a6 f1 93 d3 a5 c2 |......b.........|
+  0330: ae 57 7b b7 8c b2 f8 13 37 ce bd ef 74 df c7 b1 |.W{.....7...t...|
+  0340: 6d bf d6 97 4f 56 3d 72 ad a5 ae 32 99 60 7a c8 |m...OV=r...2.`z.|
+  0350: 4c 95 0a 5b 43 b5 c0 a2 ee 67 fa be af dc f8 e2 |L..[C....g......|
+  0360: f2 3d 83 0d d9 af f0 81 ec e1 6b 2d 75 95 f6 85 |.=........k-u...|
+  0370: e9 4e 9c 11 ff 02 f1 60 c3 17                   |.N.....`..|
+#else
   $ f --hexdump ../rev.hg2.bz
   ../rev.hg2.bz:
   0000: 48 47 32 30 00 00 00 0e 43 6f 6d 70 72 65 73 73 |HG20....Compress|
@@ -1121,6 +1181,7 @@ Simple case where it just work: GZ
   0350: b8 0a 5a 43 34 3a b3 3a d6 77 ff 5c b6 fa ad f9 |..ZC4:.:.w.\....|
   0360: db fb 6a 33 df c1 7d 99 cf ef d4 d5 6d da 77 7c |..j3..}.....m.w||
   0370: 3b 19 fd af c5 3f f1 60 c3 17                   |;....?.`..|
+#endif
   $ hg debugbundle ../rev.hg2.bz
   Stream params: {Compression: GZ}
   changegroup -- {} (mandatory: False)

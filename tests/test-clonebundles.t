@@ -130,6 +130,23 @@ Bundle with partial content works
 We verify exact bundle content as an extra check against accidental future
 changes. If this output changes, we could break old clients.
 
+#if zlib-ng
+  $ f --size --hexdump partial.hg
+  partial.hg: size=208
+  0000: 48 47 31 30 47 5a 78 9c 63 60 60 98 17 ac 12 93 |HG10GZx.c``.....|
+  0010: f0 ac a9 23 45 70 cb bf 0d 5f 59 4e 4a 7f 79 21 |...#Ep..._YNJ.y!|
+  0020: 9b cc 40 24 20 a0 d7 ce 2c d1 38 25 cd 24 25 d5 |..@$ ...,.8%.$%.|
+  0030: d8 c2 22 cd 38 d9 24 cd 22 d5 c8 22 cd 24 cd 32 |..".8.$."..".$.2|
+  0040: d1 c2 d0 c4 c8 d2 32 d1 38 39 29 c9 34 cd d4 80 |......2.89).4...|
+  0050: ab 24 b5 b8 84 cb 40 c1 80 2b 2d 3f 9f 8b 2b 31 |.$....@..+-?..+1|
+  0060: 25 45 21 2d 3f 1f 6a 4a 6f 96 ed 97 7b 16 fd 36 |%E!-?.jJo...{..6|
+  0070: fe 7d 1a 5f 7e ae 10 d1 9c 65 b3 3b 3e 80 4a 2e |.}._~....e.;>.J.|
+  0080: d4 05 59 93 64 61 90 92 6a 9a 62 68 6c 61 6e 6a |..Y.da..j.bhlanj|
+  0090: 61 6a 62 98 6c 9a 66 60 6a 64 66 9a 98 62 68 62 |ajb.l.f`jdf..bhb|
+  00a0: 92 98 64 99 96 68 61 96 62 98 92 c4 05 d5 c4 0e |..d..ha.b.......|
+  00b0: 71 5b c8 0e de a7 17 2d 4a 5b 1d 8f 7e 08 4a 5d |q[.....-J[..~.J]|
+  00c0: 2b e2 b5 f3 57 db c5 db d4 70 17 00 36 ed 5e c7 |+...W....p..6.^.|
+#else
   $ f --size --hexdump partial.hg
   partial.hg: size=207
   0000: 48 47 31 30 47 5a 78 9c 63 60 60 98 17 ac 12 93 |HG10GZx.c``.....|
@@ -145,6 +162,7 @@ changes. If this output changes, we could break old clients.
   00a0: 26 59 a6 25 5a 98 a5 18 a6 24 71 41 35 b1 43 dc |&Y.%Z....$qA5.C.|
   00b0: 16 b2 83 f7 e9 45 8b d2 56 c7 a3 1f 82 52 d7 8a |.....E..V....R..|
   00c0: 78 ed fc d5 76 f1 36 35 dc 05 00 36 ed 5e c7    |x...v.65...6.^.|
+#endif
 
   $ echo "http://localhost:$HGPORT1/partial.hg" > server/.hg/clonebundles.manifest
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
@@ -196,6 +214,39 @@ Again, we perform an extra check against bundle content changes. If this content
 changes, clone bundles produced by new Mercurial versions may not be readable
 by old clients.
 
+#if zlib-ng
+  $ f --size --hexdump full.hg
+  full.hg: size=449
+  0000: 48 47 32 30 00 00 00 0e 43 6f 6d 70 72 65 73 73 |HG20....Compress|
+  0010: 69 6f 6e 3d 47 5a 78 9c 63 60 60 d0 e4 76 f6 70 |ion=GZx.c``..v.p|
+  0020: f4 73 77 75 0f f2 0f 0d 60 60 60 60 60 64 64 67 |.swu....`````ddg|
+  0030: e2 64 2c 4b 2d 2a ce cc cf 33 30 ca 4b 4a ce 48 |.d,K-*...30.KJ.H|
+  0040: cc 4b 4f 2d 36 62 60 60 9e c1 c0 c0 b0 29 58 25 |.KO-6b``.....)X%|
+  0050: 26 e1 59 53 47 8a e0 96 7f 1b be b2 9c 94 fe f2 |&.YSG...........|
+  0060: 42 36 99 81 02 40 c0 3c 3b b3 44 e3 94 34 93 94 |B6...@.<;.D..4..|
+  0070: 54 63 0b 8b 34 e3 64 93 34 8b 54 23 8b 34 93 34 |Tc..4.d.4.T#.4.4|
+  0080: cb 44 0b 43 13 23 4b cb 44 e3 e4 a4 24 d3 34 53 |.D.C.#K.D...$.4S|
+  0090: 03 ae 92 d4 e2 12 2e 03 05 03 ae b4 fc 7c 2e ae |.............|..|
+  00a0: c4 94 14 85 b4 fc 7c 90 8b 57 fd ef d5 ff bd 9f |......|..W......|
+  00b0: 7d 49 ee c5 0f b1 5d cf db eb ec c3 1e 2d a2 c4 |}I....]......-..|
+  00c0: 17 d8 cc 43 76 71 aa b1 a1 71 5a b2 a1 b9 91 99 |...Cvq...qZ.....|
+  00d0: a1 a9 85 b1 69 8a 91 81 69 9a a9 85 85 61 9a 45 |....i...i....a.E|
+  00e0: 9a b1 49 4a 8a 65 52 92 41 9a 81 81 a5 11 c2 c5 |..IJ.eR.A.......|
+  00f0: 49 89 45 10 17 27 25 16 41 4d 59 98 65 fb e5 9e |I.E..'%.AMY.e...|
+  0100: 45 bf 8d 7f 9f c6 97 9f 2b 44 34 67 d9 ec 8e 0f |E.......+D4g....|
+  0110: a0 61 38 eb 82 02 2b c9 c2 20 25 d5 34 c5 d0 d8 |.a8...+.. %.4...|
+  0120: c2 dc d4 c2 d4 c4 30 d9 34 cd c0 d4 c8 cc 34 31 |......0.4.....41|
+  0130: c5 d0 c4 24 31 c9 32 2d d1 c2 2c c5 30 25 89 0b |...$1.2-..,.0%..|
+  0140: e4 c0 c7 c2 7f c4 d5 44 9b 63 15 e2 23 1a 7f 7c |.......D.c..#..||
+  0150: f6 bd b9 9b 9f 61 12 b1 8e c6 a6 8e 40 b0 ea 82 |.....a......@...|
+  0160: c2 86 14 07 82 00 3b 24 40 33 76 f0 3e bd 68 51 |......;$@3v.>.hQ|
+  0170: da ea 78 f4 43 50 ea 5a 11 af 9d bf da 2e de a6 |..x.CP.Z........|
+  0180: 24 30 f1 b8 95 1d 92 ea a8 6e 25 11 29 56 56 2c |$0.......n%.)VV,|
+  0190: 39 31 39 23 d5 aa 28 b5 4c 37 a9 28 31 2f 39 43 |919#..(.L7.(1/9C|
+  01a0: 17 2c 00 ca d6 60 05 d6 20 f7 31 30 30 30 81 38 |.,...`.. .1000.8|
+  01b0: 29 a9 69 89 a5 39 25 d8 cc c5 17 15 00 d3 1b 0d |).i..9%.........|
+  01c0: 4c                                              |L|
+#else
   $ f --size --hexdump full.hg
   full.hg: size=442
   0000: 48 47 32 30 00 00 00 0e 43 6f 6d 70 72 65 73 73 |HG20....Compress|
@@ -226,6 +277,7 @@ by old clients.
   0190: a9 65 ba 49 45 89 79 c9 19 ba 60 01 a0 14 23 58 |.e.IE.y...`...#X|
   01a0: 81 35 c8 7d 40 cc 04 e2 a4 a4 a6 25 96 e6 94 60 |.5.}@......%...`|
   01b0: 33 17 5f 54 00 00 d3 1b 0d 4c                   |3._T.....L|
+#endif
 
   $ echo "http://localhost:$HGPORT1/full.hg" > server/.hg/clonebundles.manifest
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
@@ -844,6 +896,32 @@ Test clone bundle retrieved through bundle2
   $ hg -R server serve -d -p $HGPORT --pid-file hg.pid --accesslog access.log
   $ cat hg.pid >> $DAEMON_PIDS
 
+#if zlib-ng
+  $ hg -R server debuglfput gz-a.hg
+  f842fec7690ef86244152d5e3fcbb224e62d6420
+
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > largefile://f842fec7690ef86244152d5e3fcbb224e62d6420 BUNDLESPEC=gzip-v2
+  > EOF
+
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: largefile://f842fec7690ef86244152d5e3fcbb224e62d6420
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  largefile://f842fec7690ef86244152d5e3fcbb224e62d6420 BUNDLESPEC=gzip-v2
+  $ hg clone -U http://localhost:$HGPORT largefile-provided --traceback
+  applying clone bundle from largefile://f842fec7690ef86244152d5e3fcbb224e62d6420
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+#else
   $ hg -R server debuglfput gz-a.hg
   1f74b3d08286b9b3a16fb3fa185dd29219cbc6ae
 
@@ -868,6 +946,7 @@ Test clone bundle retrieved through bundle2
   searching for changes
   no changes found
   2 local changesets published
+#endif
   $ killdaemons.py
 
 A manifest with a gzip bundle requiring too much memory for a 16MB system and working
@@ -974,6 +1053,16 @@ Testing a clone bundle with digest
   $ cat > server/.hg/clonebundles.manifest << EOF
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest}
   > EOF
+#if zlib-ng
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:e1a3d9bd74dda276f9a9d5ceb2d0237ee9e964f340b5e440605ddb628e4a5664
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      DIGEST: sha256:e1a3d9bd74dda276f9a9d5ceb2d0237ee9e964f340b5e440605ddb628e4a5664
+#else
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
   http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:5f9eac7db9900194be019b465352bcd65982ac6ac4b45edda0a77de7c98f20b9
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT
@@ -982,6 +1071,7 @@ Testing a clone bundle with digest
       COMPRESSION: gzip
       VERSION: v2
       DIGEST: sha256:5f9eac7db9900194be019b465352bcd65982ac6ac4b45edda0a77de7c98f20b9
+#endif
   $ hg clone -U http://localhost:$HGPORT digest-valid
   applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
   adding changesets
@@ -996,6 +1086,16 @@ Testing a clone bundle with digest
   $ cat > server/.hg/clonebundles.manifest << EOF
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest_bad}
   > EOF
+#if zlib-ng
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:4b81be3eca2ec84d60f1c4ad7641aa2bf101f7b3dbfff662ce0019c1dcc6c90d
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      DIGEST: sha256:4b81be3eca2ec84d60f1c4ad7641aa2bf101f7b3dbfff662ce0019c1dcc6c90d
+#else
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
   http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:9cb4468a7a50dfe8a9c411a86776c117018681b53876ca6e0c283614ca6debc8
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT
@@ -1004,6 +1104,7 @@ Testing a clone bundle with digest
       COMPRESSION: gzip
       VERSION: v2
       DIGEST: sha256:9cb4468a7a50dfe8a9c411a86776c117018681b53876ca6e0c283614ca6debc8
+#endif
   $ hg clone -U  http://localhost:$HGPORT digest-invalid
   applying clone bundle from http://localhost:$HGPORT1/gz-a.hg
   abort: file with digest [0-9a-f]* expected, but [0-9a-f]* found for [0-9]* bytes (re)
@@ -1015,6 +1116,20 @@ Testing a clone bundle with digest
   > http://localhost:$HGPORT1/bad-d.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:00,xxx:01
   > http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:${digest_bad}
   > EOF
+#if zlib-ng
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/bad-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:xx
+  http://localhost:$HGPORT1/bad-b.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:0000
+  http://localhost:$HGPORT1/bad-c.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:0000
+  http://localhost:$HGPORT1/bad-d.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:00,xxx:01
+  http://localhost:$HGPORT1/gz-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:4b81be3eca2ec84d60f1c4ad7641aa2bf101f7b3dbfff662ce0019c1dcc6c90d
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/gz-a.hg
+      BUNDLESPEC: gzip-v2
+      COMPRESSION: gzip
+      VERSION: v2
+      DIGEST: sha256:4b81be3eca2ec84d60f1c4ad7641aa2bf101f7b3dbfff662ce0019c1dcc6c90d
+#else
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
   http://localhost:$HGPORT1/bad-a.hg BUNDLESPEC=gzip-v2 DIGEST=sha256:xx
   http://localhost:$HGPORT1/bad-b.hg BUNDLESPEC=gzip-v2 DIGEST=xxx:0000
@@ -1027,6 +1142,7 @@ Testing a clone bundle with digest
       COMPRESSION: gzip
       VERSION: v2
       DIGEST: sha256:9cb4468a7a50dfe8a9c411a86776c117018681b53876ca6e0c283614ca6debc8
+#endif
   $ hg clone --debug -U  http://localhost:$HGPORT digest-malformed
   using http://localhost:$HGPORT/
   sending capabilities command

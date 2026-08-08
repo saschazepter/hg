@@ -130,18 +130,32 @@ No Accept will send 0.1+zlib, even though "none" is preferred b/c "none" isn't s
   content-type: application/mercurial-0.1
 
   $ get-with-headers.py $LOCALIP:$HGPORT '?cmd=getbundle&heads=e93700bd72895c5addab234c56d4024b487a362f&common=0000000000000000000000000000000000000000'  > resp
+#if zlib-ng
+  $ f --size --hexdump --bytes 28 --sha1 resp
+  resp: size=229, sha1=08a028277dfcbbff41a6bd042316
+  0000: 32 30 30 20 53 63 72 69 70 74 20 6f 75 74 70 75 |200 Script outpu|
+  0010: 74 20 66 6f 6c 6c 6f 77 73 0a 0a 78             |t follows..x|
+#else
   $ f --size --hexdump --bytes 28 --sha1 resp
   resp: size=227, sha1=35a4c074da74f32f5440da3cbf04
   0000: 32 30 30 20 53 63 72 69 70 74 20 6f 75 74 70 75 |200 Script outpu|
   0010: 74 20 66 6f 6c 6c 6f 77 73 0a 0a 78             |t follows..x|
+#endif
 
 Explicit 0.1 will send zlib because "none" isn't supported on 0.1
 
   $ get-with-headers.py --hgproto '0.1' $LOCALIP:$HGPORT '?cmd=getbundle&heads=e93700bd72895c5addab234c56d4024b487a362f&common=0000000000000000000000000000000000000000'  > resp
+#if zlib-ng
+  $ f --size --hexdump --bytes 28 --sha1 resp
+  resp: size=229, sha1=08a028277dfcbbff41a6bd042316
+  0000: 32 30 30 20 53 63 72 69 70 74 20 6f 75 74 70 75 |200 Script outpu|
+  0010: 74 20 66 6f 6c 6c 6f 77 73 0a 0a 78             |t follows..x|
+#else
   $ f --size --hexdump --bytes 28 --sha1 resp
   resp: size=227, sha1=35a4c074da74f32f5440da3cbf04
   0000: 32 30 30 20 53 63 72 69 70 74 20 6f 75 74 70 75 |200 Script outpu|
   0010: 74 20 66 6f 6c 6c 6f 77 73 0a 0a 78             |t follows..x|
+#endif
 
 0.2 with no compression will get "none" because that is server's preference
 (spec says ZL and UN are implicitly supported)
@@ -163,11 +177,19 @@ Client receives server preference even if local order doesn't match
 Client receives only supported format even if not server preferred format
 
   $ get-with-headers.py --hgproto '0.2 comp=zlib' $LOCALIP:$HGPORT '?cmd=getbundle&heads=e93700bd72895c5addab234c56d4024b487a362f&common=0000000000000000000000000000000000000000'  > resp
+#if zlib-ng
+  $ f --size --hexdump --bytes 33 --sha1 resp
+  resp: size=234, sha1=b533a3df216f58827f3b9708a93349df2
+  0000: 32 30 30 20 53 63 72 69 70 74 20 6f 75 74 70 75 |200 Script outpu|
+  0010: 74 20 66 6f 6c 6c 6f 77 73 0a 0a 04 7a 6c 69 62 |t follows...zlib|
+  0020: 78                                              |x|
+#else
   $ f --size --hexdump --bytes 33 --sha1 resp
   resp: size=232, sha1=a1c727f0c9693ca15742a75c30419bc36
   0000: 32 30 30 20 53 63 72 69 70 74 20 6f 75 74 70 75 |200 Script outpu|
   0010: 74 20 66 6f 6c 6c 6f 77 73 0a 0a 04 7a 6c 69 62 |t follows...zlib|
   0020: 78                                              |x|
+#endif
 
   $ killdaemons.py
   $ cd ..
