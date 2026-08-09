@@ -716,7 +716,6 @@ impl RevisionInodeEncoder {
         dirstate: &OwningDirstateMap,
         path_to_token: FastHashMap<&HgPath, T>,
     ) -> (V2SerializationInfo, AtomicU64, FastHashMap<u64, T>) {
-        let should_append = base.is_some();
         let (mut offset_to_token, old_dirstate) = match base {
             Some((base_info, old_dirstate)) => {
                 (base_info.offset_to_token, Some(old_dirstate))
@@ -742,59 +741,93 @@ impl RevisionInodeEncoder {
         // can satisfy the callback being immutable.
         let top_level_nodes = Mutex::new(&mut files_root_entry.children);
 
+        // Used in the vacuuming case, so we don't keep deleted offset around
+        // forever, and in the first write case, to make logic simpler
+        let new_offset_to_token = Mutex::new(FastHashMap::default());
+        // Used in the appending case
+        let superseded_offsets = Mutex::new(Vec::new());
+
         // Called on every node, in serialization order, to store the mapping
         // of path -> filenodeid (or nothing for directories).
-        let visit: WriteNodeVisit = &|path, is_directory, offset| {
-            let ino = Self::offset_to_ino(self.files_root_inode, u64_u(offset));
-            latest_ino.store(ino.0, Ordering::Relaxed);
+        let visit: WriteNodeVisit =
+            &|path, is_directory, offset, is_appending| {
+                let ino =
+                    Self::offset_to_ino(self.files_root_inode, u64_u(offset));
+                latest_ino.store(ino.0, Ordering::Relaxed);
 
-            if !path.contains(b'/') {
-                top_level_nodes.lock().expect("propagate the panic").push(ino);
-            }
-            if is_directory {
-                return;
-            }
+                if !path.contains(b'/') {
+                    top_level_nodes
+                        .lock()
+                        .expect("propagate the panic")
+                        .push(ino);
+                }
+                if is_directory {
+                    return;
+                }
 
-            let mut lock = offset_to_token.lock().expect("propagate the panic");
-            let new_token = path_to_token.get(path);
-            // If we're in an incremental update
-            if let Some(old_dirstate) = &old_dirstate {
-                // And there's an old entry
-                if let Some(old_offset) =
-                    old_dirstate.get_map().fuse_offset(path)
-                {
-                    // If it has changed
-                    if let Some(token) = new_token {
-                        lock.insert(offset, *token);
-                        lock.remove(&old_offset);
-                    } else {
-                        let old_token = lock
-                            .remove(&old_offset)
-                            .expect("old token should exist");
-                        lock.insert(offset, old_token);
-                    }
-                } else {
-                    lock.insert(
-                        offset,
-                        *new_token.expect("should have a new token"),
+                if is_appending {
+                    assert!(
+                        old_dirstate.is_some(),
+                        "appending implies an old dirstate"
                     );
                 }
-            } else {
-                lock.insert(
-                    offset,
-                    *new_token.expect("should have a new token"),
-                );
-            }
-        };
+                let old_offset = old_dirstate
+                    .as_ref()
+                    .and_then(|old| old.get_map().fuse_offset(path));
 
-        let write_mode = if should_append {
-            DirstateMapWriteMode::ForceAppend
-        } else {
-            DirstateMapWriteMode::ForceNewDataFile
-        };
-        let packed_res = dirstate.pack_v2(write_mode, Some(visit));
+                let token = match path_to_token.get(path) {
+                    // New or changed
+                    Some(token) => *token,
+                    // Unchanged token, changed offset
+                    None => {
+                        let old_offset =
+                            old_offset.expect("old offset should exist");
+                        *offset_to_token
+                            .lock()
+                            .expect("propagate the panic")
+                            .get(&old_offset)
+                            .expect("old token should exist")
+                    }
+                };
+
+                new_offset_to_token
+                    .lock()
+                    .expect("propagate the panic")
+                    .insert(offset, token);
+
+                // Remember superseded offsets to remove them. Later this
+                // can be used to do kernel invalidation on in-place update
+                if is_appending && let Some(old_offset) = old_offset {
+                    superseded_offsets
+                        .lock()
+                        .expect("propagate the panic")
+                        .push(old_offset);
+                }
+            };
+        let packed_res =
+            dirstate.pack_v2(DirstateMapWriteMode::Auto, Some(visit));
         let info = packed_res
             .expect("in-memory serialization of a dirstate should not fail");
+
+        {
+            // Merge the offset computation maps
+            let mut old = offset_to_token.lock().expect("propagate the panic");
+            let mut new_offset_to_token =
+                new_offset_to_token.lock().expect("propagate the panic");
+            let new = std::mem::take(&mut *new_offset_to_token);
+            if info.appended.is_some() {
+                let mut superseded =
+                    superseded_offsets.lock().expect("propagate the panic");
+                for old_offset in superseded.drain(..) {
+                    old.remove(&old_offset);
+                }
+                old.extend(new);
+            } else {
+                // Vacuum or first write of the dirstate, don't keep anything
+                *old = new;
+            }
+        }
+
         (
             info,
             latest_ino,

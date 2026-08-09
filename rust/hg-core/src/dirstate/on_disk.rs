@@ -693,7 +693,7 @@ where
 ///
 /// Used in the context of hg-fuse to create a mapping of offset -> filenodeid,
 /// with inodes being derived from offsets.
-pub type WriteNodeVisit<'a> = &'a dyn Fn(&HgPath, bool, u64);
+pub type WriteNodeVisit<'a> = &'a dyn Fn(&HgPath, bool, u64, bool);
 
 /// Contains information about a V2 dirstate having been serialized
 pub struct V2SerializationInfo {
@@ -901,15 +901,21 @@ impl Writer<'_, '_> {
         on_disk_offset: usize,
         visit_in_order: WriteNodeVisit,
     ) -> Result<(), DirstateError> {
+        let write_should_append = self.dirstate_map.write_should_append();
+        let on_disk = &self.dirstate_map.on_disk;
+        let on_disk_end = u_u32(on_disk.len());
+
         for (idx, node) in nodes.iter().enumerate() {
             let node_start = node.full_path.start.get();
-            let on_disk = &self.dirstate_map.on_disk;
-            let on_disk_end = u_u32(on_disk.len());
-            let full_path = if node_start < on_disk_end {
+            let full_path = if !write_should_append {
+                // Vacuum or first write: all offsets point into the new buffer
+                node.full_path(self.out.as_ref())?
+            } else if node_start < on_disk_end {
+                // Appending, path bytes reused from the existing file
                 node.full_path(on_disk)?
             } else {
-                // Need to offset the start of the path by the length
-                // of the buffer we're based on, since we're incremental
+                // Appending, path written past the old EOF: the stored offset
+                // is in final-file space, rebase it into `out`
                 node.full_path_appended(&self.out, on_disk_end)?
             };
             let node_offset = idx * std::mem::size_of::<Node>();
@@ -919,6 +925,7 @@ impl Writer<'_, '_> {
                 full_path,
                 is_directory,
                 u_u64(on_disk_offset + node_offset),
+                write_should_append,
             );
         }
         Ok(())
