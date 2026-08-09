@@ -109,7 +109,7 @@ impl DirstateMap {
 
     #[staticmethod]
     fn new_empty() -> PyResult<Self> {
-        Ok(Self { inner: OwningDirstateMap::new_empty(vec![], None).into() })
+        Ok(Self { inner: OwningDirstateMap::new_empty(None).into() })
     }
 
     fn clear(slf: &Bound<'_, Self>) -> PyResult<()> {

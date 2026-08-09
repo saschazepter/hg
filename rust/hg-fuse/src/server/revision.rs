@@ -327,7 +327,7 @@ impl<T: FileToken> RevisionTree<T> {
         } else {
             let map_span =
                 tracing::debug_span!("building the dirstate").entered();
-            let mut dirstate = OwningDirstateMap::new_empty(&b""[..], None);
+            let mut dirstate = OwningDirstateMap::new_empty(None);
             let mut path_to_token = FastHashMap::default();
             let files = store.changeset_files(changeset)?;
             path_to_token.reserve(files.len());

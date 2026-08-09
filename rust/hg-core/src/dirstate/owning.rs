@@ -18,17 +18,11 @@ self_cell!(
 );
 
 impl OwningDirstateMap {
-    pub fn new_empty<OnDisk>(
-        on_disk: OnDisk,
-        identity: Option<DirstateIdentity>,
-    ) -> Self
-    where
-        OnDisk: Deref<Target = [u8]> + Send + Sync + 'static,
-    {
-        let on_disk = Box::new(on_disk);
+    pub fn new_empty(identity: Option<DirstateIdentity>) -> Self {
+        let on_disk = Box::new(&b""[..]);
 
-        OwningDirstateMap::new(on_disk, |bytes| {
-            let mut empty = DirstateMap::empty(bytes);
+        OwningDirstateMap::new(on_disk, |_| {
+            let mut empty = DirstateMap::empty();
             empty.identity = identity;
             empty
         })

@@ -401,7 +401,7 @@ impl Repo {
         let parents = self.dirstate_parents()?;
         if dirstate_file_contents.is_empty() {
             self.dirstate_parents.set(parents);
-            Ok(OwningDirstateMap::new_empty(Vec::new(), identity))
+            Ok(OwningDirstateMap::new_empty(identity))
         } else {
             // Ignore the dirstate on-disk parents, they may have been set in
             // the repo before
@@ -417,7 +417,7 @@ impl Repo {
         let dirstate_file_contents = self.dirstate_file_contents()?;
         let identity = self.dirstate_identity()?;
         if dirstate_file_contents.is_empty() {
-            return Ok(OwningDirstateMap::new_empty(Vec::new(), identity));
+            return Ok(OwningDirstateMap::new_empty(identity));
         }
         let docket =
             crate::dirstate::on_disk::read_docket(&dirstate_file_contents)?;
