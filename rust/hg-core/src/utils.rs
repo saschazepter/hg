@@ -16,6 +16,7 @@ use im_rc::ordmap::OrdMap;
 use itertools::EitherOrBoth;
 use itertools::Itertools;
 use rayon::iter::ParallelIterator;
+use stable_deref_trait::StableDeref;
 
 use crate::errors::HgIoError;
 use crate::errors::IoErrorContext;
@@ -367,6 +368,9 @@ pub fn cap_default_rayon_threads() -> Result<(), rayon::ThreadPoolBuildError> {
 pub struct RawData {
     inner: Arc<Vec<u8>>,
 }
+
+/// Safety: this is just a wrapper around an [`Arc`], which has stable deref
+unsafe impl StableDeref for RawData {}
 
 impl RawData {
     pub fn empty() -> Self {
