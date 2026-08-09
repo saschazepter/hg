@@ -18,6 +18,7 @@ use crate::narrow::shape::DeserializationError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
 use crate::revlog::RevlogError;
+use crate::segmented_bytes::ErrorKind as SegmentedBytesErrorKind;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
 
@@ -401,6 +402,38 @@ impl fmt::Display for HgError {
                             ({truncated_seconds} truncated seconds, \
                             {nanoseconds} nanoseconds)"
                         )
+                    }
+                    DirstateV2ParseError::SegmentedBytes(error) => {
+                        let backtrace = &error.backtrace;
+                        match error.kind {
+                            SegmentedBytesErrorKind::StartAfterEnd {
+                                start,
+                                end,
+                            } => {
+                                write!(
+                                    f,
+                                    "{backtrace}range with start > end: \
+                                    {start} > {end}"
+                                )
+                            }
+                            SegmentedBytesErrorKind::OutOfBounds {
+                                end,
+                                len,
+                            } => write!(
+                                f,
+                                "{backtrace}range out of bounds {end} > {len}"
+                            ),
+                            SegmentedBytesErrorKind::SpansExtents {
+                                start,
+                                end,
+                            } => {
+                                write!(
+                                    f,
+                                    "{backtrace}slice spans extents: \
+                                    {start} to {end}"
+                                )
+                            }
+                        }
                     }
                 },
                 DirstateError::PathNotFound(path, backtrace) => {

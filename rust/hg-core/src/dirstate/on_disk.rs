@@ -34,6 +34,7 @@ use crate::errors::IoResultExt;
 use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::revlog::manifest::ManifestFlags;
+use crate::segmented_bytes::Error as SegmentedBytesError;
 use crate::utils::hg_path::HgPath;
 use crate::utils::u_u32;
 use crate::utils::u_u64;
@@ -212,6 +213,8 @@ pub enum DirstateV2ParseError {
         nanoseconds: u32,
         backtrace: HgBacktrace,
     },
+    /// The backing [`SegmentedBytes`] has returned an error
+    SegmentedBytes(SegmentedBytesError),
 }
 
 impl TreeMetadata {
