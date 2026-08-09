@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use self_cell::self_cell;
+use stable_deref_trait::StableDeref;
 
 use super::DirstateError;
 use super::dirstate_map::DirstateIdentity;
@@ -33,7 +34,7 @@ impl OwningDirstateMap {
         identity: Option<DirstateIdentity>,
     ) -> Result<(Self, DirstateParents), DirstateError>
     where
-        OnDisk: Deref<Target = [u8]> + Send + Sync + 'static,
+        OnDisk: StableDeref<Target = [u8]> + Send + Sync + 'static,
     {
         let on_disk = Box::new(on_disk);
         let mut parents = DirstateParents::NULL;
@@ -57,7 +58,7 @@ impl OwningDirstateMap {
         identity: Option<DirstateIdentity>,
     ) -> Result<Self, DirstateError>
     where
-        OnDisk: Deref<Target = [u8]> + Send + Sync + 'static,
+        OnDisk: StableDeref<Target = [u8]> + Send + Sync + 'static,
     {
         let on_disk = Box::new(on_disk);
 
