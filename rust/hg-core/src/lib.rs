@@ -19,6 +19,7 @@ pub mod discovery;
 pub mod exit_codes;
 pub mod file_index;
 pub mod requirements;
+pub mod segmented_bytes;
 pub mod testing; // unconditionally built, for use from integration tests
 
 // Export very common type to make discovery easier

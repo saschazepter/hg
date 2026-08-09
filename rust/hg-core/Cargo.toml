@@ -61,6 +61,7 @@ regex-syntax = "0.8.9"
 unicode-width = "0.2.2"
 bit-set = "0.8.0"
 static_assertions_next = "1.1.2"
+stable_deref_trait = "1.2.1"
 tracing = { version = "0.1.44", features = ["attributes", "log"] }
 indexmap = "2.13.0"
 sha2 = "0.10.9"
