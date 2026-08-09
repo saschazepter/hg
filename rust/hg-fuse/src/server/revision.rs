@@ -649,7 +649,7 @@ impl RevisionInodeEncoder {
         if let Some(len) = appended {
             // TODO stop copying the previous dirstate and build an abstraction
             // to reuse the old buffer
-            let mut buf = dirstate.on_disk().to_owned();
+            let mut buf = dirstate.to_vec();
             assert_eq!(len, buf.len());
             buf.extend_from_slice(&data);
             data = buf;

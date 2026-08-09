@@ -79,8 +79,8 @@ impl OwningDirstateMap {
         self.borrow_dependent()
     }
 
-    pub fn on_disk(&self) -> &[u8] {
-        self.borrow_owner().as_slice().contiguous_slice(..)
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.borrow_owner().to_vec()
     }
 
     pub fn old_uuid(&self) -> Option<&[u8]> {
