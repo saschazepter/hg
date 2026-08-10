@@ -61,6 +61,7 @@ use crate::server::store::Error as StoreError;
 use crate::server::store::ErrorKind;
 use crate::server::store::FileChangeInfo;
 use crate::server::store::FileToken;
+use crate::server::store::OffsetToToken;
 use crate::server::store::StoreBackend;
 use crate::server::store::StoreInfo;
 
@@ -270,7 +271,7 @@ struct RevisionTree<T> {
     /// The full dirstate for this revision
     dirstate: OwningDirstateMap,
     /// Mapping of offset in the dirstate to file token, so we can answer reads
-    offset_to_token: FastHashMap<u64, T>,
+    offset_to_token: OffsetToToken<T>,
     /// Inode for the "files" folder for this revision
     files_root_ino: INodeNo,
     /// Mapping of all reserved inodes to their FUSE entries
@@ -765,15 +766,13 @@ impl RevisionInodeEncoder {
         base: Option<DirstateBaseInfo<T>>,
         dirstate: &OwningDirstateMap,
         path_to_token: FastHashMap<&HgPath, T>,
-    ) -> (V2SerializationInfo, AtomicU64, FastHashMap<u64, T>) {
-        let (mut offset_to_token, old_dirstate) = match base {
+    ) -> (V2SerializationInfo, AtomicU64, OffsetToToken<T>) {
+        let (offset_to_token, old_dirstate) = match base {
             Some(base_info) => {
                 (base_info.offset_to_token, Some(base_info.dirstate))
             }
-            None => (FastHashMap::default(), None),
+            None => (OffsetToToken::default(), None),
         };
-        offset_to_token
-            .reserve(dirstate.len().saturating_sub(offset_to_token.len()));
         // The mutex will be uncontended since the dirstate does not support
         // parallel inserts, this is purely so we can satisfy the callback being
         // immutable
@@ -793,7 +792,7 @@ impl RevisionInodeEncoder {
 
         // Used in the vacuuming case, so we don't keep deleted offset around
         // forever, and in the first write case, to make logic simpler
-        let new_offset_to_token = Mutex::new(FastHashMap::default());
+        let new_offset_to_token = Mutex::new(OffsetToToken::default());
         // Used in the appending case
         let superseded_offsets = Mutex::new(Vec::new());
 
@@ -824,6 +823,12 @@ impl RevisionInodeEncoder {
                 let old_offset = old_dirstate
                     .as_ref()
                     .and_then(|old| old.get_map().fuse_offset(path));
+
+                // If we're appending and the offset is the same, don't do
+                // anything since the mapping is shared among revisions
+                if is_appending && old_offset == Some(offset) {
+                    return;
+                }
 
                 let token = match path_to_token.get(path) {
                     // New or changed

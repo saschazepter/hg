@@ -5,7 +5,6 @@ use std::path::PathBuf;
 
 use clap::ValueEnum;
 use fuser::INodeNo;
-use hg::FastHashMap;
 use hg::Node;
 use hg::dirstate::owning::OwningDirstateMap;
 use hg::errors::HgBacktrace;
@@ -256,6 +255,12 @@ pub enum FileChangeInfo<'store, T> {
     Removed(&'store HgPath),
 }
 
+/// Used for mapping logical offsets into the dirstate to [`StoreToken`].
+///
+/// We use [`imbl::HashMap`] here because it offers O(1) clones, and is
+/// copy-on-write, meaning we share memory for all pairs shared by revisions.
+pub type OffsetToToken<T> = imbl::HashMap<u64, T>;
+
 /// Groups all necessary information about a previously created in-memory
 /// dirstate to create a new, incremental one.
 pub struct DirstateBaseInfo<T> {
@@ -267,7 +272,7 @@ pub struct DirstateBaseInfo<T> {
     /// The changeset nodeid for the parent of this dirstate
     pub node: Node,
     /// Matching of offset in this dirstate to a file token
-    pub offset_to_token: FastHashMap<u64, T>,
+    pub offset_to_token: OffsetToToken<T>,
     /// The inode for the dirstate data file, used to special-case reads
     pub data_ino: INodeNo,
 }
