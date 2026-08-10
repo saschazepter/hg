@@ -22,11 +22,11 @@ use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::repo::Repo;
 use hg::revlog::manifest::ManifestFlags;
-use hg::utils::RawData;
 use hg::utils::u32_u;
 use hg::utils::u64_u;
 
 use crate::server::ATTRIBUTES_FOR_NEGATIVE_LOOKUP;
+use crate::server::BackendRead;
 use crate::server::Server;
 use crate::server::local::LocalBackend;
 use crate::server::local::LocalToken;
@@ -259,7 +259,7 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
             Ok(Some(data)) => {
                 let offset = u64_u(offset).min(data.len());
                 let end = offset.saturating_add(u32_u(size)).min(data.len());
-                reply.data(&data[offset..end]);
+                data.with_contiguous_slice(offset..end, |d| reply.data(d));
             }
             // TODO answer the correct error for folders
             Ok(None) => reply.error(fuser::Errno::ENOENT),
@@ -279,7 +279,7 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
     ) {
         match self.server.read(ino) {
             Ok(Some(data)) => {
-                reply.data(&data);
+                data.with_contiguous_slice(0..data.len(), |d| reply.data(d));
             }
             // TODO answer the correct error for folders
             Ok(None) => reply.error(fuser::Errno::EIO),
@@ -476,7 +476,7 @@ impl RootInodeEncoder {
     }
 
     /// Returns the data for a reserved root inode, if it exists
-    pub fn data_for_reserved(_ino: INodeNo) -> Option<RawData> {
+    pub fn data_for_reserved(_ino: INodeNo) -> Option<BackendRead> {
         None
     }
 

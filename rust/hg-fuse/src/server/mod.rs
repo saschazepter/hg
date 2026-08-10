@@ -1,4 +1,5 @@
 use std::convert::Infallible;
+use std::ops::Range;
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -291,7 +292,10 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     }
 
     /// Return the contents of the file at this inoode, if it exists.
-    pub fn read(&self, ino: INodeNo) -> Result<Option<RawData>, StoreError<T>> {
+    pub fn read(
+        &self,
+        ino: INodeNo,
+    ) -> Result<Option<BackendRead>, StoreError<T>> {
         if RootInodeEncoder::is_reserved(ino) {
             return Ok(RootInodeEncoder::data_for_reserved(ino));
         }
@@ -316,6 +320,45 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         let node = self.store.node_for_idx(idx).ok()?;
         let revision = self.get_revision(node).ok()?;
         Some(func(&revision))
+    }
+}
+
+/// All types that can be returned from a backend read
+pub enum BackendRead {
+    Plain(RawData),
+}
+
+impl BackendRead {
+    pub fn len(&self) -> usize {
+        match self {
+            BackendRead::Plain(raw_data) => raw_data.len(),
+        }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Calls `callback` with the contiguous logical bytes in `range`.
+    ///
+    /// This is needed because [`fuser::Filesystem::read`] (correctly) only
+    /// allows a single call to its [`fuser::ReplyData::data`] method, since the
+    /// kernel expects contiguous bytes and not multiple slices. This means
+    /// that for non-contiguous reads, we unfortunately need to concatenate
+    /// first and then return a slice that the Kernel will itself cache.
+    /// Wasteful, but we don't really have a choice.
+    ///
+    /// A future patch will implement reading from a
+    /// [`hg::segmented_bytes::SegmentedBytes`].
+    pub fn with_contiguous_slice(
+        &self,
+        range: Range<usize>,
+        callback: impl FnOnce(&[u8]),
+    ) {
+        match self {
+            BackendRead::Plain(raw_data) => callback(&raw_data.as_ref()[range]),
+        }
     }
 }
 

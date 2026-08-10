@@ -47,6 +47,7 @@ use rayon::iter::ParallelIterator;
 use crate::fuse::Entry;
 use crate::fuse::FILES_INODE_NAME;
 use crate::fuse::RootInodeEncoder;
+use crate::server::BackendRead;
 use crate::server::permissions_for_file;
 use crate::server::store::BackendMode;
 use crate::server::store::ChangesetFiles;
@@ -200,7 +201,7 @@ impl<T: FileToken> OwnedRevision<T> {
         &self,
         ino: INodeNo,
         store: &S,
-    ) -> Result<Option<RawData>, StoreError<T>> {
+    ) -> Result<Option<BackendRead>, StoreError<T>> {
         let Some(rev_idx) = RootInodeEncoder::ino_to_idx(ino) else {
             return Ok(None);
         };
@@ -208,9 +209,9 @@ impl<T: FileToken> OwnedRevision<T> {
         if let Some(reserved) = revision.reserved.get(&ino) {
             return match &reserved.entry {
                 Entry::Dir { .. } => Ok(None),
-                Entry::File { ino, .. } => {
-                    Ok(Some(revision.reserved_contents[ino].clone()))
-                }
+                Entry::File { ino, .. } => Ok(Some(BackendRead::Plain(
+                    revision.reserved_contents[ino].clone(),
+                ))),
             };
         }
 
@@ -232,7 +233,7 @@ impl<T: FileToken> OwnedRevision<T> {
             .get(&u_u64(offset))
             .expect("node should exist");
         let data = store.file_data(changeset, info.path, *token)?;
-        Ok(Some(data))
+        Ok(Some(BackendRead::Plain(data)))
     }
 
     fn entry_for_dirstate_node(
