@@ -817,6 +817,10 @@ impl Writer<'_, '_> {
         if self.append
             && let dirstate_map::ChildNodesRef::OnDisk(nodes_slice) = nodes
         {
+            if nodes_slice.is_empty() {
+                // Return a bogus start, only the empty len will be checked
+                return Ok(ChildNodes { start: 0.into(), len: 0.into() });
+            }
             let start = self
                 .on_disk_offset_of(nodes_slice)
                 .expect("dirstate-v2 OnDisk nodes not found within on_disk");
