@@ -4,6 +4,7 @@
 
 use std::borrow::Cow;
 use std::fmt::Write;
+use std::ops::Range;
 use std::path::Path;
 
 use bitflags::bitflags;
@@ -35,6 +36,7 @@ use crate::repo::Repo;
 use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::revlog::manifest::ManifestFlags;
 use crate::segmented_bytes::Error as SegmentedBytesError;
+use crate::segmented_bytes::SegmentedBytesSlice;
 use crate::utils::hg_path::HgPath;
 use crate::utils::u_u32;
 use crate::utils::u_u64;
@@ -644,26 +646,49 @@ impl Node {
     }
 }
 
-fn read_hg_path(
-    on_disk: &[u8],
+/// Abstracts away reading into an append-only datastructure, because of the
+/// need to either read from a [`SegmentedBytesSlice`] or a plain buffer when
+/// mutating.
+pub(super) trait AppendOnlyRead<'on_disk>: Copy {
+    /// Returns the slice if it is in bounds *and* contiguous.
+    fn append_only_slice(self, range: Range<usize>) -> Option<&'on_disk [u8]>;
+}
+
+impl<'on_disk> AppendOnlyRead<'on_disk> for &'on_disk [u8] {
+    #[inline]
+    fn append_only_slice(self, range: Range<usize>) -> Option<&'on_disk [u8]> {
+        self.get(range)
+    }
+}
+
+impl<'on_disk> AppendOnlyRead<'on_disk> for SegmentedBytesSlice<'on_disk> {
+    #[inline]
+    fn append_only_slice(self, range: Range<usize>) -> Option<&'on_disk [u8]> {
+        self.contiguous_slice_opt(range)
+    }
+}
+
+fn read_hg_path<'a>(
+    on_disk: impl AppendOnlyRead<'a>,
     slice: PathSlice,
-) -> Result<&HgPath, DirstateV2ParseError> {
+) -> Result<&'a HgPath, DirstateV2ParseError> {
     read_slice(on_disk, slice.start, slice.len.get()).map(HgPath::new)
 }
 
-fn read_nodes(
-    on_disk: &[u8],
+fn read_nodes<'a>(
+    on_disk: impl AppendOnlyRead<'a>,
     slice: ChildNodes,
-) -> Result<&[Node], DirstateV2ParseError> {
+) -> Result<&'a [Node], DirstateV2ParseError> {
     read_slice(on_disk, slice.start, slice.len.get())
 }
 
-fn read_slice<T, Len>(
-    on_disk: &[u8],
+fn read_slice<'on_disk, B, T, Len>(
+    on_disk: B,
     start: Offset,
     len: Len,
-) -> Result<&[T], DirstateV2ParseError>
+) -> Result<&'on_disk [T], DirstateV2ParseError>
 where
+    B: AppendOnlyRead<'on_disk>,
     T: BytesCast,
     Len: TryInto<usize>,
 {
@@ -671,7 +696,9 @@ where
     // `&[u8]` cannot occupy the entire addess space.
     let start = start.get().try_into().unwrap_or(usize::MAX);
     let len = len.try_into().unwrap_or(usize::MAX);
-    let bytes = match on_disk.get(start..) {
+    let bytes = match on_disk
+        .append_only_slice(start..start + len * std::mem::size_of::<T>())
+    {
         Some(bytes) => bytes,
         None => {
             return Err(DirstateV2ParseError::NotEnoughBytes {
