@@ -26,7 +26,6 @@ use hg::utils::u32_u;
 use hg::utils::u64_u;
 
 use crate::server::ATTRIBUTES_FOR_NEGATIVE_LOOKUP;
-use crate::server::BackendRead;
 use crate::server::Server;
 use crate::server::local::LocalBackend;
 use crate::server::local::LocalToken;
@@ -473,11 +472,6 @@ impl RootInodeEncoder {
             META_INODE => Some(Entry::dir(META_INODE_NAME.into(), META_INODE)),
             _ => None,
         }
-    }
-
-    /// Returns the data for a reserved root inode, if it exists
-    pub fn data_for_reserved(_ino: INodeNo) -> Option<BackendRead> {
-        None
     }
 
     pub fn ino_to_idx(ino: INodeNo) -> Option<RevisionIdx> {

@@ -297,7 +297,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         ino: INodeNo,
     ) -> Result<Option<BackendRead>, StoreError<T>> {
         if RootInodeEncoder::is_reserved(ino) {
-            return Ok(RootInodeEncoder::data_for_reserved(ino));
+            unimplemented!("reserved files are always special cased");
         }
         match self
             .with_revision(ino, |revision| revision.read(ino, &self.store))
