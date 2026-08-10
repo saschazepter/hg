@@ -418,7 +418,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
 /// be overridden via the `HG_TRACE_PATH` environment variable.
 fn setup_tracing() -> FlushGuard {
     let mut chrome_layer_builder = ChromeLayerBuilder::new();
-    // /!\ Keep in sync with hg-pyo3
+    // /!\ Keep in sync with hg-pyo3 and jf
     if let Ok(path) = std::env::var("HG_TRACE_PATH") {
         chrome_layer_builder =
             chrome_layer_builder.writer(hg::logging::SafeWriter::create(path));
