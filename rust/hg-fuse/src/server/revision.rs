@@ -36,6 +36,8 @@ use hg::requirements::SHARESAFE_REQUIREMENT;
 use hg::requirements::SPARSE_REQUIREMENT;
 use hg::requirements::THIN_REQUIREMENT;
 use hg::revlog::manifest::ManifestFlags;
+use hg::segmented_bytes::Extent;
+use hg::segmented_bytes::FlatExtent;
 use hg::segmented_bytes::SegmentedBytes;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
@@ -408,22 +410,16 @@ impl<T: FileToken> RevisionTree<T> {
             store.changeset_files_diff(base_info.node, changeset)?;
 
         let map_span = tracing::debug_span!("building the dirstate").entered();
-        let old_dirstate = OwningDirstateMap::new_v2(
-            RawData::clone(&base_info.serialized),
-            base_info.serialized.len(),
-            &base_info.metadata,
-            base_info.uuid.clone(),
-            None,
-        )
-        .map_err(HgError::from)?;
-        let mut dirstate = OwningDirstateMap::new_v2(
-            RawData::clone(&base_info.serialized),
-            base_info.serialized.len(),
-            &base_info.metadata,
-            base_info.uuid.clone(),
-            None,
-        )
-        .map_err(HgError::from)?;
+
+        let mut dirstate = base_info
+            .dirstate
+            .with_new_extents(
+                [], // Effectively a cheap clone
+                base_info.dirstate.old_data_size(),
+                &base_info.metadata,
+                base_info.uuid.clone(),
+            )
+            .map_err(HgError::from)?;
 
         let mut path_to_token = FastHashMap::default();
         for hunk in files_diff.iter_diff() {
@@ -465,7 +461,7 @@ impl<T: FileToken> RevisionTree<T> {
             dirstate,
             dirstate_parents,
             path_to_token,
-            Some((base_info, old_dirstate)),
+            Some(base_info),
         )
     }
 }
@@ -653,12 +649,12 @@ impl RevisionInodeEncoder {
         dirstate: OwningDirstateMap,
         parents: DirstateParents,
         path_to_token: FastHashMap<&HgPath, T>,
-        base: Option<(DirstateBaseInfo<T>, OwningDirstateMap)>,
+        base: Option<DirstateBaseInfo<T>>,
     ) -> Result<(OwningDirstateMap, DirstateBaseInfo<T>), StoreError<T>> {
         let (info, latest_ino, offset_to_token) =
             self.attach_dirstate(base, &dirstate, path_to_token);
 
-        let V2SerializationInfo { mut data, metadata, appended } = info;
+        let V2SerializationInfo { data, metadata, appended } = info;
 
         let new_inode = latest_ino
             .load(Ordering::Relaxed)
@@ -669,15 +665,13 @@ impl RevisionInodeEncoder {
             "inode overflow"
         );
         self.current_ino = AtomicU64::new(new_inode);
-        if let Some(len) = appended {
-            // TODO stop copying the previous dirstate and build an abstraction
-            // to reuse the old buffer
-            let mut buf = dirstate.to_vec();
-            assert_eq!(len, buf.len());
-            buf.extend_from_slice(&data);
-            data = buf;
-        }
-        let data_size = data.len();
+
+        let data_size = if let Some(old_size) = appended {
+            old_size + data.len()
+        } else {
+            data.len()
+        };
+
         let uuid = Docket::new_uid();
 
         // Create the data file manually to give it the correct size, while
@@ -718,21 +712,40 @@ impl RevisionInodeEncoder {
             dot_hg_entry.children.push(docket_ino);
         }
 
-        let packed_data: RawData = data.into();
-
+        let data: Extent = Arc::new(data);
         // Return a new dirstate based off the packed data
-        let new_dirstate = OwningDirstateMap::new_v2(
-            RawData::clone(&packed_data),
-            data_size,
-            metadata.as_bytes(),
-            uuid.as_bytes().to_vec(),
-            None,
-        )
-        .expect("in-memory creation of a brand-new dirstate should not fail");
+        let new_dirstate = if appended.is_some() {
+            let new_extents: Vec<Extent> = vec![Arc::clone(&data)];
+            dirstate.with_new_extents(
+                new_extents,
+                data_size,
+                metadata.as_bytes(),
+                uuid.as_bytes().to_vec(),
+            )
+        } else {
+            OwningDirstateMap::new_v2(
+                FlatExtent(Arc::clone(&data)),
+                data_size,
+                metadata.as_bytes(),
+                uuid.as_bytes().to_vec(),
+                None,
+            )
+        }
+        .expect("in-memory creation of a dirstate should not fail");
+
+        let dirstate = new_dirstate
+            .with_new_extents(
+                [],
+                data_size,
+                metadata.as_bytes(),
+                uuid.as_bytes().to_vec(),
+            )
+            .expect("in-memory clone of a dirstate should not fail");
+
         Ok((
             new_dirstate,
             DirstateBaseInfo {
-                serialized: packed_data,
+                dirstate,
                 metadata: metadata.as_bytes().to_vec(),
                 uuid: uuid.as_bytes().to_vec(),
                 node: parents.p1,
@@ -749,13 +762,13 @@ impl RevisionInodeEncoder {
     ///    - assigning unique inodes to each file
     fn attach_dirstate<T: FileToken>(
         &mut self,
-        base: Option<(DirstateBaseInfo<T>, OwningDirstateMap)>,
+        base: Option<DirstateBaseInfo<T>>,
         dirstate: &OwningDirstateMap,
         path_to_token: FastHashMap<&HgPath, T>,
     ) -> (V2SerializationInfo, AtomicU64, FastHashMap<u64, T>) {
         let (mut offset_to_token, old_dirstate) = match base {
-            Some((base_info, old_dirstate)) => {
-                (base_info.offset_to_token, Some(old_dirstate))
+            Some(base_info) => {
+                (base_info.offset_to_token, Some(base_info.dirstate))
             }
             None => (FastHashMap::default(), None),
         };

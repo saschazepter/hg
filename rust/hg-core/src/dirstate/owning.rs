@@ -5,6 +5,7 @@ use super::DirstateError;
 use super::dirstate_map::DirstateIdentity;
 use super::dirstate_map::DirstateMap;
 use crate::DirstateParents;
+use crate::segmented_bytes::Extent;
 use crate::segmented_bytes::SegmentedBytes;
 
 self_cell!(
@@ -79,8 +80,25 @@ impl OwningDirstateMap {
         self.borrow_dependent()
     }
 
-    pub fn to_vec(&self) -> Vec<u8> {
-        self.borrow_owner().to_vec()
+    /// Performs a shallow clone of the underlying [`SegmentedBytes`] and
+    /// appends `new_extents` to it, creating a new self-referential [`Self`]
+    pub fn with_new_extents(
+        &self,
+        new_extents: impl IntoIterator<Item = Extent>,
+        data_size: usize,
+        metadata: &[u8],
+        uuid: Vec<u8>,
+    ) -> Result<Self, DirstateError> {
+        let owner = self.borrow_owner();
+        let old_len = owner.len();
+        let extended = owner.with_new_extents(new_extents);
+        if extended.len() != old_len {
+            assert_eq!(data_size, extended.len());
+        }
+        OwningDirstateMap::try_new(extended, |bytes| {
+            let bytes = bytes.as_slice();
+            DirstateMap::new_v2(bytes, data_size, metadata, uuid, None)
+        })
     }
 
     pub fn old_uuid(&self) -> Option<&[u8]> {

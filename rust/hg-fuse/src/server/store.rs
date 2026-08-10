@@ -7,6 +7,7 @@ use clap::ValueEnum;
 use fuser::INodeNo;
 use hg::FastHashMap;
 use hg::Node;
+use hg::dirstate::owning::OwningDirstateMap;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::revlog::manifest::ManifestFlags;
@@ -258,9 +259,8 @@ pub enum FileChangeInfo<'store, T> {
 /// Groups all necessary information about a previously created in-memory
 /// dirstate to create a new, incremental one.
 pub struct DirstateBaseInfo<T> {
-    /// The fully serialized dirstate data
-    pub serialized: RawData,
-    /// The docket metadata, with which to interpret [`Self::serialized`]
+    pub dirstate: OwningDirstateMap,
+    /// The docket metadata, with which to interpret [`Self::dirstate`]
     pub metadata: Vec<u8>,
     /// The docket `uuid`, useful to prevent uid computation from leaking up
     pub uuid: Vec<u8>,

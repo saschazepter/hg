@@ -480,6 +480,27 @@ impl Clone for CachedExtent {
     }
 }
 
+/// Crutch for resolving the double deref needed for `Vec<u8>` to be used as
+/// an [`Extent`].
+///
+/// Citing Rust RFC#401:
+/// "Note that we do not perform coercions when matching traits (except for
+/// receivers, see below). If there is an impl for some type U, and T coerces
+/// to U, that does not constitute an implementation for T"
+pub struct FlatExtent(pub Extent);
+
+impl Deref for FlatExtent {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        self.0.deref().deref()
+    }
+}
+
+/// Safety: this is a simple wrapper around [`Extent`], which gives it the same
+/// guarantees since its own [`Deref`] is sound.
+unsafe impl StableDeref for FlatExtent {}
+
 /// The location of a byte within a [`SegmentedBytes`]
 struct Location<'a> {
     /// The bytes of the extent this byte is in
