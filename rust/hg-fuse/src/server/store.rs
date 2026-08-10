@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 use clap::ValueEnum;
+use fuser::INodeNo;
 use hg::FastHashMap;
 use hg::Node;
 use hg::errors::HgBacktrace;
@@ -267,4 +268,6 @@ pub struct DirstateBaseInfo<T> {
     pub node: Node,
     /// Matching of offset in this dirstate to a file token
     pub offset_to_token: FastHashMap<u64, T>,
+    /// The inode for the dirstate data file, used to special-case reads
+    pub data_ino: INodeNo,
 }

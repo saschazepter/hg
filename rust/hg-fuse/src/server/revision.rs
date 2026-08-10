@@ -4,6 +4,7 @@ use std::ops::Range;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
@@ -35,6 +36,7 @@ use hg::requirements::SHARESAFE_REQUIREMENT;
 use hg::requirements::SPARSE_REQUIREMENT;
 use hg::requirements::THIN_REQUIREMENT;
 use hg::revlog::manifest::ManifestFlags;
+use hg::segmented_bytes::SegmentedBytes;
 use hg::utils::RawData;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::hg_path::HgPath;
@@ -209,9 +211,16 @@ impl<T: FileToken> OwnedRevision<T> {
         if let Some(reserved) = revision.reserved.get(&ino) {
             return match &reserved.entry {
                 Entry::Dir { .. } => Ok(None),
-                Entry::File { ino, .. } => Ok(Some(BackendRead::Plain(
-                    revision.reserved_contents[ino].clone(),
-                ))),
+                Entry::File { ino, .. } => {
+                    if *ino == revision.dirstate_data_ino {
+                        let bytes = Arc::clone(&revision.segmented_bytes);
+                        let bytes = BackendRead::SegmentedBytes(bytes);
+                        return Ok(Some(bytes));
+                    }
+                    Ok(Some(BackendRead::Plain(
+                        revision.reserved_contents[ino].clone(),
+                    )))
+                }
             };
         }
 
@@ -266,6 +275,14 @@ struct RevisionTree<T> {
     pub reserved: FastHashMap<INodeNo, ReservedRevisionEntry>,
     /// Mapping of all reserved inodes that have file contents
     reserved_contents: FastHashMap<INodeNo, RawData>,
+    /// A shallow clone of the buffer this revision's dirstate is based on,
+    /// to answer dirstate data file reads. Note that the `Arc` is here to
+    /// prevent a clone when answering reads, and is not shared with
+    /// [`Self::dirstate`], only the underlying [`Extent`] are.
+    segmented_bytes: Arc<SegmentedBytes>,
+    /// The inode number for this revision's dirstate data file, sued to
+    /// special-case reads.
+    dirstate_data_ino: INodeNo,
 }
 
 impl<T: FileToken> RevisionTree<T> {
@@ -287,12 +304,17 @@ impl<T: FileToken> RevisionTree<T> {
         // Remember the inodes for reserved entries
         let reserved = inode_encoder.reserved_entries;
 
+        let segmented_bytes =
+            Arc::new(dirstate.borrow_owner().with_new_extents([]));
+
         let tree = RevisionTree {
             dirstate,
             offset_to_token: new_dirstate_base.offset_to_token.clone(),
             files_root_ino: inode_encoder.files_root_inode,
             reserved,
             reserved_contents: inode_encoder.reserved_contents,
+            segmented_bytes,
+            dirstate_data_ino: new_dirstate_base.data_ino,
         };
         Ok((tree, new_dirstate_base))
     }
@@ -658,10 +680,21 @@ impl RevisionInodeEncoder {
         let data_size = data.len();
         let uuid = Docket::new_uid();
 
-        // Create the data file
-        let packed_data: RawData = data.into();
-        let data_ino = self
-            .add_reserved_file(format!("dirstate.{uuid}"), packed_data.clone());
+        // Create the data file manually to give it the correct size, while
+        // not allocating any data, all reads will be special-cased
+        let data_ino = self.new_inode();
+        self.reserved_entries.insert(
+            data_ino,
+            ReservedRevisionEntry {
+                entry: Entry::File {
+                    name: format!("dirstate.{uuid}").into(),
+                    ino: data_ino,
+                    size: u_u64(data_size),
+                    flags: ManifestFlags::EMPTY,
+                },
+                children: vec![],
+            },
+        );
 
         // Create the docket file
         let docket_data = Docket::serialize(
@@ -685,6 +718,8 @@ impl RevisionInodeEncoder {
             dot_hg_entry.children.push(docket_ino);
         }
 
+        let packed_data: RawData = data.into();
+
         // Return a new dirstate based off the packed data
         let new_dirstate = OwningDirstateMap::new_v2(
             RawData::clone(&packed_data),
@@ -702,6 +737,7 @@ impl RevisionInodeEncoder {
                 uuid: uuid.as_bytes().to_vec(),
                 node: parents.p1,
                 offset_to_token,
+                data_ino,
             },
         ))
     }

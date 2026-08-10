@@ -15,6 +15,7 @@ use hg::Node;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 use hg::revlog::manifest::ManifestFlags;
+use hg::segmented_bytes::SegmentedBytes;
 use hg::utils::RawData;
 use hg::warnings::HgWarningContext;
 use quick_cache::sync::Cache;
@@ -326,12 +327,14 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
 /// All types that can be returned from a backend read
 pub enum BackendRead {
     Plain(RawData),
+    SegmentedBytes(Arc<SegmentedBytes>),
 }
 
 impl BackendRead {
     pub fn len(&self) -> usize {
         match self {
             BackendRead::Plain(raw_data) => raw_data.len(),
+            BackendRead::SegmentedBytes(segmented) => segmented.len(),
         }
     }
 
@@ -358,6 +361,17 @@ impl BackendRead {
     ) {
         match self {
             BackendRead::Plain(raw_data) => callback(&raw_data.as_ref()[range]),
+            BackendRead::SegmentedBytes(segmented) => {
+                if let Some(bytes) =
+                    segmented.as_slice().contiguous_slice_opt(range.clone())
+                {
+                    callback(bytes)
+                } else {
+                    // We have to concatenate first unfortunately
+                    let narrowed = segmented.slice(range);
+                    callback(&narrowed.to_vec())
+                }
+            }
         }
     }
 }
