@@ -303,7 +303,7 @@ pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateError> {
 }
 
 pub(super) fn read<'on_disk>(
-    on_disk: &'on_disk [u8],
+    on_disk: SegmentedBytesSlice<'on_disk>,
     metadata: &[u8],
     uuid: Vec<u8>,
     identity: Option<DirstateIdentity>,
@@ -344,7 +344,7 @@ pub(super) fn read<'on_disk>(
 impl Node {
     pub(super) fn full_path<'on_disk>(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: impl AppendOnlyRead<'on_disk>,
     ) -> Result<&'on_disk HgPath, DirstateV2ParseError> {
         read_hg_path(on_disk, self.full_path)
     }
@@ -383,7 +383,7 @@ impl Node {
 
     pub(super) fn base_name<'on_disk>(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<&'on_disk HgPath, DirstateV2ParseError> {
         let full_path = self.full_path(on_disk)?;
         let base_name_start = self.base_name_start()?;
@@ -392,7 +392,7 @@ impl Node {
 
     pub(super) fn path<'on_disk>(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<dirstate_map::NodeKey<'on_disk>, DirstateV2ParseError> {
         Ok(WithBasename::from_raw_parts(
             Cow::Borrowed(self.full_path(on_disk)?),
@@ -406,7 +406,7 @@ impl Node {
 
     pub(super) fn copy_source<'on_disk>(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<Option<&'on_disk HgPath>, DirstateV2ParseError> {
         Ok(if self.has_copy_source() {
             Some(read_hg_path(on_disk, self.copy_source)?)
@@ -534,14 +534,14 @@ impl Node {
 
     pub(super) fn children<'on_disk>(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<&'on_disk [Node], DirstateV2ParseError> {
         read_nodes(on_disk, self.children)
     }
 
     pub(super) fn to_in_memory_node<'on_disk>(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<dirstate_map::Node<'on_disk>, DirstateV2ParseError> {
         Ok(dirstate_map::Node {
             children: dirstate_map::ChildNodes::OnDisk(self.children(on_disk)?),
@@ -936,7 +936,7 @@ impl Writer<'_, '_> {
         visit_in_order: WriteNodeVisit,
     ) -> Result<(), DirstateError> {
         let write_should_append = self.dirstate_map.write_should_append();
-        let on_disk = &self.dirstate_map.on_disk;
+        let on_disk = self.dirstate_map.on_disk;
         let on_disk_end = u_u32(on_disk.len());
 
         for (idx, node) in nodes.iter().enumerate() {
@@ -999,21 +999,11 @@ impl Writer<'_, '_> {
     where
         T: BytesCast,
     {
-        fn address_range(slice: &[u8]) -> std::ops::RangeInclusive<usize> {
-            let start = slice.as_ptr() as usize;
-            let end = start + slice.len();
-            start..=end
-        }
-        let slice_addresses = address_range(slice.as_bytes());
-        let on_disk_addresses = address_range(self.dirstate_map.on_disk);
-        if on_disk_addresses.contains(slice_addresses.start())
-            && on_disk_addresses.contains(slice_addresses.end())
-        {
-            let offset = slice_addresses.start() - on_disk_addresses.start();
-            Some(offset_from_usize(offset))
-        } else {
-            None
-        }
+        assert!(!slice.is_empty(), "trying to look up an empty slice");
+        self.dirstate_map
+            .on_disk
+            .slice_to_offset(slice.as_bytes())
+            .map(offset_from_usize)
     }
 
     fn current_offset(&mut self) -> Offset {

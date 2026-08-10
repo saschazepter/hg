@@ -4,6 +4,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 
 use bytes_cast::BytesCast;
+use lazy_static::lazy_static;
 
 use super::DirstateError;
 use super::on_disk;
@@ -25,9 +26,10 @@ use crate::dirstate::on_disk::WriteNodeVisit;
 use crate::dirstate::parsers::pack_entry;
 use crate::dirstate::parsers::packed_entry_size;
 use crate::dirstate::parsers::parse_dirstate_entries;
-use crate::errors::HgBacktrace;
 use crate::matchers::Matcher;
 use crate::revlog::manifest::ManifestFlags;
+use crate::segmented_bytes::SegmentedBytes;
+use crate::segmented_bytes::SegmentedBytesSlice;
 use crate::utils::filter_map_results;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
@@ -115,7 +117,7 @@ impl PartialEq for DirstateIdentity {
 #[derive(Debug)]
 pub struct DirstateMap<'on_disk> {
     /// Contents of the `.hg/dirstate` file
-    pub(super) on_disk: &'on_disk [u8],
+    pub(super) on_disk: SegmentedBytesSlice<'on_disk>,
 
     pub(super) root: ChildNodes<'on_disk>,
 
@@ -236,7 +238,7 @@ impl<'on_disk> ChildNodes<'on_disk> {
 
     fn make_mut(
         &mut self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
         unreachable_bytes: &mut u32,
     ) -> Result<
         &mut FastHashMap<NodeKey<'on_disk>, Node<'on_disk>>,
@@ -270,7 +272,7 @@ impl<'tree, 'on_disk> ChildNodesRef<'tree, 'on_disk> {
     pub(super) fn get(
         &self,
         base_name: &HgPath,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<Option<NodeRef<'tree, 'on_disk>>, DirstateV2ParseError> {
         match self {
             ChildNodesRef::InMemory(nodes) => Ok(nodes
@@ -356,7 +358,7 @@ impl<'tree, 'on_disk> ChildNodesRef<'tree, 'on_disk> {
 impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
     pub(super) fn full_path(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<&'tree HgPath, DirstateV2ParseError> {
         match self {
             NodeRef::InMemory(path, _node) => Ok(path.full_path()),
@@ -368,7 +370,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
     /// HgPath>` detached from `'tree`
     pub(super) fn full_path_borrowed(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<BorrowedPath<'tree, 'on_disk>, DirstateV2ParseError> {
         match self {
             NodeRef::InMemory(path, _node) => match path.full_path() {
@@ -383,7 +385,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
 
     pub(super) fn base_name(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<&'tree HgPath, DirstateV2ParseError> {
         match self {
             NodeRef::InMemory(path, _node) => Ok(path.base_name()),
@@ -393,7 +395,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
 
     pub(super) fn children(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<ChildNodesRef<'tree, 'on_disk>, DirstateV2ParseError> {
         match self {
             NodeRef::InMemory(_path, node) => Ok(node.children.as_ref()),
@@ -412,7 +414,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
 
     pub(super) fn copy_source(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<Option<&'tree HgPath>, DirstateV2ParseError> {
         match self {
             NodeRef::InMemory(_path, node) => Ok(node.copy_source.as_deref()),
@@ -423,7 +425,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
     /// HgPath>` detached from `'tree`
     pub(super) fn copy_source_borrowed(
         &self,
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
     ) -> Result<Option<BorrowedPath<'tree, 'on_disk>>, DirstateV2ParseError>
     {
         Ok(match self {
@@ -534,10 +536,14 @@ pub struct FuseNodeInfo<'a> {
     pub offset: usize,
 }
 
+lazy_static! {
+    static ref EMPTY_SEGMENTED_BYTES: SegmentedBytes = SegmentedBytes::empty();
+}
+
 impl<'on_disk> DirstateMap<'on_disk> {
     pub(super) fn empty() -> Self {
         Self {
-            on_disk: &[],
+            on_disk: EMPTY_SEGMENTED_BYTES.as_slice(),
             root: ChildNodes::default(),
             nodes_with_entry_count: 0,
             nodes_with_copy_source_count: 0,
@@ -554,26 +560,21 @@ impl<'on_disk> DirstateMap<'on_disk> {
 
     #[tracing::instrument(level = "debug", skip_all)]
     pub fn new_v2(
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
         data_size: usize,
         metadata: &[u8],
         uuid: Vec<u8>,
         identity: Option<DirstateIdentity>,
     ) -> Result<Self, DirstateError> {
-        if let Some(data) = on_disk.get(..data_size) {
-            Ok(on_disk::read(data, metadata, uuid, identity)?)
-        } else {
-            Err(DirstateV2ParseError::NotEnoughBytes {
-                start: 0,
-                len: data_size,
-                backtrace: HgBacktrace::capture(),
-            })?
-        }
+        let data = on_disk
+            .try_slice(..data_size)
+            .map_err(DirstateV2ParseError::SegmentedBytes)?;
+        Ok(on_disk::read(data, metadata, uuid, identity)?)
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
     pub fn new_v1(
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
         identity: Option<DirstateIdentity>,
     ) -> Result<(Self, Option<DirstateParents>), DirstateError> {
         let mut map = Self::empty();
@@ -584,11 +585,12 @@ impl<'on_disk> DirstateMap<'on_disk> {
             return Ok((map, None));
         }
 
-        let parents =
-            parse_dirstate_entries(map.on_disk, |path, entry, copy_source| {
+        let parents = parse_dirstate_entries(
+            on_disk.contiguous_slice(..),
+            |path, entry, copy_source| {
                 let tracked = entry.tracked();
                 let node = Self::get_or_insert_node_inner(
-                    map.on_disk,
+                    on_disk,
                     &mut map.unreachable_bytes,
                     &mut map.root,
                     path,
@@ -615,7 +617,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
                     map.nodes_with_copy_source_count += 1
                 }
                 Ok(())
-            })?;
+            },
+        )?;
         let parents = Some(*parents);
 
         Ok((map, parents))
@@ -691,7 +694,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     /// when descending the tree. It is used to keep the different counters
     /// of the `DirstateMap` up-to-date.
     fn get_node_mut_inner<'tree>(
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
         unreachable_bytes: &mut u32,
         root: &'tree mut ChildNodes<'on_disk>,
         path: &HgPath,
@@ -743,7 +746,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
     /// Lower-level version of `get_or_insert_node_inner`, which is used when
     /// parsing disk data to remove allocations for new nodes.
     fn get_or_insert_node_inner<'tree, 'path>(
-        on_disk: &'on_disk [u8],
+        on_disk: SegmentedBytesSlice<'on_disk>,
         unreachable_bytes: &mut u32,
         root: &'tree mut ChildNodes<'on_disk>,
         path: &'path HgPath,
@@ -1061,7 +1064,10 @@ impl<'on_disk> DirstateMap<'on_disk> {
 pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
     /// Returns the information that the FUSE needs for the node at this offset
     fn fuse_node_info(&self, offset: usize) -> Option<FuseNodeInfo<'_>> {
-        let node = on_disk::Node::from_bytes(&self.on_disk()[offset..]).ok()?;
+        let bytes = self
+            .on_disk()
+            .contiguous_slice(offset..offset + size_of::<on_disk::Node>());
+        let node = on_disk::Node::from_bytes(bytes).ok()?;
         self.fuse_info_from_dirstate_node(node.0, offset).ok()
     }
 
@@ -1070,7 +1076,10 @@ pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
         &self,
         offset: usize,
     ) -> Option<Vec<FuseNodeInfo<'_>>> {
-        let node = on_disk::Node::from_bytes(&self.on_disk()[offset..]).ok()?.0;
+        let bytes = self
+            .on_disk()
+            .contiguous_slice(offset..offset + size_of::<on_disk::Node>());
+        let node = on_disk::Node::from_bytes(bytes).ok()?.0;
         let mut entries = vec![];
         for (idx, child) in
             node.children(self.on_disk()).ok()?.iter().enumerate()
@@ -1093,7 +1102,9 @@ pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
         parent_offset: usize,
         name: &[u8],
     ) -> Option<FuseNodeInfo<'_>> {
-        let relevant_slice = &self.on_disk()[parent_offset..];
+        let relevant_slice = &self.on_disk().contiguous_slice(
+            parent_offset..parent_offset + size_of::<on_disk::Node>(),
+        );
         let node = on_disk::Node::from_bytes(relevant_slice).ok()?.0;
         let child_nodes_ref = node.children(self.on_disk()).ok()?;
         let base_name = HgPath::new(name);
@@ -1143,11 +1154,10 @@ pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
                 unreachable!("fuse shouldn't have in-memory-nodes")
             }
             NodeRef::OnDisk(node) => {
-                let offset = node.as_bytes().as_ptr() as usize;
-                let on_disk_start = self.on_disk().as_ptr() as usize;
-                let offset = offset
-                    .checked_sub(on_disk_start)
-                    .expect("node outside of on_disk");
+                let offset = self
+                    .on_disk()
+                    .slice_to_offset(node.as_bytes())
+                    .expect("node outside of an extent ");
                 Some(u_u64(offset))
             }
         }
@@ -1158,7 +1168,7 @@ pub trait DirstateFuseExt<'on_disk>: DirstateInternalFuseExt<'on_disk> {
 /// dirstate structure
 pub(super) trait DirstateInternalFuseExt<'on_disk> {
     /// Returns a reference to the immutable bytes this dirstate is based on
-    fn on_disk(&self) -> &[u8];
+    fn on_disk(&self) -> SegmentedBytesSlice<'_>;
 
     /// Returns the [`NodeRef`] that corresponds to this path
     fn node_for_path<'tree>(
@@ -1186,7 +1196,7 @@ pub(super) trait DirstateInternalFuseExt<'on_disk> {
 }
 
 impl<'on_disk> DirstateInternalFuseExt<'on_disk> for &DirstateMap<'on_disk> {
-    fn on_disk(&self) -> &[u8] {
+    fn on_disk(&self) -> SegmentedBytesSlice<'_> {
         self.on_disk
     }
 
@@ -1359,7 +1369,7 @@ impl OwningDirstateMap {
         /// * `removed` is whether this particular level of recursion just
         ///   removed a node in `nodes`.
         fn recur<'on_disk>(
-            on_disk: &'on_disk [u8],
+            on_disk: SegmentedBytesSlice<'on_disk>,
             unreachable_bytes: &mut u32,
             nodes: &mut ChildNodes<'on_disk>,
             path: &HgPath,

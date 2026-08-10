@@ -40,7 +40,7 @@ impl OwningDirstateMap {
 
         Ok((
             OwningDirstateMap::try_new(on_disk, |bytes| {
-                let bytes = bytes.as_slice().contiguous_slice(..);
+                let bytes = bytes.as_slice();
                 DirstateMap::new_v1(bytes, identity).map(|(dmap, p)| {
                     parents = p.unwrap_or(DirstateParents::NULL);
                     dmap
@@ -63,7 +63,7 @@ impl OwningDirstateMap {
         let on_disk = SegmentedBytes::from_single_extent(on_disk);
 
         OwningDirstateMap::try_new(on_disk, |bytes| {
-            let bytes = bytes.as_slice().contiguous_slice(..);
+            let bytes = bytes.as_slice();
             DirstateMap::new_v2(bytes, data_size, metadata, uuid, identity)
         })
     }
