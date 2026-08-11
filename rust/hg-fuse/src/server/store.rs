@@ -215,7 +215,7 @@ pub struct StoreInfo {
     pub branch: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 /// Information associated with a given file at a certain revision
 pub struct FileInfo<'store, T> {
     /// The full path of that file relative to the root of the working copy
