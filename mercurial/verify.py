@@ -532,20 +532,16 @@ class verifier:
                     try:
                         fileindex_files.remove(f)
                     except KeyError:
-                        if repo.store.fncache is not None:
-                            msg = _(b" warning: revlog '%s' not in file index!")
-                            self._warn(msg % f)
+                        msg = _(b" warning: revlog '%s' not in file index!")
+                        self._warn(msg % f)
                 elif repo.store.fncache is not None:
                     for ff in fl.files():
                         try:
                             fncache_files.remove(ff)
                         except KeyError:
-                            if repo.store.fncache is not None:
-                                msg = _(
-                                    b" warning: revlog '%s' not in fncache!"
-                                )
-                                self._warn(msg % ff)
-                                self.fncachewarned = True
+                            msg = _(b" warning: revlog '%s' not in fncache!")
+                            self._warn(msg % ff)
+                            self.fncachewarned = True
 
             if not len(fl) and (self.havecl or self.havemf):
                 self._err(lr, _(b"empty or missing %s") % f)

@@ -381,3 +381,29 @@ Test purge should not remove nested repos
 
   $ rm -r nested double
   $ cd ..
+
+Purge keeps going when a directory cannot be removed, and aborts right away
+with --abort-on-error. We make the removal fail by taking away write access
+to the containing directory.
+
+#if unix-permissions no-root
+
+  $ cd t
+  $ mkdir -p container/empty_subdir
+  $ echo hi > container/keep
+  $ hg ci -qAm 'add container/keep'
+  $ chmod -w container
+  $ hg purge --dirs --no-confirm -v
+  removing directory container/empty_subdir
+  warning: container/empty_subdir cannot be removed (no-rhg !)
+  warning: when removing $TESTTMP/t/container/empty_subdir: $EACCES$ (rhg !)
+  $ hg purge --dirs --no-confirm -v -a
+  removing directory container/empty_subdir
+  abort: container/empty_subdir cannot be removed (no-rhg !)
+  abort: when removing $TESTTMP/t/container/empty_subdir: $EACCES$ (rhg !)
+  [255]
+  $ chmod +w container
+  $ rm -r container
+  $ cd ..
+
+#endif

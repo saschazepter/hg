@@ -1,3 +1,24 @@
+#testcases fncache fileindex
+
+#if fileindex
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [format]
+  > use-fileindex-v1=no
+  > EOF
+#endif
+
+#if fileindex no-rust
+  $ cat >> $HGRCPATH << EOF
+  > [storage]
+  > fileindex.slow-path=allow
+  > EOF
+#endif
+
 prepare repo
 
   $ hg init a
@@ -114,7 +135,8 @@ Entire changelog and manifest log missing
   $ rm .hg/store/00changelog.*
   $ rm .hg/store/00manifest.*
   $ hg verify -q
-  warning: orphan data file 'data/file.i'
+  warning: orphan data file 'data/file.i' (fncache !)
+  warning: orphan file index entry 'file' (fileindex !)
   warning: ignoring unknown working parent c5ddb05ab828!
   file marked as tracked in p1 (000000000000) but not in manifest1
   1 warnings encountered!
@@ -240,6 +262,8 @@ Manifest and filelog missing entry
   [1]
   $ cp -R .hg/store-full/. .hg/store
 
+#if fncache
+
 Fncache inconsistency case 1: missing entry.
 We remove the last line of the fncache, making it incomplete.
 This is a problem because streamclone would omit the file.
@@ -286,6 +310,72 @@ This is a problem because it's an orphan file that shouldn't be there.
   1 warnings encountered!
   $ rm .hg/store/data/bad-nonempty.i
   $ cp -R .hg/store-full/. .hg/store
+
+#else
+
+This section tests the same inconsistencies as above (1, 2a, 2b, 2c)
+but using the file index instead of the fncache.
+
+An extension for directly editing the file index.
+  $ cat > "$TESTTMP/edit_fileindex.py" << EOF
+  > from mercurial import registrar
+  > cmdtable = {}
+  > command = registrar.command(cmdtable)
+  > @command(b"fileindex-add")
+  > def file_index_add(ui, repo, path):
+  >     with repo.lock(), repo.transaction(b'fileindex-add') as tr:
+  >         repo.store.fileindex.add(path, tr)
+  > @command(b"fileindex-remove")
+  > def file_index_remove(ui, repo, path):
+  >     with repo.lock(), repo.transaction(b'fileindex-remove') as tr:
+  >         repo.store.fileindex.remove(path, tr)
+  > EOF
+
+File index inconsistency case 1: missing entry.
+We remove an entry from the file index while leaving its revlog in place.
+This is a problem because streamclone would omit the file.
+
+  $ hg fileindex-remove file --config extensions.edit_fileindex="$TESTTMP/edit_fileindex.py"
+  $ hg verify -q
+   warning: revlog 'file' not in file index!
+  1 warnings encountered!
+  $ cp -R .hg/store-full/. .hg/store
+
+File index inconsistency case 2a: extra entry (nonexistent).
+We add an entry to the file index referencing a revlog that doesn't exist.
+This is a problem because streamclone would try to read this file and fail.
+
+  $ hg fileindex-add bad-nonexistent --config extensions.edit_fileindex="$TESTTMP/edit_fileindex.py"
+  $ hg verify -q
+  warning: orphan file index entry 'bad-nonexistent'
+  1 warnings encountered!
+  $ cp -R .hg/store-full/. .hg/store
+
+File index inconsistency case 2b: extra entry (empty).
+We add an entry to the file index referencing an empty revlog.
+This is a problem because it's an orphan file that shouldn't be there.
+
+  $ hg fileindex-add bad-empty --config extensions.edit_fileindex="$TESTTMP/edit_fileindex.py"
+  $ touch .hg/store/data/bad-empty.i
+  $ hg verify -q
+  warning: orphan file index entry 'bad-empty'
+  1 warnings encountered!
+  $ rm .hg/store/data/bad-empty.i
+  $ cp -R .hg/store-full/. .hg/store
+
+File index inconsistency case 2c: extra entry (nonempty).
+We add an entry to the file index referencing a nonempty revlog.
+This is a problem because it's an orphan file that shouldn't be there.
+
+  $ hg fileindex-add bad-nonempty --config extensions.edit_fileindex="$TESTTMP/edit_fileindex.py"
+  $ printf x > .hg/store/data/bad-nonempty.i
+  $ hg verify -q
+  warning: orphan file index entry 'bad-nonempty'
+  1 warnings encountered!
+  $ rm .hg/store/data/bad-nonempty.i
+  $ cp -R .hg/store-full/. .hg/store
+
+#endif
 
 Corrupt changelog base node to cause failure to read revision
 
@@ -354,7 +444,8 @@ test revlog corruption
   $ hg verify -q
    a@1: broken revlog! (index a is corrupted) (no-rust !)
    a@1: broken revlog! (unexpected inline revlog length: expected 0, got 30) (rust !)
-  warning: orphan data file 'data/a.i'
+  warning: orphan data file 'data/a.i' (fncache !)
+  warning: orphan file index entry 'a' (fileindex !)
   not checking dirstate because of previous errors
   1 warnings encountered!
   1 integrity errors encountered!

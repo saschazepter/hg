@@ -5,6 +5,8 @@ use format_bytes::format_bytes;
 use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
+use hg::errors::IoErrorContext;
+use hg::errors::IoResultExt;
 use hg::matchers::AlwaysMatcher;
 use hg::matchers::IntersectionMatcher;
 use hg::matchers::get_ignore_files;
@@ -16,6 +18,7 @@ use hg::warnings::HgWarningContext;
 use hg::{self};
 
 use crate::error::CommandError;
+use crate::ui::Ui;
 use crate::ui::print_warnings;
 
 pub const HELP_TEXT: &str = "
@@ -119,6 +122,30 @@ pub fn args() -> clap::Command {
         .about(HELP_TEXT)
 }
 
+fn handle_removal_result(
+    result: Result<(), impl ToString>,
+    abort_on_error: bool,
+    ui: &Ui,
+) -> Result<(), CommandError> {
+    match result {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            let message = e.to_string();
+            if abort_on_error {
+                Err(CommandError::abort_bytes(message))
+            } else {
+                let message =
+                    message.strip_prefix("abort: ").unwrap_or(&message);
+                ui.write_stderr(&format_bytes!(
+                    b"warning: {}\n",
+                    message.as_bytes()
+                ))?;
+                Ok(())
+            }
+        }
+    }
+}
+
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let ui = invocation.ui;
     let args = invocation.subcommand_args;
@@ -206,18 +233,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         ))?;
                     }
 
-                    match repo.working_directory_vfs().unlink(&path) {
-                        Ok(()) => {}
-                        Err(e) if abort_on_error => {
-                            return Err(CommandError::abort(e.to_string()));
-                        }
-                        Err(e) => {
-                            ui.write_stderr(&format_bytes!(
-                                b"{}\n",
-                                e.to_string().as_bytes()
-                            ))?;
-                        }
-                    }
+                    handle_removal_result(
+                        repo.working_directory_vfs().unlink(&path),
+                        abort_on_error,
+                        ui,
+                    )?;
                 } else {
                     ui.write_stdout(&format_bytes!(
                         b"{}\n",
@@ -239,20 +259,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         ))?;
                     }
 
-                    match std::fs::remove_dir(
-                        repo.working_directory_path().join(path),
-                    ) {
-                        Ok(()) => {}
-                        Err(e) if abort_on_error => {
-                            return Err(CommandError::abort(e.to_string()));
-                        }
-                        Err(e) => {
-                            ui.write_stderr(&format_bytes!(
-                                b"{}\n",
-                                e.to_string().as_bytes()
-                            ))?;
-                        }
-                    }
+                    let full_path = repo.working_directory_path().join(path);
+                    handle_removal_result(
+                        std::fs::remove_dir(&full_path).with_context(|| {
+                            IoErrorContext::RemovingFile(full_path.clone())
+                        }),
+                        abort_on_error,
+                        ui,
+                    )?;
                 } else {
                     ui.write_stdout(&format_bytes!(b"{}\n", *dir.as_bytes()))?;
                 }

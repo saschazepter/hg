@@ -313,3 +313,54 @@ Issue995: hg copy -A incorrectly handles symbolic links
   $ hg mv -A dirlink newdir/dirlink
 
   $ cd ..
+
+Update between two revisions where a path is a symlink in one and a regular file
+in the other, with *identical* content (so only the manifest flag differs). The
+working copy file must actually be converted, and the status must be clean.
+This exercises the flags-only path (both the Python and Rust `update-from-clean`
+code paths).
+
+  $ hg init flagonly
+  $ cd flagonly
+  $ advance_fs_time() {
+  >   "$PYTHON" "$TESTDIR"/testlib/advance-fs-time.py "$TESTTMP"/test-file.txt
+  > }
+  $ ln -s ../target-content f
+  $ hg ci -qAm 'f is a symlink'
+  $ rm f
+  $ printf '../target-content' > f
+  $ hg ci -qm 'f is a regular file, same content'
+
+filenodes match, so only the flag differs:
+
+  $ hg manifest --debug -r 0 | grep ' f$'
+  3a8d93ba72f6d400da02a39d21ea4c45369f9829 644 @ f
+  $ hg manifest --debug -r 1 | grep ' f$'
+  3a8d93ba72f6d400da02a39d21ea4c45369f9829 644   f
+
+symlink -> regular file:
+
+  $ hg update -C -r 0 -q
+  $ f --type f
+  f: link
+  $ hg update -r 1 -q
+  $ f --type f
+  f: file
+  $ cat f
+  ../target-content (no-eol)
+
+  $ advance_fs_time
+  $ hg status
+
+regular file -> symlink:
+
+  $ hg up -C null --quiet
+  $ hg up -C 1 --quiet
+  $ hg update -r 0 -q
+  $ f --type f
+  f: link
+
+  $ advance_fs_time
+  $ hg status
+
+  $ cd ..

@@ -27,3 +27,24 @@ Make sure we notice the change of mode if the cached size == -1:
   $ test -x a && echo executable -- bad || echo not executable -- good
   not executable -- good
 
+#if unix-permissions
+
+Executable file permissions follow the umask during update. The Python update path
+creates an executable file with mode 0775 under umask 0002.
+
+  $ hg up -q null
+  $ (umask 0002; hg up -q 1 --config rust.update-from-null=false --config rust.update-from-clean=false)
+  $ f --mode a
+  a: mode=775
+
+The Rust update-from-null path should behave the same way.
+
+#if rust
+  $ hg up -q null
+  $ (umask 0002; hg up -q 1 --config rust.update-from-null=true)
+  $ f --mode a
+  a: mode=775
+#endif
+
+#endif
+

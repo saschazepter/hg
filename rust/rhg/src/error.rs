@@ -55,6 +55,10 @@ impl CommandError {
         CommandError::abort_with_exit_code(message, exit_codes::ABORT)
     }
 
+    pub fn abort_bytes(message: impl AsRef<[u8]>) -> Self {
+        CommandError::abort_with_exit_code_bytes(message, exit_codes::ABORT)
+    }
+
     pub fn abort_with_exit_code(
         message: impl AsRef<str>,
         detailed_exit_code: exit_codes::ExitCode,

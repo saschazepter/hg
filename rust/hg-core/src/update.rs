@@ -1,9 +1,11 @@
 //! Tools for moving the repository to a given revision
 
+use std::fs::Metadata;
 use std::fs::Permissions;
 use std::io::Write;
 use std::ops::Deref;
 use std::os::unix::fs::MetadataExt;
+use std::os::unix::fs::OpenOptionsExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -53,6 +55,7 @@ use crate::sparse;
 use crate::utils::cap_default_rayon_threads;
 use crate::utils::files::filesystem_now;
 use crate::utils::files::find_dirs_recursive_no_root;
+use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
@@ -356,18 +359,50 @@ impl<'paths> MergeActions<'paths> {
     }
 }
 
+/// A change to the dirstate required after a workspace update done
+/// by hg itself
+pub struct DirstateUpdate<'a> {
+    pub path: &'a HgPath,
+    pub mode: u32,
+    pub size: usize,
+    pub timestamp: TruncatedTimestamp,
+}
+
+impl<'a> DirstateUpdate<'a> {
+    fn from_metadata(
+        path: &'a HgPath,
+        full_path: &Path,
+        meta: Metadata,
+    ) -> Result<Self, HgError> {
+        let truncated_timestamp = TruncatedTimestamp::for_mtime_of(&meta)
+            .when_reading_file(full_path)?;
+        Ok(Self {
+            path,
+            mode: meta.mode(),
+            size: meta.len().try_into().expect("file too large"),
+            timestamp: truncated_timestamp,
+        })
+    }
+}
+
+struct IsExec(bool);
+
+fn mode_for_create_syscall(IsExec(is_exec): IsExec) -> u32 {
+    if is_exec { 0o777 } else { 0o666 }
+}
+
 /// Change the file to a symlink or set executable permissions, if any flag
-/// information asks for it, and return the mode, size and mtime for exec
-/// file changes.
-pub fn apply_flags_to_file(
+/// information asks for it. Return the new mode, size and mtime to put
+/// into dirstate, if any change was made.
+pub fn apply_flags_to_file<'a>(
+    path_in_repo: &'a HgPath,
     path: &Path,
     flags: ManifestFlags,
-) -> Result<Option<(u32, usize, TruncatedTimestamp)>, HgError> {
+) -> Result<Option<DirstateUpdate<'a>>, HgError> {
     let meta = path.symlink_metadata().when_reading_file(path)?;
     let flags_link = flags.is_link();
     let disk_link = meta.is_symlink();
     let flags_exec = flags.is_exec();
-    let disk_exec = is_executable(&meta);
 
     if flags_link && !disk_link {
         // Switch file to link
@@ -379,18 +414,36 @@ pub fn apply_flags_to_file(
             .is_err()
         {
             // failed to create the link, rewrite the file
-            std::fs::write(path, contents).when_writing_file(path)?;
-            return Ok(None);
+            std::fs::write(path, &contents).when_writing_file(path)?;
         }
-
-        return Ok(None);
+        let meta = path.symlink_metadata().when_reading_file(path)?;
+        return Ok(Some(DirstateUpdate::from_metadata(
+            path_in_repo,
+            path,
+            meta,
+        )?));
     }
     if !flags_link && disk_link {
-        // Switch link to file
+        // Switch link to file: write the link target as the file contents
         let target = std::fs::read_link(path).when_reading_file(path)?;
+        let target_bytes = get_bytes_from_path(target);
         std::fs::remove_file(path).when_writing_file(path)?;
-        std::os::unix::fs::symlink(target, path).when_writing_file(path)?;
+        let mode = mode_for_create_syscall(IsExec(flags_exec));
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .mode(mode)
+            .open(path)
+            .when_writing_file(path)?;
+        f.write_all(&target_bytes).when_writing_file(path)?;
+        let meta = f.metadata().when_reading_file(path)?;
+        return Ok(Some(DirstateUpdate::from_metadata(
+            path_in_repo,
+            path,
+            meta,
+        )?));
     }
+    let disk_exec = is_executable(&meta);
     if meta.nlink() > 1 && flags_exec != disk_exec {
         // The file is a hardlink, break it
         let contents = std::fs::read(path).when_reading_file(path)?;
@@ -416,15 +469,15 @@ pub fn apply_flags_to_file(
     } else {
         None
     };
-    let truncated_timestamp =
-        TruncatedTimestamp::for_mtime_of(&meta).when_reading_file(path)?;
-    Ok(mode.map(|mode| {
-        (
-            mode,
-            meta.len().try_into().expect("file too large"),
-            truncated_timestamp,
-        )
-    }))
+    match mode {
+        None => Ok(None),
+        Some(mode) => {
+            let mut update =
+                DirstateUpdate::from_metadata(path_in_repo, path, meta)?;
+            update.mode = mode;
+            Ok(Some(update))
+        }
+    }
 }
 
 fn working_copy_remove(
@@ -458,7 +511,7 @@ fn apply_actions<'a: 'b, 'b>(
     repo: &Repo,
     actions: MergeActions<'a>,
     progress: &dyn Progress,
-    file_updates: Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
+    file_updates: Sender<DirstateUpdate<'b>>,
     file_removals: Sender<&'b HgPath>,
     warnings: &HgWarningSender,
     update_config: &UpdateConfig,
@@ -527,12 +580,10 @@ fn apply_actions<'a: 'b, 'b>(
         progress.increment(1, None);
         let full_path =
             repo.working_directory_vfs().join(hg_path_to_path_buf(path)?);
-        if let Some((mode, size, mtime)) =
-            apply_flags_to_file(&full_path, flags)?
+        if let Some(distate_update) =
+            apply_flags_to_file(path, &full_path, flags)?
         {
-            file_updates
-                .send((path, mode, size, mtime))
-                .expect("channel must be open");
+            file_updates.send(distate_update).expect("channel must be open");
         }
     }
 
@@ -1072,7 +1123,7 @@ fn create_working_copy<'a: 'b, 'b>(
     working_copy_vfs: &VfsImpl,
     store_vfs: &VfsImpl,
     options: &RevlogOpenOptions,
-    files_sender: &Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
+    files_sender: &Sender<DirstateUpdate<'b>>,
     progress: &dyn Progress,
     update_config: &UpdateConfig,
 ) -> Result<(), HgError> {
@@ -1202,7 +1253,7 @@ fn working_copy_worker<'a: 'b, 'b>(
     working_copy_vfs: &VfsImpl,
     store_vfs: &VfsImpl,
     options: &RevlogOpenOptions,
-    files_sender: &Sender<(&'b HgPath, u32, usize, TruncatedTimestamp)>,
+    files_sender: &Sender<DirstateUpdate<'b>>,
     auditor: &PathAuditor,
     update_config: &UpdateConfig,
 ) -> Result<(), HgError> {
@@ -1328,7 +1379,7 @@ fn working_copy_worker<'a: 'b, 'b>(
         if !flags.is_link() && (flags_differ || flags.is_exec()) {
             // Respect umask since this is an after-creation update
             let mode =
-                if flags.is_exec() { 0o755 } else { 0o666 } & !get_umask();
+                mode_for_create_syscall(IsExec(flags.is_exec())) & !get_umask();
             std::fs::set_permissions(&path, Permissions::from_mode(mode))
                 .when_writing_file(&path)?;
         }
@@ -1339,13 +1390,13 @@ fn working_copy_worker<'a: 'b, 'b>(
         let mode = metadata.mode();
 
         files_sender
-            .send((
-                file,
+            .send(DirstateUpdate {
+                path: file,
                 mode,
-                file_data.len(),
-                TruncatedTimestamp::for_mtime_of(&metadata)
+                size: file_data.len(),
+                timestamp: TruncatedTimestamp::for_mtime_of(&metadata)
                     .when_reading_file(&path)?,
-            ))
+            })
             .expect("channel should not be closed");
     }
     Ok(())
@@ -1356,7 +1407,7 @@ fn working_copy_worker<'a: 'b, 'b>(
 fn update_dirstate(
     repo: &Repo,
     dirstate: &mut OwningDirstateMap,
-    files_receiver: Receiver<(&HgPath, u32, usize, TruncatedTimestamp)>,
+    files_receiver: Receiver<DirstateUpdate>,
     removals_receiver: Option<Receiver<&HgPath>>,
     devel_abort: bool,
     update_kind: UpdateKind,
@@ -1426,7 +1477,9 @@ fn update_dirstate(
 
     let mut updated = 0;
     let mut added = 0;
-    for (filename, mode, size, mtime) in files_receiver.into_iter() {
+    for DirstateUpdate { path: filename, mode, size, timestamp: mtime } in
+        files_receiver.into_iter()
+    {
         updated += 1;
         // When using dirstate-v2 on a filesystem with reasonable performance
         // this is basically always true unless you get a mtime from the
@@ -1519,6 +1572,89 @@ mod test {
 
     use super::*;
     use crate::revlog::manifest::ManifestFlags;
+
+    // Test `apply_flags` converting a symlink to a file (not executable).
+    // The file contents should be the symlink's target, mode should be 666.
+    #[test]
+    fn test_apply_flags_link_to_file_regular() {
+        let dir = tempfile::tempdir().unwrap();
+        let path_in_repo = HgPathBuf::from_bytes(b"f");
+        let path = dir.path().join("f");
+        let target = b"some-other-file.txt";
+        std::os::unix::fs::symlink(get_path_from_bytes(target), &path).unwrap();
+
+        let DirstateUpdate {
+            path: _,
+            mode: reported_mode,
+            size: reported_size,
+            timestamp: _,
+        } = apply_flags_to_file(&path_in_repo, &path, ManifestFlags::EMPTY)
+            .unwrap()
+            .expect("should report change");
+
+        let meta = path.symlink_metadata().unwrap();
+        assert!(meta.is_file());
+        assert_eq!(std::fs::read(&path).unwrap(), target);
+        let expected_mode = 0o666 & !get_umask();
+        assert_eq!(meta.mode() & 0o777, expected_mode);
+        assert_eq!(reported_mode, meta.mode());
+        assert_eq!(reported_size, target.len());
+    }
+
+    // Test `apply_flags` converting a symlink to a file (executable).
+    // The file contents should be the symlink's target, mode should be 777.
+    #[test]
+    fn test_apply_flags_link_to_file_executable() {
+        let dir = tempfile::tempdir().unwrap();
+        let path_in_repo = HgPathBuf::from_bytes(b"f");
+        let path = dir.path().join("f");
+        let target = b"some-other-file.txt";
+        std::os::unix::fs::symlink(get_path_from_bytes(target), &path).unwrap();
+
+        let DirstateUpdate {
+            path: _,
+            mode: reported_mode,
+            size: reported_size,
+            timestamp: _,
+        } = apply_flags_to_file(&path_in_repo, &path, ManifestFlags::EXEC)
+            .unwrap()
+            .expect("should report change");
+
+        let meta = path.symlink_metadata().unwrap();
+        assert!(meta.is_file());
+        assert_eq!(std::fs::read(&path).unwrap(), target);
+        let expected_mode = 0o777 & !get_umask();
+        assert_eq!(meta.mode() & 0o777, expected_mode);
+        assert_eq!(reported_mode, meta.mode());
+        assert_eq!(reported_size, target.len());
+    }
+
+    // Test `apply_flags` converting a file to a symlink.
+    // The symlink target should be the file's contents.
+    #[test]
+    fn test_apply_flags_file_to_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let path_in_repo = HgPathBuf::from_bytes(b"f");
+        let path = dir.path().join("f");
+        let content = b"some-other-file.txt";
+        std::fs::write(&path, content).unwrap();
+
+        let DirstateUpdate {
+            path: _,
+            mode: reported_mode,
+            size: reported_size,
+            timestamp: _,
+        } = apply_flags_to_file(&path_in_repo, &path, ManifestFlags::LINK)
+            .unwrap()
+            .expect("should report change");
+
+        let meta = path.symlink_metadata().unwrap();
+        assert!(meta.is_symlink());
+        let target = get_bytes_from_path(std::fs::read_link(&path).unwrap());
+        assert_eq!(target, content);
+        assert_eq!(reported_mode, meta.mode());
+        assert_eq!(reported_size, content.len());
+    }
 
     #[test]
     fn test_chunk_tracked_files() {
