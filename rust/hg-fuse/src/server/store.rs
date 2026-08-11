@@ -242,7 +242,7 @@ pub enum BackendMode {
 }
 
 /// Information about how a store's file has changed between two revisions
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum FileChangeInfo<'store, T> {
     /// The file is new
     New(FileInfo<'store, T>),
