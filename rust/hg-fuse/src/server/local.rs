@@ -400,8 +400,8 @@ pub struct ChangesetFilesIterator<'manifest> {
 }
 
 impl ChangesetFiles<LocalToken> for ManifestRefIterator {
-    fn iter(&self) -> impl Iterator<Item = &FileInfo<'_, LocalToken>> {
-        self.borrow_dependent().inner.iter()
+    fn iter(&self) -> impl Iterator<Item = FileInfo<'_, LocalToken>> {
+        self.borrow_dependent().inner.iter().copied()
     }
 
     fn len(&self) -> usize {

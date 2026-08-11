@@ -167,7 +167,7 @@ pub trait ChangesetFiles<T: FileToken> {
     /// Returns an iterator of information for every tracked file in this
     /// changeset. Each [`FileInfo`] must refer to a unique file, and
     /// folders should not be included.
-    fn iter(&self) -> impl Iterator<Item = &FileInfo<'_, T>>;
+    fn iter(&self) -> impl Iterator<Item = FileInfo<'_, T>>;
 
     /// Returns the length of the iterator.
     fn len(&self) -> usize;
