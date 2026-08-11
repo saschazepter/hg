@@ -185,7 +185,7 @@ pub trait ChangesetFilesDiff<T: FileToken> {
     /// Returns an iterator of information for every changed tracked file
     /// between the two changesets. Each [`FileChangeInfo`] must refer to a
     /// unique file, and folders should not be included.
-    fn iter_diff(&self) -> impl Iterator<Item = &FileChangeInfo<'_, T>>;
+    fn iter_diff(&self) -> impl Iterator<Item = FileChangeInfo<'_, T>>;
 }
 
 /// An opaque token for a given file revision. This can be used as an

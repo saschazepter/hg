@@ -431,8 +431,8 @@ pub struct ChangesetFilesDiffIterator<'manifests> {
 impl ChangesetFilesDiff<LocalToken> for ManifestRefDiffIterator {
     fn iter_diff(
         &self,
-    ) -> impl Iterator<Item = &FileChangeInfo<'_, LocalToken>> {
-        self.borrow_dependent().inner.iter()
+    ) -> impl Iterator<Item = FileChangeInfo<'_, LocalToken>> {
+        self.borrow_dependent().inner.iter().copied()
     }
 }
 
