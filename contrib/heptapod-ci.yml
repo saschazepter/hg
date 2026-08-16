@@ -651,6 +651,7 @@ build-c-wheel-windows:
           - "cp312-*"
           - "cp313-*"
           - "cp314-*"
+          - "cp315-*"
           CIBW_ARCHS:
           - "AMD64"
           - "x86"
@@ -659,6 +660,7 @@ build-c-wheel-windows:
           - "cp312-*"
           - "cp313-*"
           - "cp314-*"
+          - "cp315-*"
           CIBW_ARCHS:
           - "ARM64"
 
