@@ -854,8 +854,7 @@ timestamp, not the one in effect right now. These timestamps are 30 minutes
 either side of a DST transition:
 
   $ TZ=EST5EDT hg log -r0 -T '{localdate("1583649000 0")|isodate}\n'
-  2020-03-08 02:30 -0400 (known-bad-output !)
-  2020-03-08 01:30 -0500 (missing-correct-output !)
+  2020-03-08 01:30 -0500
   $ TZ=EST5EDT hg log -r0 -T '{localdate("1583652600 0")|isodate}\n'
   2020-03-08 03:30 -0400
 
