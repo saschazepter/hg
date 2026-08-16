@@ -116,6 +116,7 @@ trigger-nightly-build:
           - cp312-cp312
           - cp313-cp313
           - cp314-cp314
+          - cp315-cp315
   script:
     - PLATFORM=`/opt/python/cp313-cp313/bin/python -c 'import sys; print(sys.platform)'`
     - echo $WHEEL_TYPE
@@ -165,6 +166,15 @@ build-rust-wheel-libc:
     ARCH: "x86_64"
     WHEEL_TYPE: "rust"
     CI_CLEVER_CLOUD_FLAVOR: "M"
+  parallel:
+    matrix:
+      - BUILD_PY_ID:
+        - cp39-cp39
+        - cp311-cp311
+        - cp310-cp310
+        - cp312-cp312
+        - cp313-cp313
+        - cp314-cp314
 
 build-c-wheel-musl:
   extends: .extra-wheel
@@ -177,6 +187,15 @@ build-rust-wheel-musl:
   variables:
     ARCH: "x86_64-musl"
     WHEEL_TYPE: "rust"
+  parallel:
+    matrix:
+      - BUILD_PY_ID:
+        - cp39-cp39
+        - cp311-cp311
+        - cp310-cp310
+        - cp312-cp312
+        - cp313-cp313
+        - cp314-cp314
 
 build-c-wheel-i686-libc:
   extends: .extra-wheel
