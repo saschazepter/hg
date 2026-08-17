@@ -51,6 +51,9 @@ RevlogT = Any
 RevnumT = int
 """a revision number"""
 
+FileLinkRevsT = dict[HgPathT, dict[NodeIdT, RevnumT]]
+"""Link revs keyed by file path and filelog node."""
+
 # See revset.matchany()
 RevsetAliasesT = dict[bytes, bytes]
 """A mapping of a revset alias name to its (string) definition."""

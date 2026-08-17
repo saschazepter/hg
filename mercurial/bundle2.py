@@ -159,6 +159,7 @@ import typing
 from .i18n import _
 from .interfaces.types import (
     Capabilities,
+    FileLinkRevsT,
     MatcherT,
     RepoT,
     UnbundleOpT,
@@ -332,6 +333,8 @@ class bundleoperation(i_exch.IUnbundleOperation):
         # carries value that can modify part behavior
         self.modes = {}
         self.source = source
+        # linkrevs to override the ones in the bundle
+        self.local_link_revs: FileLinkRevsT | None = None
 
     def gettransaction(self):
         transaction = self._gettransaction()
@@ -518,7 +521,14 @@ def process_changegroup(op: UnbundleOpT, cg, tr, source, url, **kwargs):
         remote_path = op.remote.path
         kwargs = kwargs.copy()
         kwargs['delta_base_reuse_policy'] = remote_path.delta_reuse_policy
-    ret = cg.apply(op.repo, tr, source, url, **kwargs)
+    ret = cg.apply(
+        op.repo,
+        tr,
+        source,
+        url,
+        local_link_revs=op.local_link_revs,
+        **kwargs,
+    )
     op.records.add(
         b'changegroup',
         {

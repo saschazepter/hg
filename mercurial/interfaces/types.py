@@ -19,6 +19,7 @@ from typing import (
 from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     CallbackCategoryT,
     Capabilities,
+    FileLinkRevsT,
     FsPathT,
     HgPathT,
     NeedsTypeHint,

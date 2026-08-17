@@ -30,12 +30,15 @@ from .node import (
     short,
 )
 from .interfaces.types import (
+    FileLinkRevsT,
+    HgPathT,
     MatcherT,
     NeedsTypeHint,
     NodeIdT,
     OutboundRevisionT,
     RepoT,
     RevnumT,
+    UiT,
 )
 
 from .thirdparty import attr
@@ -651,6 +654,7 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
         expectedtotal=None,
         sidedata_categories=None,
         delta_base_reuse_policy=None,
+        local_link_revs: FileLinkRevsT | None = None,
     ):
         """Add the changegroup returned by source.read() to this repo.
         srctype is a string like 'push', 'pull', or 'unbundle'.  url is
@@ -844,6 +848,7 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
                 # explicitly to help the filelog to decide weither or not to
                 # pre-process the data.
                 use_hasmeta_flag=self.has_filelog_hasmeta_flag,
+                local_link_revs=local_link_revs,
             )
 
             if sidedata_helpers:
@@ -2836,6 +2841,27 @@ def makestream(
     )
 
 
+def _use_local_link_revs(
+    revs: Iterator[revlogutils.InboundRevision],
+    link_revs: dict[NodeIdT, RevnumT],
+    to_node: Callable[[RevnumT], NodeIdT],
+    ui: UiT,
+    path: HgPathT,
+) -> Iterator[revlogutils.InboundRevision]:
+    """Override the link revs of `revs` using the `link_revs` map.
+
+    XXX this logic would idealy move at the revlog level.
+    """
+    for rev in revs:
+        link_rev = link_revs.get(rev.node)
+        if link_rev is not None:
+            rev.link_node = to_node(link_rev)
+        else:
+            msg = b'no local link rev for %s:%s\n'
+            ui.debug(msg % (path, hex(rev.node)))
+        yield rev
+
+
 def _addchangegroupfiles(
     repo,
     source,
@@ -2847,6 +2873,7 @@ def _addchangegroupfiles(
     debug_info=None,
     delta_base_reuse_policy=None,
     use_hasmeta_flag=False,
+    local_link_revs: FileLinkRevsT | None = None,
 ):
     revisions = 0
     files = 0
@@ -2862,6 +2889,14 @@ def _addchangegroupfiles(
         o = len(fl)
         try:
             deltas = source.deltaiter()
+            if local_link_revs is not None:
+                deltas = _use_local_link_revs(
+                    deltas,
+                    local_link_revs.get(f, {}),
+                    repo.changelog.index.node,
+                    repo.ui,
+                    f,
+                )
             added = fl.addgroup(
                 deltas,
                 revmap,

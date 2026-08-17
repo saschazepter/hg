@@ -420,6 +420,7 @@ class IUnbundleOperation(Protocol):
     reply: IBundle20 | None
     captureoutput: bool
     modes: dict[int, int]
+    local_link_revs: i_base.FileLinkRevsT | None
 
     @abc.abstractmethod
     def gettransaction(self) -> i_tr.ITransaction:
