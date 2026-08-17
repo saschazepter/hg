@@ -119,6 +119,7 @@ added upstream revisions.
   searching for changes
   all local changesets known remotely
   sending narrow_widen command
+  widen: cannot compute link revs with treemanifest (tree !)
   bundle2-input-bundle: with-transaction
   bundle2-input-part: "changegroup" (params: * mandatory) supported (glob)
   adding changesets

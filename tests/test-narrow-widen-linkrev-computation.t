@@ -502,18 +502,15 @@ Having cloning all first branch b
   2 9
   3 10
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       6 360afd990eef 000000000000 000000000000 (known-bad-output !)
-       0       4 360afd990eef 000000000000 000000000000 (missing-correct-output !)
-       1       7 7054ee088631 360afd990eef 000000000000 (known-bad-output !)
-       1       5 7054ee088631 360afd990eef 000000000000 (missing-correct-output !)
+       0       4 360afd990eef 000000000000 000000000000
+       1       5 7054ee088631 360afd990eef 000000000000
        2       9 6bb290463f21 7054ee088631 000000000000
        3      10 91fec784ff86 6bb290463f21 000000000000
   # expected linkrev for dir_z/f2
   0 4
   1 5
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
-       0       7 093bb0f8a0fb 000000000000 000000000000 (known-bad-output !)
-       0       4 093bb0f8a0fb 000000000000 000000000000 (missing-correct-output !)
+       0       4 093bb0f8a0fb 000000000000 000000000000
        1       5 0f47e254cb19 093bb0f8a0fb 000000000000
   # expected linkrev for dir_z/f3
   0 4
@@ -603,8 +600,7 @@ Having cloning all first branch c
   1 4
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       3 093bb0f8a0fb 000000000000 000000000000
-       1       8 0f47e254cb19 093bb0f8a0fb 000000000000 (known-bad-output !)
-       1       4 0f47e254cb19 093bb0f8a0fb 000000000000 (missing-correct-output !)
+       1       4 0f47e254cb19 093bb0f8a0fb 000000000000
   # expected linkrev for dir_z/f3
   0 7
   1 9

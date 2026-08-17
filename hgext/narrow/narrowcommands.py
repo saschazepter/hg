@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import collections
 import itertools
 import os
 
@@ -14,6 +15,10 @@ from mercurial.i18n import _
 from mercurial.node import (
     hex,
     short,
+)
+from mercurial.interfaces.types import (
+    FileLinkRevsT,
+    RepoT,
 )
 from mercurial import (
     bundle2,
@@ -23,12 +28,14 @@ from mercurial import (
     error,
     exchange,
     extensions,
+    match as matchmod,
     narrowspec,
     pathutil,
     pycompat,
     registrar,
     repair,
     repoview,
+    requirements,
     scmutil,
     sparse,
     util,
@@ -450,6 +457,13 @@ def _widen(
                 op = bundle2.bundleoperation(
                     repo, trmanager.transaction, source=b'widen'
                 )
+                op.local_link_revs = _compute_local_link_revs(
+                    repo,
+                    oldincludes,
+                    oldexcludes,
+                    newincludes,
+                    newexcludes,
+                )
                 # TODO: we should catch error.Abort here
                 bundle2.processbundle(repo, bundle, op=op, remote=remote)
 
@@ -463,6 +477,55 @@ def _widen(
             repo.setnewnarrowpats()
             narrow_wc.update_working_copy(repo)
             narrowspec.copytoworkingcopy(repo)
+
+
+def _compute_local_link_revs(
+    repo: RepoT,
+    oldincludes: set[bytes],
+    oldexcludes: set[bytes],
+    newincludes: set[bytes],
+    newexcludes: set[bytes],
+) -> FileLinkRevsT | None:
+    """Compute local link revs for the files that widening brings into scope.
+
+    The link revs that the server sends may not be accurate for this client because the
+    changeset ordering may differ or the client may have changesets the server doesn't
+    know about.
+    """
+    if requirements.TREEMANIFEST_REQUIREMENT in repo.requirements:
+        # With treemanifest we don't have manifests outside the narrowspec.
+        repo.ui.debug(b'widen: cannot compute link revs with treemanifest\n')
+        return None
+
+    oldmatch = narrowspec.match(
+        repo.root,
+        include=oldincludes,
+        exclude=oldexcludes,
+        warn=repo.ui.warn,
+    )
+    newmatch = narrowspec.match(
+        repo.root,
+        include=newincludes,
+        exclude=newexcludes,
+        warn=repo.ui.warn,
+    )
+    matcher = matchmod.differencematcher(newmatch, oldmatch)
+
+    manifestlog = repo.store.manifestlog(repo, matchmod.always())
+    manifest_store = manifestlog.getstorage(b'')
+    link_revs = collections.defaultdict(dict)
+    for manifest_rev in manifest_store:
+        changeset = manifest_store.linkrev(manifest_rev)
+        manifest_node = manifest_store.node(manifest_rev)
+        manifest_ctx = manifestlog[manifest_node]
+        # TODO handle a manifest whose delta base belongs to a later changeset
+        entries = manifest_ctx.read_delta_new_entries()
+        for path, node, _flags in entries.iterentries():
+            if matcher(path):
+                current = link_revs[path].get(node)
+                if current is None or changeset < current:
+                    link_revs[path][node] = changeset
+    return dict(link_revs)
 
 
 # TODO(rdamazio): Make new matcher format and update description
