@@ -655,8 +655,7 @@ then update the working copy while it is restrictive:
   $ umask 077
   $ chg up -qC tip
   $ f --mode exec
-  exec: mode=755 (known-bad-output rust !)
-  exec: mode=700 (no-rust !)
+  exec: mode=700
 
   $ cd ..
 

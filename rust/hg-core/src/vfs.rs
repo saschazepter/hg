@@ -11,9 +11,9 @@ use std::os::unix::fs::MetadataExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::atomic::AtomicU32;
 #[cfg(test)]
 use std::sync::atomic::AtomicUsize;
-#[cfg(test)]
 use std::sync::atomic::Ordering;
 use std::sync::OnceLock;
 
@@ -46,17 +46,27 @@ pub struct VfsImpl {
 struct FileNotFound(std::io::Error, PathBuf);
 
 /// Store the umask for the whole process since it's expensive to get.
-static UMASK: OnceLock<u32> = OnceLock::new();
+static UMASK: OnceLock<AtomicU32> = OnceLock::new();
 
-pub fn get_umask() -> u32 {
-    *UMASK.get_or_init(|| unsafe {
+fn umask() -> &'static AtomicU32 {
+    UMASK.get_or_init(|| unsafe {
         // TODO is there any way of getting the umask without temporarily
         // setting it? Doesn't this affect all threads in this tiny window?
         let mask = libc::umask(0);
         libc::umask(mask);
         #[allow(clippy::useless_conversion)]
-        (mask & 0o777).into()
+        AtomicU32::new(u32::from(mask) & 0o777)
     })
+}
+
+/// Update the cached umask. Used by the chg server, whose clients each have
+/// their own umask (see `mercurial.util.setumask`).
+pub fn set_umask(mask: u32) {
+    umask().store(mask & 0o777, Ordering::Relaxed);
+}
+
+pub fn get_umask() -> u32 {
+    umask().load(Ordering::Relaxed)
 }
 
 /// Return the (unix) mode with which we will create/fix files

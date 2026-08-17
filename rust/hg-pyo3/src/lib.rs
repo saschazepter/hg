@@ -18,6 +18,7 @@ mod revision;
 mod revlog;
 mod shape;
 mod transaction;
+mod umask;
 mod update;
 mod utils;
 
@@ -43,6 +44,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&deltas::init_module(py, &dotted_name)?)?;
     m.add_submodule(&matchers::init_module(py, &dotted_name)?)?;
     m.add_submodule(&shape::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&umask::init_module(py, &dotted_name)?)?;
     m.add("GraphError", py.get_type::<exceptions::GraphError>())?;
     Ok(())
 }
