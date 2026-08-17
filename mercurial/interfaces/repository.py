@@ -2075,6 +2075,9 @@ class IRepo(Protocol):
     narrowpats: Any  # TODO: add type hints
     """Matcher patterns for this repository's narrowspec."""
 
+    store_shape: str | None
+    """Name of the shape that this repository was cloned with, or `None`."""
+
     is_narrow: bool
 
     @abc.abstractmethod

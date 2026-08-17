@@ -1669,6 +1669,16 @@ class localrepository(_localrepo_base_classes):
             warn=self.ui.warn,
         )
 
+    @storecache(narrowspec.SHAPE_FILENAME)
+    def store_shape(self) -> str | None:
+        """Name of the shape that this repository was cloned with, or `None`."""
+        if not self.is_narrow:
+            return None
+
+        # XXX Returning None in this case will not be possible in the future
+        # where legacy narrowspec is deprecated
+        return narrowspec.load_store_shape(self)
+
     @storecache(narrowspec.FILENAME)
     def _narrowmatch(self):
         if not self.is_narrow:
