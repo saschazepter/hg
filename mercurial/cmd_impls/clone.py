@@ -207,11 +207,9 @@ def clone(
                 (storeincludepats, storeexcludepats) = command.result()
 
         if storeincludepats is not None:
-            narrowspec.validatepatterns(storeincludepats)
             narrow = True
 
         if storeexcludepats is not None:
-            narrowspec.validatepatterns(storeexcludepats)
             narrow = True
 
         if narrow:
