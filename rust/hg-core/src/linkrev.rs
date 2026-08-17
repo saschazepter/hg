@@ -21,6 +21,7 @@ use crate::revlog::RevisionOrWdir;
 use crate::revlog::RevlogError;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
+use crate::revlog::manifest::ManifestEntry;
 use crate::revlog::manifest::Manifestlog;
 use crate::revlog::manifest::parse_manifest_entries;
 use crate::utils::RawData;
@@ -381,9 +382,7 @@ const SCAN_CHUNK_SIZE: usize = 1000;
 /// Computes the link rev of every file that `matcher` matches.
 ///
 /// Scans the manifest log in parallel, reading only the stored delta (without
-/// resolving) for file nodeids that were introduced.
-///
-/// TODO handle delta base having later changeset
+/// resolving, except in an edge case) for file nodeids that were introduced.
 pub fn compute_file_link_revs(
     changelog: &Changelog,
     manifestlog: &Manifestlog,
@@ -400,18 +399,61 @@ pub fn compute_file_link_revs(
             let changeset = manifestlog
                 .revlog
                 .link_revision(manifest_rev, &changelog.revlog)?;
-            let chunk = reader.chunk(manifest_rev)?;
-            for entry in reader
-                .insertions(manifest_rev, &chunk)?
-                .flat_map(parse_manifest_entries)
-            {
-                let entry = entry?;
-                if matcher.matches(entry.path) {
-                    builder.record(entry.path, entry.node_id()?, changeset);
-                }
+            if delta_base_has_later_changeset(
+                changelog,
+                manifestlog,
+                manifest_rev,
+                changeset,
+            )? {
+                let entries =
+                    manifestlog.inexact_data_delta_parents(manifest_rev)?;
+                record_entries(entries.iter(), matcher, &builder, changeset)
+            } else {
+                let chunk = reader.chunk(manifest_rev)?;
+                record_entries(
+                    reader
+                        .insertions(manifest_rev, &chunk)?
+                        .flat_map(parse_manifest_entries),
+                    matcher,
+                    &builder,
+                    changeset,
+                )
             }
-            Ok(())
         })?;
 
     Ok(builder.finish())
+}
+
+/// Records every entry that `matcher` matches as appearing in `changeset`.
+fn record_entries<'a>(
+    entries: impl Iterator<Item = Result<ManifestEntry<'a>, RevlogError>>,
+    matcher: &dyn Matcher,
+    builder: &FileLinkRevBuilder,
+    changeset: Revision,
+) -> Result<(), RevlogError> {
+    for entry in entries {
+        let entry = entry?;
+        if matcher.matches(entry.path) {
+            builder.record(entry.path, entry.node_id()?, changeset);
+        }
+    }
+    Ok(())
+}
+
+/// Returns true if `rev`'s changeset < its delta base's changeset.
+///
+/// See `_delta_base_has_later_changeset` in `narrowcommands.py`.
+fn delta_base_has_later_changeset(
+    changelog: &Changelog,
+    manifestlog: &Manifestlog,
+    rev: Revision,
+    link_rev: Revision,
+) -> Result<bool, RevlogError> {
+    let base = manifestlog.revlog.delta_parent(rev);
+    if base == NULL_REVISION {
+        return Ok(false);
+    }
+    let base_link_rev =
+        manifestlog.revlog.link_revision(base, &changelog.revlog)?;
+    Ok(base_link_rev > link_rev)
 }
