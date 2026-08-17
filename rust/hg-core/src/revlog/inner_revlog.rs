@@ -26,11 +26,11 @@ use super::RevlogEntry;
 use super::RevlogError;
 use super::RevlogIndex;
 use super::UncheckedRevision;
+use super::compression;
 use super::compression::CompressionConfig;
+use super::compression::CompressionFormat;
 use super::compression::Compressor;
 use super::compression::NoneCompressor;
-use super::compression::ZLIB_BYTE;
-use super::compression::ZSTD_BYTE;
 use super::compression::ZlibCompressor;
 use super::compression::ZstdCompressor;
 use super::compression::uncompressed_zstd_data;
@@ -439,26 +439,17 @@ impl InnerRevlog {
         &'a self,
         data: &'a [u8],
     ) -> Result<Cow<'a, [u8]>, RevlogError> {
-        if data.is_empty() {
-            return Ok(data.into());
-        }
-
         // Revlogs are read much more frequently than they are written and many
         // chunks only take microseconds to decompress, so performance is
         // important here.
-
-        let header = data[0];
-        match header {
-            // Settings don't matter as they only affect compression
-            ZLIB_BYTE => Ok(ZlibCompressor::new(0).decompress(data)?.into()),
-            // Settings don't matter as they only affect compression
-            ZSTD_BYTE => Ok(ZstdCompressor::new(0, 0).decompress(data)?.into()),
-            b'\0' => Ok(data.into()),
-            b'u' => Ok((&data[1..]).into()),
-            other => Err(RevlogError::InvalidCompressionMode {
-                backtrace: HgBacktrace::capture(),
-                mode: other,
-            }),
+        match compression::compression_format(data)? {
+            CompressionFormat::Uncompressed(data) => Ok(data.into()),
+            CompressionFormat::Zlib(data) => {
+                Ok(ZlibCompressor::new(0).decompress(data)?.into())
+            }
+            CompressionFormat::Zstd(data) => {
+                Ok(ZstdCompressor::new(0, 0).decompress(data)?.into())
+            }
         }
     }
 
@@ -929,8 +920,9 @@ impl InnerRevlog {
                         // TODO revlogv2 should check the compression mode
                         let bytes =
                             &data[chunk_start - offset..][..chunk_length];
-                        let chunk = if !bytes.is_empty()
-                            && bytes[0] == ZSTD_BYTE
+                        let format = compression::compression_format(bytes)?;
+                        let chunk = if let CompressionFormat::Zstd(payload) =
+                            format
                         {
                             // If we're using `zstd`, we want to try a more
                             // specialized decompression
@@ -939,7 +931,7 @@ impl InnerRevlog {
                                 .base_revision_or_base_of_delta_chain()
                                 != (*rev).into();
                             let uncompressed = uncompressed_zstd_data(
-                                bytes,
+                                payload,
                                 is_delta,
                                 entry.uncompressed_len(),
                             )?;
@@ -2062,7 +2054,11 @@ impl BulkChunkReader<'_> {
 
     /// Returns the uncompressed data stored for `rev`: either a delta against
     /// another revision or a full snapshot of the revision's contents.
-    pub fn chunk(&self, rev: Revision) -> Result<Cow<'_, [u8]>, RevlogError> {
+    pub fn chunk<'a>(
+        &'a self,
+        rev: Revision,
+        buf: &'a mut Vec<u8>,
+    ) -> Result<&'a [u8], RevlogError> {
         let start = self.revlog.data_start(rev);
         let length = self.revlog.data_compressed_length(rev);
         let raw = self.data.get(start..start + length).ok_or_else(|| {
@@ -2071,7 +2067,7 @@ impl BulkChunkReader<'_> {
                 backtrace: HgBacktrace::capture(),
             }
         })?;
-        self.revlog.decompress(raw)
+        compression::decompress_into(raw, buf)
     }
 }
 

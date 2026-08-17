@@ -266,6 +266,58 @@ thread_local! {
       RefCell::new(zstd::bulk::Decompressor::new().ok().unwrap());
 }
 
+/// How a revision's data is stored (based on its header byte).
+///
+/// The payload of each variant has had the header byte stripped.
+pub(super) enum CompressionFormat<'a> {
+    Uncompressed(&'a [u8]),
+    Zlib(&'a [u8]),
+    Zstd(&'a [u8]),
+}
+
+/// Returns the compression format of a revision's data based on the header
+/// byte.
+pub(super) fn compression_format(
+    bytes: &[u8],
+) -> Result<CompressionFormat<'_>, RevlogError> {
+    if bytes.is_empty() {
+        return Ok(CompressionFormat::Uncompressed(bytes));
+    }
+    match bytes[0] {
+        b'\0' => Ok(CompressionFormat::Uncompressed(bytes)),
+        b'u' => Ok(CompressionFormat::Uncompressed(&bytes[1..])),
+        ZLIB_BYTE => Ok(CompressionFormat::Zlib(bytes)),
+        ZSTD_BYTE => Ok(CompressionFormat::Zstd(bytes)),
+        mode => Err(RevlogError::InvalidCompressionMode {
+            backtrace: HgBacktrace::capture(),
+            mode,
+        }),
+    }
+}
+
+/// Decompress the raw `bytes` of a revision into `buf`.
+pub(super) fn decompress_into<'a>(
+    bytes: &'a [u8],
+    buf: &'a mut Vec<u8>,
+) -> Result<&'a [u8], RevlogError> {
+    match compression_format(bytes)? {
+        CompressionFormat::Uncompressed(payload) => Ok(payload),
+        CompressionFormat::Zlib(payload) => {
+            buf.clear();
+            ZlibDecoder::new(payload)
+                .read_to_end(buf)
+                .map_err(RevlogError::decompression)?;
+            Ok(buf)
+        }
+        CompressionFormat::Zstd(payload) => {
+            buf.clear();
+            zstd::stream::copy_decode(payload, &mut *buf)
+                .map_err(RevlogError::decompression)?;
+            Ok(buf)
+        }
+    }
+}
+
 /// Util to wrap the reuse of a zstd decoder while controlling its buffer size.
 fn zstd_decompress_to_buffer(
     bytes: &[u8],

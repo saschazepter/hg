@@ -394,32 +394,35 @@ pub fn compute_file_link_revs(
     (0..manifestlog.revlog.len())
         .into_par_iter()
         .with_min_len(SCAN_CHUNK_SIZE)
-        .try_for_each(|manifest_rev| -> Result<(), RevlogError> {
-            let manifest_rev = Revision(u_i32(manifest_rev));
-            let changeset = manifestlog
-                .revlog
-                .link_revision(manifest_rev, &changelog.revlog)?;
-            if delta_base_has_later_changeset(
-                changelog,
-                manifestlog,
-                manifest_rev,
-                changeset,
-            )? {
-                let entries =
-                    manifestlog.inexact_data_delta_parents(manifest_rev)?;
-                record_entries(entries.iter(), matcher, &builder, changeset)
-            } else {
-                let chunk = reader.chunk(manifest_rev)?;
-                record_entries(
-                    reader
-                        .insertions(manifest_rev, &chunk)?
-                        .flat_map(parse_manifest_entries),
-                    matcher,
-                    &builder,
+        .try_for_each_init(
+            Vec::new,
+            |buf, manifest_rev| -> Result<(), RevlogError> {
+                let manifest_rev = Revision(u_i32(manifest_rev));
+                let changeset = manifestlog
+                    .revlog
+                    .link_revision(manifest_rev, &changelog.revlog)?;
+                if delta_base_has_later_changeset(
+                    changelog,
+                    manifestlog,
+                    manifest_rev,
                     changeset,
-                )
-            }
-        })?;
+                )? {
+                    let entries =
+                        manifestlog.inexact_data_delta_parents(manifest_rev)?;
+                    record_entries(entries.iter(), matcher, &builder, changeset)
+                } else {
+                    let chunk = reader.chunk(manifest_rev, buf)?;
+                    record_entries(
+                        reader
+                            .insertions(manifest_rev, chunk)?
+                            .flat_map(parse_manifest_entries),
+                        matcher,
+                        &builder,
+                        changeset,
+                    )
+                }
+            },
+        )?;
 
     Ok(builder.finish())
 }
