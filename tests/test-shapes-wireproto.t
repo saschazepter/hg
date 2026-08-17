@@ -156,8 +156,8 @@ Test narrow clone with `--shape`
 
 
 #if ssh
-  $ hg serve -p $HGPORT -d --pid-file=hg.pid -E $TESTTMP/server-errors.log
-  $ cat hg.pid >> $DAEMON_PIDS
+  $ hg serve -p $HGPORT -d --pid-file=$TESTTMP/hg.pid -E $TESTTMP/server-errors.log
+  $ cat $TESTTMP/hg.pid >> $DAEMON_PIDS
   $ remote_url="ssh://user@dummy/server"
   $ remote_cmd="--remotecmd=$TESTTMP/server-hg.sh"
 #else
