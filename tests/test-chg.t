@@ -617,3 +617,47 @@ Same test but the chg server is initially started outside any repo:
   $ chg debugconf --source profiling.enabled
   $HGRCPATH:*: true (glob)
   $ cd ..
+
+umask
+-----
+
+Test that hg uses the umask of the chg client.
+
+#if unix-permissions
+
+  $ cp $HGRCPATH.unconfigured $HGRCPATH
+  $ cat >> $HGRCPATH <<'EOF'
+  > [cmdserver]
+  > log = $TESTTMP/log/umask.log
+  > max-repo-cache = 1
+  > track-log = repocache
+  > EOF
+
+  $ hg init umask
+  $ cd umask
+  $ echo foo > exec
+  $ chmod +x exec
+  $ chg ci -qAm exec
+  $ chg up -qC null
+
+let the master process cache the repo while the umask is permissive:
+
+  $ chg --kill-chg-daemon
+  $ umask 022
+  $ chg root > /dev/null
+
+the log file is only created once the master has loaded the repo:
+
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $TESTTMP/log/umask.log
+
+then update the working copy while it is restrictive:
+
+  $ umask 077
+  $ chg up -qC tip
+  $ f --mode exec
+  exec: mode=755 (known-bad-output rust !)
+  exec: mode=700 (no-rust !)
+
+  $ cd ..
+
+#endif
