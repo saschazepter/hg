@@ -204,7 +204,7 @@ def load(repo):
     if txnutil.mayhavepending(repo.root):
         pending_path = b"%s.pending" % FILENAME
         if repo.svfs.exists(pending_path):
-            spec = repo.svfs.tryread(FILENAME)
+            spec = repo.svfs.tryread(pending_path)
     if spec is None:
         spec = repo.svfs.tryread(FILENAME)
     return parseconfig(repo.ui, spec)
