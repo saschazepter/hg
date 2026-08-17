@@ -435,6 +435,20 @@ def clone(
                     ):
                         local.setnarrowpats(storeincludepats, storeexcludepats)
                         narrowspec.copytoworkingcopy(local)
+                        if shape is not None:
+                            # shape was already validated by the remote
+                            # There is a possible race if the remote changes
+                            # shapes before this call, meaning that the pull
+                            # after a clonebundle could fail, but the error
+                            # should be clear enough: this is more of a workflow
+                            # problem than a technical one.
+                            tr = local.currenttransaction()
+                            tr.addfilegenerator(
+                                b"store-shape",
+                                (narrowspec.SHAPE_FILENAME,),
+                                lambda f: narrowspec.write_shape(f, shape),
+                                location=b'store',
+                            )
 
                 u = urlutil.url(abspath)
                 defaulturl = bytes(u)
