@@ -222,6 +222,7 @@ GETBUNDLE_ARGUMENTS: dict[bytes, bytes] = {
     b'stream': b'boolean',
     b'includepats': b'csv',
     b'excludepats': b'csv',
+    b'store_shape_with_fingerprint': b'plain',
 }
 
 

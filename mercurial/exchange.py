@@ -1923,10 +1923,32 @@ def _pullbundle2(pullop: pulloperation):
 
     # check server supports narrow and then adding includepats and excludepats
     servernarrow = pullop.remote.capable(wireprototypes.NARROWCAP)
-    if servernarrow and pullop.includepats:
-        kwargs[b'includepats'] = pullop.includepats
-    if servernarrow and pullop.excludepats:
-        kwargs[b'excludepats'] = pullop.excludepats
+    shape = pullop.repo.store_shape
+    if not servernarrow and shape is not None:
+        raise error.Abort(
+            _(b"server does not support narrow, but client has a narrow shape")
+        )
+    elif servernarrow:
+        fingerprint = None
+
+        if shape is not None:
+            fingerprint = shapemod.fingerprint_for_patterns(
+                pullop.includepats, pullop.excludepats
+            )
+            if fingerprint is None:
+                # Better safe than sorry
+                raise error.Abort(
+                    _(b"cannot compute fingerprint for local narrow patterns")
+                )
+            # `shape` was checked to be valid UTF-8
+            shape_with_fingerprint = b"%s:%s" % (shape.encode(), fingerprint)
+            kwargs[b'store_shape_with_fingerprint'] = shape_with_fingerprint
+        else:
+            # XXX This will be removed alongside legacy narrowspec
+            if pullop.includepats:
+                kwargs[b'includepats'] = pullop.includepats
+            if pullop.excludepats:
+                kwargs[b'excludepats'] = pullop.excludepats
 
     if streaming:
         kwargs[b'cg'] = False
@@ -2466,6 +2488,7 @@ def getbundlechunks(
     common=None,
     bundlecaps=None,
     remote_sidedata=None,
+    store_shape_with_fingerprint: bytes | None = None,
     **kwargs,
 ):
     """Return chunks constituting a bundle's raw data.
@@ -2479,6 +2502,14 @@ def getbundlechunks(
     kwargs = pycompat.byteskwargs(kwargs)
     info = {}
     usebundle2 = bundle2requested(bundlecaps)
+
+    if store_shape_with_fingerprint is not None:
+        shape, fingerprint = store_shape_with_fingerprint.split(b':')
+        (includes, excludes) = narrowspec.patterns_for_shape(
+            repo=repo, name=shape, fingerprint=fingerprint
+        )
+        kwargs[b"includepats"] = includes
+        kwargs[b"excludepats"] = excludes
     # bundle10 case
     if not usebundle2:
         if bundlecaps and not kwargs.get(b'cg', True):

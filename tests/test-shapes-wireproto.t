@@ -47,7 +47,7 @@ Add files
   $ hg commit -Aqm1
 
 Test the `store_shapes` wireproto command
------------------------------------------
+=========================================
 
 Enable the narrow extension to enable the wireproto capability
   $ cat >> $HGRCPATH << EOF
@@ -80,6 +80,7 @@ Restore support
   > EOF
 
 Test error cases
+----------------
 
   $ hg debugwireproto --localssh << EOF
   > command store_shape
@@ -101,6 +102,7 @@ Test error cases
   [10]
 
 Test valid cases
+----------------
 
   $ hg debugwireproto --localssh << EOF
   > command store_shape
@@ -199,3 +201,128 @@ Check that a file outside the shape is not available
 Check that a file inside the shape is available
   $ hg cat file1
   file1 contents
+
+Test pull
+=========
+
+First create something to pull
+
+  $ cd $TESTTMP/server
+  $ echo "new contents" >> file1
+  $ echo "new secret contents" >> foo/bar/other-secret/secret-file
+  $ hg commit -Aqm2
+  $ cd $TESTTMP/narrow-clone
+
+Check that pulling works
+------------------------
+
+  $ hg pull
+  pulling from $TESTTMP/server (local !)
+  pulling from ssh://user@dummy/server (no-local !)
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 1 changesets with 1 changes to 1 files
+  new changesets 18db1f1f143d
+  (run 'hg update' to get a working copy)
+
+  $ hg up
+  1 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+You still can't access a removed file outside the shape
+  $ hg cat secret/secret-file
+  [1]
+
+Nor the existing file that was updated outside the shape
+  $ hg cat foo/bar/other-secret/secret-file
+  [1]
+
+Check that the file has been updated
+  $ hg cat file1
+  file1 contents
+  new contents
+
+Create another commit
+
+  $ cd $TESTTMP/server
+  $ echo "newer contents" >> file1
+  $ echo "newer secret contents" >> foo/bar/other-secret/secret-file
+  $ hg commit -Aqm3
+  $ cd $TESTTMP/narrow-clone
+
+Check that a pattern only mismatch is detected
+-----------------------------------------------
+
+Update the server shapes to change the fingerprint of this shape
+  $ cat > $TESTTMP/new-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "default"
+  > requires = ["base", "secrets"]
+  > shape = true
+  > [[shards]]
+  > name = "secrets"
+  > requires = ["other-secret"]
+  > paths = ["secret"]
+  > [[shards]]
+  > name = "full-manual"
+  > requires = ["base", "secrets"]
+  > shape = true
+  > [[shards]]
+  > name = "other-secret"
+  > paths = ["foo/bar/other-secret"]
+  > shape = true
+  > EOF
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+
+#if local
+  $ hg pull
+  pulling from $TESTTMP/server
+  searching for changes
+  abort: fingerprint mismatch for shape 'default'
+    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
+    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+  [255]
+#else
+  $ hg pull
+  pulling from ssh://user@dummy/server
+  searching for changes
+  remote: abort: fingerprint mismatch for shape 'default'
+    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
+    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+  abort: pull failed on remote
+  [100]
+#endif
+
+Check that a shape being removed is detected
+--------------------------------------------
+
+Update the server shapes to remove the shape
+  $ cat > $TESTTMP/new-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "from-file"
+  > paths = ["dir1"]
+  > shape = true
+  > EOF
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+
+#if local
+  $ hg pull
+  pulling from $TESTTMP/server
+  searching for changes
+  abort: shape not found on remote: 'default'
+  [255]
+#else
+  $ hg pull
+  pulling from ssh://user@dummy/server
+  searching for changes
+  remote: abort: shape not found on remote: 'default'
+  abort: pull failed on remote
+  [100]
+#endif
+
+Reset the shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes
+
