@@ -675,24 +675,30 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         fm.end()
         return 0
 
-    with repo.wlock(), repo.lock():
-        return _tracked_remote_path(
-            repo=repo,
-            opts=opts,
-            remotepath=remotepath,
-            addedincludes=addedincludes,
-            removedincludes=removedincludes,
-            addedexcludes=addedexcludes,
-            removedexcludes=removedexcludes,
-            autoremoveincludes=autoremoveincludes,
-            update_working_copy=update_working_copy,
-        )
+    path = urlutil.get_unique_pull_path_obj(b'tracked', ui, remotepath)
+    ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
+    remote = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
+    try:
+        with repo.wlock(), repo.lock():
+            return _tracked_remote_path(
+                repo=repo,
+                opts=opts,
+                remote=remote,
+                addedincludes=addedincludes,
+                removedincludes=removedincludes,
+                addedexcludes=addedexcludes,
+                removedexcludes=removedexcludes,
+                autoremoveincludes=autoremoveincludes,
+                update_working_copy=update_working_copy,
+            )
+    finally:
+        remote.close()
 
 
 def _tracked_remote_path(
     repo,
     opts,
-    remotepath,
+    remote,
     addedincludes,
     removedincludes,
     addedexcludes,
@@ -728,92 +734,79 @@ def _tracked_remote_path(
 
     scmutil.bail_if_changed(repo)
 
-    # Find the revisions we have in common with the remote. These will
-    # be used for finding local-only changes for narrowing. They will
-    # also define the set of revisions to update for widening.
-    path = urlutil.get_unique_pull_path_obj(b'tracked', ui, remotepath)
-    ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
-    remote = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
+    # check narrow support before doing anything if widening needs to be
+    # performed. In future we should also abort if client is ellipses and
+    # server does not support ellipses
+    if widening and wireprototypes.NARROWCAP not in remote.capabilities():
+        raise error.Abort(_(b"server does not support narrow clones"))
 
-    try:
-        # check narrow support before doing anything if widening needs to be
-        # performed. In future we should also abort if client is ellipses and
-        # server does not support ellipses
-        if widening and wireprototypes.NARROWCAP not in remote.capabilities():
-            raise error.Abort(_(b"server does not support narrow clones"))
+    commoninc = discovery.findcommonincoming(repo, remote)
 
-        commoninc = discovery.findcommonincoming(repo, remote)
-
-        if autoremoveincludes:
-            outgoing = discovery.findcommonoutgoing(
-                repo, remote, commoninc=commoninc
+    if autoremoveincludes:
+        outgoing = discovery.findcommonoutgoing(
+            repo, remote, commoninc=commoninc
+        )
+        ui.status(_(b'looking for unused includes to remove\n'))
+        localfiles = set()
+        for n in itertools.chain(outgoing.missing, outgoing.excluded):
+            localfiles.update(repo[n].files())
+        suggestedremovals = []
+        for include in sorted(oldincludes):
+            match = narrowspec.match(
+                repo.root,
+                [include],
+                oldexcludes,
+                warn=repo.ui.warn,
             )
-            ui.status(_(b'looking for unused includes to remove\n'))
-            localfiles = set()
-            for n in itertools.chain(outgoing.missing, outgoing.excluded):
-                localfiles.update(repo[n].files())
-            suggestedremovals = []
-            for include in sorted(oldincludes):
-                match = narrowspec.match(
-                    repo.root,
-                    [include],
-                    oldexcludes,
-                    warn=repo.ui.warn,
+            if not any(match(f) for f in localfiles):
+                suggestedremovals.append(include)
+        if suggestedremovals:
+            for s in suggestedremovals:
+                ui.status(b'%s\n' % s)
+            if (
+                ui.promptchoice(
+                    _(b'remove these unused includes (Yn)?$$ &Yes $$ &No')
                 )
-                if not any(match(f) for f in localfiles):
-                    suggestedremovals.append(include)
-            if suggestedremovals:
-                for s in suggestedremovals:
-                    ui.status(b'%s\n' % s)
-                if (
-                    ui.promptchoice(
-                        _(
-                            b'remove these unused includes (Yn)?'
-                            b'$$ &Yes $$ &No'
-                        )
-                    )
-                    == 0
-                ):
-                    removedincludes.update(suggestedremovals)
-                    narrowing = True
-            else:
-                ui.status(_(b'found no unused includes\n'))
+                == 0
+            ):
+                removedincludes.update(suggestedremovals)
+                narrowing = True
+        else:
+            ui.status(_(b'found no unused includes\n'))
 
-        if narrowing:
-            newincludes = oldincludes - removedincludes
-            newexcludes = oldexcludes | addedexcludes
-            _narrow(
-                ui,
-                repo,
-                remote,
-                commoninc,
-                oldincludes,
-                oldexcludes,
-                newincludes,
-                newexcludes,
-                opts['force_delete_local_changes'],
-                opts['backup'],
-            )
-            # _narrow() updated the narrowspec and _widen() below needs to
-            # use the updated values as its base (otherwise removed includes
-            # and addedexcludes will be lost in the resulting narrowspec)
-            oldincludes = newincludes
-            oldexcludes = newexcludes
+    if narrowing:
+        newincludes = oldincludes - removedincludes
+        newexcludes = oldexcludes | addedexcludes
+        _narrow(
+            ui,
+            repo,
+            remote,
+            commoninc,
+            oldincludes,
+            oldexcludes,
+            newincludes,
+            newexcludes,
+            opts['force_delete_local_changes'],
+            opts['backup'],
+        )
+        # _narrow() updated the narrowspec and _widen() below needs to
+        # use the updated values as its base (otherwise removed includes
+        # and addedexcludes will be lost in the resulting narrowspec)
+        oldincludes = newincludes
+        oldexcludes = newexcludes
 
-        if widening:
-            newincludes = oldincludes | addedincludes
-            newexcludes = oldexcludes - removedexcludes
-            _widen(
-                ui,
-                repo,
-                remote,
-                commoninc,
-                oldincludes,
-                oldexcludes,
-                newincludes,
-                newexcludes,
-            )
-    finally:
-        remote.close()
+    if widening:
+        newincludes = oldincludes | addedincludes
+        newexcludes = oldexcludes - removedexcludes
+        _widen(
+            ui,
+            repo,
+            remote,
+            commoninc,
+            oldincludes,
+            oldexcludes,
+            newincludes,
+            newexcludes,
+        )
 
     return 0
