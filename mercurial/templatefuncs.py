@@ -503,7 +503,7 @@ def localdate(context, mapping, args):
                 # i18n: "localdate" is a keyword
                 raise error.ParseError(_(b"localdate expects a timezone"))
     else:
-        tzoffset = dateutil.makedate()[1]
+        tzoffset = dateutil.makedate(date[0])[1]
     return templateutil.date((date[0], tzoffset))
 
 

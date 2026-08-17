@@ -129,7 +129,7 @@ $(foreach release,$(RHEL_RELEASES),$(eval $(call rhel_targets,$(release))))
 linux-wheels: linux-wheels-x86_64 linux-wheels-x86_64-musl linux-wheels-i686 linux-wheels-i686-musl
 
 img_reg="registry.heptapod.net/mercurial/ci-images"
-img_tag="v3.0"
+img_tag="v3.4"
 whl_sh="/src/contrib/packaging/build-linux-wheels.sh"
 
 .PHONY: linux-wheels-x86_64

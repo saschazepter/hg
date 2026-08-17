@@ -162,6 +162,7 @@ trigger-nightly-build:
           - cp312-cp312
           - cp313-cp313
           - cp314-cp314
+          - cp315-cp315
   script:
     - PLATFORM=`/opt/python/cp313-cp313/bin/python -c 'import sys; print(sys.platform)'`
     - echo $WHEEL_TYPE

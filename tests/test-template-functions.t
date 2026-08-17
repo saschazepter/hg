@@ -849,6 +849,15 @@ Test localdate(date, tz) function:
   hg: parse error: localdate expects a timezone
   [10]
 
+Test that localdate(date) uses the local timezone offset in effect at that
+timestamp, not the one in effect right now. These timestamps are 30 minutes
+either side of a DST transition:
+
+  $ TZ=EST5EDT hg log -r0 -T '{localdate("1583649000 0")|isodate}\n'
+  2020-03-08 01:30 -0500
+  $ TZ=EST5EDT hg log -r0 -T '{localdate("1583652600 0")|isodate}\n'
+  2020-03-08 03:30 -0400
+
 Test shortest(node) function:
 
   $ echo b > b
