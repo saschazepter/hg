@@ -13,6 +13,7 @@ mod discovery;
 mod docs;
 mod exceptions;
 mod file_index;
+mod linkrev;
 mod matchers;
 mod node;
 mod path;
@@ -48,6 +49,7 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_submodule(&dirstate::init_module(py, &dotted_name)?)?;
     m.add_submodule(&discovery::init_module(py, &dotted_name)?)?;
     m.add_submodule(&file_index::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&linkrev::init_module(py, &dotted_name)?)?;
     m.add_submodule(&revlog::init_module(py, &dotted_name)?)?;
     m.add_submodule(&update::init_module(py, &dotted_name)?)?;
     m.add_submodule(&pytracing::init_module(py, &dotted_name)?)?;

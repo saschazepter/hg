@@ -32,6 +32,7 @@ from mercurial import (
     match as matchmod,
     narrowspec,
     pathutil,
+    policy,
     pycompat,
     registrar,
     repair,
@@ -49,11 +50,14 @@ from mercurial.repo import (
     factory as repo_factory,
 )
 from mercurial.utils import (
+    stringutil,
     urlutil,
 )
 from mercurial.narrow import (
     working_copy as narrow_wc,
 )
+
+rustlinkrev = policy.importrust('linkrev')
 
 table = {}
 command = registrar.command(table)
@@ -529,6 +533,15 @@ def _compute_local_link_revs(
         warn=repo.ui.warn,
     )
     matcher = matchmod.differencematcher(newmatch, oldmatch)
+
+    if rustlinkrev is not None:
+        try:
+            link_revs = rustlinkrev.compute_file_link_revs(repo.root, matcher)
+            repo.ui.debug(b'widen: computed link revisions with Rust\n')
+            return link_revs
+        except rustlinkrev.FallbackError as e:
+            msg = b'widen: computing link revisions without Rust: %s\n'
+            repo.ui.debug(msg % stringutil.forcebytestr(e))
 
     manifestlog = repo.store.manifestlog(repo, matchmod.always())
     manifest_store = manifestlog.getstorage(b'')
