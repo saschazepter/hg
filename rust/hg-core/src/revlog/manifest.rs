@@ -24,6 +24,7 @@ use crate::revlog::Revlog;
 use crate::revlog::RevlogError;
 use crate::revlog::RevlogIndex;
 use crate::revlog::diff::DeltaCursor;
+use crate::revlog::inner_revlog::BulkChunkReader;
 use crate::revlog::options::RevlogOpenOptions;
 use crate::revlog::patch;
 use crate::utils::hg_path::HgPath;
@@ -123,6 +124,11 @@ impl Manifestlog {
             bytes.extend_from_slice(chunk.data);
         }
         Ok(Manifest::from_bytes(rev, Box::new(bytes)))
+    }
+
+    /// Returns a `BulkChunkReader` for scanning every manifest revision.
+    pub fn bulk_reader(&self) -> Result<BulkChunkReader<'_>, RevlogError> {
+        self.revlog.inner.bulk_reader()
     }
 }
 

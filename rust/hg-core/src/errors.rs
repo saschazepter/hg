@@ -347,6 +347,13 @@ impl fmt::Display for HgError {
                 RevlogError::CorruptedManifest { backtrace } => {
                     write!(f, "{backtrace}corrupted manifest")
                 }
+                RevlogError::BulkReadDuringWrite { backtrace } => {
+                    write!(
+                        f,
+                        "{backtrace}cannot bulk read a revlog that is being \
+                         written to"
+                    )
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

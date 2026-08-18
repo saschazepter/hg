@@ -510,6 +510,18 @@ impl InnerRevlog {
         Ok(uncompressed)
     }
 
+    /// Returns a `BulkChunkReader` for this revlog.
+    ///
+    /// Fails if this revlog has writes in flight.
+    pub fn bulk_reader(&self) -> Result<BulkChunkReader<'_>, RevlogError> {
+        if self.is_delaying() || self.is_writing() {
+            return Err(RevlogError::BulkReadDuringWrite {
+                backtrace: HgBacktrace::capture(),
+            });
+        }
+        Ok(BulkChunkReader { revlog: self, data: self.segment_file.mmap()? })
+    }
+
     /// Execute `func` within a read context for the data file, meaning that
     /// the read handle will be taken and discarded after the operation.
     pub fn with_read<R>(
@@ -2016,6 +2028,50 @@ where
                 .max(new_chain[new_chain.len() - 1].end());
             Some((start, end))
         }
+    }
+}
+
+/// A read-only view over all of a revlog's data. Useful for scans that visit
+/// every revision once.
+pub struct BulkChunkReader<'a> {
+    /// The revlog being scanned.
+    revlog: &'a InnerRevlog,
+    /// The mmapped data file, which is the index file when inline.
+    data: memmap2::Mmap,
+}
+
+impl BulkChunkReader<'_> {
+    /// The text that `rev` inserts, which is either the insertions of its delta
+    /// against its delta base or the whole text when it is stored as a
+    /// snapshot.
+    pub fn insertions<'a>(
+        &self,
+        rev: Revision,
+        chunk: &'a [u8],
+    ) -> Result<impl Iterator<Item = &'a [u8]>, RevlogError> {
+        let entry = self.revlog.index.get_entry(rev);
+        let is_delta = UncheckedRevision::from(rev)
+            != entry.base_revision_or_base_of_delta_chain();
+        let delta = if is_delta {
+            patch::Delta::new(chunk)?
+        } else {
+            patch::Delta::full_snapshot(chunk)
+        };
+        Ok(delta.chunks.into_iter().map(|piece| piece.data))
+    }
+
+    /// Returns the uncompressed data stored for `rev`: either a delta against
+    /// another revision or a full snapshot of the revision's contents.
+    pub fn chunk(&self, rev: Revision) -> Result<Cow<'_, [u8]>, RevlogError> {
+        let start = self.revlog.data_start(rev);
+        let length = self.revlog.data_compressed_length(rev);
+        let raw = self.data.get(start..start + length).ok_or_else(|| {
+            RevlogError::CorruptedRevisionData {
+                rev,
+                backtrace: HgBacktrace::capture(),
+            }
+        })?;
+        self.revlog.decompress(raw)
     }
 }
 

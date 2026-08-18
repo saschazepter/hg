@@ -447,6 +447,9 @@ pub enum RevlogError {
     /// places where we would need it, and the churn is not worth it.
     /// We should wrap it in a context in a higher layer.
     CorruptedManifest { backtrace: HgBacktrace },
+    /// A read-only bulk scan of a revlog was requested while the revlog had
+    /// writes in flight.
+    BulkReadDuringWrite { backtrace: HgBacktrace },
 }
 
 impl From<HgIoError> for RevlogError {

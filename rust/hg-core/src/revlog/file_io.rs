@@ -66,6 +66,23 @@ impl RandomAccessFile {
         handle.read_exact_at(length, offset).when_reading_file(&self.filename)
     }
 
+    /// Memory-map the whole file for read-only access. This is meant for bulk
+    /// scans over an entire revlog.
+    pub fn mmap(&self) -> Result<memmap2::Mmap, HgIoError> {
+        let file = self.vfs.open(&self.filename)?;
+        let mut mmap_options = memmap2::MmapOptions::new();
+        if !super::can_advise_populate_read() {
+            mmap_options.populate();
+        }
+        let mmap = unsafe { mmap_options.map(&file) }
+            .when_reading_file(&self.filename)?;
+        if super::can_advise_populate_read() {
+            super::advise_populate_read_mmap(&mmap);
+        }
+
+        Ok(mmap)
+    }
+
     /// `pub` only for hg-pyo3
     #[doc(hidden)]
     pub fn get_read_handle(&self) -> Result<Ref<'_, FileHandle>, HgIoError> {
