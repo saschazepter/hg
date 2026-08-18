@@ -132,6 +132,16 @@ impl Manifestlog {
     }
 }
 
+/// Parses a chunk of manifest text into entries.
+pub(crate) fn parse_manifest_entries(
+    bytes: &[u8],
+) -> impl Iterator<Item = Result<ManifestEntry<'_>, RevlogError>> {
+    bytes
+        .split(|b| b == &b'\n')
+        .filter(|line| !line.is_empty())
+        .map(ManifestEntry::from_raw)
+}
+
 /// [`Manifestlog`] entry which knows how to interpret the data bytes.
 pub struct Manifest {
     /// Either the manifestlog revision that this [`Manifest`] is from, or
@@ -168,10 +178,7 @@ impl Manifest {
     pub fn iter(
         &self,
     ) -> impl Iterator<Item = Result<ManifestEntry<'_>, RevlogError>> {
-        self.bytes
-            .split(|b| b == &b'\n')
-            .filter(|line| !line.is_empty())
-            .map(ManifestEntry::from_raw)
+        parse_manifest_entries(&self.bytes)
     }
 
     /// Iterates over the entries in the manifest (in parallel).

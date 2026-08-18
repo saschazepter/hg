@@ -908,6 +908,7 @@ dependencies = [
  "clap",
  "crossbeam-channel",
  "ctrlc",
+ "dashmap",
  "derive_more",
  "dyn-clone",
  "filetime",

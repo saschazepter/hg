@@ -1,5 +1,10 @@
+use dashmap::DashMap;
 use itertools::Itertools as _;
 use parking_lot::MappedRwLockReadGuard;
+use rayon::iter::IndexedParallelIterator;
+use rayon::iter::IntoParallelIterator;
+use rayon::iter::ParallelIterator;
+use twox_hash::xxhash64::RandomState;
 
 use crate::AncestorsIterator;
 use crate::FastHashMap;
@@ -10,14 +15,18 @@ use crate::Node;
 use crate::Revision;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::errors::HgError;
+use crate::matchers::Matcher;
 use crate::repo::Repo;
 use crate::revlog::RevisionOrWdir;
+use crate::revlog::RevlogError;
 use crate::revlog::changelog::Changelog;
 use crate::revlog::filelog::Filelog;
 use crate::revlog::manifest::Manifestlog;
+use crate::revlog::manifest::parse_manifest_entries;
 use crate::utils::RawData;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::HgPathBuf;
+use crate::utils::u_i32;
 use crate::utils::{self};
 
 /// [`Repo`] and related objects that often need to be passed together.
@@ -335,4 +344,74 @@ pub fn adjust_link_revision(
 /// Converts a [`GraphError`] to an [`HgError`].
 fn from_graph_error(err: GraphError) -> HgError {
     HgError::corrupted(err.to_string())
+}
+
+/// Link revs keyed by file path and file nodeid.
+pub type FileLinkRevMap = FastHashMap<HgPathBuf, FastHashMap<Node, Revision>>;
+
+/// Link revs keyed by file path and file nodeid. The map is shared by the
+/// workers of the manifest scan.
+struct FileLinkRevBuilder(
+    DashMap<HgPathBuf, FastHashMap<Node, Revision>, RandomState>,
+);
+
+impl FileLinkRevBuilder {
+    fn new() -> Self {
+        Self(DashMap::with_hasher(RandomState::default()))
+    }
+
+    /// Records that the given file appears in the manifest of `revision`,
+    /// keeping the lowest revision seen so far.
+    fn record(&self, path: &HgPath, file_nodeid: Node, revision: Revision) {
+        let mut nodeids = match self.0.get_mut(path) {
+            Some(nodeids) => nodeids,
+            None => self.0.entry(path.to_owned()).or_default(),
+        };
+        let revs = nodeids.entry(file_nodeid).or_insert(revision);
+        *revs = (*revs).min(revision);
+    }
+
+    fn finish(self) -> FileLinkRevMap {
+        self.0.into_iter().collect()
+    }
+}
+
+const SCAN_CHUNK_SIZE: usize = 1000;
+
+/// Computes the link rev of every file that `matcher` matches.
+///
+/// Scans the manifest log in parallel, reading only the stored delta (without
+/// resolving) for file nodeids that were introduced.
+///
+/// TODO handle delta base having later changeset
+pub fn compute_file_link_revs(
+    changelog: &Changelog,
+    manifestlog: &Manifestlog,
+    matcher: &impl Matcher,
+) -> Result<FileLinkRevMap, RevlogError> {
+    let reader = manifestlog.bulk_reader()?;
+    let builder = FileLinkRevBuilder::new();
+
+    (0..manifestlog.revlog.len())
+        .into_par_iter()
+        .with_min_len(SCAN_CHUNK_SIZE)
+        .try_for_each(|manifest_rev| -> Result<(), RevlogError> {
+            let manifest_rev = Revision(u_i32(manifest_rev));
+            let changeset = manifestlog
+                .revlog
+                .link_revision(manifest_rev, &changelog.revlog)?;
+            let chunk = reader.chunk(manifest_rev)?;
+            for entry in reader
+                .insertions(manifest_rev, &chunk)?
+                .flat_map(parse_manifest_entries)
+            {
+                let entry = entry?;
+                if matcher.matches(entry.path) {
+                    builder.record(entry.path, entry.node_id()?, changeset);
+                }
+            }
+            Ok(())
+        })?;
+
+    Ok(builder.finish())
 }
