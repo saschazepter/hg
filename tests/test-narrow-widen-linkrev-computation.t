@@ -621,3 +621,55 @@ Having cloning all first branch c
   checking dirstate
   checked 11 changesets with 26 changes to 10 files
   $ cd ..
+
+
+Delta base has later changeset
+------------------------------
+
+issue4462: It was previously possible for manifest order to not match changelog order, so
+a manifest may have an earlier changeset than its delta base. If both manifests contain
+the same filenode, the stored delta would not mention it.
+
+  $ hg init delta-order
+  $ hg -R delta-order unbundle "$TESTDIR/bundles/test-delta-base-later-changeset.hg"
+  adding changesets
+  adding manifests
+  adding file changes
+  added 3 changesets with 23 changes to 21 files (+1 heads)
+  new changesets aaec7b38056d:9195c2d0bb9f (3 drafts)
+  (run 'hg heads' to see heads, 'hg merge' to merge)
+
+Changesets 1 and 2 are two branches off changeset 0, each adding the same filenode.
+
+  $ hg -R delta-order log -G -T '{desc}\n'
+  o  c2
+  |
+  | o  c1
+  |/
+  o  c0
+  
+Without generaldelta, the delta base for manifest revision 2 (linked to c1) is manifest
+revision 1 (linked to c2).
+
+  $ hg clone --narrow ssh://user@dummy/delta-order delta-order-client --include foo \
+  >     --noupdate -q --config format.generaldelta=false \
+  >     --config format.usegeneraldelta=false
+  $ cd delta-order-client
+  $ hg debugindex -m -T '{rev} c{linkrev}\n'
+  0 c0
+  1 c2
+  2 c1
+  $ hg debugdeltachain -m
+      rev      p1      p2  chain# chainlen     prev   delta
+        0      -1      -1       1        1       -1    base
+        1       0      -1       1        2        0    prev
+        2       0      -1       1        3        1    prev
+
+`bar/f1` exists in c1, so its link rev must be 1.
+
+  $ hg tracked -q --addinclude bar
+  $ hg debugindex bar/f1 -T '{rev} c{linkrev}\n'
+  0 c2 (known-bad-output !)
+  0 c1 (missing-correct-output !)
+
+  $ cd ..
