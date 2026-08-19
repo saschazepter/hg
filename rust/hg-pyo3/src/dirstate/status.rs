@@ -15,31 +15,18 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
-use hg::file_patterns::FilePattern;
-use hg::file_patterns::parse_pattern_syntax_kind;
-use hg::matchers::AlwaysMatcher;
-use hg::matchers::DifferenceMatcher;
-use hg::matchers::FileMatcher;
-use hg::matchers::IncludeMatcher;
-use hg::matchers::IntersectionMatcher;
-use hg::matchers::Matcher;
-use hg::matchers::NeverMatcher;
-use hg::matchers::PatternMatcher;
-use hg::matchers::UnionMatcher;
 use hg::utils::files::get_path_from_bytes;
 use hg::utils::hg_path::HgPath;
 use hg::warnings::HgWarningContext;
-use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyList;
 use pyo3::types::PyTuple;
 
 use super::dirstate_map::DirstateMap;
-use crate::exceptions::FallbackError;
+use crate::matchers::extract_matcher;
 use crate::path::PyHgPathRef;
 use crate::path::paths_py_list;
-use crate::path::paths_pyiter_collect;
 use crate::utils::HgPyErrExt;
 use crate::utils::hg_warnings_to_py_warnings;
 
@@ -72,85 +59,6 @@ fn collect_bad_matches(
         }),
     )?
     .unbind())
-}
-
-fn collect_kindpats(
-    py: Python,
-    matcher: &Bound<'_, PyAny>,
-) -> PyResult<Vec<FilePattern>> {
-    matcher
-        .getattr(intern!(py, "_kindpats"))?
-        .try_iter()?
-        .map(|k| {
-            let k = k?;
-            let py_syntax = k.get_item(0)?;
-            let py_pattern = k.get_item(1)?;
-            let py_source = k.get_item(2)?;
-
-            Ok(FilePattern::new(
-                parse_pattern_syntax_kind(
-                    py_syntax.cast::<PyBytes>()?.as_bytes(),
-                )
-                .into_pyerr(py)?,
-                py_pattern.cast::<PyBytes>()?.as_bytes(),
-                get_path_from_bytes(py_source.cast::<PyBytes>()?.as_bytes()),
-            ))
-        })
-        .collect()
-}
-
-fn extract_matcher(
-    matcher: &Bound<'_, PyAny>,
-) -> PyResult<Box<dyn Matcher + Send>> {
-    let py = matcher.py();
-    let tampered = matcher
-        .call_method0(intern!(py, "was_tampered_with_nonrec"))?
-        .extract::<bool>()?;
-    if tampered {
-        return Err(FallbackError::new_err("patternmatcher was tampered with"));
-    };
-
-    match matcher.get_type().name()?.to_str()? {
-        "alwaysmatcher" => Ok(Box::new(AlwaysMatcher)),
-        "nevermatcher" => Ok(Box::new(NeverMatcher)),
-        "exactmatcher" => {
-            let files = matcher.call_method0(intern!(py, "files"))?;
-            let files: Vec<_> = paths_pyiter_collect(&files)?;
-            Ok(Box::new(FileMatcher::new(files).into_pyerr(py)?))
-        }
-        "includematcher" => {
-            // Get the patterns from Python even though most of them are
-            // redundant with those we will parse later on, as they include
-            // those passed from the command line.
-            let file_patterns = collect_kindpats(py, matcher)?;
-            Ok(Box::new(IncludeMatcher::new(file_patterns).into_pyerr(py)?))
-        }
-        "unionmatcher" => {
-            let matchers: PyResult<Vec<_>> = matcher
-                .getattr("_matchers")?
-                .try_iter()?
-                .map(|py_matcher| extract_matcher(&py_matcher?))
-                .collect();
-
-            Ok(Box::new(UnionMatcher::new(matchers?)))
-        }
-        "intersectionmatcher" => {
-            let m1 = extract_matcher(&matcher.getattr("_m1")?)?;
-            let m2 = extract_matcher(&matcher.getattr("_m2")?)?;
-            Ok(Box::new(IntersectionMatcher::new(m1, m2)))
-        }
-        "differencematcher" => {
-            let m1 = extract_matcher(&matcher.getattr("_m1")?)?;
-            let m2 = extract_matcher(&matcher.getattr("_m2")?)?;
-            Ok(Box::new(DifferenceMatcher::new(m1, m2)))
-        }
-        "patternmatcher" => {
-            let patterns = collect_kindpats(py, matcher)?;
-            Ok(Box::new(PatternMatcher::new(patterns).into_pyerr(py)?))
-        }
-
-        m => Err(FallbackError::new_err(format!("Unsupported matcher {m}"))),
-    }
 }
 
 #[pyfunction]
