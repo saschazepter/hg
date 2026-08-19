@@ -2037,10 +2037,20 @@ impl BulkChunkReader<'_> {
     /// against its delta base or the whole text when it is stored as a
     /// snapshot.
     pub fn insertions<'a>(
-        &self,
+        &'a self,
         rev: Revision,
-        chunk: &'a [u8],
+        buf: &'a mut Vec<u8>,
     ) -> Result<impl Iterator<Item = &'a [u8]>, RevlogError> {
+        let start = self.revlog.data_start(rev);
+        let length = self.revlog.data_compressed_length(rev);
+        let raw = self.data.get(start..start + length).ok_or_else(|| {
+            RevlogError::CorruptedRevisionData {
+                rev,
+                backtrace: HgBacktrace::capture(),
+            }
+        })?;
+        let chunk = compression::decompress_into(raw, buf)?;
+
         let entry = self.revlog.index.get_entry(rev);
         let is_delta = UncheckedRevision::from(rev)
             != entry.base_revision_or_base_of_delta_chain();
@@ -2050,24 +2060,6 @@ impl BulkChunkReader<'_> {
             patch::Delta::full_snapshot(chunk)
         };
         Ok(delta.chunks.into_iter().map(|piece| piece.data))
-    }
-
-    /// Returns the uncompressed data stored for `rev`: either a delta against
-    /// another revision or a full snapshot of the revision's contents.
-    pub fn chunk<'a>(
-        &'a self,
-        rev: Revision,
-        buf: &'a mut Vec<u8>,
-    ) -> Result<&'a [u8], RevlogError> {
-        let start = self.revlog.data_start(rev);
-        let length = self.revlog.data_compressed_length(rev);
-        let raw = self.data.get(start..start + length).ok_or_else(|| {
-            RevlogError::CorruptedRevisionData {
-                rev,
-                backtrace: HgBacktrace::capture(),
-            }
-        })?;
-        compression::decompress_into(raw, buf)
     }
 }
 

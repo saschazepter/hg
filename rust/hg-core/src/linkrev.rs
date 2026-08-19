@@ -411,10 +411,9 @@ pub fn compute_file_link_revs(
                         manifestlog.inexact_data_delta_parents(manifest_rev)?;
                     record_entries(entries.iter(), matcher, &builder, changeset)
                 } else {
-                    let chunk = reader.chunk(manifest_rev, buf)?;
                     record_entries(
                         reader
-                            .insertions(manifest_rev, chunk)?
+                            .insertions(manifest_rev, buf)?
                             .flat_map(parse_manifest_entries),
                         matcher,
                         &builder,
