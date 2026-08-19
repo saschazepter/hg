@@ -512,6 +512,18 @@ test-3.13-c:
           matrix:
             - BUILD_PY_ID: "cp313-cp313"
 
+test-3.13-rust:
+    extends: .test-rust-pycompat
+    image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
+    needs:
+      - trigger-pycompat
+      - job: build-rust-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp313-cp313"
+    variables:
+        PYTHON: python3.13
+
 test-3.14-c:
     extends: .test-c-pycompat
     image: "$HG_CI_REG/hg-core-test-py314:$HG_CI_IMAGE_TAG"
@@ -524,18 +536,6 @@ test-3.14-c:
         parallel:
           matrix:
             - BUILD_PY_ID: "cp314-cp314"
-
-test-3.13-rust:
-    extends: .test-rust-pycompat
-    image: "$HG_CI_REG/hg-core-test-py313:$HG_CI_IMAGE_TAG"
-    needs:
-      - trigger-pycompat
-      - job: build-rust-wheel-libc
-        parallel:
-          matrix:
-            - BUILD_PY_ID: "cp313-cp313"
-    variables:
-        PYTHON: python3.13
 
 test-3.14-rust:
     extends: .test-rust-pycompat
