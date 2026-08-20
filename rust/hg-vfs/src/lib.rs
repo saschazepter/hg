@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::thread::available_parallelism;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
@@ -11,7 +12,8 @@ pub use fuser::SessionACL;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::repo::Repo;
-use hg_fuse::fuse::HgFuse;
+use hg::utils::u32_u;
+use hg_fuse::read_write::fuse::HgFuse;
 pub use hg_fuse::server::store::BackendMode;
 use parking_lot::Mutex;
 
@@ -95,15 +97,17 @@ impl MountManager {
             ));
         }
 
-        let session = HgFuse::mount_all_revs(
-            repo,
-            &mount_point,
-            options.backend_mode,
-            options.user_id,
-            options.group_id,
-            options.max_revisions_loaded,
-            options.session_acl,
-        )?;
+        // Number of FUSE event-loop threads, from the clone's config.
+        let num_threads = repo
+            .config()
+            .get_u32(b"fuse", b"event-loop-threads")?
+            .map(u32_u)
+            .unwrap_or_else(|| {
+                available_parallelism().map(usize::from).unwrap_or(1)
+            });
+
+        let session =
+            HgFuse::mount(&mount_point, options.session_acl, num_threads)?;
 
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)

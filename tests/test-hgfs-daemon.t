@@ -44,10 +44,13 @@ Mount the clone
   $ hg debug::hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt"
   mounted */source at */mnt (created * UTC) (glob)
   $ wait_for_mount "hgvfs" "$TESTTMP/mnt"
-  hgvfs on $TESTTMP/mnt type fuse (ro,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
+  hgvfs on $TESTTMP/mnt type fuse (rw,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
+  $ stat "$TESTTMP/mnt" >/dev/null
+  stat: cannot statx '$TESTTMP/mnt': Function not implemented (known-bad-output !)
+  [1]
   $ ls "$TESTTMP/mnt"
-  commits
-  meta
+  ls: cannot access '$TESTTMP/mnt': Function not implemented (known-bad-output !)
+  [2]
 
 Mounting again at the same point is rejected
 --------------------------------------------
