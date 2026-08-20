@@ -159,7 +159,8 @@ check http return codes
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01
+  body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01 (no-py315 !)
+  body: size=503, sha1=37fff6d86b8569f8be21fcdf937a8ec8463251ca (py315 !)
   % zip and tar.gz disallowed should both give 403
   403 Archive type not allowed
   content-type: text/html; charset=ascii
@@ -247,7 +248,8 @@ check http return codes (with deprecated option)
   server: testing stub value
   transfer-encoding: chunked
   
-  body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01
+  body: size=503, sha1=2d8ce8bb3816603b9683a1804a5a02c11224cb01 (no-py315 !)
+  body: size=503, sha1=37fff6d86b8569f8be21fcdf937a8ec8463251ca (py315 !)
   % zip and tar.gz disallowed should both give 403
   403 Archive type not allowed
   content-type: text/html; charset=ascii
