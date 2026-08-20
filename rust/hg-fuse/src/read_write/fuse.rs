@@ -2,13 +2,18 @@ use std::path::Path;
 
 use fuser::BackgroundSession;
 use fuser::Config;
+use fuser::FileHandle;
 use fuser::Filesystem;
+use fuser::FopenFlags;
+use fuser::INodeNo;
 use fuser::MountOption;
 use fuser::SessionACL;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 
 pub struct HgFuse {}
+
+const STATELESS_FILE_HANDLE: FileHandle = FileHandle(0);
 
 impl HgFuse {
     /// Mount an instance of this FUSE to `destination`.
@@ -39,4 +44,38 @@ impl HgFuse {
     }
 }
 
-impl Filesystem for HgFuse {}
+impl Filesystem for HgFuse {
+    fn access(
+        &self,
+        _req: &fuser::Request,
+        _ino: INodeNo,
+        _mask: fuser::AccessFlags,
+        reply: fuser::ReplyEmpty,
+    ) {
+        reply.ok();
+    }
+
+    fn opendir(
+        &self,
+        _req: &fuser::Request,
+        _ino: INodeNo,
+        _flags: fuser::OpenFlags,
+        reply: fuser::ReplyOpen,
+    ) {
+        let flags = FopenFlags::FOPEN_KEEP_CACHE
+            | FopenFlags::FOPEN_CACHE_DIR
+            | FopenFlags::FOPEN_NOFLUSH;
+        reply.opened(STATELESS_FILE_HANDLE, flags);
+    }
+
+    fn open(
+        &self,
+        _req: &fuser::Request,
+        _ino: INodeNo,
+        _flags: fuser::OpenFlags,
+        reply: fuser::ReplyOpen,
+    ) {
+        let flags = FopenFlags::FOPEN_KEEP_CACHE | FopenFlags::FOPEN_NOFLUSH;
+        reply.opened(STATELESS_FILE_HANDLE, flags);
+    }
+}
