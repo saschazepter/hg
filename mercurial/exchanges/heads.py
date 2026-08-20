@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import array
 import binascii
+import hashlib
 import struct
 
 from typing import (
@@ -17,6 +18,11 @@ from typing import (
 
 from ..interfaces.types import (
     NodeIdT,
+    PeerT,
+    RepoT,
+)
+from .. import (
+    node as node_mod,
 )
 
 
@@ -371,3 +377,186 @@ def decode_bucket_info(
         msg %= (read, available)
         raise ValueError(msg)
     return bucket_info
+
+
+def _cache_filename(remote_name: bytes) -> bytes:
+    """return a unique identify for a remote"""
+    return node_mod.hex(hashlib.sha256(remote_name).digest()) + b'.remote-heads'
+
+
+# Note: using `bytes` here might be incompatible with memoryview in the future,
+# change the typing if so.
+def _get_data(used: int, data: bytes, size: int) -> tuple[int, bytes | None]:
+    """get the Nth last bytes of "data" ignoring "used" bytes at the end
+
+    return (new_used, data_of_length_size)
+
+    return (used, None) if the data are too short.
+    """
+    start = used + size
+    if len(data) < used + size:
+        return (used, None)
+    if used == 0:
+        return (used + size, data[-start:])
+    return (used + size, data[-start:-used])
+
+
+class RemoteHeadsCache:
+    """A cache of the remote heads
+
+    Can be persisted to disk.
+    """
+
+    def __init__(self):
+        self._buckets: dict[int, tuple[bytes, int]] = {}
+        self._heads: list[NodeIdT] = []
+
+    @staticmethod
+    def from_cache(local: RepoT, remote: PeerT) -> RemoteHeadsCache:
+        """Try to load cache of heads for `remote` stored for `local`
+
+        Return a RemoteHeadsCache object is all cases, empty if no cache could
+        be found.
+
+        Won't try anything for remote using a non-named path.
+        """
+        remote_name = remote.path.name
+        if remote_name is None:
+            return RemoteHeadsCache()
+        # NOTE: we should use the mmap-threshold here
+        cached_bytes = local.cachevfs.tryread(_cache_filename(remote_name))
+
+        # read the header to determine the stored buckets
+        used, main_header = _get_data(0, cached_bytes, BUCKET_HEADER.size)
+        if main_header is None:
+            # not enough data for the main header
+            return RemoteHeadsCache()
+        total_heads = 0
+        bucket_count, fp_size, node_size = BUCKET_HEADER.unpack(main_header)
+        if node_size != local.nodeconstants.nodelen:
+            # node size incompatible with the local repo
+            return RemoteHeadsCache()
+
+        cached = RemoteHeadsCache()
+        bh_size = BUCKET_INFO.size + fp_size
+        for i in range(bucket_count):
+            used, bucket_header = _get_data(used, cached_bytes, bh_size)
+            if bucket_header is None:
+                # not enough data for the promissed bucker header
+                return RemoteHeadsCache()
+            bucket_id, bucket_heads = BUCKET_INFO.unpack_from(bucket_header)
+            bucket_fp = bucket_header[-fp_size:]
+            total_heads = max(total_heads, bucket_heads)
+            cached._buckets[bucket_id] = (bucket_fp, bucket_heads)
+        if len(cached_bytes) < used + (total_heads * node_size):
+            # not enough data for all the head we need
+            return RemoteHeadsCache()
+
+        # read the heads
+        cached._heads = [
+            cached_bytes[node_size * idx : node_size * (idx + 1)]
+            for idx in range(total_heads)
+        ]
+        return cached
+
+    def try_write(self, local: RepoT, remote: PeerT) -> None:
+        """attempt to update the cache on disk
+
+        Silently fails if it can't write.
+        """
+        if not self._heads:
+            # nothing to cache, nothing to write.
+            return
+        remote_name = remote.path.name
+        if remote_name is None:
+            # not a recuring repository, skip.
+            return
+
+        cache_name = _cache_filename(remote_name)
+        try:
+            # NOTE: We could reuse the existing file (if it did not change),
+            # doing a kernel level copy of the prefix that did not change would
+            # be faster than writing all heads from scratch.
+            node_size = None
+            fingerprint_size = None
+            with local.cachevfs(
+                cache_name,
+                mode=b"w",
+                atomictemp=True,
+            ) as cache_file:
+                for h in self._heads:
+                    if node_size is None:
+                        node_size = len(h)
+                    else:
+                        assert node_size == len(
+                            h
+                        )  # XXX raise and delete the cache
+                    cache_file.write(h)
+                for b_id, (b_fp, b_hc) in sorted(self._buckets.items()):
+                    if fingerprint_size is None:
+                        fingerprint_size = len(b_fp)
+                    else:
+                        assert fingerprint_size == len(
+                            b_fp
+                        )  # XXX raise and delete the cache
+                    cache_file.write(BUCKET_INFO.pack(b_id, b_hc))
+                    cache_file.write(b_fp)
+                main_header = BUCKET_HEADER.pack(
+                    len(self._buckets),
+                    fingerprint_size,
+                    node_size,
+                )
+                cache_file.write(main_header)
+        except IOError:
+            # this is a cache, update can fail
+            pass
+
+    def cached_fingerprints(self) -> list[tuple[int, bytes]]:
+        """return a mapping with all the known buckets and their fingerprint
+
+        This is to be used to inform the remote of the known bucket offering
+        that remote the opportunity to reduce the number of heads it actually
+        has to list.
+        """
+        return [
+            (b_id, b_fp)
+            for b_id, (b_fp, _b_hc) in sorted(self._buckets.items())
+        ]
+
+    def update(
+        self,
+        server_reply: _ServerReplyT,
+    ) -> tuple[int, list[NodeIdT]]:
+        """update the Cache with remote information
+
+        Return the number of head we could reuse form the cache and the full
+        list of server heads.
+        """
+        matched = set(
+            k for k, (h, count, heads) in server_reply.items() if heads is None
+        )
+        if not matched:
+            self._buckets.clear()
+            self._heads.clear()
+            matching_head_count = 0
+        else:
+            unmatched = set(self._buckets) - matched
+            for b_id in unmatched:
+                del self._buckets[b_id]
+            best_math = max(matched)
+            matching_head_count = server_reply[best_math][1]
+            assert len(self._heads) >= matching_head_count, (
+                len(self._heads),
+                matching_head_count,
+            )
+            del self._heads[matching_head_count:]
+        for b_id, (b_fp, count, nodes) in sorted(server_reply.items()):
+            if nodes is None:
+                # NOTE: In the future, the server might provide intermediate
+                # bucket with a number of heads that it would be useful to
+                # cache.
+                continue
+            assert (len(self._heads) + len(nodes)) == count
+            self._heads.extend(nodes)
+            self._buckets[b_id] = (b_fp, len(self._heads))
+        return matching_head_count, self._heads[:]
