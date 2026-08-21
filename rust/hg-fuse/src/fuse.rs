@@ -107,7 +107,7 @@ impl HgFuse<LocalBackend, LocalToken> {
             store,
             user_id,
             group_id,
-            mountpoint,
+            Some(mountpoint.to_path_buf()),
             max_revisions_loaded,
         )?;
         Self::mount(server, mountpoint, session_acl, thread_count)

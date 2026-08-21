@@ -1,7 +1,6 @@
 use std::convert::Infallible;
 use std::ops::Range;
 use std::os::unix::fs::MetadataExt;
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -68,8 +67,8 @@ pub struct Server<S, T> {
     uid: u32,
     /// Group ID returned on requests, by default it's the process'.
     gid: u32,
-    /// The mount point for this FUSE
-    mount_point: PathBuf,
+    /// The mount point for this FUSE, if we want preloading
+    mount_point: Option<PathBuf>,
     /// Information about a previously loaded dirstate to compute later ones
     /// incrementally.
     dirstate_base_info: Mutex<Option<DirstateBaseInfo<T>>>,
@@ -80,7 +79,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         store: S,
         user_id: Option<u32>,
         group_id: Option<u32>,
-        mount_point: impl AsRef<Path>,
+        mount_point: Option<PathBuf>,
         max_revisions_loaded: Option<usize>,
     ) -> Result<Self, HgError> {
         let process_metadata =
@@ -105,7 +104,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
                 + MERCURIAL_FIRST_COMMIT_TIMESTAMP,
             uid,
             gid,
-            mount_point: mount_point.as_ref().to_path_buf(),
+            mount_point,
             dirstate_base_info: Mutex::new(None),
         })
     }
@@ -277,9 +276,11 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         changeset: Node,
         revision: Arc<OwnedRevision<T>>,
     ) {
-        let root =
-            self.mount_point.join(path_to_revision_working_copy(changeset));
-        rayon::spawn(move || revision.preload(&root));
+        if let Some(mount_point) = &self.mount_point {
+            let root =
+                mount_point.join(path_to_revision_working_copy(changeset));
+            rayon::spawn(move || revision.preload(&root));
+        }
     }
 
     /// Return entries for all direct children of this inode
