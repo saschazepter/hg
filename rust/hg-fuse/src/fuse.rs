@@ -118,14 +118,7 @@ impl HgFuse<LocalBackend, LocalToken> {
             start_time,
             Some(mountpoint.to_path_buf()),
         ));
-        let server = Server::new(
-            store,
-            start_time,
-            user_id,
-            group_id,
-            Some(mountpoint.to_path_buf()),
-            max_revisions_loaded,
-        )?;
+        let server = Server::new(store, start_time, user_id, group_id)?;
         Self::mount(server, mountpoint, session_acl, thread_count)
     }
 }

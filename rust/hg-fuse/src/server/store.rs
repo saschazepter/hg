@@ -17,7 +17,9 @@ use hg::utils::RawData;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::HgPathBuf;
 use quick_cache::sync::Cache;
+use quick_cache::sync::GuardResult;
 
+use crate::fuse::path_to_revision_working_copy;
 use crate::server::Config;
 use crate::server::OwnedRevision;
 
@@ -282,20 +284,18 @@ pub struct DirstateBaseInfo<T> {
     pub data_ino: INodeNo,
 }
 
-// TODO: These fields will be used later in this stack. Reduce visibility as
-// needed once they are used.
 pub struct Store<S, T> {
     /// The repo that we're serving for
     pub store_backend: S,
     /// Revisions whose tree we've populated
-    pub revisions: Cache<Node, Arc<OwnedRevision<T>>>,
+    revisions: Cache<Node, Arc<OwnedRevision<T>>>,
     /// When this server was started
-    pub start_time: SystemTime,
+    start_time: SystemTime,
     /// The mount point for this FUSE, if we want preloading
-    pub mount_point: Option<PathBuf>,
+    mount_point: Option<PathBuf>,
     /// Information about a previously loaded dirstate to compute later ones
     /// incrementally.
-    pub dirstate_base_info: Mutex<Option<DirstateBaseInfo<T>>>,
+    dirstate_base_info: Mutex<Option<DirstateBaseInfo<T>>>,
 }
 
 const DEFAULT_MAX_REVISIONS_LOADED: usize = 64;
@@ -315,6 +315,77 @@ impl<S: StoreBackend<T>, T: FileToken> Store<S, T> {
             start_time,
             mount_point,
             dirstate_base_info: Mutex::new(None),
+        }
+    }
+
+    /// Build the [`RevisionTree`] for the given node.
+    #[tracing::instrument(
+        level = "debug",
+        skip_all,
+        fields(nodeid = format!("{:x}", changeset)),
+    )]
+    #[allow(clippy::type_complexity)] // Return type is still best locally here
+    fn load_revision(
+        &self,
+        changeset: Node,
+        base_dirstate: Option<DirstateBaseInfo<T>>,
+    ) -> Result<(Arc<OwnedRevision<T>>, DirstateBaseInfo<T>), Error<T>> {
+        let (revision_data, new_dirstate_base) = OwnedRevision::from_revision(
+            &self.store_backend,
+            changeset,
+            self.start_time,
+            base_dirstate,
+        )?;
+        let revision_arc = Arc::new(revision_data);
+        let preload = self.store_backend.server_config().preload_structure;
+        if preload {
+            self.spawn_revision_preloading(
+                changeset,
+                Arc::clone(&revision_arc),
+            );
+        }
+        Ok((revision_arc, new_dirstate_base))
+    }
+
+    pub fn get_revision(
+        &self,
+        changeset: Node,
+    ) -> Result<Arc<OwnedRevision<T>>, Error<T>> {
+        match self.revisions.get_value_or_guard(&changeset, None) {
+            GuardResult::Value(v) => Ok(v),
+            GuardResult::Guard(g) => {
+                let mut base_dirstate_guard = self
+                    .dirstate_base_info
+                    .lock()
+                    .expect("propagate the panic");
+                let (revision, new_dirstate_base) =
+                    self.load_revision(changeset, base_dirstate_guard.take())?;
+                let _ = g.insert(Arc::clone(&revision));
+                // Remember the latest dirstate update for later incremental
+                // loads
+                *base_dirstate_guard = Some(new_dirstate_base);
+                tracing::debug!(
+                    "total revisions loaded: {}",
+                    self.revisions.len()
+                );
+                Ok(revision)
+            }
+            GuardResult::Timeout => unreachable!(
+                "timeout is None, so result cannot be GuardResult::Timeout"
+            ),
+        }
+    }
+
+    /// Spawn a background thread that populates the filesystem kernel caches
+    fn spawn_revision_preloading(
+        &self,
+        changeset: Node,
+        revision: Arc<OwnedRevision<T>>,
+    ) {
+        if let Some(mount_point) = &self.mount_point {
+            let root =
+                mount_point.join(path_to_revision_working_copy(changeset));
+            rayon::spawn(move || revision.preload(&root));
         }
     }
 }

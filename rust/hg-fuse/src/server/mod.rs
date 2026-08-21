@@ -1,9 +1,7 @@
 use std::convert::Infallible;
 use std::ops::Range;
 use std::os::unix::fs::MetadataExt;
-use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::SystemTime;
 
 use fuser::FileAttr;
@@ -16,16 +14,12 @@ use hg::revlog::manifest::ManifestFlags;
 use hg::segmented_bytes::SegmentedBytes;
 use hg::utils::RawData;
 use hg::warnings::HgWarningContext;
-use quick_cache::sync::Cache;
-use quick_cache::sync::GuardResult;
 
 use crate::fuse::COMMITS_INODE;
 use crate::fuse::Entry;
 use crate::fuse::RootInodeEncoder;
-use crate::fuse::path_to_revision_working_copy;
 use crate::server::revision::OwnedRevision;
 use crate::server::store::BackendMode;
-use crate::server::store::DirstateBaseInfo;
 use crate::server::store::Error as StoreError;
 use crate::server::store::FileToken;
 use crate::server::store::Store;
@@ -35,7 +29,6 @@ pub mod local;
 pub mod revision;
 pub mod store;
 
-const DEFAULT_MAX_REVISIONS_LOADED: usize = 64;
 const BLOCK_SIZE: u32 = 4096;
 // Fake size that's obvious enough to be grepped in case that's
 // a problem.
@@ -57,19 +50,12 @@ pub struct Server<S, T> {
     /// The repo that we're serving for
     /// TODO more than 1 repo at once
     store: Arc<Store<S, T>>,
-    /// Revisions whose tree we've populated
-    revisions: Cache<Node, Arc<OwnedRevision<T>>>,
     /// When this server was started
     start_time: SystemTime,
     /// User ID returned on requests, by default it's the process'.
     uid: u32,
     /// Group ID returned on requests, by default it's the process'.
     gid: u32,
-    /// The mount point for this FUSE, if we want preloading
-    mount_point: Option<PathBuf>,
-    /// Information about a previously loaded dirstate to compute later ones
-    /// incrementally.
-    dirstate_base_info: Mutex<Option<DirstateBaseInfo<T>>>,
 }
 
 impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
@@ -78,8 +64,6 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         start_time: SystemTime,
         user_id: Option<u32>,
         group_id: Option<u32>,
-        mount_point: Option<PathBuf>,
-        max_revisions_loaded: Option<usize>,
     ) -> Result<Self, HgError> {
         let process_metadata =
             std::fs::metadata("/proc/self").when_reading_file("/proc/self")?;
@@ -93,17 +77,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
             Ok(())
         });
 
-        Ok(Self {
-            store,
-            revisions: Cache::new(
-                max_revisions_loaded.unwrap_or(DEFAULT_MAX_REVISIONS_LOADED),
-            ),
-            start_time,
-            uid,
-            gid,
-            mount_point,
-            dirstate_base_info: Mutex::new(None),
-        })
+        Ok(Self { store, start_time, uid, gid })
     }
 
     pub fn attributes(&self, ino: INodeNo) -> Option<fuser::FileAttr> {
@@ -187,7 +161,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
             if parent == COMMITS_INODE {
                 if let Ok(node) = Node::from_hex(name.as_encoded_bytes()) {
                     // Is a syntactically valid node, try to look it up
-                    let revision = self.get_revision(node)?;
+                    let revision = self.store.get_revision(node)?;
                     let root_inode = RootInodeEncoder::revision_inode(
                         self.store.store_backend.idx_for_node(node)?,
                     );
@@ -205,79 +179,6 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         match maybe_entry_result {
             Some(entry) => Ok(entry),
             None => Ok(None),
-        }
-    }
-
-    /// Build the [`RevisionTree`] for the given node.
-    #[tracing::instrument(
-        level = "debug",
-        skip_all,
-        fields(nodeid = format!("{:x}", changeset)),
-    )]
-    #[allow(clippy::type_complexity)] // Return type is still best locally here
-    fn load_revision(
-        &self,
-        changeset: Node,
-        base_dirstate: Option<DirstateBaseInfo<T>>,
-    ) -> Result<(Arc<OwnedRevision<T>>, DirstateBaseInfo<T>), StoreError<T>>
-    {
-        let (revision_data, new_dirstate_base) = OwnedRevision::from_revision(
-            &self.store.store_backend,
-            changeset,
-            self.start_time,
-            base_dirstate,
-        )?;
-        let revision_arc = Arc::new(revision_data);
-        let preload =
-            self.store.store_backend.server_config().preload_structure;
-        if preload {
-            self.spawn_revision_preloading(
-                changeset,
-                Arc::clone(&revision_arc),
-            );
-        }
-        Ok((revision_arc, new_dirstate_base))
-    }
-
-    fn get_revision(
-        &self,
-        changeset: Node,
-    ) -> Result<Arc<OwnedRevision<T>>, StoreError<T>> {
-        match self.revisions.get_value_or_guard(&changeset, None) {
-            GuardResult::Value(v) => Ok(v),
-            GuardResult::Guard(g) => {
-                let mut base_dirstate_guard = self
-                    .dirstate_base_info
-                    .lock()
-                    .expect("propagate the panic");
-                let (revision, new_dirstate_base) =
-                    self.load_revision(changeset, base_dirstate_guard.take())?;
-                let _ = g.insert(Arc::clone(&revision));
-                // Remember the latest dirstate update for later incremental
-                // loads
-                *base_dirstate_guard = Some(new_dirstate_base);
-                tracing::debug!(
-                    "total revisions loaded: {}",
-                    self.revisions.len()
-                );
-                Ok(revision)
-            }
-            GuardResult::Timeout => unreachable!(
-                "timeout is None, so result cannot be GuardResult::Timeout"
-            ),
-        }
-    }
-
-    /// Spawn a background thread that populates the filesystem kernel caches
-    fn spawn_revision_preloading(
-        &self,
-        changeset: Node,
-        revision: Arc<OwnedRevision<T>>,
-    ) {
-        if let Some(mount_point) = &self.mount_point {
-            let root =
-                mount_point.join(path_to_revision_working_copy(changeset));
-            rayon::spawn(move || revision.preload(&root));
         }
     }
 
@@ -318,7 +219,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         // TODO: instead of ignoring these errors by converting them to options,
         // we should consider returning Result<Option<R>>
         let node = self.store.store_backend.node_for_idx(idx).ok()?;
-        let revision = self.get_revision(node).ok()?;
+        let revision = self.store.get_revision(node).ok()?;
         Some(func(&revision))
     }
 }
