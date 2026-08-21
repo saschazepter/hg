@@ -2316,7 +2316,21 @@ class manifestctx(repository.imanifestrevisionstored):
             return self.read_delta_parents(shallow=shallow, exact=True)
         store = self._storage()
         r = store.rev(self._node)
-        d = mdiff.patchtext(store.revdiff(store.deltaparent(r), r))
+        base = store.deltaparent(r)
+
+        # Let's say a manifest M (changeset 50) is stored as a delta against
+        # the delta base B (changeset 99). A filenode was introduced at
+        # changeset 50 and still existed at changeset 99. Then M's delta
+        # against B does not contain the filenode, so if we only read the
+        # stored delta without resolving the full manifest, we would never
+        # identify changeset 50 as the filenode link rev.
+        #
+        # Repos usually shouldn't get into this state through normal
+        # operations, but we can't guarantee it doesn't happen.
+        if base != nullrev and (store.linkrev(base) > store.linkrev(r)):
+            return self.read_delta_parents(shallow=shallow, exact=False)
+
+        d = mdiff.patchtext(store.revdiff(base, r))
         return manifestdict(store.nodeconstants.nodelen, d)
 
     def find(self, key: bytes) -> tuple[bytes, bytes]:

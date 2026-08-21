@@ -518,7 +518,6 @@ def _compute_local_link_revs(
         changeset = manifest_store.linkrev(manifest_rev)
         manifest_node = manifest_store.node(manifest_rev)
         manifest_ctx = manifestlog[manifest_node]
-        # TODO handle a manifest whose delta base belongs to a later changeset
         entries = manifest_ctx.read_delta_new_entries()
         for path, node, _flags in entries.iterentries():
             if matcher(path):

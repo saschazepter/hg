@@ -669,7 +669,6 @@ revision 1 (linked to c2).
 
   $ hg tracked -q --addinclude bar
   $ hg debugindex bar/f1 -T '{rev} c{linkrev}\n'
-  0 c2 (known-bad-output !)
-  0 c1 (missing-correct-output !)
+  0 c1
 
   $ cd ..
