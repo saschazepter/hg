@@ -47,6 +47,8 @@ ELLIPSESCAP1: Final[bytes] = b'exp-ellipses-1'
 ELLIPSESCAP: Final[bytes] = b'exp-ellipses-2'
 SUPPORTED_ELLIPSESCAP: Final[tuple[bytes, bytes]] = (ELLIPSESCAP1, ELLIPSESCAP)
 
+HEADS_FINGERPRINT_CAP: Final[bytes] = b'heads_fingerprints'
+
 # All available wire protocol transports.
 TRANSPORTS = {
     SSHV1: {

@@ -1018,6 +1018,18 @@ default = false
 
 [[items]]
 section = "experimental"
+name = "disco.heads-fingerprints"
+default = false
+experimental = true
+documentation = """Advertise support for heads-fingerprints when in the server role
+
+The heads-fingerprint feature allows clients to remember server heads
+information from one exchange to another and to reuse that information to
+reduce the network load and speedup the discovery operation in some cases.
+"""
+
+[[items]]
+section = "experimental"
 name = "editortmpinhg"
 default = false
 

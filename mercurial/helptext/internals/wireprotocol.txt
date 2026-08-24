@@ -514,6 +514,11 @@ Whether the server supports the ``getbundle`` command.
 
 This capability was introduced in Mercurial 1.9 (released July 2011).
 
+heads_fingerprints
+------------------
+
+Whether the client supports the `heads_buckets` command.
+
 httpheader
 ----------
 
@@ -1000,6 +1005,11 @@ by a newline. e.g.
 ``a9eeb3adc7ddb5006c088e9eda61791c777cbf7c 31f91a3da534dc849f0d6bfc00a395a97cf218a1\n``
 
 This command does not accept any arguments. The return type is a ``string``.
+
+heads_buckets
+-------------
+
+Returns heads associated with fingerprint of "heads bucket".
 
 hello
 -----

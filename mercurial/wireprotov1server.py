@@ -39,6 +39,7 @@ from .utils import (
 from .exchanges import (
     bundle_cache as bundle_cache_util,
     bundle_caps,
+    heads as exch_heads,
     peer,
 )
 
@@ -443,6 +444,9 @@ def _capabilities(repo, proto):
             # because required logic is only implemented in Rust
             caps.append(wireprototypes.SHAPECAP)
 
+    if repo.ui.configbool(b'experimental', b'disco.heads-fingerprints'):
+        caps.append(wireprototypes.HEADS_FINGERPRINT_CAP)
+
     return proto.addcapabilities(repo, caps)
 
 
@@ -637,6 +641,13 @@ def getbundle(repo, proto, others):
 def heads(repo, proto):
     h = repo.heads()
     return wireprototypes.bytesresponse(wireprototypes.encodelist(h) + b'\n')
+
+
+@wireprotocommand(b'heads_buckets', b'*', permission=b'pull')
+def heads_buckets(repo, proto, others):
+    """Returns server heads as binary nodeid + bucket info"""
+    info = exch_heads.encoded_bucket_info(repo)
+    return wireprototypes.bytesresponse(info)
 
 
 @wireprotocommand(b'hello', permission=b'pull')

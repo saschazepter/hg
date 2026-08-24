@@ -30,6 +30,7 @@ from . import (
     wireprototypes,
 )
 from .exchanges import (
+    heads as exch_heads,
     peer,
 )
 from .interfaces import (
@@ -470,6 +471,18 @@ class wirepeer(
             try:
                 return wireprototypes.decodelist(d[:-1])
             except ValueError:
+                self._abort(error.ResponseError(_(b"unexpected response:"), d))
+
+        return {}, decode
+
+    @batchable
+    def heads_buckets(self):
+        """Fetch heads information by bucket with associated fingerprints"""
+
+        def decode(d):
+            try:
+                return exch_heads.decode_bucket_info(d)
+            except (ValueError, IndexError):
                 self._abort(error.ResponseError(_(b"unexpected response:"), d))
 
         return {}, decode

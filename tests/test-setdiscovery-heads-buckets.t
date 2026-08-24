@@ -13,6 +13,8 @@ This test file check behavior related to this bucket computation.
   $ cat << EOF >> $HGRCPATH
   > [devel]
   > discovery.randomize=false
+  > [experimental]
+  > disco.heads-fingerprints=yes
   > EOF
 
 setup a branchy repository
@@ -675,7 +677,7 @@ Simple full pull
   
   ##### server goes to 600 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads
+  query 1; heads-fingerprints
            received 5 server heads
   requesting all changes
   adding changesets
@@ -687,7 +689,7 @@ Simple full pull
   
   ##### server goes to 1200 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 5)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 5)
            received 10 server heads
   searching for changes
   adding changesets
@@ -699,7 +701,7 @@ Simple full pull
   
   ##### server goes to 1230 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 10)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 10)
            received 10 server heads
   searching for changes
   adding changesets
@@ -711,7 +713,7 @@ Simple full pull
   
   ##### server goes to 1500 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 10)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 10)
            received 14 server heads
   searching for changes
   adding changesets
@@ -723,7 +725,7 @@ Simple full pull
   
   ##### server goes to 2000 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 14)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 14)
            received 17 server heads
   searching for changes
   adding changesets
@@ -735,7 +737,7 @@ Simple full pull
   
   ##### server goes to 3315 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 17)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 17)
            received 23 server heads
   searching for changes
   adding changesets
@@ -747,7 +749,7 @@ Simple full pull
   
   ##### server goes to 4000 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 23)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 23)
            received 24 server heads
   searching for changes
   adding changesets
@@ -759,7 +761,7 @@ Simple full pull
   
   ##### server goes to 5000 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 24)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 24)
            received 26 server heads
   searching for changes
   adding changesets
@@ -771,7 +773,7 @@ Simple full pull
   
   ##### server goes to 5210 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 26)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 26)
            received 26 server heads
   searching for changes
   adding changesets
@@ -786,7 +788,7 @@ final no-op pull
 
   $ hg -R client pull --config devel.debug.discovery=yes
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads + initial-local-heads (sample size is 26)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 26)
            received 26 server heads
   searching for changes
   all remote heads known locally
@@ -813,7 +815,7 @@ Series of simple partial pull
   
   ##### server goes to 600 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads
+  query 1; heads-fingerprints
            received 5 server heads
   adding changesets
   adding manifests
@@ -824,7 +826,7 @@ Series of simple partial pull
   
   ##### server goes to 1200 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 1)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1)
            received 10 server heads
   searching for changes
   adding changesets
@@ -836,7 +838,7 @@ Series of simple partial pull
   
   ##### server goes to 1230 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 1)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1)
            received 10 server heads
   searching for changes
   adding changesets
@@ -848,7 +850,7 @@ Series of simple partial pull
   
   ##### server goes to 1500 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 1)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1)
            received 14 server heads
   searching for changes
   adding changesets
@@ -860,7 +862,7 @@ Series of simple partial pull
   
   ##### server goes to 2000 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 2)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 2)
            received 17 server heads
   searching for changes
   adding changesets
@@ -872,7 +874,7 @@ Series of simple partial pull
   
   ##### server goes to 3315 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 2)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 2)
            received 23 server heads
   searching for changes
   adding changesets
@@ -884,7 +886,7 @@ Series of simple partial pull
   
   ##### server goes to 4000 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 3)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 3)
            received 24 server heads
   searching for changes
   adding changesets
@@ -896,7 +898,7 @@ Series of simple partial pull
   
   ##### server goes to 5000 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 3)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 3)
            received 26 server heads
   searching for changes
   adding changesets
@@ -908,7 +910,7 @@ Series of simple partial pull
   
   ##### server goes to 5210 changesets
   pulling from ssh://user@dummy/simple-partial-pull/server
-  query 1; heads + initial-local-heads (sample size is 3)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 3)
            received 26 server heads
   searching for changes
   adding changesets
@@ -946,7 +948,7 @@ Exchange between non-converging repository
   
   ##### adding Paaaaaaaa+Paaaaaaba+Paaaaabaa+Paaaaabba+Paaaabaaa+Paaaababa+Paaaabbaa+Paaaabbba+Paaabaaaa+Paaabaaba server side - Paaaaaaab+Paaaaaabb+Paaaaabab+Paaaaabbb+Paaaabaab+Paaaababb+Paaaabbab+Paaaabbbb+Paaabaaab+Paaabaabb client side
   comparing with ssh://user@dummy/diverging-repo/server
-  query 1; heads + initial-local-heads (sample size is 3)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 3)
            received 1 server heads
   searching for changes
   all remote heads known locally
@@ -979,7 +981,7 @@ Exchange between non-converging repository
   
   ##### adding Paaababaa+Paaababba+Paaabbaaa+Paaabbaba+Paaabbbaa+Paaabbbba+Paabaaaaa+Paabaaaba+Paabaabaa+Paabaabba server side - Paaababab+Paaababbb+Paaabbaab+Paaabbabb+Paaabbbab+Paaabbbbb+Paabaaaab+Paabaaabb+Paabaabab+Paabaabbb client side
   comparing with ssh://user@dummy/diverging-repo/server
-  query 1; heads + initial-local-heads (sample size is 10)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 10)
            received 2 server heads
   searching for changes
   all remote heads known locally
@@ -1012,7 +1014,7 @@ Exchange between non-converging repository
   
   ##### adding Paababaaa+Paabababa+Paababbaa+Paababbba+Paabbaaaa+Paabbaaba+Paabbabaa+Paabbabba+Paabbbaaa+Paabbbaba server side - Paababaab+Paabababb+Paababbab+Paababbbb+Paabbaaab+Paabbaabb+Paabbabab+Paabbabbb+Paabbbaab+Paabbbabb client side
   comparing with ssh://user@dummy/diverging-repo/server
-  query 1; heads + initial-local-heads (sample size is 16)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 16)
            received 5 server heads
   searching for changes
   taking initial sample
@@ -1047,7 +1049,7 @@ Exchange between non-converging repository
   
   ##### adding Paabbbbaa+Paabbbbba+Pabaaaaaa+Pabaaaaba+Pabaaabaa+Pabaaabba+Pabaabaaa+Pabaababa+Pabaabbaa+Pabaabbba server side - Paabbbbab+Paabbbbbb+Pabaaaaab+Pabaaaabb+Pabaaabab+Pabaaabbb+Pabaabaab+Pabaababb+Pabaabbab+Pabaabbbb client side
   comparing with ssh://user@dummy/diverging-repo/server
-  query 1; heads + initial-local-heads (sample size is 19)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 19)
            received 7 server heads
   searching for changes
   taking initial sample
@@ -1082,7 +1084,7 @@ Exchange between non-converging repository
   
   ##### adding Pababaaaa+Pababaaba+Pabababaa+Pabababba+Pababbaaa+Pababbaba+Pababbbaa+Pababbbba+Pabbaaaaa+Pabbaaaba server side - Pababaaab+Pababaabb+Pabababab+Pabababbb+Pababbaab+Pababbabb+Pababbbab+Pababbbbb+Pabbaaaab+Pabbaaabb client side
   comparing with ssh://user@dummy/diverging-repo/server
-  query 1; heads + initial-local-heads (sample size is 20)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 20)
            received 6 server heads
   searching for changes
   taking initial sample
@@ -1142,7 +1144,7 @@ Talking to multiple server
   
   ##### adding Paaaaaaaa+Paaaaaaba+Paaaaabaa+Paaaaabba+Paaaabaaa+Paaaababa+Paaaabbaa+Paaaabbba+Paaabaaaa+Paaabaaba on server-1 - Paaaaaaab+Paaaaaabb+Paaaaabab+Paaaaabbb+Paaaabaab+Paaaababb+Paaaabbab+Paaaabbbb+Paaabaaab+Paaabaabb on server-2
   pulling from ssh://user@dummy/multiple-servers/server-1
-  query 1; heads
+  query 1; heads-fingerprints
            received 1 server heads
   requesting all changes
   adding changesets
@@ -1152,7 +1154,7 @@ Talking to multiple server
   new changesets 1ea73414a91b:a7ca523f57f5
   (run 'hg update' to get a working copy)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads + initial-local-heads (sample size is 1)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1)
            received 3 server heads
   searching for changes
   adding changesets
@@ -1164,7 +1166,7 @@ Talking to multiple server
   
   ##### adding Paaababaa+Paaababba+Paaabbaaa+Paaabbaba+Paaabbbaa+Paaabbbba+Paabaaaaa+Paabaaaba+Paabaabaa+Paabaabba on server-1 - Paaababab+Paaababbb+Paaabbaab+Paaabbabb+Paaabbbab+Paaabbbbb+Paabaaaab+Paabaaabb+Paabaabab+Paabaabbb on server-2
   pulling from ssh://user@dummy/multiple-servers/server-1
-  query 1; heads + initial-local-heads (sample size is 3)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 3)
            received 2 server heads
   searching for changes
   taking quick initial sample
@@ -1178,7 +1180,7 @@ Talking to multiple server
   new changesets e4b144f7c1f5:0d623320dc9b
   (run 'hg heads .' to see heads, 'hg merge' to merge)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads + initial-local-heads (sample size is 5)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 5)
            received 10 server heads
   searching for changes
   adding changesets
@@ -1190,7 +1192,7 @@ Talking to multiple server
   
   ##### adding Paababaaa+Paabababa+Paababbaa+Paababbba+Paabbaaaa+Paabbaaba+Paabbabaa+Paabbabba+Paabbbaaa+Paabbbaba on server-1 - Paababaab+Paabababb+Paababbab+Paababbbb+Paabbaaab+Paabbaabb+Paabbabab+Paabbabbb+Paabbbaab+Paabbbabb on server-2
   pulling from ssh://user@dummy/multiple-servers/server-1
-  query 1; heads + initial-local-heads (sample size is 10)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 10)
            received 5 server heads
   searching for changes
   taking initial sample
@@ -1204,7 +1206,7 @@ Talking to multiple server
   new changesets 2da5c5d08364:dd416cf284bc
   (run 'hg heads .' to see heads, 'hg merge' to merge)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads + initial-local-heads (sample size is 13)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 13)
            received 16 server heads
   searching for changes
   taking initial sample
@@ -1219,7 +1221,7 @@ Talking to multiple server
   
   ##### adding Paabbbbaa+Paabbbbba+Pabaaaaaa+Pabaaaaba+Pabaaabaa+Pabaaabba+Pabaabaaa+Pabaababa+Pabaabbaa+Pabaabbba on server-1 - Paabbbbab+Paabbbbbb+Pabaaaaab+Pabaaaabb+Pabaaabab+Pabaaabbb+Pabaabaab+Pabaababb+Pabaabbab+Pabaabbbb on server-2
   pulling from ssh://user@dummy/multiple-servers/server-1
-  query 1; heads + initial-local-heads (sample size is 17)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 17)
            received 7 server heads
   searching for changes
   taking initial sample
@@ -1232,7 +1234,7 @@ Talking to multiple server
   new changesets 8dbce9ae65d2:dbe7d8ed8434
   (run 'hg update' to get a working copy)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads + initial-local-heads (sample size is 16)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 16)
            received 19 server heads
   searching for changes
   taking initial sample
@@ -1247,7 +1249,7 @@ Talking to multiple server
   
   ##### adding Pababaaaa+Pababaaba+Pabababaa+Pabababba+Pababbaaa+Pababbaba+Pababbbaa+Pababbbba+Pabbaaaaa+Pabbaaaba on server-1 - Pababaaab+Pababaabb+Pabababab+Pabababbb+Pababbaab+Pababbabb+Pababbbab+Pababbbbb+Pabbaaaab+Pabbaaabb on server-2
   pulling from ssh://user@dummy/multiple-servers/server-1
-  query 1; heads + initial-local-heads (sample size is 19)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 19)
            received 6 server heads
   searching for changes
   taking initial sample
@@ -1261,7 +1263,7 @@ Talking to multiple server
   new changesets 7500d37fcd60:fe1fc7aac4f5
   (run 'hg heads .' to see heads, 'hg merge' to merge)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads + initial-local-heads (sample size is 20)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 20)
            received 20 server heads
   searching for changes
   taking initial sample

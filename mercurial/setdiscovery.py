@@ -51,6 +51,7 @@ from . import (
     error,
     policy,
     util,
+    wireprototypes,
 )
 
 
@@ -314,6 +315,7 @@ def findcommonheads(
     else:
         ownheads = [rev for rev in cl.headrevs() if rev != nullrev]
 
+    has_heads_bucket = remote.capable(wireprototypes.HEADS_FINGERPRINT_CAP)
     initial_head_exchange = ui.configbool(b'devel', b'discovery.exchange-heads')
     initialsamplesize = ui.configint(b'devel', b'discovery.sample-size.initial')
     fullsamplesize = ui.configint(b'devel', b'discovery.sample-size')
@@ -378,13 +380,20 @@ def findcommonheads(
         else:
             sample = ownheads
 
-    msg = b"query 1; heads"
+    msg = b"query 1;"
+    if has_heads_bucket:
+        msg += b" heads-fingerprints"
+    else:
+        msg += b" heads"
     if sample:
         msg += b" + initial-local-heads (sample size is %d)" % len(sample)
     dbg(msg + b"\n")
     roundtrips += 1
     with remote.commandexecutor() as e:
-        fheads = e.callcommand(b'heads', {})
+        if has_heads_bucket:
+            fheads = e.callcommand(b'heads_buckets', {})
+        else:
+            fheads = e.callcommand(b'heads', {})
         if sample:
             if audit is not None:
                 audit[b'total-queries'] += len(sample)
@@ -394,7 +403,14 @@ def findcommonheads(
                     b'nodes': [clnode(r) for r in sample],
                 },
             )
-    srvheadhashes = fheads.result()
+    if has_heads_bucket:
+        srv_head_nodes = set()
+        rhh = fheads.result()
+        for h, nodes in rhh.values():
+            srv_head_nodes.update(nodes)
+        srvheadhashes = list(srv_head_nodes)
+    else:
+        srvheadhashes = fheads.result()
     if sample:
         yesno = fknown.result()
 

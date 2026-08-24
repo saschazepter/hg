@@ -9,7 +9,15 @@ import array
 import binascii
 import struct
 
-from typing import Sequence
+from typing import (
+    Dict,
+    Sequence,
+    Tuple,
+)
+
+from ..interfaces.types import (
+    NodeIdT,
+)
 
 
 def _bucket_boundary(max_value: int) -> list[int]:
@@ -254,3 +262,112 @@ def buckets_info(repo) -> dict[int, tuple[int, bytes]]:
     if heads == [None]:  # happens for empty repository (for historical reason)
         heads = []
     return _bucket_fingerprints(tiers, heads)
+
+
+BUCKET_HEADER = struct.Struct('>BBB')
+"""The top level header used for serialization
+
+* [u8]: number of buckets
+* [u8]: fingerprint size
+* [u8]: nodeid size
+"""
+
+
+BUCKET_INFO = struct.Struct('>Ll')
+"""The fixed size part of a single bucket header used for serialization
+
+* [u32] bucket-id
+* [i32] number of new heads in that bucket
+"""
+
+
+def encoded_bucket_info(repo) -> bytes:
+    """an encoded version of the bucket info to be used over the wire
+
+
+    The data is encoded as follow:
+
+    # [u8]: number of bucket
+    # [u8]: size of bucket's fingerprint
+    # [u8]: size of head's nodeid (i.e. repo.nodeconstants.nodelen)
+    # then for each bucket:
+    #    [u32] bucket-id
+    #    [i32] number of new heads in that bucket
+    #    [bytes] the heads fingerprint for that bucket
+    # then for each head:
+    #    [bytes] head nodeid
+
+    Used by the wireprotocol to serialize the data.
+    """
+    pieces = []
+    bucket_info = buckets_info(repo)
+
+    cl = repo.changelog
+    to_node = cl.index.node
+    head_revs = cl.headrevs()
+
+    bfps = FP_SPEC.size
+    hns = repo.nodeconstants.nodelen
+
+    pieces.append(BUCKET_HEADER.pack(len(bucket_info), bfps, hns))
+
+    for bucket_id, (count, fp) in sorted(bucket_info.items()):
+        pieces.append(BUCKET_INFO.pack(bucket_id, count))
+        pieces.append(fp)
+    pieces.extend(to_node(r) for r in head_revs)
+    return b''.join(pieces)
+
+
+_ServerReplyT = Dict[int, Tuple[bytes, Sequence[NodeIdT]]]
+"""The data sent by the server when requesting heads with fingerprint"""
+
+
+def decode_bucket_info(
+    raw_data: bytes,
+) -> _ServerReplyT:
+    """return a dict from a encoded bucket info
+
+    { bucket-id -> (fingerprint, [nodes])}
+
+    Used by the wireprotocol to deserialize the data from `encoded_bucket_info`.
+    """
+
+    data = memoryview(raw_data)
+    nb_bucket, bfps, hns = BUCKET_HEADER.unpack(data[: BUCKET_HEADER.size])
+
+    info_size = BUCKET_INFO.size + bfps
+    all_info_size = nb_bucket * info_size
+    info_data = data[BUCKET_HEADER.size : BUCKET_HEADER.size + all_info_size]
+    nodes_data = data[BUCKET_HEADER.size + all_info_size :]
+    if (chunk_len := len(nodes_data)) % hns:
+        msg = "nodes-chunk of odd size (%d %% %d)"
+        msg %= (chunk_len, hns)
+        raise ValueError(msg)
+
+    info = []
+    for start in range(0, all_info_size, info_size):
+        raw = info_data[start : start + BUCKET_INFO.size]
+        bucket_id, nb_head = BUCKET_INFO.unpack(raw)
+        fp = info_data[start + BUCKET_INFO.size : start + info_size]
+        info.append((bucket_id, nb_head, fp))
+
+    prev_nb_head = 0
+    read = 0  # sanity checks
+    bucket_info: _ServerReplyT = {}
+    for bucket_id, nb_head, fp in info:
+        nodes_start = prev_nb_head * hns
+        if read == 0:
+            assert nodes_start == 0
+        nodes_end = nb_head * hns
+        assert nodes_end <= len(nodes_data)
+        # XXX consider not building the list at all in the future
+        indexes = range(nodes_start, nodes_end, hns)
+        nodes = [nodes_data[i : i + hns].tobytes() for i in indexes]
+        read += len(nodes)
+        bucket_info[bucket_id] = (fp, nodes)
+        prev_nb_head = nb_head
+    if read < (available := (chunk_len // hns)):
+        msg = "fewer nodes read than available (%d < %d)"
+        msg %= (read, available)
+        raise ValueError(msg)
+    return bucket_info
