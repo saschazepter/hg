@@ -689,8 +689,9 @@ Simple full pull
   
   ##### server goes to 1200 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 5)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 2 (of 5))
            received 7 server heads, 3 cached, 10 total
+           3 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -701,8 +702,9 @@ Simple full pull
   
   ##### server goes to 1230 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 10)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1 (of 10))
            received 1 server heads, 9 cached, 10 total
+           9 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -713,8 +715,9 @@ Simple full pull
   
   ##### server goes to 1500 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 10)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 8 (of 10))
            received 12 server heads, 2 cached, 14 total
+           2 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -725,8 +728,9 @@ Simple full pull
   
   ##### server goes to 2000 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 14)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 6 (of 14))
            received 9 server heads, 8 cached, 17 total
+           8 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -749,8 +753,9 @@ Simple full pull
   
   ##### server goes to 4000 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 23)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1 (of 23))
            received 2 server heads, 22 cached, 24 total
+           22 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -761,8 +766,9 @@ Simple full pull
   
   ##### server goes to 5000 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 24)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1 (of 24))
            received 3 server heads, 23 cached, 26 total
+           23 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -773,8 +779,9 @@ Simple full pull
   
   ##### server goes to 5210 changesets
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 26)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1 (of 26))
            received 1 server heads, 25 cached, 26 total
+           25 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -788,8 +795,9 @@ final no-op pull
 
   $ hg -R client pull --config devel.debug.discovery=yes
   pulling from ssh://user@dummy/simple-full-pull/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 26)
+  query 1; heads-fingerprints
            received 0 server heads, 26 cached, 26 total
+           26 local head pre-discovered
   searching for changes
   all remote heads known locally
   no changes found
@@ -1180,8 +1188,9 @@ Talking to multiple server
   new changesets e4b144f7c1f5:0d623320dc9b
   (run 'hg heads .' to see heads, 'hg merge' to merge)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads-fingerprints + initial-local-heads (sample size is 5)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 3 (of 5))
            received 8 server heads, 2 cached, 10 total
+           2 local head pre-discovered
   searching for changes
   adding changesets
   adding manifests
@@ -1234,8 +1243,9 @@ Talking to multiple server
   new changesets 8dbce9ae65d2:dbe7d8ed8434
   (run 'hg update' to get a working copy)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads-fingerprints + initial-local-heads (sample size is 16)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 10 (of 16))
            received 13 server heads, 6 cached, 19 total
+           6 local head pre-discovered
   searching for changes
   taking initial sample
   query 2; still undecided: 66, sample size is: 66
@@ -1263,8 +1273,9 @@ Talking to multiple server
   new changesets 7500d37fcd60:fe1fc7aac4f5
   (run 'hg heads .' to see heads, 'hg merge' to merge)
   pulling from ssh://user@dummy/multiple-servers/server-2
-  query 1; heads-fingerprints + initial-local-heads (sample size is 20)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 14 (of 20))
            received 14 server heads, 6 cached, 20 total
+           6 local head pre-discovered
   searching for changes
   taking initial sample
   query 2; still undecided: 263, sample size is: 200

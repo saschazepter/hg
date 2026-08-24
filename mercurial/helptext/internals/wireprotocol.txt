@@ -327,6 +327,10 @@ And a similar scenario but with servers sending a banner on connect::
    s: 1\n
    s: \n
 
+The hello command may contains a `heads-buckets-info-v01:` line. It contains
+the fingerprint for each bucket of the current server heads, similar to the
+fingerprints used by the `heads_buckets` wireproto command.
+
 Note that output from the ``hello`` command is terminated by a ``\n``. This is
 part of the response payload and not part of the wire protocol adding a newline
 after responses. In other words, the length of the response contains the

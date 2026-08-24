@@ -682,6 +682,9 @@ def hello(repo, proto):
         if all_pub:
             line.append(b"public-revs=all")
         reply.append(b' '.join(line) + b"\n")
+    if wireprototypes.HEADS_FINGERPRINT_CAP in caps:
+        if (line := exch_heads.encode_hello(repo)) is not None:
+            reply.append(line)
     return wireprototypes.bytesresponse(b''.join(reply))
 
 

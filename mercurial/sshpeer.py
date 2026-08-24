@@ -26,6 +26,7 @@ from . import (
 )
 
 from .exchanges import (
+    heads as exch_heads,
     peer as e_peer,
 )
 from .utils import (
@@ -414,6 +415,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
 
     caps = set()
     phase_summary = None
+    heads_buckets_info = None
 
     # For version 1, we should see a ``capabilities`` line in response to the
     # ``hello`` command.
@@ -426,6 +428,8 @@ def _performhandshake(ui, stdin, stdout, stderr):
                 break
             if phase_summary is None:
                 phase_summary = e_peer.PhaseSummary.try_parse(l)
+            if heads_buckets_info is None:
+                heads_buckets_info = exch_heads.try_parse_hello(l)
 
     # Error if we couldn't find capabilities, this means:
     #
@@ -439,7 +443,7 @@ def _performhandshake(ui, stdin, stdout, stderr):
     # Flush any output on stderr before proceeding.
     _forwardoutput(ui, stderr, warn=True)
 
-    return protoname, caps, phase_summary
+    return protoname, caps, phase_summary, heads_buckets_info
 
 
 class sshv1peer(wireprotov1peer.wirepeer):
@@ -455,6 +459,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         autoreadstderr=True,
         remotehidden=False,
         phase_summary: e_peer.PhaseSummary | None = None,
+        heads_buckets_info=None,
     ):
         """Create a peer from an existing SSH connection.
 
@@ -484,6 +489,7 @@ class sshv1peer(wireprotov1peer.wirepeer):
         self._initstack = b''.join(util.getstackframes(1))
         self._remotehidden = remotehidden
         self.phase_summary = phase_summary
+        self.heads_buckets_info = heads_buckets_info
 
     # Commands that have a "framed" response where the first line of the
     # response contains the length of that response.
@@ -676,7 +682,7 @@ def _make_peer(
     testing.
     """
     try:
-        protoname, caps, phase_summary = _performhandshake(
+        protoname, caps, phase_summary, heads_info = _performhandshake(
             ui,
             stdin,
             stdout,
@@ -698,6 +704,7 @@ def _make_peer(
             autoreadstderr=autoreadstderr,
             remotehidden=remotehidden,
             phase_summary=phase_summary,
+            heads_buckets_info=heads_info,
         )
     else:
         _cleanuppipes(ui, stdout, stdin, stderr, warn=None)

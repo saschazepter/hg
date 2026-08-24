@@ -317,6 +317,9 @@ def findcommonheads(
     else:
         ownheads = [rev for rev in cl.headrevs() if rev != nullrev]
 
+    initial_heads = ownheads
+    known_local = set()
+
     has_heads_bucket = (
         remote.capable(wireprototypes.HEADS_FINGERPRINT_CAP)
         # We only use heads fingerprint for server registered in the `[paths]`
@@ -329,11 +332,29 @@ def findcommonheads(
     initial_head_exchange = ui.configbool(b'devel', b'discovery.exchange-heads')
     initialsamplesize = ui.configint(b'devel', b'discovery.sample-size.initial')
     fullsamplesize = ui.configint(b'devel', b'discovery.sample-size')
-    # If we have preserved server head for that remote, we should try to use
-    # the one that are still valid.
-
+    # If we have preserved server head for that remote, and that remote
+    # provided fingerprint for its bucket during handsake, we detect use it to
+    # detect common revision before the discovery start and filter the local
+    # heads we are about to query for.
     if has_heads_bucket:
         cached_heads = exc_heads.RemoteHeadsCache.from_cache(local, remote)
+        if remote.heads_buckets_info is not None:
+            cns = cached_heads.nodes_matching(remote.heads_buckets_info)
+            get_rev = local.changelog.index.get_rev
+            known_local = set(get_rev(n) for n in cns)
+            known_local.discard(None)
+            # XXX This ancestors checking migh duplicate work later done by the
+            # `partialdiscovery` object. So it might be more efficient to
+            # create the object earlier and use it for this filtering.
+            #
+            # In addition, when `initial_heads` comes from `cl.headrevs()` we
+            # have two sorted list of revs here with potentially long common
+            # sequence. So we could optimize the comparision. The sorted aspect
+            # of known_local might change in the future though.
+            known_src = local.unfiltered().changelog.ancestors(
+                known_local, inclusive=True
+            )
+            initial_heads = [r for r in initial_heads if r not in known_src]
 
     # We also ask remote about all the local heads. That set can be arbitrarily
     # large, so we used to limit it size to `initialsamplesize`. We no longer
@@ -388,13 +409,13 @@ def findcommonheads(
     #     not been met in the wild so far.
     sample = []
     yesno = []
-    if initial_head_exchange:
+    if initial_head_exchange and initial_heads:
         if remote.limitedarguments:
-            sample = _limitsample(ownheads, initialsamplesize)
+            sample = _limitsample(initial_heads, initialsamplesize)
             # indices between sample and externalized version must match
             sample = list(sample)
         else:
-            sample = ownheads
+            sample = initial_heads
 
     msg = b"query 1;"
     if has_heads_bucket:
@@ -402,7 +423,12 @@ def findcommonheads(
     else:
         msg += b" heads"
     if sample:
-        msg += b" + initial-local-heads (sample size is %d)" % len(sample)
+        if len(sample) == len(ownheads):
+            msg += b" + initial-local-heads (sample size is %d)"
+            msg %= len(sample)
+        else:
+            msg += b" + initial-local-heads (sample size is %d (of %d))"
+            msg %= (len(sample), len(ownheads))
     dbg(msg + b"\n")
     roundtrips += 1
     cached_srv_heads_count = 0
@@ -440,6 +466,10 @@ def findcommonheads(
             msg = b"         received %d server heads, %d cached, %d total\n"
             msg %= (received, cached_srv_heads_count, total)
             dbg(msg)
+            if known_local:
+                msg = b"         %d local head pre-discovered\n"
+                msg %= len(known_local)
+                dbg(msg)
 
     if cl.tiprev() == nullrev:
         if audit is not None:
@@ -471,7 +501,11 @@ def findcommonheads(
         return srvheadhashes, False, srvheadhashes
 
     # early exit if we already know that all local "heads" are known remotely
-    if initial_head_exchange and len(sample) == len(ownheads) and all(yesno):
+    if (
+        initial_head_exchange
+        and len(sample) == len(initial_heads)
+        and all(yesno)
+    ):
         if audit is not None:
             audit[b'total-roundtrips'] = roundtrips
         ui.note(_(b"all local changesets known remotely\n"))

@@ -556,6 +556,19 @@ class RemoteHeadsCache:
             for b_id, (b_fp, _b_hc) in sorted(self._buckets.items())
         ]
 
+    def nodes_matching(self, remote_info: dict[int, bytes]) -> list[NodeIdT]:
+        """return all the currently known nodes in the cache"""
+        remote_fps = set(remote_info.values())
+        matches = [
+            b_id
+            for b_id, (fp, _hc) in self._buckets.items()
+            if fp in remote_fps
+        ]
+        count = 0
+        if matches:
+            count = self._buckets[max(matches)][1]
+        return self._heads[:count]
+
     def update(
         self,
         server_reply: _ServerReplyT,
@@ -593,3 +606,38 @@ class RemoteHeadsCache:
             self._heads.extend(nodes)
             self._buckets[b_id] = (b_fp, len(self._heads))
         return matching_head_count, self._heads[:]
+
+
+_HELLO_HEADER = b"heads-buckets-info-v01:"
+
+
+def encode_hello(repo) -> None | bytes:
+    """Encode heads bucket information for inclusion in client-server handshake"""
+    info = buckets_info(repo)
+    if not info:
+        return None
+    else:
+        line = [_HELLO_HEADER]
+        for b_id, (__, fp) in info.items():
+            line.append(b"%d:%s" % (b_id, node_mod.hex(bytes(fp))))
+        return b' '.join(line) + b"\n"
+
+
+def try_parse_hello(line: bytes) -> None | dict[int, bytes]:
+    """search for a head bucket info in a server handshake message"""
+    if not line.startswith(_HELLO_HEADER):
+        return None
+
+    info = {}
+    for bucket in line.split(b':', 1)[1].split():
+        try:
+            pieces = bucket.split(b':', 1)
+            if len(pieces) != 2:
+                return None
+            str_b_id, hex_fp = pieces
+            b_id = int(str_b_id)
+            fp = node_mod.bin(hex_fp)
+            info[b_id] = fp
+        except ValueError:
+            return None
+    return info

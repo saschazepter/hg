@@ -53,6 +53,7 @@ class Peer(i_repo.IPeer, abc.ABC):
     """common code for Peer class"""
 
     phase_summary = None
+    heads_buckets_info = None
 
     def __init__(
         self,
