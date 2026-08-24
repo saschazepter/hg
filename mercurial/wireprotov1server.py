@@ -12,7 +12,7 @@ import os
 import typing
 
 from .i18n import _
-from .node import hex
+from .node import bin, hex
 
 from . import (
     bundle2,
@@ -646,7 +646,14 @@ def heads(repo, proto):
 @wireprotocommand(b'heads_buckets', b'*', permission=b'pull')
 def heads_buckets(repo, proto, others):
     """Returns server heads as binary nodeid + bucket info"""
-    info = exch_heads.encoded_bucket_info(repo)
+    raw_client_cached = others.get(b"cached")
+    client_cached = {}
+    if raw_client_cached is not None:
+        for p in raw_client_cached.split(b';'):
+            key_str, hex_hashes = p.split(b':')
+            client_cached[int(key_str)] = bin(hex_hashes)
+    info = exch_heads.encoded_bucket_info(repo, cached=client_cached)
+
     return wireprototypes.bytesresponse(info)
 
 

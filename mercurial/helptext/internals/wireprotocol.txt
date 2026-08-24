@@ -519,6 +519,9 @@ heads_fingerprints
 
 Whether the client supports the `heads_buckets` command.
 
+An optional "cached" parameter allows the client to send the fingerprint of
+locally cached buckets to reduce the amount of heads sent over the wire.
+
 httpheader
 ----------
 

@@ -15,7 +15,7 @@ from .i18n import _
 from .interfaces.types import (
     NodeIdT,
 )
-from .node import bin
+from .node import bin, hex
 from . import (
     bundle2,
     changegroup as changegroupmod,
@@ -476,8 +476,12 @@ class wirepeer(
         return {}, decode
 
     @batchable
-    def heads_buckets(self):
-        """Fetch heads information by bucket with associated fingerprints"""
+    def heads_buckets(self, cached: None | list[tuple[int, bytes]] = None):
+        """Fetch heads information by bucket with associated fingerprints
+
+        The optional "cached" argument list bucket known locally to allow the
+        server to skip the common one.
+        """
 
         def decode(d):
             try:
@@ -485,7 +489,11 @@ class wirepeer(
             except (ValueError, IndexError):
                 self._abort(error.ResponseError(_(b"unexpected response:"), d))
 
-        return {}, decode
+        args = {}
+        if cached:
+            pieces = [b"%d:%s" % (b_id, hex(fp)) for b_id, fp in cached]
+            args[b"cached"] = b';'.join(pieces)
+        return args, decode
 
     @batchable
     def known(self, nodes):

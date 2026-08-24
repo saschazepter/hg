@@ -12,6 +12,7 @@ import struct
 
 from typing import (
     Dict,
+    Optional,
     Sequence,
     Tuple,
 )
@@ -278,6 +279,11 @@ BUCKET_HEADER = struct.Struct('>BBB')
 * [u8]: nodeid size
 """
 
+BUCKET_WIRE_HEADER = struct.Struct(BUCKET_HEADER.format + 'L')
+"""
+* u32: number of skipped head
+"""
+
 
 BUCKET_INFO = struct.Struct('>Ll')
 """The fixed size part of a single bucket header used for serialization
@@ -287,9 +293,11 @@ BUCKET_INFO = struct.Struct('>Ll')
 """
 
 
-def encoded_bucket_info(repo) -> bytes:
+def encoded_bucket_info(repo, cached=None) -> bytes:
     """an encoded version of the bucket info to be used over the wire
 
+    If "cached" is provided, bucket whose fingerprint match the cache will be
+    skipped.
 
     The data is encoded as follow:
 
@@ -308,6 +316,13 @@ def encoded_bucket_info(repo) -> bytes:
     pieces = []
     bucket_info = buckets_info(repo)
 
+    skipped_heads = 0
+    if cached is not None:
+        cached_fp = set(cached.values())
+        for current in bucket_info.values():
+            if current[1] in cached_fp:
+                skipped_heads = max(skipped_heads, current[0])
+
     cl = repo.changelog
     to_node = cl.index.node
     head_revs = cl.headrevs()
@@ -315,16 +330,23 @@ def encoded_bucket_info(repo) -> bytes:
     bfps = FP_SPEC.size
     hns = repo.nodeconstants.nodelen
 
-    pieces.append(BUCKET_HEADER.pack(len(bucket_info), bfps, hns))
+    pieces.append(
+        BUCKET_WIRE_HEADER.pack(
+            len(bucket_info),
+            bfps,
+            hns,
+            skipped_heads,
+        )
+    )
 
     for bucket_id, (count, fp) in sorted(bucket_info.items()):
         pieces.append(BUCKET_INFO.pack(bucket_id, count))
         pieces.append(fp)
-    pieces.extend(to_node(r) for r in head_revs)
+    pieces.extend(to_node(r) for r in head_revs[skipped_heads:])
     return b''.join(pieces)
 
 
-_ServerReplyT = Dict[int, Tuple[bytes, Sequence[NodeIdT]]]
+_ServerReplyT = Dict[int, Tuple[bytes, int, Optional[Sequence[NodeIdT]]]]
 """The data sent by the server when requesting heads with fingerprint"""
 
 
@@ -333,18 +355,23 @@ def decode_bucket_info(
 ) -> _ServerReplyT:
     """return a dict from a encoded bucket info
 
-    { bucket-id -> (fingerprint, [nodes])}
+    { bucket-id -> (fingerprint, head_count, [nodes] | None)}
+
+    A nodes value of None means the server still use the values we have cached
+    locally and skip sending the actual node values.
 
     Used by the wireprotocol to deserialize the data from `encoded_bucket_info`.
     """
 
     data = memoryview(raw_data)
-    nb_bucket, bfps, hns = BUCKET_HEADER.unpack(data[: BUCKET_HEADER.size])
+    HSIZE = BUCKET_WIRE_HEADER.size
+    h_data = data[:HSIZE]
+    nb_bucket, bfps, hns, skipped_heads = BUCKET_WIRE_HEADER.unpack(h_data)
 
     info_size = BUCKET_INFO.size + bfps
     all_info_size = nb_bucket * info_size
-    info_data = data[BUCKET_HEADER.size : BUCKET_HEADER.size + all_info_size]
-    nodes_data = data[BUCKET_HEADER.size + all_info_size :]
+    info_data = data[HSIZE : HSIZE + all_info_size]
+    nodes_data = data[HSIZE + all_info_size :]
     if (chunk_len := len(nodes_data)) % hns:
         msg = "nodes-chunk of odd size (%d %% %d)"
         msg %= (chunk_len, hns)
@@ -355,22 +382,28 @@ def decode_bucket_info(
         raw = info_data[start : start + BUCKET_INFO.size]
         bucket_id, nb_head = BUCKET_INFO.unpack(raw)
         fp = info_data[start + BUCKET_INFO.size : start + info_size]
+        if nb_head == 0:
+            continue
         info.append((bucket_id, nb_head, fp))
 
     prev_nb_head = 0
     read = 0  # sanity checks
     bucket_info: _ServerReplyT = {}
     for bucket_id, nb_head, fp in info:
-        nodes_start = prev_nb_head * hns
-        if read == 0:
-            assert nodes_start == 0
-        nodes_end = nb_head * hns
-        assert nodes_end <= len(nodes_data)
-        # XXX consider not building the list at all in the future
-        indexes = range(nodes_start, nodes_end, hns)
-        nodes = [nodes_data[i : i + hns].tobytes() for i in indexes]
-        read += len(nodes)
-        bucket_info[bucket_id] = (fp, nodes)
+        if nb_head <= skipped_heads:
+            nodes = None
+            assert read == 0
+        else:
+            nodes_start = (prev_nb_head - skipped_heads) * hns
+            if read == 0:
+                assert nodes_start == 0
+            nodes_end = (nb_head - skipped_heads) * hns
+            assert nodes_end <= len(nodes_data)
+            # XXX consider not building the list at all in the future
+            indexes = range(nodes_start, nodes_end, hns)
+            nodes = [nodes_data[i : i + hns].tobytes() for i in indexes]
+            read += len(nodes)
+        bucket_info[bucket_id] = (fp, nb_head, nodes)
         prev_nb_head = nb_head
     if read < (available := (chunk_len // hns)):
         msg = "fewer nodes read than available (%d < %d)"

@@ -54,6 +54,8 @@ from . import (
     wireprototypes,
 )
 
+from .exchanges import heads as exc_heads
+
 
 def _updatesample(revs, heads, sample, parentfn, quicksamplesize=0):
     """update an existing sample to match the expected size
@@ -315,10 +317,24 @@ def findcommonheads(
     else:
         ownheads = [rev for rev in cl.headrevs() if rev != nullrev]
 
-    has_heads_bucket = remote.capable(wireprototypes.HEADS_FINGERPRINT_CAP)
+    has_heads_bucket = (
+        remote.capable(wireprototypes.HEADS_FINGERPRINT_CAP)
+        # We only use heads fingerprint for server registered in the `[paths]`
+        # config as it is less clear than the other one will be reused often
+        # enough for on-disk caching to be worth it.
+        #
+        # (This might change in the future or at least be configurable.)
+        and remote.path.name is not None
+    )
     initial_head_exchange = ui.configbool(b'devel', b'discovery.exchange-heads')
     initialsamplesize = ui.configint(b'devel', b'discovery.sample-size.initial')
     fullsamplesize = ui.configint(b'devel', b'discovery.sample-size')
+    # If we have preserved server head for that remote, we should try to use
+    # the one that are still valid.
+
+    if has_heads_bucket:
+        cached_heads = exc_heads.RemoteHeadsCache.from_cache(local, remote)
+
     # We also ask remote about all the local heads. That set can be arbitrarily
     # large, so we used to limit it size to `initialsamplesize`. We no longer
     # do as it proved counter productive. The skipped heads could lead to a
@@ -389,9 +405,11 @@ def findcommonheads(
         msg += b" + initial-local-heads (sample size is %d)" % len(sample)
     dbg(msg + b"\n")
     roundtrips += 1
+    cached_srv_heads_count = 0
     with remote.commandexecutor() as e:
         if has_heads_bucket:
-            fheads = e.callcommand(b'heads_buckets', {})
+            cached_ids = cached_heads.cached_fingerprints()
+            fheads = e.callcommand(b'heads_buckets', {b"cached": cached_ids})
         else:
             fheads = e.callcommand(b'heads', {})
         if sample:
@@ -404,19 +422,24 @@ def findcommonheads(
                 },
             )
     if has_heads_bucket:
-        srv_head_nodes = set()
         rhh = fheads.result()
-        for h, nodes in rhh.values():
-            srv_head_nodes.update(nodes)
-        srvheadhashes = list(srv_head_nodes)
+        cached_srv_heads_count, srvheadhashes = cached_heads.update(rhh)
+        cached_heads.try_write(local, remote)
     else:
         srvheadhashes = fheads.result()
     if sample:
         yesno = fknown.result()
 
     if disco_debug:
-        msg = b"         received %d server heads\n"
-        dbg(msg % len(srvheadhashes))
+        if cached_srv_heads_count <= 0:
+            msg = b"         received %d server heads\n"
+            dbg(msg % len(srvheadhashes))
+        else:
+            total = len(srvheadhashes)
+            received = len(srvheadhashes) - cached_srv_heads_count
+            msg = b"         received %d server heads, %d cached, %d total\n"
+            msg %= (received, cached_srv_heads_count, total)
+            dbg(msg)
 
     if cl.tiprev() == nullrev:
         if audit is not None:
