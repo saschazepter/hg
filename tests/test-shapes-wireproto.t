@@ -12,9 +12,6 @@ Setup the repo
   $ hg init server
   $ cd server
 
-Normal cases
-------------
-
 Setup the server shapes config
   $ cat > .hg/store/server-shapes <<EOF
   > version = 0
