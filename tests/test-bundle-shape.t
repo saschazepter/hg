@@ -67,7 +67,7 @@ Test without any shaping (sanity check)
 
 Create shapes config
 
-  $ cat >> source/.hg/store/server-shapes << EOF
+  $ cat << EOF >> $TESTTMP/source-shapes
   > version = 0
   > [[shards]]
   > name = "default"
@@ -88,6 +88,7 @@ Create shapes config
   > shape = true
   > requires = ["excluded1", "foobar"]
   > EOF
+  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes
 
 Test with an unknown shape
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foo" outfile-shaped.hg

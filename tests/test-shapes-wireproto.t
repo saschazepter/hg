@@ -13,7 +13,7 @@ Setup the repo
   $ cd server
 
 Setup the server shapes config
-  $ cat > .hg/store/server-shapes <<EOF
+  $ cat > $TESTTMP/starting-shapes <<EOF
   > version = 0
   > [[shards]]
   > name = "default"
@@ -32,6 +32,7 @@ Setup the server shapes config
   > paths = ["foo/bar/other-secret"]
   > shape = true
   > EOF
+  $ hg admin::narrow-server --shape-update -f $TESTTMP/starting-shapes
 
 
 Add files
