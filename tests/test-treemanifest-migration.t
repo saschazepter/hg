@@ -5,6 +5,8 @@ Test the procedure for migrating a repository off tree manifests
   $ cat << EOF >> $HGRCPATH
   > [extensions]
   > convert=
+  > [experimental]
+  > treemanifest.warn=no
   > EOF
 
 Set up the repo

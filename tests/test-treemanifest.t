@@ -1,3 +1,21 @@
+The format is deprecated, so opening such a repository warns
+
+  $ hg --config experimental.treemanifest=True init deprecated
+  warning: this repository uses the deprecated 'treemanifest' format
+  (see 'hg help internals.requirements.treemanifest' for how to convert it)
+  (set experimental.treemanifest.warn=no to silence this warning)
+  $ hg -R deprecated status
+  warning: this repository uses the deprecated 'treemanifest' format
+  (see 'hg help internals.requirements.treemanifest' for how to convert it)
+  (set experimental.treemanifest.warn=no to silence this warning)
+
+The rest of this test uses the deprecated format on purpose
+
+  $ cat >> $HGRCPATH <<EOF
+  > [experimental]
+  > treemanifest.warn = no
+  > EOF
+
 Set up repo
 
   $ hg --config experimental.treemanifest=True init repo

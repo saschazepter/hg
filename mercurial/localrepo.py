@@ -733,6 +733,8 @@ def makelocalrepository(baseui, path: bytes, intents=None):
     # Then we validate that the known set is reasonable to use together.
     ensurerequirementscompatible(ui, requirements)
 
+    req_util.warn_deprecated_requirements(ui, requirements)
+
     # WARNING: Without `share-safe`, there are unhandled edge cases related to
     # opening repositories with shared storage. If storage is shared, we should
     # also test for requirements compatibility in the pointed-to repo. This

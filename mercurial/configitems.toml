@@ -1323,6 +1323,16 @@ default = false
 
 [[items]]
 section = "experimental"
+name = "treemanifest.warn"
+default = true
+documentation = """
+When true (the default), warn when opening a repository that uses the
+deprecated ``treemanifest`` format. See
+:hg:`help internals.requirements.treemanifest`.
+"""
+
+[[items]]
+section = "experimental"
 name = "update.atomic-file"
 default = false
 

@@ -2,6 +2,12 @@
 
   $ . "$TESTDIR/remotefilelog-library.sh"
 
+This test uses the deprecated treemanifest format on purpose
+  $ cat >> $HGRCPATH <<EOF
+  > [experimental]
+  > treemanifest.warn=no
+  > EOF
+
   $ hg init master
   $ cd master
   $ echo treemanifest >> .hg/requires

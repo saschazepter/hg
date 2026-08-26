@@ -222,6 +222,7 @@ class statichttprepository(localrepo.localrepository):
             requirements, supportedrequirements
         )
         localrepo.ensurerequirementscompatible(ui, requirements)
+        repo_req.warn_deprecated_requirements(ui, requirements)
         self.nodeconstants = sha1nodeconstants
         self.nullid = self.nodeconstants.nullid
 

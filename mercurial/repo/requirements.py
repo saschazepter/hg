@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from ..i18n import _
 from .. import (
     extensions,
     requirements as requirementsmod,
@@ -71,3 +72,22 @@ def gather_supported_requirements(ui):
                 supported.add(requirementsmod.REVLOG_COMPRESSION_ZSTD)
 
     return supported
+
+
+WARN_TREEMANIFEST_DEPRECATED = _(
+    b"""warning: this repository uses the deprecated 'treemanifest' format
+(see 'hg help internals.requirements.treemanifest' for how to convert it)
+(set experimental.treemanifest.warn=no to silence this warning)
+"""
+)
+
+
+def warn_deprecated_requirements(ui, requirements):
+    """Warn about the deprecated requirements a repository is using.
+
+    This is called when opening a repository, so each warning must be
+    silenceable through a configuration option.
+    """
+    if requirementsmod.TREEMANIFEST_REQUIREMENT in requirements:
+        if ui.configbool(b'experimental', b'treemanifest.warn'):
+            ui.warn(WARN_TREEMANIFEST_DEPRECATED)

@@ -141,6 +141,8 @@ Now a similar test for a non-root manifest revlog
   $ cat >> $HGRCPATH <<EOF
   > [experimental]
   > treemanifests = yes
+  > # This test uses the deprecated treemanifest format on purpose
+  > treemanifest.warn = no
   > EOF
   $ mkdir treemanifests
   $ cd treemanifests

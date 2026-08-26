@@ -198,7 +198,13 @@ Unless the action is compatible with share
 Do not yet support downgrading treemanifest repos
 
   $ hg --config experimental.treemanifest=true init treemanifest
+  warning: this repository uses the deprecated 'treemanifest' format
+  (see 'hg help internals.requirements.treemanifest' for how to convert it)
+  (set experimental.treemanifest.warn=no to silence this warning)
   $ hg -R treemanifest debugupgraderepo
+  warning: this repository uses the deprecated 'treemanifest' format
+  (see 'hg help internals.requirements.treemanifest' for how to convert it)
+  (set experimental.treemanifest.warn=no to silence this warning)
   abort: cannot upgrade repository; requirement would be removed: treemanifest
   [255]
 
