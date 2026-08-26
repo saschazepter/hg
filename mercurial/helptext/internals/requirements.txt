@@ -202,6 +202,5 @@ requirements:
 * ``dotencode``, because dotencode is specific to the fncache.
 * ``treemanifest``, because the file index does not support ``meta/`` paths.
 
-.. TODO: Uncomment this once we know the release date.
-.. Support for this requirement was added in Mercurial 7.2 (released ???). The
-.. requirement is currently experimental and is disabled by default.
+Support for this requirement was added in Mercurial 7.2 (released January
+2026). The requirement is currently disabled by default.
