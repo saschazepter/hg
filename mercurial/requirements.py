@@ -55,7 +55,7 @@ INTERNAL_PHASE_REQUIREMENT: Final[RequirementT] = b'internal-phase-2'
 # of stripping them
 ARCHIVED_PHASE_REQUIREMENT: Final[RequirementT] = b'exp-archived-phase'
 
-# Stores manifest in Tree structure
+# Stores manifest in Tree structure (DEPRECATED)
 TREEMANIFEST_REQUIREMENT: Final[RequirementT] = b'treemanifest'
 
 REVLOGV1_REQUIREMENT: Final[RequirementT] = b'revlogv1'

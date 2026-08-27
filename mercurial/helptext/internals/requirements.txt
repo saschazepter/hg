@@ -126,9 +126,20 @@ The ``treemanifest`` and ``fileindex-v1`` requirements cannot be used
 together because tree manifests require storing ``meta/`` paths in the fncache,
 and the file index only supports ``data/`` paths.
 
-Support for this requirement was added in Mercurial 3.4 (released
-August 2015). The requirement is currently experimental and is
-disabled by default.
+.. TODO: Update below with release dates of 7.3 and 7.4, change "will" to "was",
+.. and change 7.4 if it ends up being delayed.
+
+Support for this requirement was added in Mercurial 3.4 (released August 2015).
+The requirement was deprecated in Mercurial 7.3 and will be removed in Mercurial
+7.4. To migrate away from treemanifest, use the ``convert`` extension::
+
+    $ hg convert old-repo new-repo \
+      --config extensions.convert= \
+      --config experimental.treemanifest=no
+
+The new repository will contain the same history, but all the changeset identity
+hashes will be different. There is no way to preserve them because they are
+derived by hashing different manifest formats.
 
 exp-sparse
 ==========

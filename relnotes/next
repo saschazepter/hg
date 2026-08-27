@@ -16,6 +16,12 @@ Mercurial XXX.
 
 == New Experimental Features ==
 
+== Deprecations ==
+
+* The `treemanifest` format is deprecated and will no longer be supported in a
+  future version. See `hg help internals.requirements.treemanifest` for
+  instructions on how to convert a repository to migrate away from it.
+
 == Bug Fixes ==
 
 == Backwards Compatibility Changes ==
