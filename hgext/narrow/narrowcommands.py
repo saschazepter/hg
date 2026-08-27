@@ -95,7 +95,7 @@ def setup():
         entry[1].append(
             (
                 b'',
-                b'shape',
+                b'store-shape',
                 b'',
                 _(b"fetch files and directories for this shape name"),
             )

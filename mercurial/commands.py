@@ -1831,11 +1831,11 @@ def clone(ui, source, dest=None, **opts):
 
     cmdutil.check_incompatible_arguments(
         opts,
-        'shape',
+        'store_shape',
         ['narrow', 'include', 'exclude', 'narrowspec'],
     )
 
-    shape = opts.get('shape') or None
+    shape = opts.get('store_shape') or None
 
     # --include/--exclude can come from narrow or sparse.
     includepats, excludepats = None, None

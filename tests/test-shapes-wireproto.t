@@ -190,13 +190,13 @@ Test narrow clone with `--store-shape`
 
 Test the error case
 
-  $ $POLICY hg clone $remote_url narrow-clone $remote_cmd --shape unknown-shape
+  $ $POLICY hg clone $remote_url narrow-clone $remote_cmd --store-shape unknown-shape
   abort: shape not found on remote: 'unknown-shape'
   [10]
 
 Test a valid shape
 
-  $ $POLICY hg clone $remote_url narrow-clone $remote_cmd --shape default --quiet
+  $ $POLICY hg clone $remote_url narrow-clone $remote_cmd --store-shape default --quiet
   $ cd narrow-clone
 
 Check that we track the correct paths

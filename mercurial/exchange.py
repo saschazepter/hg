@@ -2992,8 +2992,8 @@ def _maybeapplyclonebundle(pullop: pulloperation):
         )
         return
 
-    # The user has passed in other pattern flags than `--shape`, we need to
-    # compute their fingerprint so the filtering works and we don't
+    # The user has passed in other pattern flags than `--store-shape`, we need
+    # to compute their fingerprint so the filtering works and we don't
     # unintentionally select a shaped bundle
     if pullop.store_fingerprints is not None:
         store_fingerprints = pullop.store_fingerprints

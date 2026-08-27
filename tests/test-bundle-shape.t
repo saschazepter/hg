@@ -329,7 +329,7 @@ The rest works correctly
   $ hg cat dir2/b
   foobar
 
-Testing that cloning with --shape works the same
+Testing that cloning with --store-shape works the same
 ------------------------------------------------
 
 Start a narrow server that doesn't understand shapes
@@ -343,7 +343,7 @@ Start a narrow server that doesn't understand shapes
   $ hg serve -d -p $HGPORT --pid-file hg.pid
   $ cat hg.pid > $DAEMON_PIDS
   $ cd ..
-  $ hg clone ssh://user@dummy/source clone-shaped3 --shape foobaz
+  $ hg clone ssh://user@dummy/source clone-shaped3 --store-shape foobaz
   abort: cannot use store shapes; remote repository does not support the 'exp-shape-1' capability
   [255]
   $ killdaemons.py
@@ -358,11 +358,11 @@ Restore the capability
 Restart the normal server
   $ hg serve -R source -d -p $HGPORT --pid-file hg.pid --errorlog error.log --accesslog access.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ hg clone ssh://user@dummy/source clone-shaped3 --shape unknown-shape
+  $ hg clone ssh://user@dummy/source clone-shaped3 --store-shape unknown-shape
   abort: shape not found on remote: 'unknown-shape'
   [10]
 
-  $ hg clone ssh://user@dummy/source clone-shaped3 --shape foobaz | grep "bundle from"
+  $ hg clone ssh://user@dummy/source clone-shaped3 --store-shape foobaz | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
   $ cd clone-shaped3
   $ hg debug-revlog-stats --filelogs -T'{revlog_target}\n'
@@ -475,7 +475,7 @@ Try a full stream clone
 
   $ echo "$urlprefix-$shard_fingerprint_foobar.hg BUNDLESPEC=$bundlespecfull;shard-id=$shard_fingerprint_foobar;bundle-group-id=05a21d65" >> source/.hg/clonebundles.manifest
 
-  $ hg clone ssh://user@dummy/source target --shape=full --stream | grep 'applying'
+  $ hg clone ssh://user@dummy/source target --store-shape full --stream | grep 'applying'
   applying 5 clone bundles
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
   finished applying clone bundle [1/5]
@@ -504,7 +504,7 @@ Try a full stream clone
 Try a partial clone of a single user-defined shard
 ..................................................
 
-  $ hg clone ssh://user@dummy/source partial-foobar --noupdate --shape foobar --stream --debug | grep "applying"
+  $ hg clone ssh://user@dummy/source partial-foobar --noupdate --store-shape foobar --stream --debug | grep "applying"
   applying 2 clone bundles
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
   applying stream bundle
@@ -570,7 +570,7 @@ Verify is happy
 Try a partial clone of a user-defined shard with dependencies
 .............................................................
 
-  $ hg clone ssh://user@dummy/source partial-foobaz --noupdate --shape foobaz --stream --debug | grep "applying"
+  $ hg clone ssh://user@dummy/source partial-foobaz --noupdate --store-shape foobaz --stream --debug | grep "applying"
   applying 3 clone bundles
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
   applying stream bundle
@@ -657,7 +657,7 @@ Missing a bundle for a shape
 
 Affects a shape that needs it
 
-  $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --shape full --stream --debug | grep "shard"
+  $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --store-shape full --stream --debug | grep "shard"
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
   filtering peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg because bundle group 05a21d65 is missing some required shards
@@ -668,7 +668,7 @@ Affects a shape that needs it
 
 But not one that doesn't need this missing shard
 
-  $ hg clone ssh://user@dummy/source successful-foobaz --noupdate --shape foobaz --stream --debug | grep "finished applying"
+  $ hg clone ssh://user@dummy/source successful-foobaz --noupdate --store-shape foobaz --stream --debug | grep "finished applying"
   finished applying clone bundle [1/3]
   finished applying clone bundle [2/3]
   finished applying clone bundle [3/3]
@@ -681,7 +681,7 @@ One shard with the wrong bundle group id should disqualify the group from matchi
 
   $ sed '1 s/bundle-group-id=05a21d65/bundle-group-id=badbadbad/' source/.hg/clonebundles.old > source/.hg/clonebundles.manifest
 
-  $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --shape full --stream --debug | grep "shard"
+  $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --store-shape full --stream --debug | grep "shard"
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
   filtering peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg because bundle group badbadbad is missing some required shards
@@ -697,7 +697,7 @@ Two generations of complete sets is not an issue, we should pick the first one
 
   $ sed 's/05a21d65/43c37dde/g' source/.hg/clonebundles.old > source/.hg/clonebundles.manifest
   $ cat source/.hg/clonebundles.old >> source/.hg/clonebundles.manifest
-  $ hg clone ssh://user@dummy/source successful-full --noupdate --shape full --stream --debug | grep "clone bundle from"
+  $ hg clone ssh://user@dummy/source successful-full --noupdate --store-shape full --stream --debug | grep "clone bundle from"
   applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
   applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
   applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
@@ -714,7 +714,7 @@ Two incomplete generations are not considered a full match
   > $urlprefix-05a21d65-$shard_fingerprint_excluded1.hg BUNDLESPEC=$bundlespecfull;shard-id=$shard_fingerprint_excluded1;bundle-group-id=05a21d65
   > $urlprefix-05a21d65-$shard_fingerprint_excluded2.hg BUNDLESPEC=$bundlespecfull;shard-id=$shard_fingerprint_excluded2;bundle-group-id=05a21d65
   > EOF
-  $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --shape full --stream --debug | grep "filtering"
+  $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --store-shape full --stream --debug | grep "filtering"
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
   filtering peer-bundle-cache://hg-sharded-05a21d65-43c37dde-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg because bundle group 43c37dde is missing some required shards
@@ -728,7 +728,7 @@ A complete old generation + incomplete new generation must match the old one
 
   $ sed 's/05a21d65/43c37dde/g' source/.hg/clonebundles.old | head -n 2 > source/.hg/clonebundles.manifest
   $ cat source/.hg/clonebundles.old >> source/.hg/clonebundles.manifest
-  $ hg clone ssh://user@dummy/source successful-full --noupdate --shape full --stream --debug | grep "clone bundle from"
+  $ hg clone ssh://user@dummy/source successful-full --noupdate --store-shape full --stream --debug | grep "clone bundle from"
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
@@ -742,7 +742,7 @@ Top-level bundle listed last in the manifest is still applied first
 
   $ grep -v top-level source/.hg/clonebundles.old > source/.hg/clonebundles.manifest
   $ grep top-level source/.hg/clonebundles.old >> source/.hg/clonebundles.manifest
-  $ hg clone ssh://user@dummy/source reordered-full --noupdate --shape full --stream --debug | grep "clone bundle from"
+  $ hg clone ssh://user@dummy/source reordered-full --noupdate --store-shape full --stream --debug | grep "clone bundle from"
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
