@@ -3,6 +3,7 @@ use std::ffi::OsString;
 use std::ops::Range;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::thread::available_parallelism;
 use std::time::Duration;
 use std::time::SystemTime;
@@ -33,6 +34,7 @@ use crate::server::local::LocalToken;
 use crate::server::store::BackendMode;
 use crate::server::store::FileToken;
 use crate::server::store::RevisionIdx;
+use crate::server::store::Store;
 use crate::server::store::StoreBackend;
 
 const MERCURIAL_FIRST_COMMIT_TIMESTAMP: Duration =
@@ -106,10 +108,16 @@ impl HgFuse<LocalBackend, LocalToken> {
             .unwrap_or_else(|| {
                 available_parallelism().map(usize::from).unwrap_or(1)
             });
-        let store = LocalBackend::new(repo, backend_mode)?;
+        let store_backend = LocalBackend::new(repo, backend_mode)?;
         // Use a constant time, so that restarts don't affect the dirstate.
         let start_time =
             SystemTime::UNIX_EPOCH + MERCURIAL_FIRST_COMMIT_TIMESTAMP;
+        let store = Arc::new(Store::new(
+            store_backend,
+            max_revisions_loaded,
+            start_time,
+            Some(mountpoint.to_path_buf()),
+        ));
         let server = Server::new(
             store,
             start_time,

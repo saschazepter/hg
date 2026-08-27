@@ -28,6 +28,7 @@ use crate::server::store::BackendMode;
 use crate::server::store::DirstateBaseInfo;
 use crate::server::store::Error as StoreError;
 use crate::server::store::FileToken;
+use crate::server::store::Store;
 use crate::server::store::StoreBackend;
 
 pub mod local;
@@ -55,7 +56,7 @@ pub struct Config {
 pub struct Server<S, T> {
     /// The repo that we're serving for
     /// TODO more than 1 repo at once
-    store: S,
+    store: Arc<Store<S, T>>,
     /// Revisions whose tree we've populated
     revisions: Cache<Node, Arc<OwnedRevision<T>>>,
     /// When this server was started
@@ -73,7 +74,7 @@ pub struct Server<S, T> {
 
 impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     pub fn new(
-        store: S,
+        store: Arc<Store<S, T>>,
         start_time: SystemTime,
         user_id: Option<u32>,
         group_id: Option<u32>,
@@ -188,7 +189,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
                     // Is a syntactically valid node, try to look it up
                     let revision = self.get_revision(node)?;
                     let root_inode = RootInodeEncoder::revision_inode(
-                        self.store.idx_for_node(node)?,
+                        self.store.store_backend.idx_for_node(node)?,
                     );
                     let root_entry_opt = revision.get_entry(root_inode);
                     return Ok(root_entry_opt);
@@ -221,13 +222,14 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     ) -> Result<(Arc<OwnedRevision<T>>, DirstateBaseInfo<T>), StoreError<T>>
     {
         let (revision_data, new_dirstate_base) = OwnedRevision::from_revision(
-            &self.store,
+            &self.store.store_backend,
             changeset,
             self.start_time,
             base_dirstate,
         )?;
         let revision_arc = Arc::new(revision_data);
-        let preload = self.store.server_config().preload_structure;
+        let preload =
+            self.store.store_backend.server_config().preload_structure;
         if preload {
             self.spawn_revision_preloading(
                 changeset,
@@ -297,9 +299,9 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         if RootInodeEncoder::is_reserved(ino) {
             unimplemented!("reserved files are always special cased");
         }
-        match self
-            .with_revision(ino, |revision| revision.read(ino, &self.store))
-        {
+        match self.with_revision(ino, |revision| {
+            revision.read(ino, &self.store.store_backend)
+        }) {
             Some(Ok(Some(data))) => Ok(Some(data)),
             Some(Err(e)) => Err(e),
             _ => Ok(None),
@@ -315,7 +317,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
         let idx = RootInodeEncoder::ino_to_idx(ino)?;
         // TODO: instead of ignoring these errors by converting them to options,
         // we should consider returning Result<Option<R>>
-        let node = self.store.node_for_idx(idx).ok()?;
+        let node = self.store.store_backend.node_for_idx(idx).ok()?;
         let revision = self.get_revision(node).ok()?;
         Some(func(&revision))
     }

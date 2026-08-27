@@ -2,6 +2,9 @@
 //! store.
 
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::time::SystemTime;
 
 use clap::ValueEnum;
 use fuser::INodeNo;
@@ -13,8 +16,10 @@ use hg::revlog::manifest::ManifestFlags;
 use hg::utils::RawData;
 use hg::utils::hg_path::HgPath;
 use hg::utils::hg_path::HgPathBuf;
+use quick_cache::sync::Cache;
 
 use crate::server::Config;
+use crate::server::OwnedRevision;
 
 /// Enumerates the kinds of errors that can happen from interacting with the
 /// store.
@@ -275,4 +280,41 @@ pub struct DirstateBaseInfo<T> {
     pub offset_to_token: OffsetToToken<T>,
     /// The inode for the dirstate data file, used to special-case reads
     pub data_ino: INodeNo,
+}
+
+// TODO: These fields will be used later in this stack. Reduce visibility as
+// needed once they are used.
+pub struct Store<S, T> {
+    /// The repo that we're serving for
+    pub store_backend: S,
+    /// Revisions whose tree we've populated
+    pub revisions: Cache<Node, Arc<OwnedRevision<T>>>,
+    /// When this server was started
+    pub start_time: SystemTime,
+    /// The mount point for this FUSE, if we want preloading
+    pub mount_point: Option<PathBuf>,
+    /// Information about a previously loaded dirstate to compute later ones
+    /// incrementally.
+    pub dirstate_base_info: Mutex<Option<DirstateBaseInfo<T>>>,
+}
+
+const DEFAULT_MAX_REVISIONS_LOADED: usize = 64;
+
+impl<S: StoreBackend<T>, T: FileToken> Store<S, T> {
+    pub fn new(
+        store_backend: S,
+        max_revisions_loaded: Option<usize>,
+        start_time: SystemTime,
+        mount_point: Option<PathBuf>,
+    ) -> Self {
+        Self {
+            store_backend,
+            revisions: Cache::new(
+                max_revisions_loaded.unwrap_or(DEFAULT_MAX_REVISIONS_LOADED),
+            ),
+            start_time,
+            mount_point,
+            dirstate_base_info: Mutex::new(None),
+        }
+    }
 }

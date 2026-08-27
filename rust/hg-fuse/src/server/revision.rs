@@ -66,7 +66,7 @@ use crate::server::store::StoreBackend;
 use crate::server::store::StoreInfo;
 
 /// Represents a manifest revision
-pub(super) struct OwnedRevision<T> {
+pub struct OwnedRevision<T> {
     revision: RevisionTree<T>,
 }
 
