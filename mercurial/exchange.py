@@ -175,11 +175,10 @@ def getbundlespec(ui, fh):
                 requirements = urlreq.unquote(part.params[b'requirements'])
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
-                store_fingerprint = part.params.get(b"store-fingerprint")
-                if store_fingerprint is not None:
-                    # TODO make this function more generic and stop hardcoding
-                    fmt = (params, store_fingerprint)
-                    params = b"%s;store-fingerprint=%s" % fmt
+                for param in bundlecaches.FORWARDED_SPEC_PARAMS:
+                    value = part.params.get(param)
+                    if value is not None:
+                        params = b"%s;%s=%s" % (params, param, value)
                 return b'none-v2;stream=v2;%s' % params
             elif part.type == b'stream3-exp' and version is None:
                 # A stream3 part requires to be part of a v2 bundle

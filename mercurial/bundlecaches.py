@@ -352,6 +352,13 @@ def parseclonebundlesmanifest(repo, s):
     return m
 
 
+# Bundlespec params that are simply copied over (and uppercased) to the manifest
+# line parameters for easier filtering.
+FORWARDED_SPEC_PARAMS = [
+    b"store-fingerprint",
+]
+
+
 def parse_clonebundle_manifest_line(
     repo: RepoT, line: bytes
 ) -> dict[bytes, bytes] | None:
@@ -377,8 +384,9 @@ def parse_clonebundle_manifest_line(
                 if raw_dc is not None:
                     attrs[b'DELTA-COMPRESSION'] = raw_dc.split(b',')
                 attrs[b'VERSION'] = bundlespec.version
-                if sf := bundlespec.params.get(b"store-fingerprint"):
-                    attrs[b'STORE-FINGERPRINT'] = sf
+                for param in FORWARDED_SPEC_PARAMS:
+                    if value := bundlespec.params.get(param):
+                        attrs[param.upper()] = value
             except error.InvalidBundleSpecification:
                 pass
             except error.UnsupportedBundleSpecification:
