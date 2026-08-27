@@ -5,6 +5,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::thread::available_parallelism;
 use std::time::Duration;
+use std::time::SystemTime;
 
 use fuser::BackgroundSession;
 use fuser::Config;
@@ -33,6 +34,9 @@ use crate::server::store::BackendMode;
 use crate::server::store::FileToken;
 use crate::server::store::RevisionIdx;
 use crate::server::store::StoreBackend;
+
+const MERCURIAL_FIRST_COMMIT_TIMESTAMP: Duration =
+    Duration::from_secs(1115154970);
 
 /// Return the path to the working directory root, relative to the FUSE root
 pub fn path_to_revision_working_copy(changeset: Node) -> PathBuf {
@@ -103,8 +107,12 @@ impl HgFuse<LocalBackend, LocalToken> {
                 available_parallelism().map(usize::from).unwrap_or(1)
             });
         let store = LocalBackend::new(repo, backend_mode)?;
+        // Use a constant time, so that restarts don't affect the dirstate.
+        let start_time =
+            SystemTime::UNIX_EPOCH + MERCURIAL_FIRST_COMMIT_TIMESTAMP;
         let server = Server::new(
             store,
+            start_time,
             user_id,
             group_id,
             Some(mountpoint.to_path_buf()),

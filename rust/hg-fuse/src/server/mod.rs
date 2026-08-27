@@ -4,7 +4,6 @@ use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::time::Duration;
 use std::time::SystemTime;
 
 use fuser::FileAttr;
@@ -40,8 +39,6 @@ const BLOCK_SIZE: u32 = 4096;
 // Fake size that's obvious enough to be grepped in case that's
 // a problem.
 const FAKE_DIR_SIZE: u64 = 2005;
-const MERCURIAL_FIRST_COMMIT_TIMESTAMP: Duration =
-    Duration::from_secs(1115154970);
 
 /// Configuration options for the FUSE
 #[derive(Debug)]
@@ -77,6 +74,7 @@ pub struct Server<S, T> {
 impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
     pub fn new(
         store: S,
+        start_time: SystemTime,
         user_id: Option<u32>,
         group_id: Option<u32>,
         mount_point: Option<PathBuf>,
@@ -99,9 +97,7 @@ impl<S: StoreBackend<T>, T: FileToken> Server<S, T> {
             revisions: Cache::new(
                 max_revisions_loaded.unwrap_or(DEFAULT_MAX_REVISIONS_LOADED),
             ),
-            // Use a constant time, so that restarts don't affect the dirstate.
-            start_time: SystemTime::UNIX_EPOCH
-                + MERCURIAL_FIRST_COMMIT_TIMESTAMP,
+            start_time,
             uid,
             gid,
             mount_point,
