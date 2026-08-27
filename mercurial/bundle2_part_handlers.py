@@ -620,16 +620,27 @@ def bundle2getvars(op: UnbundleOpT, part):
 
 @parthandler(
     b'stream2',
-    (b'requirements', b'filecount', b'bytecount', b'store-fingerprint'),
+    (
+        b'requirements',
+        b'filecount',
+        b'bytecount',
+        b'store-fingerprint',
+        b'shard-id',
+        b'bundle-group-id',
+        b'bundle-group-top-level',
+    ),
 )
 def handlestreamv2bundle(op: UnbundleOpT, part):
     requirements = util.urlreq.unquote(part.params[b'requirements'])
     requirements = requirements.split(b',') if requirements else []
     filecount = int(part.params[b'filecount'])
     bytecount = int(part.params[b'bytecount'])
-
+    # Currently, there is only one top-level shard, so it must be applied on an
+    # empty repo
+    part_of_group = bool(part.params.get(b"bundle-group-id", False))
+    top_level = part.params.get(b"bundle-group-top-level", not part_of_group)
     repo = op.repo
-    if len(repo):
+    if len(repo) and top_level:
         msg = _(b'cannot apply stream clone to non empty repository')
         raise error.Abort(msg)
 
@@ -641,9 +652,13 @@ def handlestreamv2bundle(op: UnbundleOpT, part):
 def handlestreamv3bundle(op: UnbundleOpT, part):
     requirements = util.urlreq.unquote(part.params[b'requirements'])
     requirements = requirements.split(b',') if requirements else []
+    # Currently, there is only one top-level shard, so it must be applied on an
+    # empty repo
+    part_of_group = bool(part.params.get(b"bundle-group-id", False))
+    top_level = part.params.get(b"bundle-group-top-level", not part_of_group)
 
     repo = op.repo
-    if len(repo):
+    if len(repo) and top_level:
         msg = _(b'cannot apply stream clone to non empty repository')
         raise error.Abort(msg)
 

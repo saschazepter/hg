@@ -92,12 +92,23 @@ class NarrowInfo:
     fingerprint = attr.ib(type=Optional[bytes], default=None)
     """Hexadecimal fingerprint for a shard, corresponding to self.matcher"""
 
+    bundle_group_id = attr.ib(type=Optional[bytes], default=None)
+    """Unique identifier shared between all sharded bundles generated together.
+    Picked arbitrarily at generation time."""
+
+    match_top_level_entries = attr.ib(type=bool, default=True)
+    """Whether to match non-filelog store files"""
+
     @property
     def is_narrowed(self) -> bool:
         """Returns `true` if this contains any narrow information"""
         if self.matcher is None:
             return False
         if self.fingerprint is not None:
+            return True
+        if self.bundle_group_id is not None:
+            return True
+        if self.match_top_level_entries is not True:
             return True
         # We can't be 100% sure with older narrow patern (without a shape, but
         # in this case the resulting bundle is undiscernable from a non-narrow
@@ -331,6 +342,7 @@ def _walkstreamfiles(
         matcher=narrow_info.matcher,
         phase=phase,
         obsolescence=obsolescence,
+        top_entries=narrow_info.match_top_level_entries,
     )
 
 
@@ -1054,10 +1066,11 @@ def _entries_walk(
         for entry in entries:
             yield (_srcstore, entry)
 
-        for name in cacheutil.cachetocopy(repo):
-            if repo.cachevfs.exists(name):
-                # not really a StoreEntry, but close enough
-                yield (_srccache, CacheEntry(entry_path=name))
+        if narrow_info.match_top_level_entries:
+            for name in cacheutil.cachetocopy(repo):
+                if repo.cachevfs.exists(name):
+                    # not really a StoreEntry, but close enough
+                    yield (_srccache, CacheEntry(entry_path=name))
 
 
 def generatev2(

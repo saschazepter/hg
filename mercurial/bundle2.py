@@ -182,6 +182,7 @@ from .exchanges import (
     bundle_caps,
 )
 from .utils import (
+    docket as docketmod,
     stringutil,
     urlutil,
 )
@@ -1747,6 +1748,63 @@ def write_new_stream_bundle(
     return changegroup.writechunks(ui, bundle.getchunks(), filename, vfs=vfs)
 
 
+def write_repo_sharded_stream_bundles(
+    repo: RepoT,
+    obsolescence: bool,
+    target_vfs: vfsmod.vfs | None = None,
+) -> list[bytes]:
+    """Creates a streaming bundle for every shard in this repo's store, in
+    lockstep.
+
+    Retuns the paths of every generated bundle."""
+    ui = repo.ui
+
+    if shape_mod is None:
+        raise error.ProgrammingError("shapes are a Rust-only feature")
+    with repo.wlock(), repo.lock():
+        store_shards = shape_mod.get_store_shards(repo.root)
+
+        # TODO support later bundle versions
+        caps: Capabilities = {b"stream": [b"v2"]}
+        if obsolescence:
+            caps[b"obsmarkers"] = (b"V1",)
+
+        bundle_group_id = docketmod.make_uid()
+        file_paths = []
+        for info in store_shards.sharded_bundle_info():
+            (
+                hex_fingerprint,
+                matcher,
+                match_top_level_entries,
+            ) = info
+            filename = b"hg-sharded-%s-%s.hg" % (
+                bundle_group_id,
+                hex_fingerprint,
+            )
+            narrow_info = streamclone.NarrowInfo(
+                matcher=matcher,
+                fingerprint=hex_fingerprint,
+                bundle_group_id=bundle_group_id,
+                match_top_level_entries=match_top_level_entries,
+            )
+            bundle = bundle20(ui, caps)
+            addpartbundlestream2(
+                bundle,
+                repo,
+                narrow_info=narrow_info,
+                stream=True,
+            )
+            root = repo.ui.config(b'server', b'peer-bundle-cache-root')
+            path = os.path.join(root, filename)
+            ret = changegroup.writechunks(
+                ui, bundle.getchunks(), path, vfs=target_vfs
+            )
+            if ret is None:
+                raise error.Abort(_(b"failed to write bundle '%s'") % filename)
+            file_paths.append(ret)
+        return file_paths
+
+
 def _addpartsfromopts(repo, bundler, source, outgoing, opts):
     # We should eventually reconcile this logic with the one behind
     # 'exchange.getbundle2partsgenerator'.
@@ -1962,9 +2020,28 @@ def addpartbundlestream2(
         part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
         part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
-        if narrow_info.fingerprint is not None:
+        if narrow_info.bundle_group_id is not None:
             part.addparam(
-                b'store-fingerprint', narrow_info.fingerprint, mandatory=True
+                b'bundle-group-id',
+                narrow_info.bundle_group_id,
+                mandatory=True,
+            )
+            part.addparam(
+                b'shard-id',
+                narrow_info.fingerprint,
+                mandatory=True,
+            )
+            if narrow_info.match_top_level_entries:
+                part.addparam(
+                    b'bundle-group-top-level',
+                    b'1',
+                    mandatory=True,
+                )
+        elif narrow_info.fingerprint is not None:
+            part.addparam(
+                b'store-fingerprint',
+                narrow_info.fingerprint,
+                mandatory=False,
             )
     elif version == b"v3-exp":
         it = streamclone.generatev3(repo, narrow_info, includeobsmarkers)
