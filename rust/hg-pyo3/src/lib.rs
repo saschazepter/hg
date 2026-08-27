@@ -43,20 +43,22 @@ fn pyo3_rustext(py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     m.add_submodule(&ancestors::init_module(py, &dotted_name)?)?;
     m.add_submodule(&annotate::init_module(py, &dotted_name)?)?;
-    m.add_submodule(&diff::init_module(py, &dotted_name)?)?;
     m.add_submodule(&copy_tracing::init_module(py, &dotted_name)?)?;
     m.add_submodule(&dagops::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&deltas::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&diff::init_module(py, &dotted_name)?)?;
     m.add_submodule(&dirstate::init_module(py, &dotted_name)?)?;
     m.add_submodule(&discovery::init_module(py, &dotted_name)?)?;
     m.add_submodule(&file_index::init_module(py, &dotted_name)?)?;
     m.add_submodule(&linkrev::init_module(py, &dotted_name)?)?;
-    m.add_submodule(&revlog::init_module(py, &dotted_name)?)?;
-    m.add_submodule(&update::init_module(py, &dotted_name)?)?;
-    m.add_submodule(&pytracing::init_module(py, &dotted_name)?)?;
-    m.add_submodule(&deltas::init_module(py, &dotted_name)?)?;
     m.add_submodule(&matchers::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&pytracing::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&revlog::init_module(py, &dotted_name)?)?;
     m.add_submodule(&shape::init_module(py, &dotted_name)?)?;
     m.add_submodule(&template::init_module(py, &dotted_name)?)?;
+    m.add_submodule(&update::init_module(py, &dotted_name)?)?;
+
     m.add("GraphError", py.get_type::<exceptions::GraphError>())?;
+
     Ok(())
 }
