@@ -1963,9 +1963,8 @@ def addpartbundlestream2(
         part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
         if narrow_info.fingerprint is not None:
-            # TODO make mandatory for stream-v3
             part.addparam(
-                b'store-fingerprint', narrow_info.fingerprint, mandatory=False
+                b'store-fingerprint', narrow_info.fingerprint, mandatory=True
             )
     elif version == b"v3-exp":
         it = streamclone.generatev3(repo, narrow_info, includeobsmarkers)

@@ -618,7 +618,10 @@ def bundle2getvars(op: UnbundleOpT, part):
         op.addhookargs(hookargs)
 
 
-@parthandler(b'stream2', (b'requirements', b'filecount', b'bytecount'))
+@parthandler(
+    b'stream2',
+    (b'requirements', b'filecount', b'bytecount', b'store-fingerprint'),
+)
 def handlestreamv2bundle(op: UnbundleOpT, part):
     requirements = util.urlreq.unquote(part.params[b'requirements'])
     requirements = requirements.split(b',') if requirements else []
