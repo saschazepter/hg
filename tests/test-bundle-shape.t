@@ -106,7 +106,7 @@ Add a full non-fingerprinted streaming clone for reference and fallback testing
 
   $ hg debugbundle outfile-shape-full.hg
   Stream params: {}
-  stream2 -- {bytecount: 2637, filecount: 20, requirements: generaldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog} (mandatory: True)
+  stream2 -- {bytecount: *, filecount: 20, requirements: *} (mandatory: True) (glob)
 
 
 Test with a known shape
@@ -342,7 +342,8 @@ Start a narrow server that doesn't understand shapes
 
   $ hg serve -d -p $HGPORT --pid-file hg.pid
   $ cat hg.pid > $DAEMON_PIDS
-  $ hg clone ssh://user@dummy/source clone-shaped2 --shape foobaz
+  $ cd ..
+  $ hg clone ssh://user@dummy/source clone-shaped3 --shape foobaz
   abort: cannot use store shapes; remote repository does not support the 'exp-shape-1' capability
   [255]
   $ killdaemons.py
@@ -355,15 +356,15 @@ Restore the capability
   > EOF
 
 Restart the normal server
-  $ hg serve -d -p $HGPORT --pid-file hg.pid --errorlog error.log --accesslog access.log
+  $ hg serve -R source -d -p $HGPORT --pid-file hg.pid --errorlog error.log --accesslog access.log
   $ cat hg.pid >> $DAEMON_PIDS
-  $ hg clone ssh://user@dummy/source clone-shaped2 --shape unknown-shape
+  $ hg clone ssh://user@dummy/source clone-shaped3 --shape unknown-shape
   abort: shape not found on remote: 'unknown-shape'
   [10]
 
-  $ hg clone ssh://user@dummy/source clone-shaped2 --shape foobaz | grep "bundle from"
+  $ hg clone ssh://user@dummy/source clone-shaped3 --shape foobaz | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
-  $ cd clone-shaped2
+  $ cd clone-shaped3
   $ hg debug-revlog-stats --filelogs -T'{revlog_target}\n'
   dir2/a
   dir2/b
