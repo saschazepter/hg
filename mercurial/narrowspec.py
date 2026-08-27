@@ -8,24 +8,30 @@
 from __future__ import annotations
 
 import weakref
-from typing import Iterable
+from typing import BinaryIO, Iterable
 
 from .i18n import _
 from .interfaces.types import RepoT, StoreShapePatternsT
 from . import (
     error,
     match as matchmod,
+    policy,
     shape,
     sparse,
     txnutil,
     util,
 )
 
+shapemod_rust = policy.importrust("shape")
 
 # The file in .hg/store/ that indicates which paths exit in the store
 FILENAME = b'narrowspec'
 # The file in .hg/ that indicates which paths exit in the dirstate
 DIRSTATE_FILENAME = b'narrowspec.dirstate'
+# The file in .hg/store that indicates which shape this repo was cloned with
+# Later version will evolve to contain the narrow patterns and possibly
+# evolve with widening/narrowing
+SHAPE_FILENAME = b"store-shape"
 
 # Pattern prefixes that are allowed in narrow patterns. This list MUST
 # only contain patterns that are fast and safe to evaluate. Keep in mind
@@ -209,6 +215,106 @@ def load(repo):
     if spec is None:
         spec = repo.svfs.tryread(FILENAME)
     return parseconfig(repo.ui, spec)
+
+
+def load_store_shape(repo: RepoT) -> str | None:
+    """Returns the current store shape name for `repo`.
+
+    Used by the repo to load its own store shape."""
+    shape = None
+    contents = None
+    if txnutil.mayhavepending(repo.root):
+        pending_path = b"%s.pending" % SHAPE_FILENAME
+        if repo.svfs.exists(pending_path):
+            try:
+                contents = repo.svfs.read(pending_path)
+            except FileNotFoundError:
+                return None
+    if contents is None:
+        try:
+            contents = repo.svfs.read(SHAPE_FILENAME)
+        except FileNotFoundError:
+            return None
+
+    shape = parse_shape(contents)
+    return shape
+
+
+def _decode_shape(name: bytes) -> str:
+    """decode and valide a shape name"""
+    try:
+        return name.decode()
+    except UnicodeDecodeError:
+        msg = _(b"store-shape contains invalid UTF8")
+        raise error.Abort(msg)
+
+
+def parse_shape(contents: bytes) -> str:
+    """Parse the contents of the file `SHAPE_FILENAME` to return the shape name.
+
+    See the format in `write_shape`"""
+    lines = contents.splitlines()
+    if not lines:
+        raise error.CorruptedFormat(_(b"empty store-hape file"))
+    try:
+        version = int(lines[0])
+    except ValueError:
+        raise error.CorruptedFormat(_(b"invalid store-hape version line"))
+    if version != 0:
+        msg = _(b"unknown store-hape version number: %d")
+        raise error.CorruptedFormat(msg % version)
+    if len(lines) != 2:
+        msg = _(b"too many lines in store-hape: expected 2, got %d")
+        raise error.CorruptedFormat(msg % len(lines))
+    shape = _decode_shape(lines[1])
+    return shape
+
+
+def write_shape(file: BinaryIO, name):
+    """Write version 0 of the contents of `SHAPE_FILENAME`.
+
+    V0 format is experimental and subject to change.
+    It is line-delimited:
+        - The literal ascii byte "0", as a version number
+        - The bytes of the shape name, which must be UTF8.
+        - A single empty line to make it simpler to display
+
+    A later version will include the shape's patterns and will replace the
+    narrowspec.
+    """
+    _decode_shape(name)  # validate the name
+    file.write(b"0\n%s\n" % name)
+
+
+def patterns_for_shape(
+    repo: RepoT,
+    name: bytes,
+    fingerprint: bytes | None,
+) -> StoreShapePatternsT:
+    """Return the (legacy) include and exclude patterns for this shape.
+
+    `fingerprint` is the expected fingerprint to check against"""
+    if shapemod_rust is None:
+        raise error.ProgrammingError("called `get_shape` without Rust support")
+    as_str = _decode_shape(name)
+
+    store_shards = shapemod_rust.get_store_shards(repo.root)
+    shape = store_shards.shape(as_str)
+    if shape is None:
+        raise error.Abort(b"shape not found on remote: '%s'" % name)
+    if fingerprint is not None:
+        server_fingerprint = shape.fingerprint()
+        if fingerprint != server_fingerprint:
+            msg = (
+                b"fingerprint mismatch for shape '%s'\n"
+                b"  server: '%s'\n  client: '%s'"
+            )
+            msg = msg % (name, fingerprint, server_fingerprint)
+            raise error.Abort(msg)
+    includes, excludes = shape.patterns()
+    legacy_includes, legacy_excludes = to_legacy_patterns(includes, excludes)
+
+    return legacy_includes, legacy_excludes
 
 
 def save(repo, includepats, excludepats):

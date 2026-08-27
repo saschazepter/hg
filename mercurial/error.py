@@ -98,6 +98,10 @@ class Abort(Error):
     """Raised if a command needs to print an error and exit."""
 
 
+class CorruptedFormat(Error):
+    """Raised when an error occurs parsing a format."""
+
+
 class StorageError(Error):
     """Raised when an error occurs in a storage layer.
 
