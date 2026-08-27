@@ -156,7 +156,7 @@ def onetimesetup(ui):
 
     # don't clone filelogs to shallow clients
     def _walkstreamfiles(
-        orig, repo, matcher=None, phase=False, obsolescence=False
+        orig, repo, narrow_info=None, phase=False, obsolescence=False
     ):
         if state.shallowremote:
             # if we are shallow ourselves, stream our local commits
@@ -211,7 +211,7 @@ def onetimesetup(ui):
             )
         else:
             for x in orig(
-                repo, matcher, phase=phase, obsolescence=obsolescence
+                repo, narrow_info, phase=phase, obsolescence=obsolescence
             ):
                 yield x
 

@@ -2578,12 +2578,11 @@ def _getbundlestream2(
             exclude=excludepats,
             warn=repo.ui.warn,
         )
+    narrow_info = streamclone.NarrowInfo(matcher=narrow_matcher)
     return bundle2.addpartbundlestream2(
         bundler,
         repo,
-        includepats=includepats,
-        excludepats=excludepats,
-        narrow_matcher=narrow_matcher,
+        narrow_info=narrow_info,
         **kwargs,
     )
 

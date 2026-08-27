@@ -19,7 +19,10 @@ from typing import (
     Iterable,
     Iterator,
     Optional,
+    TYPE_CHECKING,
 )
+
+from .thirdparty import attr
 
 from .i18n import _
 from .interfaces.types import (
@@ -55,6 +58,10 @@ from .revlogutils import (
     nodemap,
 )
 
+# Force pytype to use the non-vendored package
+if TYPE_CHECKING:
+    # noinspection PyPackageRequirements
+    import attr
 
 # Number arbitrarily picked, feel free to change them (but the LOW one)
 #
@@ -73,6 +80,29 @@ DEFAULT_MEMORY_TARGET = {
     scmutil.RESOURCE_MEDIUM: 500 * 2**20,  # 500 MB
     scmutil.RESOURCE_HIGH: 2 * 2**30,  #   2 GB
 }
+
+
+@attr.s(slots=True)
+class NarrowInfo:
+    """Groups information about narrow-related things"""
+
+    matcher = attr.ib(type=Optional[MatcherT], default=None)
+    """Matches files for this narrow view of the store"""
+
+    fingerprint = attr.ib(type=Optional[bytes], default=None)
+    """Hexadecimal fingerprint for a shard, corresponding to self.matcher"""
+
+    @property
+    def is_narrowed(self) -> bool:
+        """Returns `true` if this contains any narrow information"""
+        if self.matcher is None:
+            return False
+        if self.fingerprint is not None:
+            return True
+        # We can't be 100% sure with older narrow patern (without a shape, but
+        # in this case the resulting bundle is undiscernable from a non-narrow
+        # one, so…
+        return not self.matcher.always()
 
 
 def new_stream_clone_requirements(
@@ -293,11 +323,15 @@ def allowservergeneration(repo: RepoT) -> bool:
 # This is it's own function so extensions can override it.
 def _walkstreamfiles(
     repo: RepoT,
-    matcher: MatcherT | None = None,
+    narrow_info: NarrowInfo,
     phase: bool = False,
     obsolescence: bool = False,
 ):
-    return repo.store.walk(matcher, phase=phase, obsolescence=obsolescence)
+    return repo.store.walk(
+        matcher=narrow_info.matcher,
+        phase=phase,
+        obsolescence=obsolescence,
+    )
 
 
 def _report_transferred(
@@ -345,7 +379,7 @@ def generatev1(repo: RepoT) -> tuple[int, int, Iterator[bytes]]:
     with repo.lock():
         repo.ui.debug(b'scanning\n')
         _test_sync_point_walk_1_2(repo)
-        for entry in _walkstreamfiles(repo):
+        for entry in _walkstreamfiles(repo, NarrowInfo()):
             for f in entry.files(repo.svfs):
                 file_size = f.file_size(repo.svfs)
                 if file_size:
@@ -996,7 +1030,7 @@ class CacheFile(store.StoreFile):
 
 def _entries_walk(
     repo: RepoT,
-    matcher: MatcherT | None,
+    narrow_info: NarrowInfo,
     includeobsmarkers: bool,
 ) -> Iterator[tuple[bytes, store.BaseStoreEntry]]:
     """emit a seris of files information useful to clone a repo
@@ -1013,7 +1047,7 @@ def _entries_walk(
     with util.nogc():
         entries = _walkstreamfiles(
             repo,
-            matcher,
+            narrow_info=narrow_info,
             phase=phase,
             obsolescence=includeobsmarkers,
         )
@@ -1028,7 +1062,7 @@ def _entries_walk(
 
 def generatev2(
     repo: RepoT,
-    matcher: MatcherT,
+    narrow_info: NarrowInfo,
     includeobsmarkers: bool,
 ) -> tuple[int, int, Iterator[bytes]]:
     """Emit content for version 2 of a streaming clone.
@@ -1048,7 +1082,7 @@ def generatev2(
 
         entries = _entries_walk(
             repo,
-            matcher=matcher,
+            narrow_info=narrow_info,
             includeobsmarkers=includeobsmarkers,
         )
         chunks = _emit2(repo, entries)
@@ -1062,7 +1096,7 @@ def generatev2(
 
 def generatev3(
     repo: RepoT,
-    matcher: MatcherT | None,
+    narrow_info: NarrowInfo,
     includeobsmarkers: bool,
 ) -> Iterator[bytes | None]:
     """Emit content for version 3 of a streaming clone.
@@ -1097,7 +1131,7 @@ def generatev3(
 
         entries = _entries_walk(
             repo,
-            matcher=matcher,
+            narrow_info=narrow_info,
             includeobsmarkers=includeobsmarkers,
         )
         chunks = _emit3(repo, list(entries))
@@ -1809,7 +1843,7 @@ def local_copy(src_repo: RepoT, dest_repo: RepoT) -> None:
 
             entries = _entries_walk(
                 src_repo,
-                matcher=None,
+                narrow_info=NarrowInfo(),
                 includeobsmarkers=True,
             )
             entries = list(entries)

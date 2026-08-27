@@ -160,7 +160,6 @@ from .i18n import _
 from .interfaces.types import (
     Capabilities,
     FileLinkRevsT,
-    MatcherT,
     RepoT,
     UnbundleOpT,
 )
@@ -1732,13 +1731,17 @@ def write_new_stream_bundle(
     if opts.get(b'obsolescence', False):
         caps[b'obsmarkers'] = (b'V1',)
 
+    narrow_info = streamclone.NarrowInfo(
+        matcher=matcher,
+        fingerprint=fingerprint,
+    )
+
     bundle = bundle20(ui, caps)
     addpartbundlestream2(
         bundle,
         repo,
-        narrow_matcher=matcher,
+        narrow_info=narrow_info,
         stream=True,
-        store_fingerprint=fingerprint,
     )
 
     return changegroup.writechunks(ui, bundle.getchunks(), filename, vfs=vfs)
@@ -1895,9 +1898,8 @@ def format_remote_wanted_sidedata(repo):
 def addpartbundlestream2(
     bundler,
     repo,
-    narrow_matcher: MatcherT | None = None,
+    narrow_info: streamclone.NarrowInfo,
     stream: bool = False,
-    store_fingerprint: bytes | None = None,
     **kwargs,
 ):
     if not stream:
@@ -1934,7 +1936,7 @@ def addpartbundlestream2(
     support_narrow_stream = repo.ui.configbool(
         b'experimental', b'server.stream-narrow-clones'
     )
-    if narrow_matcher is not None and not support_narrow_stream:
+    if narrow_info.matcher is not None and not support_narrow_stream:
         raise error.Abort(_(b'server does not support narrow stream clones'))
 
     includeobsmarkers = False
@@ -1952,7 +1954,7 @@ def addpartbundlestream2(
 
     if version == b"v2":
         filecount, bytecount, it = streamclone.generatev2(
-            repo, narrow_matcher, includeobsmarkers
+            repo, narrow_info, includeobsmarkers
         )
         requirements = streamclone.streamed_requirements(repo)
         requirements = _formatrequirementsspec(requirements)
@@ -1960,13 +1962,13 @@ def addpartbundlestream2(
         part.addparam(b'bytecount', b'%d' % bytecount, mandatory=True)
         part.addparam(b'filecount', b'%d' % filecount, mandatory=True)
         part.addparam(b'requirements', requirements, mandatory=True)
-        if store_fingerprint is not None:
+        if narrow_info.fingerprint is not None:
             # TODO make mandatory for stream-v3
             part.addparam(
-                b'store-fingerprint', store_fingerprint, mandatory=False
+                b'store-fingerprint', narrow_info.fingerprint, mandatory=False
             )
     elif version == b"v3-exp":
-        it = streamclone.generatev3(repo, narrow_matcher, includeobsmarkers)
+        it = streamclone.generatev3(repo, narrow_info, includeobsmarkers)
         requirements = streamclone.streamed_requirements(repo)
         requirements = _formatrequirementsspec(requirements)
         part = bundler.newpart(b'stream3-exp', data=it)

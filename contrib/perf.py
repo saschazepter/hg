@@ -2115,6 +2115,9 @@ def _find_stream_generator(version):
     if generatev2 is not None:
         post_0cdf8ccb2204 = "matcher" in getargspec(generatev2).args
         matcher_args = (None,) if post_0cdf8ccb2204 else (None, None)
+        post_shapes = "narrow_info" in getargspec(generatev2).args
+        if post_shapes:
+            matcher_args = (mercurial.streamclone.NarrowInfo(),)
 
         def generate(repo):
             entries, bytes, data = generatev2(repo, *matcher_args, True)
@@ -2126,6 +2129,9 @@ def _find_stream_generator(version):
     if generatev3 is not None:
         post_0cdf8ccb2204 = "matcher" in getargspec(generatev2).args
         matcher_args = (None,) if post_0cdf8ccb2204 else (None, None)
+        post_shapes = "narrow_info" in getargspec(generatev2).args
+        if post_shapes:
+            matcher_args = (mercurial.streamclone.NarrowInfo(),)
 
         def generate(repo):
             return generatev3(repo, *matcher_args, True)
