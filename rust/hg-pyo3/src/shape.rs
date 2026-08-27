@@ -100,6 +100,50 @@ impl PyStoreShards {
             .map(|shape| shape.map(|inner| PyShape { inner }))
     }
 
+    /// Return a [`PyList`] whose items are, for each shard in the store:
+    ///   - Its standalone (hex) fingerprint, meaning without its dependencies
+    ///   - Its matcher
+    ///   - A boolean, that is `true` if this is the top-level shard, meaning
+    ///     that it concerns Mercurial special files, i.e. the `.hg-files` shard
+    pub fn sharded_bundle_info(&self, py: Python) -> PyResult<Py<PyList>> {
+        let sharded = self.inner.sharded_bundle_info();
+        let sharded_iter = sharded.into_iter().map(|standalone_shard| {
+            (
+                standalone_shard.fingerprint().to_hex_bytes(),
+                PyMatcher::new(Box::new(standalone_shard.matcher())),
+                standalone_shard.top_level,
+            )
+        });
+        Ok(PyList::new(py, sharded_iter)?.unbind())
+    }
+
+    /// Return a [`PyList`] of all hexadecimal shard fingerprints for this
+    /// shape, or `None` if it does not exist.
+    ///
+    /// See [`StoreShards::shard_fingerprints_for_shape`].
+    pub fn shard_fingerprints_for_shape(
+        &self,
+        py: Python,
+        name: &str,
+    ) -> PyResult<Option<Py<PyList>>> {
+        let groups = self.inner.shard_fingerprints_for_shape(name);
+        let Some(groups) = groups.into_pyerr(py)? else {
+            return Ok(None);
+        };
+        let sets: Result<Vec<_>, _> = groups
+            .into_iter()
+            .map(|group| {
+                PySet::new(
+                    py,
+                    group
+                        .into_iter()
+                        .map(|fingerprint| fingerprint.to_hex_bytes()),
+                )
+            })
+            .collect();
+        Ok(Some(PyList::new(py, sets?)?.unbind()))
+    }
+
     /// Return a list of all known shapes
     pub fn all_shapes(&self, py: Python) -> PyResult<Py<PyList>> {
         let shapes_iter = self

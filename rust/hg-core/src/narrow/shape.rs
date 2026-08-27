@@ -175,6 +175,55 @@ pub struct Shard {
     shape: bool,
 }
 
+/// Represent the "anonymous" Shape made of a single Shard.
+///
+/// This is used to computed the "shard id" and the matcher for files that
+/// belong that that Shard (dependencies excluded).
+///
+/// These informations are useful when building sharded bundles
+#[derive(Debug)]
+pub struct ShardShape {
+    /// Internal synthetic [`Shape`] to re-use fingerprinting and matching code
+    fake_shape: Shape,
+    /// `true` if this shard should be bundled with top-level files
+    /// (e.g the changelog, manifest, caches, etc.)
+    pub top_level: bool,
+}
+
+impl ShardShape {
+    /// Returns a standalone version of this shard, unless it's a shape with
+    /// no paths.
+    pub fn new(store_shards: &StoreShards, shard: &Shard) -> Option<Self> {
+        if shard.shape && shard.paths.is_empty() {
+            return None;
+        }
+
+        let includes: FastHashSet<_> =
+            shard.paths.iter().map(|path| path.as_bytes()).collect();
+        assert!(!includes.is_empty());
+
+        let paths =
+            store_shards.path_to_shard.keys().map(|path| path.as_bytes());
+        let tree = ShardTreeNode::from_paths(paths, includes);
+        let tree = tree.expect("shards should already have been be validated");
+
+        Some(Self {
+            fake_shape: Shape { name: shard.name.to_owned(), tree },
+            top_level: shard.name.0.as_str() == HG_FILES_SHARD,
+        })
+    }
+
+    /// Returns a matcher for this shard only, without its dependencies
+    pub fn matcher(&self) -> ShapeMatcher {
+        ShapeMatcher::new(self.fake_shape.to_owned())
+    }
+
+    /// Returns a fingerprint for this shard only, without its dependencies
+    pub fn fingerprint(&self) -> [u8; 32] {
+        self.fake_shape.store_fingerprint()
+    }
+}
+
 /// The set of all [`Shard`] that make up a repository.
 ///
 /// TODO make this self-referencing if all the cloning ends up being expensive
@@ -359,6 +408,46 @@ impl StoreShards {
             return Ok(Some(shape));
         }
         Ok(None)
+    }
+
+    /// Return enough information about each shard in the store to generate
+    /// sharded bundles. See the public methods on [`ShardShape`].
+    pub fn sharded_bundle_info(&self) -> Vec<ShardShape> {
+        let mut shards = self.shards.values().collect::<Vec<_>>();
+        shards.sort_by(|a, b| a.name.cmp(&b.name));
+
+        shards
+            .into_iter()
+            .filter_map(|shard| ShardShape::new(self, shard))
+            .collect()
+    }
+
+    /// Return the fingerprint of every standalone shard in this shape to match
+    /// against sharded bundles.
+    /// A client cloning a particular shape will need to know which shards make
+    /// up that shape to select the right set of bundles (one per shard).
+    pub fn shard_fingerprints_for_shape(
+        &self,
+        name: &str,
+    ) -> Result<Option<Vec<FastHashSet<[u8; 32]>>>, Error> {
+        let shard_name = ShardName::new(name.to_string())?;
+        let Some(shard) = self.shards.get(&shard_name) else {
+            return Ok(None);
+        };
+        if !shard.shape {
+            return Ok(None);
+        }
+        let mut dependent_shards = self.dependencies(shard)?;
+        dependent_shards.insert(&shard_name, shard);
+        let fingerprints = dependent_shards
+            .into_iter()
+            .filter_map(|(_name, shard)| ShardShape::new(self, shard))
+            .map(|standalone| standalone.fingerprint())
+            .collect();
+        // For now we only have a single set of fingerprints for a given shape
+        // but we start keeping track of multiple states of a shape, and thus
+        // could answer multiple sets of fingerprints.
+        Ok(Some(vec![fingerprints]))
     }
 
     /// Gather all recursive dependent shards for `shard`
