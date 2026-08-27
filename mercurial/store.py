@@ -1063,7 +1063,11 @@ class basicstore:
                 )
 
     def walk(
-        self, matcher=None, phase=False, obsolescence=False
+        self,
+        matcher=None,
+        phase=False,
+        obsolescence=False,
+        top_entries=True,
     ) -> Generator[BaseStoreEntry, None, None]:
         """return files related to data storage (ie: revlogs)
 
@@ -1074,7 +1078,8 @@ class basicstore:
         """
         # yield data files first
         yield from self.data_entries(matcher)
-        yield from self.top_entries(phase=phase, obsolescence=obsolescence)
+        if top_entries:
+            yield from self.top_entries(phase=phase, obsolescence=obsolescence)
 
     def copylist(self):
         return _data
