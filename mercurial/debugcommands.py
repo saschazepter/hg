@@ -4166,6 +4166,31 @@ def debugbackupbundle(ui, repo, *pats, **opts):
 
 
 @command(
+    b'debug::sharded-stream-bundles',
+    cmdutil.formatteropts,
+    None,
+)
+def debug_sharded_stream_bundles(ui, repo: RepoT, **opts):
+    """Manually generate sharded stream bundles"""
+    obsolescence = ui.configbool(b'experimental', b'evolution.bundle-obsmarker')
+    vfs = repo.vfs
+    fm = ui.formatter(
+        b'debug::sharded-stream-bundles', pycompat.byteskwargs(opts)
+    )
+    fm.plain(b"Generating sharded bundles\n")
+    file_paths = bundle2.write_repo_sharded_stream_bundles(
+        repo, obsolescence, vfs
+    )
+    fm.plain(b"Generated %d streaming bundles\n" % len(file_paths))
+    for path in file_paths:
+        path = vfs.join(path)
+        fm.startitem()
+        fm.data(path=path)
+        fm.plain(b"%s\n" % path)
+    fm.end()
+
+
+@command(
     b'debugsub',
     [(b'r', b'rev', b'', _(b'revision to check'), _(b'REV'))],
     _(b'[-r REV] [REV]'),

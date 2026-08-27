@@ -230,6 +230,7 @@ Show debug commands if there are no other candidates
   debug::is-this-rhg
   debug::link-revs
   debug::revlog-reencoded-delta-info
+  debug::sharded-stream-bundles
   debug::stable-tail-info
   debug::stable-tail-sort
   debug::stable-tail-sort-excl-splits
@@ -444,6 +445,7 @@ Show all commands + options
   debug::is-this-rhg: 
   debug::link-revs: changelog, manifest, dir, dump-raw
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
+  debug::sharded-stream-bundles: template
   debug::stable-tail-info: naive, display-revs
   debug::stable-tail-sort: template, limit, naive
   debug::stable-tail-sort-excl-splits: template, naive

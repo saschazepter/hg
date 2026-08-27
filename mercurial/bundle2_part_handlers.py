@@ -624,6 +624,7 @@ def bundle2getvars(op: UnbundleOpT, part):
         b'requirements',
         b'filecount',
         b'bytecount',
+        # XXX should be called store-shape-fingerprint
         b'store-fingerprint',
         b'shard-id',
         b'bundle-group-id',
@@ -637,6 +638,12 @@ def handlestreamv2bundle(op: UnbundleOpT, part):
     bytecount = int(part.params[b'bytecount'])
     # Currently, there is only one top-level shard, so it must be applied on an
     # empty repo
+
+    # XXX we should check that the store-fingerprint is valid if any
+    # XXX we should check that the bundle-group-id are consistent when applying multiple bundle
+    # XXX we should check that we received the top level file eventually
+    # XXX we should accumulate the received shard-ids and check we have all of
+    # them when we applied all bundles.
     part_of_group = bool(part.params.get(b"bundle-group-id", False))
     top_level = part.params.get(b"bundle-group-top-level", not part_of_group)
     repo = op.repo

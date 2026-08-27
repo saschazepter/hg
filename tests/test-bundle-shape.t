@@ -401,3 +401,57 @@ The rest works correctly
   foo
   $ hg cat dir2/b
   foobar
+  $ cd ..
+
+
+Test sharded streamclones
+=========================
+
+Bundle generation
+-----------------
+
+  $ rm source/.hg/bundle-cache/*
+  $ shard_fingerprint_hg_files=f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd
+  $ shard_fingerprint_base=f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b
+  $ shard_fingerprint_excluded1=ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834
+  $ shard_fingerprint_excluded2=905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9
+  $ shard_fingerprint_foobar=bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb
+
+  $ hg -R source debug::sharded-stream-bundles
+  Generating sharded bundles
+  Generated 5 streaming bundles
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+
+  $ find source/.hg/bundle-cache -type f | sort | xargs -L1 hg debugbundle | grep -E 'shard-id: [0-9a-f]{64}'
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 4, requirements: *, shard-id: 905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 2, requirements: *, shard-id: bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 2, requirements: *, shard-id: ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 4, requirements: *, shard-id: f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bundle-group-top-level: 1, bytecount: *, filecount: 8, requirements: *, shard-id: f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd} (mandatory: True) (glob)
+
+  $ rm $TESTTMP/source/.hg/bundle-cache/*
+
+Test json output
+
+  $ hg -R source debug::sharded-stream-bundles -Tjson
+  [
+   {
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg"
+   },
+   {
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg"
+   },
+   {
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg"
+   },
+   {
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg"
+   },
+   {
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg"
+   }
+  ]

@@ -2026,6 +2026,7 @@ def addpartbundlestream2(
                 narrow_info.bundle_group_id,
                 mandatory=True,
             )
+            # XXX should be the binary 32 bits form, not the 64 hex one
             part.addparam(
                 b'shard-id',
                 narrow_info.fingerprint,
@@ -2038,6 +2039,8 @@ def addpartbundlestream2(
                     mandatory=True,
                 )
         elif narrow_info.fingerprint is not None:
+            # XXX should be called store-shape-fingerprint
+            # XXX should be the binary 32 bits form, not the 64 hex one,
             part.addparam(
                 b'store-fingerprint',
                 narrow_info.fingerprint,

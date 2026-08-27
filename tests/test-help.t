@@ -1048,6 +1048,8 @@ Test list of internal help commands
                  Show stored link-revs information for a revlog
    debug::revlog-reencoded-delta-info
                  show revlog statistic if delta where to be reencoded
+   debug::sharded-stream-bundles
+                 Manually generate sharded stream bundles
    debug::stable-tail-info
                  display stable tail related information for a revision
    debug::stable-tail-sort
