@@ -137,7 +137,7 @@ Test valid cases
     ])
   )
 
-Test narrow clone with `--shape`
+Test narrow clone with `--store-shape`
 --------------------------------
 
   $ cat > $TESTTMP/server-hg.sh << EOF
@@ -326,3 +326,168 @@ Update the server shapes to remove the shape
 Reset the shapes
   $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes
 
+Create another commit to pull
+  $ cd $TESTTMP/server
+  $ echo "newer contents" >> file1
+  $ echo "newer secret contents" >> foo/bar/other-secret/secret-file
+  $ hg commit -Aqm3
+  $ cd $TESTTMP/narrow-clone
+
+Check that a pattern only mismatch is detected
+-----------------------------------------------
+
+Update the server shapes to change the fingerprint of this shape
+  $ cat > $TESTTMP/new-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "default"
+  > requires = ["base", "secrets"]
+  > shape = true
+  > [[shards]]
+  > name = "secrets"
+  > requires = ["other-secret"]
+  > paths = ["secret"]
+  > [[shards]]
+  > name = "full-manual"
+  > requires = ["base", "secrets"]
+  > shape = true
+  > [[shards]]
+  > name = "other-secret"
+  > paths = ["foo/bar/other-secret"]
+  > shape = true
+  > EOF
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+
+#if local
+  $ hg pull
+  pulling from $TESTTMP/server
+  searching for changes
+  abort: fingerprint mismatch for shape 'default'
+    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
+    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+  [255]
+#else
+  $ hg pull
+  pulling from ssh://user@dummy/server
+  searching for changes
+  remote: abort: fingerprint mismatch for shape 'default'
+    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
+    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+  abort: pull failed on remote
+  [100]
+#endif
+
+Check that a shape being removed is detected
+--------------------------------------------
+
+Update the server shapes to remove the shape
+  $ cat > $TESTTMP/new-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "from-file"
+  > paths = ["dir1"]
+  > shape = true
+  > EOF
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes
+
+#if local
+  $ hg pull
+  pulling from $TESTTMP/server
+  searching for changes
+  abort: shape not found on remote: 'default'
+  [255]
+#else
+  $ hg pull
+  pulling from ssh://user@dummy/server
+  searching for changes
+  remote: abort: shape not found on remote: 'default'
+  abort: pull failed on remote
+  [100]
+#endif
+
+Reset the shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes
+
+
+Test widening/narrowing
+=======================
+
+#if no-local
+
+(It does not make sense to widen/narrow a repo from itself)
+
+Cannot use other arguments than `--store-shape`
+----------------------------------------
+
+  $ hg tracked --addinclude foobar
+  abort: only `--store-shape` is supported
+  (this repository has a narrow shape)
+  [20]
+  $ hg tracked --addinclude foobar --store-shape full-manual
+  abort: cannot specify both --store-shape and --addinclude
+  [10]
+  $ hg tracked --removeexclude foobar
+  abort: only `--store-shape` is supported
+  (this repository has a narrow shape)
+  [20]
+
+Expected errors with the wrong shape name
+-----------------------------------------
+
+  $ hg tracked --store-shape unknown-shape
+  comparing with ssh://user@dummy/server
+  abort: shape not found on remote: 'unknown-shape'
+  [10]
+
+Actual widening succeeds
+------------------------
+
+  $ hg tracked --store-shape full-manual
+  comparing with ssh://user@dummy/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 0 changesets with 5 changes to 4 files
+  $ hg cat foo/bar/other-secret/secret-file
+  new secret contents
+
+Narrowing also succeeds
+-----------------------
+
+  $ hg tracked --store-shape default
+  comparing with ssh://user@dummy/server
+  searching for changes
+  looking for local changes to affected paths
+  deleting data/foo/bar/other-secret/secret-file.i
+  deleting data/foo/bar/other-secret/secret-file2.i
+  deleting data/secret/secret-file.i
+  deleting data/secret/secret-file2.i
+  deleting unwanted files from working copy
+  $ hg cat foo/bar/other-secret/secret-file
+  [1]
+
+Widening and narrowing at the same time succeeds
+------------------------------------------------
+
+  $ hg tracked --store-shape other-secret
+  comparing with ssh://user@dummy/server
+  searching for changes
+  looking for local changes to affected paths
+  deleting data/dir1/file1.i
+  deleting data/file1.i
+  deleting data/file2.i
+  deleting data/file3.i
+  deleting data/foo/file1.i
+  deleting data/foo/file2.i
+  deleting unwanted files from working copy
+  adding changesets
+  adding manifests
+  adding file changes
+  added 0 changesets with 3 changes to 2 files
+  $ hg cat foo/bar/other-secret/secret-file
+  new secret contents
+  $ hg cat file1
+  [1]
+
+#endif

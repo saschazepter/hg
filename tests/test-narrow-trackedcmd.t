@@ -114,6 +114,7 @@ Testing the --import-rules flag of `hg tracked` command
                                    (default: on)
       --update-working-copy        update working copy when the store has
                                    changed
+      --store-shape VALUE          the new shape to update to
    -e --ssh CMD                    specify ssh command to use
       --remote-cmd CMD             specify hg command to run on the remote side
       --insecure                   do not verify server certificate (ignoring

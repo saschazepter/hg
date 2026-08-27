@@ -22,6 +22,7 @@ from mercurial.interfaces.types import (
 )
 from mercurial import (
     bundle2,
+    cmdutil,
     commands,
     discovery,
     encoding,
@@ -240,6 +241,7 @@ def _narrow(
     newexcludes,
     force,
     backup,
+    shape,
 ):
     oldmatch = narrowspec.match(
         repo.root,
@@ -365,6 +367,14 @@ def _narrow(
             with repo.dirstate.changing_parents(repo):
                 narrow_wc.update_working_copy(repo, assumeclean=True)
                 narrowspec.copytoworkingcopy(repo)
+                if shape is not None:
+                    tr = repo.currenttransaction()
+                    tr.addfilegenerator(
+                        b"store-shape",
+                        (narrowspec.SHAPE_FILENAME,),
+                        lambda f: narrowspec.write_shape(f, shape),
+                        location=b'store',
+                    )
 
         repo.destroyed()
 
@@ -378,6 +388,7 @@ def _widen(
     oldexcludes,
     newincludes,
     newexcludes,
+    shape,
 ):
     # for now we assume that if a server has ellipses enabled, we will be
     # exchanging ellipses nodes. In future we should add ellipses as a client
@@ -477,6 +488,14 @@ def _widen(
             repo.setnewnarrowpats()
             narrow_wc.update_working_copy(repo)
             narrowspec.copytoworkingcopy(repo)
+            if shape is not None:
+                tr = repo.currenttransaction()
+                tr.addfilegenerator(
+                    b"narrow-shape",
+                    (narrowspec.SHAPE_FILENAME,),
+                    lambda f: narrowspec.write_shape(f, shape),
+                    location=b'store',
+                )
 
 
 def _compute_local_link_revs(
@@ -566,6 +585,12 @@ def _compute_local_link_revs(
             False,
             _(b'update working copy when the store has changed'),
         ),
+        (
+            b'',
+            b'store-shape',
+            b'',
+            _(b'the new shape to update to'),
+        ),
     ]
     + commands.remoteopts,
     _(b'[OPTIONS]... [REMOTE]'),
@@ -613,6 +638,19 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
             )
         )
 
+    # `shape` must not be given with any other pattern-changing arg
+    pattern_changing_args = [
+        'addinclude',
+        'removeinclude',
+        'auto_remove_includes',
+        'addexclude',
+        'removeexclude',
+        'import_rules',
+    ]
+    cmdutil.check_incompatible_arguments(
+        opts, 'store_shape', pattern_changing_args
+    )
+
     # Before supporting, decide whether it "hg tracked --clear" should mean
     # tracking no paths or all paths.
     if opts['clear']:
@@ -647,6 +685,9 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     addedexcludes = narrowspec.parsepatterns(opts['addexclude'])
     removedexcludes = narrowspec.parsepatterns(opts['removeexclude'])
     autoremoveincludes = opts['auto_remove_includes']
+    shape = opts.get('store_shape')
+    if shape == b"":
+        shape = None
 
     update_working_copy = opts['update_working_copy']
     only_show = not (
@@ -657,6 +698,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         or newrules
         or autoremoveincludes
         or update_working_copy
+        or shape is not None
     )
 
     # Only print the current narrowspec.
@@ -675,6 +717,11 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         fm.end()
         return 0
 
+    if shape is None and repo.store_shape is not None:
+        msg = _(b"only `--store-shape` is supported")
+        hint = _(b"this repository has a narrow shape")
+        raise error.StateError(msg, hint=hint)
+
     path = urlutil.get_unique_pull_path_obj(b'tracked', ui, remotepath)
     ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(path.loc))
     remote = repo_factory.peer(repo, pycompat.byteskwargs(opts), path)
@@ -684,6 +731,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
                 repo=repo,
                 opts=opts,
                 remote=remote,
+                shape=shape,
                 addedincludes=addedincludes,
                 removedincludes=removedincludes,
                 addedexcludes=addedexcludes,
@@ -699,6 +747,7 @@ def _tracked_remote_path(
     repo,
     opts,
     remote,
+    shape,
     addedincludes,
     removedincludes,
     addedexcludes,
@@ -710,12 +759,23 @@ def _tracked_remote_path(
     ui = repo.ui
     oldincludes, oldexcludes = repo.narrowpats
 
+    if shape is not None:
+        with remote.commandexecutor() as e:
+            command = e.callcommand(b'store_shape', {b'name': shape})
+            (shape_includes, shape_excludes) = command.result()
+
     # filter the user passed additions and deletions into actual additions and
     # deletions of excludes and includes
-    addedincludes -= oldincludes
-    removedincludes &= oldincludes
-    addedexcludes -= oldexcludes
-    removedexcludes &= oldexcludes
+    if shape is not None:
+        addedincludes = shape_includes - oldincludes
+        removedincludes = oldincludes - shape_includes
+        addedexcludes = shape_excludes - oldexcludes
+        removedexcludes = oldexcludes - shape_excludes
+    else:
+        addedincludes -= oldincludes
+        removedincludes &= oldincludes
+        addedexcludes -= oldexcludes
+        removedexcludes &= oldexcludes
 
     widening = addedincludes or removedexcludes
     narrowing = removedincludes or addedexcludes
@@ -788,6 +848,7 @@ def _tracked_remote_path(
             newexcludes,
             opts['force_delete_local_changes'],
             opts['backup'],
+            shape=shape,
         )
         # _narrow() updated the narrowspec and _widen() below needs to
         # use the updated values as its base (otherwise removed includes
@@ -807,6 +868,7 @@ def _tracked_remote_path(
             oldexcludes,
             newincludes,
             newexcludes,
+            shape=shape,
         )
 
     return 0
