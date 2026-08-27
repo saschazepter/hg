@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import sys
+import typing
 import weakref
 
 from concurrent import futures
@@ -774,6 +775,6 @@ class wirepeer(
         """
         raise NotImplementedError()
 
-    def _abort(self, exception):
+    def _abort(self, exception) -> typing.NoReturn:
         """clearly abort the wire protocol connection and raise the exception"""
         raise NotImplementedError()
