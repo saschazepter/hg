@@ -11,6 +11,7 @@ import weakref
 from typing import Iterable
 
 from .i18n import _
+from .interfaces.types import RepoT, StoreShapePatternsT
 from . import (
     error,
     match as matchmod,
@@ -337,7 +338,7 @@ def checkworkingcopynarrowspec(repo):
 def to_legacy_patterns(
     includes: Iterable[bytes],
     excludes: Iterable[bytes],
-) -> tuple[set[bytes], set[bytes]]:
+) -> StoreShapePatternsT:
     """Convert plain paths-based patterns (from a shape) to the legacy
     narrowspec format"""
     # TODO remove this once we move all of the verification, fingerprinting

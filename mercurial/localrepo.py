@@ -120,6 +120,7 @@ if typing.TYPE_CHECKING:
         RepoT,
         RevsetAliasesT,
         StatusT,
+        StoreShapePatternsT,
         TransactionT,
         UiT,
         VfsT,
@@ -458,7 +459,7 @@ class localpeer(peer.Peer, repository.ipeercommands):
         *,
         name: bytes,
         **kwargs,
-    ) -> tuple[set[bytes], set[bytes]]:
+    ) -> StoreShapePatternsT:
         """Returns the narrow patterns for the shape of this name"""
         if not policy.has_rust():
             raise error.Abort(

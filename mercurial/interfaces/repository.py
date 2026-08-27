@@ -185,6 +185,9 @@ RequirementT = bytes
 RequirementSetT = set[RequirementT]
 """The collection of requirements for a repository."""
 
+StoreShapePatternsT = tuple[set[bytes], set[bytes]]
+"""Tuple of (legacy) includes and excludes for a given store shape"""
+
 
 class _ipeerconnection(Protocol):
     """Represents a "connection" to a repository.
@@ -384,7 +387,7 @@ class ipeercommands(Protocol):
         *,
         name: bytes,
         **kwargs,
-    ) -> tuple[set[bytes], set[bytes]]:
+    ) -> StoreShapePatternsT:
         """Returns the narrow patterns for the shape of this name"""
 
 
