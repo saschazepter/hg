@@ -688,6 +688,11 @@ class chgunixservicehandler:
         self._bind(sock)
         self._createsymlink()
         # no "listening at" message should be printed to simulate hg behavior
+        self.ui.log(
+            b'chgserver',
+            b'%s now owned, serving.\n',
+            self._realaddress,
+        )
 
     def _inithashstate(self, address):
         self._baseaddress = address

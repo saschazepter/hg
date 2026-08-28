@@ -291,7 +291,7 @@ the 10th-most-recent line is different when using py3):
 (the "worker process exited" line is matched independently as it order is unstable with the "exiting" line, the worker might exit before the server decide to exit).
 
   $ cat log/server.log.1 log/server.log | tail -10 | grep -v "worker process exited" | filterlog
-  YYYY/MM/DD HH:MM:SS (PID)> confighash = ... mtimehash = ... (no-setprocname !)
+  YYYY/MM/DD HH:MM:SS (PID)> $TESTTMP/extreload/chgsock/server-... now owned, serving. (no-setprocname !)
   YYYY/MM/DD HH:MM:SS (PID)> forked worker process (pid=...)
   YYYY/MM/DD HH:MM:SS (PID)> setprocname: ... (setprocname !)
   YYYY/MM/DD HH:MM:SS (PID)> received fds: ...
