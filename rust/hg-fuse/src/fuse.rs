@@ -83,7 +83,7 @@ impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
             fuse_no_open_support: false,
             fuse_no_opendir_support: false,
         };
-        Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
+        Ok(fuser::spawn_mount(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }
 }

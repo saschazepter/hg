@@ -39,7 +39,7 @@ impl HgFuse {
         config.acl = session_acl;
         config.n_threads = Some(thread_count);
         let filesystem = Self {};
-        Ok(fuser::spawn_mount2(filesystem, mountpoint, &config)
+        Ok(fuser::spawn_mount(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }
 }

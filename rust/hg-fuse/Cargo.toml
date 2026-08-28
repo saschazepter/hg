@@ -14,7 +14,7 @@ full-tracing = []
 [dependencies]
 clap = {version = "4", features = ["derive"]}
 dashmap = "6.1.0"
-fuser = "0.17.0"
+fuser = "0.18.0"
 hg-core = {path = "../hg-core"}
 imbl = "7.0.1"
 rayon = "1.11.0"
