@@ -730,6 +730,15 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         fm.end()
         return 0
 
+    if update_working_copy:
+        with repo.wlock(), repo.lock():
+            with repo.transaction(b'narrow-wc'), repo.dirstate.changing_parents(
+                repo
+            ):
+                narrow_wc.update_working_copy(repo)
+                narrowspec.copytoworkingcopy(repo)
+        return 0
+
     if shape is None and repo.store_shape is not None:
         msg = _(b"only `--store-shape` is supported")
         hint = _(b"this repository has a narrow shape")
@@ -750,7 +759,6 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
                 addedexcludes=addedexcludes,
                 removedexcludes=removedexcludes,
                 autoremoveincludes=autoremoveincludes,
-                update_working_copy=update_working_copy,
             )
     finally:
         remote.close()
@@ -766,7 +774,6 @@ def _tracked_remote_path(
     addedexcludes,
     removedexcludes,
     autoremoveincludes,
-    update_working_copy,
 ):
     """The part of `tracked` that interacts with the narrow server."""
     ui = repo.ui
@@ -800,14 +807,6 @@ def _tracked_remote_path(
 
     widening = addedincludes or removedexcludes
     narrowing = removedincludes or addedexcludes
-
-    if update_working_copy:
-        with repo.transaction(b'narrow-wc'), repo.dirstate.changing_parents(
-            repo
-        ):
-            narrow_wc.update_working_copy(repo)
-            narrowspec.copytoworkingcopy(repo)
-        return 0
 
     if not (widening or narrowing or autoremoveincludes):
         ui.status(_(b"nothing to widen or narrow\n"))

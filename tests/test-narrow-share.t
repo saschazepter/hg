@@ -103,7 +103,6 @@ Narrow the share and check that the main repo's working copy gets updated
   (run 'hg tracked --update-working-copy')
   [20]
   $ hg -R main tracked --update-working-copy
-  comparing with ssh://user@dummy/remote
   not deleting possibly dirty file d3/f
   not deleting possibly dirty file d3/g
   not deleting possibly dirty file d5/f
@@ -142,7 +141,6 @@ Widen the share and check that the main repo's working copy gets updated
   (run 'hg tracked --update-working-copy')
   [20]
   $ hg -R main tracked --update-working-copy
-  comparing with ssh://user@dummy/remote
 # d1/f, d3/f should be back
   $ hg -R main files
   main/d1/f
@@ -188,7 +186,6 @@ Make it look like a repo from before narrow+share was supported
   (run 'hg tracked --update-working-copy')
   [20]
   $ hg tracked --update-working-copy
-  comparing with ssh://user@dummy/remote
   $ hg st
   M d1/f
   A d3/g
