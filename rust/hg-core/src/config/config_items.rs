@@ -510,7 +510,7 @@ struct DefaultConfigSection {
     /// The generic items (matched by regex).
     ///
     /// Sorted by `(priority, name)`, i.e. in matching order.
-    generics: Vec<DefaultConfigItem>,
+    generics: Vec<(regex::bytes::Regex, DefaultConfigItem)>,
 }
 
 /// Represents the (dynamic) set of default core Mercurial config items from
@@ -569,14 +569,28 @@ impl DefaultConfig {
         for item in flat_items {
             let section = items.entry(item.section.to_owned()).or_default();
             if item.is_generic() {
-                section.generics.push(item);
+                // generic patterns expect rooted matching
+                // (because Python's `re.match` works that way)
+                let pattern = format!(r"^(?:{})", item.name);
+                let regex =
+                    regex::bytes::Regex::new(&pattern).map_err(|e| {
+                        HgError::abort(
+                            format!(
+                                "invalid pattern for config item '{}.{}': {}",
+                                item.section, item.name, e
+                            ),
+                            exit_codes::ABORT,
+                            Some("Check 'mercurial/configitems.toml'".into()),
+                        )
+                    })?;
+                section.generics.push((regex, item));
             } else {
                 section.plain.insert(item.name.to_owned(), item);
             }
         }
         for section in items.values_mut() {
             section.generics.sort_by(|a, b| {
-                (a.priority, &a.name).cmp(&(b.priority, &b.name))
+                (a.1.priority, &a.1.name).cmp(&(b.1.priority, &b.1.name))
             });
         }
 
@@ -596,14 +610,8 @@ impl DefaultConfig {
         match section_config.plain.get(item_name_lossy.as_ref()) {
             Some(item) => Some(item),
             None => {
-                for generic_item in &section_config.generics {
-                    // generic patterns expect rooted matching
-                    // (because Python's `re.match` works that way)
-                    let pattern = format!(r"^(?:{})", generic_item.name);
-                    if regex::bytes::Regex::new(&pattern)
-                        .expect("invalid regex in configitems")
-                        .is_match(item)
-                    {
+                for (regex, generic_item) in &section_config.generics {
+                    if regex.is_match(item) {
                         return Some(generic_item);
                     }
                 }
@@ -801,5 +809,20 @@ suffix = "unified"
             config.get(b"command-templates", b"graphnode"),
             Some(&expected)
         );
+    }
+
+    #[test]
+    fn test_invalid_generic_pattern_is_a_loading_error() {
+        let contents = r#"
+template-applications = []
+
+[[items]]
+section = "alias"
+name = "invalid(["
+generic = true
+
+[templates]
+"#;
+        assert!(DefaultConfig::from_contents(contents).is_err());
     }
 }
