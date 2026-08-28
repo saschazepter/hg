@@ -663,6 +663,11 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     cmdutil.check_incompatible_arguments(
         opts, 'store_shape', pattern_changing_args
     )
+    cmdutil.check_incompatible_arguments(
+        opts,
+        'update_working_copy',
+        pattern_changing_args + ['store_shape'],
+    )
 
     # Before supporting, decide whether it "hg tracked --clear" should mean
     # tracking no paths or all paths.

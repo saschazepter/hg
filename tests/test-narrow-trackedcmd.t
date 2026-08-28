@@ -221,6 +221,16 @@ Testing with passing a out of wdir file
   adding file changes
   added 3 changesets with 0 changes to 0 files
 
+--update-working-copy doesn't use pattern arguments, so it refuses them
+instead of ignoring them
+
+  $ hg tracked --update-working-copy --addinclude widest
+  abort: cannot specify both --update-working-copy and --addinclude
+  [10]
+  $ hg tracked --update-working-copy --removeexclude inside
+  abort: cannot specify both --update-working-copy and --removeexclude
+  [10]
+
   $ cd ..
 
 Testing tracked command on a non-narrow repo
