@@ -1,5 +1,4 @@
 //! Code for parsing default Mercurial config items.
-use itertools::Itertools;
 use serde::Deserialize;
 
 use crate::FastHashMap;
@@ -506,8 +505,12 @@ struct TemplateApplication {
 /// Exists to simplify the plain / generic split of items.
 #[derive(Clone, Debug, Default)]
 struct DefaultConfigSection {
-    /// The section's items, by name.
+    /// The plain items (matched by exact name), by name.
     plain: FastHashMap<String, DefaultConfigItem>,
+    /// The generic items (matched by regex).
+    ///
+    /// Sorted by `(priority, name)`, i.e. in matching order.
+    generics: Vec<DefaultConfigItem>,
 }
 
 /// Represents the (dynamic) set of default core Mercurial config items from
@@ -565,7 +568,16 @@ impl DefaultConfig {
             FastHashMap::default();
         for item in flat_items {
             let section = items.entry(item.section.to_owned()).or_default();
-            section.plain.insert(item.name.to_owned(), item);
+            if item.is_generic() {
+                section.generics.push(item);
+            } else {
+                section.plain.insert(item.name.to_owned(), item);
+            }
+        }
+        for section in items.values_mut() {
+            section.generics.sort_by(|a, b| {
+                (a.priority, &a.name).cmp(&(b.priority, &b.name))
+            });
         }
 
         Ok(Self { items })
@@ -584,15 +596,7 @@ impl DefaultConfig {
         match section_config.plain.get(item_name_lossy.as_ref()) {
             Some(item) => Some(item),
             None => {
-                for generic_item in section_config
-                    .plain
-                    .values()
-                    .filter(|item| item.is_generic())
-                    .sorted_by_key(|item| match item.priority {
-                        Some(priority) => (priority, &item.name),
-                        _ => unreachable!(),
-                    })
-                {
+                for generic_item in &section_config.generics {
                     // generic patterns expect rooted matching
                     // (because Python's `re.match` works that way)
                     let pattern = format!(r"^(?:{})", generic_item.name);
