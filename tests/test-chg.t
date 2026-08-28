@@ -214,10 +214,9 @@ server lifecycle
 ----------------
 
 chg server should be restarted on code change, and old server will shut down
-automatically. In this test, we use the following time parameters:
+automatically.
 
- - "sleep 1" to make mtime different
- - "sleep 2" to notice mtime change (polling interval is 1 sec)
+"sleep 1" is used to make mtime different
 
 set up repository with an extension:
 
@@ -235,6 +234,13 @@ isolate socket directory for stable result:
   $ mkdir chgsock
   $ CHGSOCKNAME=`pwd`/chgsock/server
 
+wrap the helper script into something short to use in the test
+
+  $ wait_server_exit() {
+  >   "$PYTHON" "$TESTDIR/testlib/wait-on-chg-server-exit.py" "$@" \
+  >     "$TESTTMP/log/server.log" "$TESTTMP/extreload/chgsock"
+  > }
+
 warm up server:
 
   $ CHGDEBUG= chg log 2>&1 | grep -E 'instruction|start'
@@ -251,7 +257,7 @@ new server should be started if extension modified:
 
 old server will shut down, while new server should still be reachable:
 
-  $ sleep 2
+  $ wait_server_exit
   $ CHGDEBUG= chg log 2>&1 | (grep -E 'instruction|start' || true)
 
 socket file should never be unlinked by old server:
@@ -261,7 +267,7 @@ at polling cycle)
   $ ls chgsock/server-*
   chgsock/server-* (glob)
   $ touch chgsock/server-*
-  $ sleep 2
+  $ wait_server_exit --all
   $ ls chgsock/server-*
   chgsock/server-* (glob)
 
@@ -274,7 +280,7 @@ since no server is reachable from socket file, new server should be started:
 shut down servers and restore environment:
 
   $ rm -R chgsock
-  $ sleep 2
+  $ wait_server_exit --all
   $ CHGSOCKNAME=$OLDCHGSOCKNAME
   $ cd ..
 
