@@ -4,6 +4,7 @@
 // For now it's separate because it started out as a port of
 // mercurial/cext/manifest.c, and is currently only used from Python.
 
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::io::Write;
@@ -197,6 +198,24 @@ impl LazyManifest {
         let mut iter_edits = self.edits.iter();
         let next_edit = iter_edits.next().map(|t| (t.0.as_ref(), *t.1));
         RawIter { inner: self, index: 0, iter_edits, next_edit }
+    }
+
+    /// Returns an iterator over the differences from `self` to `other`.
+    /// If `clean` is true, includes entries that are the same in both.
+    pub fn diff<'a>(
+        &'a self,
+        other: &'a Self,
+        clean: bool,
+    ) -> LazyManifestDiffIter<'a> {
+        LazyManifestDiffIter {
+            left: self.iter(),
+            right: other.iter(),
+            next_left: None,
+            next_right: None,
+            advance_left: true,
+            advance_right: true,
+            clean,
+        }
     }
 
     /// Returns true if the manifest contains the given path.
@@ -569,6 +588,73 @@ impl<'a> Iterator for LazyManifestIter<'a> {
     }
 }
 
+/// A difference between two manifests at one path, as `(left, right)`.
+/// A `None` side means the path is absent from that manifest.
+pub type LazyManifestDiffItem<'a> =
+    (Option<DecodedManifestEntry<'a>>, Option<DecodedManifestEntry<'a>>);
+
+/// An iterator over the differences between two manifests.
+pub struct LazyManifestDiffIter<'a> {
+    left: LazyManifestIter<'a>,
+    right: LazyManifestIter<'a>,
+    next_left: Option<DecodedManifestEntry<'a>>,
+    next_right: Option<DecodedManifestEntry<'a>>,
+    advance_left: bool,
+    advance_right: bool,
+    clean: bool,
+}
+
+// TODO: This is at least the fourth implementation of manifest diffing we have.
+// At some point we should unify it with the diffing done for hg update, and
+// the diffing done for computing deltas.
+impl<'a> Iterator for LazyManifestDiffIter<'a> {
+    type Item = Result<LazyManifestDiffItem<'a>, RevlogError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.advance_left {
+                self.next_left = match self.left.next().transpose() {
+                    Ok(entry) => entry,
+                    Err(e) => return Some(Err(e)),
+                };
+                self.advance_left = false;
+            }
+            if self.advance_right {
+                self.next_right = match self.right.next().transpose() {
+                    Ok(entry) => entry,
+                    Err(e) => return Some(Err(e)),
+                };
+                self.advance_right = false;
+            }
+            let ordering = match (self.next_left, self.next_right) {
+                (None, None) => return None,
+                (Some(_), None) => Ordering::Less,
+                (None, Some(_)) => Ordering::Greater,
+                (Some(left), Some(right)) => left.path.cmp(right.path),
+            };
+            let item = match ordering {
+                Ordering::Less => {
+                    self.advance_left = true;
+                    (self.next_left, None)
+                }
+                Ordering::Greater => {
+                    self.advance_right = true;
+                    (None, self.next_right)
+                }
+                Ordering::Equal => {
+                    self.advance_left = true;
+                    self.advance_right = true;
+                    if !self.clean && self.next_left == self.next_right {
+                        continue;
+                    }
+                    (self.next_left, self.next_right)
+                }
+            };
+            return Some(Ok(item));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rand::SeedableRng;
@@ -610,6 +696,21 @@ mod tests {
         manifest: &LazyManifest,
     ) -> Result<Vec<DecodedManifestEntry<'_>>, RevlogError> {
         manifest.iter().collect()
+    }
+
+    fn entry<'a>(
+        manifest: &'a LazyManifest,
+        path: &[u8],
+    ) -> DecodedManifestEntry<'a> {
+        manifest.get(HgPath::new(path)).unwrap().unwrap()
+    }
+
+    fn diff<'a>(
+        m1: &'a LazyManifest,
+        m2: &'a LazyManifest,
+        clean: bool,
+    ) -> Vec<LazyManifestDiffItem<'a>> {
+        m1.diff(m2, clean).collect::<Result<_, _>>().unwrap()
     }
 
     /// The paths that the random tests choose from.
@@ -727,6 +828,26 @@ mod tests {
         fn remove(&mut self, p: &[u8]) -> bool {
             self.0.remove(p).is_some()
         }
+
+        /// Returns the differences to `other`, like [`LazyManifest::diff`].
+        fn diff<'a>(
+            &'a self,
+            other: &'a Self,
+            clean: bool,
+        ) -> Vec<LazyManifestDiffItem<'a>> {
+            let mut paths: Vec<&Vec<u8>> =
+                self.0.keys().chain(other.0.keys()).collect();
+            paths.sort();
+            paths.dedup();
+            paths
+                .into_iter()
+                .filter_map(|p| {
+                    let left = self.get(p);
+                    let right = other.get(p);
+                    (clean || left != right).then_some((left, right))
+                })
+                .collect()
+        }
     }
 
     /// A [`LazyManifest`] paired with a [`Model`].
@@ -770,6 +891,21 @@ mod tests {
                 let expected = self.model.get(p);
                 assert_eq!(self.manifest.contains(path(p)), expected.is_some());
                 assert_eq!(self.manifest.get(path(p)).unwrap(), expected);
+            }
+        }
+
+        /// Asserts that diffing against `other` agrees with the model, in
+        /// both directions and both with and without `clean`.
+        fn check_diff(&self, other: &Self) {
+            for clean in [false, true] {
+                assert_eq!(
+                    diff(&self.manifest, &other.manifest, clean),
+                    self.model.diff(&other.model, clean)
+                );
+                assert_eq!(
+                    diff(&other.manifest, &self.manifest, clean),
+                    other.model.diff(&self.model, clean)
+                );
             }
         }
 
@@ -1291,6 +1427,114 @@ mod tests {
         }
     }
 
+    /// Test diffing a manifest with itself (should be all clean).
+    #[test]
+    fn test_diff_self() {
+        let text = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n\
+            e.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041l\n";
+        let m = new(text);
+
+        assert_eq!(diff(&m, &m, false), &[]);
+        assert_eq!(
+            diff(&m, &m, true),
+            &[
+                (Some(entry(&m, b"a.txt")), Some(entry(&m, b"a.txt"))),
+                (Some(entry(&m, b"c.txt")), Some(entry(&m, b"c.txt"))),
+                (Some(entry(&m, b"e.txt")), Some(entry(&m, b"e.txt"))),
+            ]
+        );
+    }
+
+    /// Test diffing an empty manifest to/from a nonempty manifest.
+    #[test]
+    fn test_diff_empty() {
+        let text = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n\
+            e.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041l\n";
+        let m = new(text);
+        let empty = new(b"");
+
+        assert_eq!(
+            diff(&m, &empty, false),
+            &[
+                (Some(entry(&m, b"a.txt")), None),
+                (Some(entry(&m, b"c.txt")), None),
+                (Some(entry(&m, b"e.txt")), None),
+            ]
+        );
+        assert_eq!(
+            diff(&empty, &m, false),
+            &[
+                (None, Some(entry(&m, b"a.txt"))),
+                (None, Some(entry(&m, b"c.txt"))),
+                (None, Some(entry(&m, b"e.txt"))),
+            ]
+        );
+        assert_eq!(diff(&empty, &empty, false), &[]);
+        assert_eq!(diff(&empty, &empty, true), &[]);
+    }
+
+    /// Test diffing two different nonempty manifests.
+    #[test]
+    fn test_diff_different() {
+        let text_1 = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n\
+            e.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041l\n";
+        let text_2 = b"b.txt\x00cccccccccccccccccccccccccccccccccccccccc\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n\
+            e.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041\n";
+        let m1 = new(text_1);
+        let m2 = new(text_2);
+
+        assert_eq!(
+            diff(&m1, &m2, false),
+            &[
+                (Some(entry(&m1, b"a.txt")), None),
+                (None, Some(entry(&m2, b"b.txt"))),
+                (Some(entry(&m1, b"e.txt")), Some(entry(&m2, b"e.txt"))),
+            ]
+        );
+        assert_eq!(
+            diff(&m1, &m2, true),
+            &[
+                (Some(entry(&m1, b"a.txt")), None),
+                (None, Some(entry(&m2, b"b.txt"))),
+                (Some(entry(&m1, b"c.txt")), Some(entry(&m2, b"c.txt"))),
+                (Some(entry(&m1, b"e.txt")), Some(entry(&m2, b"e.txt"))),
+            ]
+        );
+    }
+
+    /// Test diffing a manifest with in-memory edits against its base text.
+    #[test]
+    fn test_diff_with_edits() {
+        let text = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n";
+        let m1 = new(text);
+        let mut m2 = new(text);
+        assert!(m2.remove(path(b"a.txt")));
+        m2.set(
+            path(b"b.txt"),
+            node(b"cccccccccccccccccccccccccccccccccccccccc"),
+            ManifestFlags::EMPTY,
+        );
+        assert!(m2.set(
+            path(b"c.txt"),
+            node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            ManifestFlags::LINK
+        ));
+
+        assert_eq!(
+            diff(&m1, &m2, false),
+            &[
+                (Some(entry(&m1, b"a.txt")), None),
+                (None, Some(entry(&m2, b"b.txt"))),
+                (Some(entry(&m1, b"c.txt")), Some(entry(&m2, b"c.txt"))),
+            ]
+        );
+    }
+
     /// Test that paths in the manifest are kept in the correct order,
     /// especially when there is a mix of on-disk and in-memory entries.
     #[test]
@@ -1356,6 +1600,31 @@ mod tests {
             }
 
             manifest.check();
+        }
+    }
+
+    /// Test diffing manifests after performing random operations on both.
+    #[test]
+    fn test_random_diff() {
+        let pool = path_pool();
+        for seed in 0..64 {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+            let mut m1 = random_manifest(&mut rng, &pool);
+            let mut m2 = random_manifest(&mut rng, &pool);
+            m1.check_diff(&m1);
+            m1.check_diff(&m2);
+
+            // Diff with pending edits on one or both sides.
+            for _ in 0..10 {
+                random_edit(&mut rng, &pool, &mut m1);
+                m1.check_diff(&m2);
+                random_edit(&mut rng, &pool, &mut m2);
+                m1.check_diff(&m2);
+            }
+
+            // Compacting one side must not change the diff.
+            m1.manifest.compact();
+            m1.check_diff(&m2);
         }
     }
 }

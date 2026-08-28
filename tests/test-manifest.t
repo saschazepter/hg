@@ -523,14 +523,19 @@ Diff manifests
 
 Diff two manifests
 
-#if rust
-  $ hg status --rev 0 --rev tip 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.diff
-  $ hg status --rev 0 --rev tip --all 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.diff
-  $ hg status --rev tip --rev tip --all 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.diff
-#endif
+  $ hg status --rev 0 --rev tip
+  A b/a
+  A newfile
+  R a
+  $ hg status --rev 0 --rev tip --all
+  A b/a
+  A newfile
+  R a
+  C l
+  $ hg status --rev tip --rev tip --all
+  C b/a
+  C l
+  C newfile
 
 Diff two manifests filtered by a pattern
 

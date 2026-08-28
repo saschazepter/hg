@@ -28,8 +28,10 @@ use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::pyclass;
 use pyo3::pymethods;
+use pyo3::types::PyAnyMethods;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
+use pyo3::types::PyDictMethods;
 use pyo3::types::PyModule;
 use pyo3::types::PyModuleMethods;
 use pyo3::types::PyTuple;
@@ -168,14 +170,21 @@ impl PyLazyManifest {
         })
     }
 
-    #[expect(unused_variables)]
     #[pyo3(signature = (m2, clean = false))]
     fn diff(
         slf: &Bound<'_, Self>,
         m2: &Bound<'_, Self>,
         clean: bool,
     ) -> PyResult<Py<PyDict>> {
-        Err(PyNotImplementedError::new_err("LazyManifest.diff"))
+        Self::with_inner_read(slf, |_self_ref, inner| {
+            // Avoid trying to take the same lock again.
+            if slf.is(m2) {
+                return Self::diff_inner(slf.py(), &inner, &inner, clean);
+            }
+            Self::with_inner_read(m2, |_m2_ref, inner2| {
+                Self::diff_inner(slf.py(), &inner, &inner2, clean)
+            })
+        })
     }
 
     #[expect(unused_variables)]
@@ -216,6 +225,35 @@ impl PyLazyManifest {
         let shareable_ref = unsafe { self_ref.inner.borrow_with_owner(slf) };
         let guard = shareable_ref.try_write().map_err(map_try_lock_error)?;
         f(&self_ref, guard)
+    }
+
+    /// Builds the dict for [`Self::diff`].
+    fn diff_inner(
+        py: Python<'_>,
+        m1: &LazyManifest,
+        m2: &LazyManifest,
+        clean: bool,
+    ) -> PyResult<Py<PyDict>> {
+        let dict = PyDict::new(py);
+        let missing =
+            (py.None(), PyBytes::new(py, ManifestFlags::EMPTY.as_bytes()))
+                .into_pyobject(py)?;
+        let side = |entry: Option<DecodedManifestEntry<'_>>| match entry {
+            Some(entry) => node_and_flags(py, &entry),
+            None => Ok(missing.clone()),
+        };
+        for item in m1.diff(m2, clean) {
+            let (left, right) = item.into_pyerr(py)?;
+            let entry = left.or(right).expect("at least one side is present");
+            let key = PyBytes::new(py, entry.path.as_bytes());
+            let value = if clean && left == right {
+                py.None().into_bound(py)
+            } else {
+                (side(left)?, side(right)?).into_pyobject(py)?.into_any()
+            };
+            dict.set_item(key, value)?;
+        }
+        Ok(dict.unbind())
     }
 }
 
