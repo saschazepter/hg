@@ -501,12 +501,21 @@ struct TemplateApplication {
     prefix: Option<String>,
 }
 
+/// The default config items of a single section
+///
+/// Exists to simplify the plain / generic split of items.
+#[derive(Clone, Debug, Default)]
+struct DefaultConfigSection {
+    /// The section's items, by name.
+    plain: FastHashMap<String, DefaultConfigItem>,
+}
+
 /// Represents the (dynamic) set of default core Mercurial config items from
 /// `mercurial/configitems.toml`.
 #[derive(Clone, Debug, Default)]
 pub struct DefaultConfig {
-    /// Mapping of section -> (mapping of name -> item)
-    items: FastHashMap<String, FastHashMap<String, DefaultConfigItem>>,
+    /// Mapping of section -> the default items of that section
+    items: FastHashMap<String, DefaultConfigSection>,
 }
 
 impl DefaultConfig {
@@ -552,19 +561,12 @@ impl DefaultConfig {
             };
         }
 
-        let items = flat_items.into_iter().fold(
-            FastHashMap::default(),
-            |mut acc, item| {
-                acc.entry(item.section.to_owned())
-                    .or_insert_with(|| {
-                        let mut section = FastHashMap::default();
-                        section.insert(item.name.to_owned(), item.to_owned());
-                        section
-                    })
-                    .insert(item.name.to_owned(), item);
-                acc
-            },
-        );
+        let mut items: FastHashMap<String, DefaultConfigSection> =
+            FastHashMap::default();
+        for item in flat_items {
+            let section = items.entry(item.section.to_owned()).or_default();
+            section.plain.insert(item.name.to_owned(), item);
+        }
 
         Ok(Self { items })
     }
@@ -577,12 +579,13 @@ impl DefaultConfig {
     ) -> Option<&DefaultConfigItem> {
         // Core items must be valid UTF-8
         let section = String::from_utf8_lossy(section);
-        let section_map = self.items.get(section.as_ref())?;
+        let section_config = self.items.get(section.as_ref())?;
         let item_name_lossy = String::from_utf8_lossy(item);
-        match section_map.get(item_name_lossy.as_ref()) {
+        match section_config.plain.get(item_name_lossy.as_ref()) {
             Some(item) => Some(item),
             None => {
-                for generic_item in section_map
+                for generic_item in section_config
+                    .plain
                     .values()
                     .filter(|item| item.is_generic())
                     .sorted_by_key(|item| match item.priority {
