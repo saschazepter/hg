@@ -123,6 +123,7 @@ _envre = re.compile(
     |LD_.*
     |PATH
     |PYTHON.*
+    |RUST_LOG
     |TERM(?:INFO)?
     |TZ
     )\Z''',
