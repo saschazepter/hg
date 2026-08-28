@@ -590,7 +590,10 @@ impl DefaultConfig {
                         _ => unreachable!(),
                     })
                 {
-                    if regex::bytes::Regex::new(&generic_item.name)
+                    // generic patterns expect rooted matching
+                    // (because Python's `re.match` works that way)
+                    let pattern = format!(r"^(?:{})", generic_item.name);
+                    if regex::bytes::Regex::new(&pattern)
                         .expect("invalid regex in configitems")
                         .is_match(item)
                     {
@@ -661,6 +664,18 @@ name = "policy"
 default = "abort"
 experimental = true
 
+[[items]]
+section = "pager"
+name = "attend-.*"
+default = true
+generic = true
+
+[[items]]
+section = "merge-tools"
+name = "kdiff3|meld"
+default = true
+generic = true
+
 [[template-applications]]
 template = "diff-options"
 section = "commands"
@@ -725,6 +740,15 @@ suffix = "unified"
             in_core_extension: None,
         };
         assert_eq!(config.get(b"alias", b"something"), Some(&expected));
+
+        // Generic patterns match from the start of the item name, like
+        // Python's `re.match`, not anywhere in the name.
+        assert!(config.get(b"pager", b"attend-diff").is_some());
+        assert!(config.get(b"pager", b"no-attend-diff").is_none());
+
+        // The anchoring applies to all branches of an alternation
+        assert!(config.get(b"merge-tools", b"meld").is_some());
+        assert!(config.get(b"merge-tools", b"xmeld").is_none());
 
         let expected = DefaultConfigItem {
             section: "chgserver".into(),
