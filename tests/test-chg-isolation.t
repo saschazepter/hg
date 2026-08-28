@@ -4,6 +4,10 @@ Timeout copied from test-chg.t.
   $ CHGTIMEOUT=`expr $HGTEST_TIMEOUT / 6`
   $ export CHGTIMEOUT
 
+Install the `chg` wrapper around the rust front's daemonized mode:
+
+  $ . "$TESTDIR/testlib/helpers-chg.sh"
+
 Create repo
   $ hg init repo
   $ cd repo

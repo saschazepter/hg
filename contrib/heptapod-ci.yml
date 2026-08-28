@@ -427,7 +427,7 @@ test-rhg:
 
 test-chg:
     extends: .runtests-no-check
-    image: "$HG_CI_REG/hg-core-test-py-dev:$HG_CI_IMAGE_TAG"
+    image: "$HG_CI_REG/hg-core-test-py-dev-rust-dev:$HG_CI_IMAGE_TAG"
     variables:
         FLAVOR: "--chg"
 

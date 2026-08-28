@@ -781,6 +781,9 @@ def parseargs(args, parser):
     if options.rust and options.no_rust:
         parser.error('--rust cannot be used with --no-rust')
 
+    if options.chg:
+        options.hg_exec_type = "rust-front"
+
     if options.local:
         if options.with_hg or options.with_rhg or options.with_chg:
             parser.error(
@@ -807,8 +810,6 @@ def parseargs(args, parser):
                 sys.exit(1)
 
         pathandattrs = [(path_local_hg, 'with_hg')]
-        if options.chg:
-            pathandattrs.append((b'contrib/chg/chg', 'with_chg'))
         # if options.rhg:
         #     pathandattrs.append((b'rust/target/release/rhg', 'with_rhg'))
         for relpath, attr in pathandattrs:
@@ -3479,19 +3480,12 @@ class TestRunner:
 
         self._real_hg = os.path.join(self._bindir, self._hgcommand)
         osenvironb[b'HGTEST_REAL_HG'] = self._real_hg
-        # set CHGHG, then replace "hg" command by "chg"
-        chgbindir = self._bindir
         if self.options.chg or self.options.with_chg:
             osenvironb[b'CHG_INSTALLED_AS_HG'] = b'1'
-            osenvironb[b'CHGHG'] = self._real_hg
+            osenvironb[b'HGDAEMONIZEPOLICY'] = b'always'
         else:
             # drop flag for hghave
             osenvironb.pop(b'CHG_INSTALLED_AS_HG', None)
-        if self.options.chg:
-            self._hgcommand = b'chg'
-        elif self.options.with_chg:
-            chgbindir = os.path.dirname(os.path.realpath(self.options.with_chg))
-            self._hgcommand = os.path.basename(self.options.with_chg)
 
         # configure fallback and replace "hg" command by "rhg"
         rhgbindir = self._bindir
@@ -3544,8 +3538,6 @@ class TestRunner:
             realfile = os.path.realpath(fileb)
             realdir = os.path.abspath(os.path.dirname(realfile))
             path.insert(2, realdir)
-        if chgbindir != self._bindir:
-            path.insert(1, chgbindir)
         if rhgbindir != self._bindir:
             path.insert(1, rhgbindir)
         if self._testdir != RUNTEST_DIR:
@@ -3783,9 +3775,6 @@ class TestRunner:
                 if self._installdir:
                     self._installhg()
                     self._check_hg("Testing")
-                if self.options.chg:
-                    assert self._installdir
-                    self._installchg()
                 elif self.options.pyoxidized:
                     self._build_pyoxidized()
                 self._use_correct_mercurial()
@@ -4226,6 +4215,10 @@ class TestRunner:
         env["HGUSER"] = "test_gremlin"
         env["HGRCPATH"] = "/dev/null"
         env["HGEDITOR"] = sys.executable  # The executable must exist
+        # query the binary directly, without daemonization, as the command
+        # server would be spawned from the current repository and might not
+        # be able to read it (e.g. missing fast implementation)
+        env.pop("HGDAEMONIZEPOLICY", None)
         return env
 
     def _get_hg_module_policy(self):
@@ -4303,30 +4296,6 @@ class TestRunner:
         self._hgpath = out.strip()
 
         return self._hgpath
-
-    def _installchg(self):
-        """Install chg into the test environment"""
-        vlog('# Performing temporary installation of CHG')
-        assert os.path.dirname(self._bindir) == self._installdir
-        assert self._hgroot, 'must be called after _installhg()'
-        cmd = b'"%(make)s" clean install PREFIX="%(prefix)s"' % {
-            b'make': b'make',  # TODO: switch by option or environment?
-            b'prefix': self._installdir,
-        }
-        cwd = os.path.join(self._hgroot, b'contrib', b'chg')
-        vlog("# Running", cmd)
-        proc = subprocess.Popen(
-            cmd,
-            shell=True,
-            cwd=cwd,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-        )
-        out, _err = proc.communicate()
-        if proc.returncode != 0:
-            sys.stdout.buffer.write(out)
-            sys.exit(1)
 
     def _build_pyoxidized(self):
         """build a pyoxidized version of mercurial into the test environment

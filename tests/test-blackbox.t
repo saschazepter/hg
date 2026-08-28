@@ -1,5 +1,6 @@
 setup
 
+  $ . "$TESTDIR/testlib/helpers-chg.sh"
   $ cat > myextension.py <<EOF
   > from mercurial import error, registrar
   > cmdtable = {}

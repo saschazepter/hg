@@ -293,7 +293,10 @@ try again with remote chg, which should succeed as well
   $ hg rollback -R ../remote
   repository tip rolled back to revision 4 (undo serve)
 
-  $ hg push --config ui.remotecmd=chg
+
+  $ . "$TESTDIR/testlib/helpers-chg.sh"
+
+  $ hg push --config ui.remotecmd="$TESTTMP/chg-wrapper/chg"
   pushing to ssh://user@dummy/remote
   searching for changes
   remote has heads on branch 'default' that are not known locally: 6c0482d977a3
@@ -619,7 +622,7 @@ debug output
   HG_TXNNAME=serve
   HG_URL=remote:ssh:$LOCALIP
   
-  Got arguments 1:user@dummy 2:chg -R remote serve --stdio (chg !)
+  Got arguments 1:user@dummy 2:$TESTTMP/chg-wrapper/chg -R remote serve --stdio (chg !)
   changegroup-in-remote hook: HG_BUNDLE2=1 (chg !)
   HG_HOOKNAME=changegroup (chg !)
   HG_HOOKTYPE=changegroup (chg !)

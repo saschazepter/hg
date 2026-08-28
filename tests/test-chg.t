@@ -25,6 +25,10 @@ This is done to reduce the flakiness of this test on heavy load.
   >       -e 's!\(/server-\)[0-9a-f]*!\1...!g'
   > }
 
+Install the `chg` wrapper around the rust front's daemonized mode:
+
+  $ . "$TESTDIR/testlib/helpers-chg.sh"
+
 init repo
 
   $ chg init foo
@@ -221,9 +225,11 @@ in this test.
 missing stdio
 -------------
 
-  $ CHGDEBUG=1 chg version -q 0<&-
-  chg: debug: * stdio fds are missing (glob)
-  chg: debug: * execute original hg (glob)
+The rust front's runtime replaces missing stdio fds with /dev/null before
+the chg logic runs, so the command server can be used as usual (the
+standalone chg binary used to fall back to executing hg directly here).
+
+  $ chg version -q 0<&-
   Mercurial Distributed SCM * (glob)
 
 server lifecycle
@@ -487,7 +493,7 @@ Test that chg works (sets to the user's actual LC_CTYPE) even when python
 
 #if python-local-coerce
 
-  $ (unset LC_ALL; unset LANG; LC_CTYPE= "$CHGHG" \
+  $ (unset LC_ALL; unset LANG; LC_CTYPE= HGDAEMONIZEPOLICY=never hg \
   >    --config extensions.debugenv=$TESTTMP/debugenv.py debugenv)
   LC_CTYPE=C.UTF-8
 
@@ -577,23 +583,6 @@ FIXME: Run 4 should not be >3x Run 1's number of samples.
   $ filteredchg log -r . --no-profile
   $ filteredchg log -r .
   Sample count: * (glob)
-
-chg setting CHGHG itself
-------------------------
-
-If CHGHG is not set, chg will set it before spawning the command server.
-  $ hg --kill-chg-daemon
-  $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
-  >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
-  >   | grep -E 'CHGHG|start cmdserver'
-  chg: debug: * start cmdserver at * (glob)
-  CHGHG=$HGTEST_REAL_HG
-
-Running the same command a second time shouldn't spawn a new command server.
-  $ HG=$CHGHG CHGHG= CHGDEBUG= hg debugshell -c \
-  >   'ui.write(b"CHGHG=%s\n" % ui.environ.get(b"CHGHG"))' 2>&1 \
-  >   | grep -E 'CHGHG|start cmdserver'
-  CHGHG=$HGTEST_REAL_HG
 
   $ cd ..
 
