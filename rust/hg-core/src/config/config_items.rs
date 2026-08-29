@@ -610,28 +610,46 @@ impl DefaultConfig {
 
         let mut items: FastHashMap<Vec<u8>, DefaultConfigSection> =
             FastHashMap::default();
+        // Some generic config names like `.*` and `[^:]+` are used multiple
+        // times. Measurements showed that caching them is faster than
+        // rebuilding.
+        let mut compiled: FastHashMap<Vec<u8>, regex::bytes::Regex> =
+            FastHashMap::default();
         for item in flat_items {
             let section = items.entry(item.section.clone()).or_default();
             if item.is_generic() {
-                // generic patterns expect rooted matching
-                // (because Python's `re.match` works that way).
-                let pattern =
-                    format!(r"^(?:{})", String::from_utf8_lossy(&item.name));
-                let regex = regex::bytes::RegexBuilder::new(&pattern)
-                    .unicode(false) // `.` should match any byte
-                    .build()
-                    .map_err(|e| {
-                        HgError::abort(
-                            format!(
-                                "invalid pattern for config item '{}.{}': {}",
-                                String::from_utf8_lossy(&item.section),
-                                String::from_utf8_lossy(&item.name),
-                                e
-                            ),
-                            exit_codes::ABORT,
-                            Some("Check 'mercurial/configitems.toml'".into()),
-                        )
-                    })?;
+                let regex = match compiled.get(&item.name) {
+                    Some(regex) => regex.clone(),
+                    None => {
+                        // generic patterns expect rooted matching
+                        // (because Python's `re.match` works that way).
+                        let pattern = format!(
+                            r"^(?:{})",
+                            String::from_utf8_lossy(&item.name)
+                        );
+                        let regex = regex::bytes::RegexBuilder::new(&pattern)
+                            .unicode(false) // `.` should match any byte
+                            .build()
+                            .map_err(|e| {
+                                HgError::abort(
+                                    format!(
+                                        "invalid pattern for config \
+                                         item '{}.{}': {}",
+                                        String::from_utf8_lossy(&item.section),
+                                        String::from_utf8_lossy(&item.name),
+                                        e
+                                    ),
+                                    exit_codes::ABORT,
+                                    Some(
+                                        "Check 'mercurial/configitems.toml'"
+                                            .into(),
+                                    ),
+                                )
+                            })?;
+                        compiled.insert(item.name.clone(), regex.clone());
+                        regex
+                    }
+                };
                 section.generics.push((regex, item));
             } else {
                 section.plain.insert(item.name.clone(), item);
