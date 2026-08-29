@@ -1,4 +1,5 @@
 //! Code for parsing default Mercurial config items.
+use format_bytes::format_bytes;
 use serde::Deserialize;
 
 use crate::FastHashMap;
@@ -369,15 +370,15 @@ impl DefaultConfigItemType {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(try_from = "RawTemplateItem")]
 struct TemplateItem {
-    suffix: String,
+    suffix: Vec<u8>,
     default: Option<DefaultConfigItemType>,
     priority: Option<isize>,
     #[serde(default)]
-    alias: Vec<(String, String)>,
+    alias: Vec<(Vec<u8>, Vec<u8>)>,
     #[serde(default)]
     experimental: bool,
     #[serde(default)]
-    documentation: String,
+    documentation: Vec<u8>,
 }
 
 /// Corresponds to the raw (i.e. on disk) representation of a template item.
@@ -406,23 +407,18 @@ impl TemplateItem {
         application: TemplateApplication,
     ) -> DefaultConfigItem {
         DefaultConfigItem {
-            section: application.section.into_bytes(),
-            name: application
-                .prefix
-                .map(|prefix| format!("{}.{}", prefix, self.suffix))
-                .unwrap_or(self.suffix)
-                .into_bytes(),
+            section: application.section,
+            name: match application.prefix {
+                Some(prefix) => {
+                    format_bytes!(b"{}.{}", prefix, self.suffix)
+                }
+                None => self.suffix,
+            },
             default: self.default,
             priority: self.priority,
-            alias: self
-                .alias
-                .into_iter()
-                .map(|(section, name)| {
-                    (section.into_bytes(), name.into_bytes())
-                })
-                .collect(),
+            alias: self.alias,
             experimental: self.experimental,
-            documentation: self.documentation.into_bytes(),
+            documentation: self.documentation,
             in_core_extension: None,
         }
     }
@@ -433,7 +429,7 @@ impl TryFrom<RawTemplateItem> for TemplateItem {
 
     fn try_from(value: RawTemplateItem) -> Result<Self, Self::Error> {
         Ok(Self {
-            suffix: value.suffix,
+            suffix: value.suffix.into_bytes(),
             default: raw_default_to_concrete(
                 value.default_type,
                 value.default,
@@ -443,9 +439,15 @@ impl TryFrom<RawTemplateItem> for TemplateItem {
             } else {
                 None
             },
-            alias: value.alias,
+            alias: value
+                .alias
+                .into_iter()
+                .map(|(section, name)| {
+                    (section.into_bytes(), name.into_bytes())
+                })
+                .collect(),
             experimental: value.experimental,
-            documentation: value.documentation,
+            documentation: value.documentation.into_bytes(),
         })
     }
 }
@@ -513,11 +515,33 @@ fn raw_default_to_concrete(
 }
 
 #[derive(Debug, Clone, Deserialize)]
+#[serde(from = "RawTemplateApplication")]
 struct TemplateApplication {
+    /// Name of the applied template, a purely internal cross-reference
+    /// within the TOML file, hence not bytes.
+    template: String,
+    section: Vec<u8>,
+    prefix: Option<Vec<u8>>,
+}
+
+/// Corresponds to the raw (i.e. on disk) structure of a template
+/// application. Used as an intermediate step in deserialization.
+#[derive(Debug, Deserialize)]
+struct RawTemplateApplication {
     template: String,
     section: String,
     #[serde(default)]
     prefix: Option<String>,
+}
+
+impl From<RawTemplateApplication> for TemplateApplication {
+    fn from(value: RawTemplateApplication) -> Self {
+        Self {
+            template: value.template,
+            section: value.section.into_bytes(),
+            prefix: value.prefix.map(String::into_bytes),
+        }
+    }
 }
 
 /// The default config items of a single section
