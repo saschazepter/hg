@@ -506,7 +506,7 @@ struct TemplateApplication {
 #[derive(Clone, Debug, Default)]
 struct DefaultConfigSection {
     /// The plain items (matched by exact name), by name.
-    plain: FastHashMap<String, DefaultConfigItem>,
+    plain: FastHashMap<Vec<u8>, DefaultConfigItem>,
     /// The generic items (matched by regex).
     ///
     /// Sorted by `(priority, name)`, i.e. in matching order.
@@ -518,7 +518,7 @@ struct DefaultConfigSection {
 #[derive(Clone, Debug, Default)]
 pub struct DefaultConfig {
     /// Mapping of section -> the default items of that section
-    items: FastHashMap<String, DefaultConfigSection>,
+    items: FastHashMap<Vec<u8>, DefaultConfigSection>,
 }
 
 impl DefaultConfig {
@@ -564,10 +564,11 @@ impl DefaultConfig {
             };
         }
 
-        let mut items: FastHashMap<String, DefaultConfigSection> =
+        let mut items: FastHashMap<Vec<u8>, DefaultConfigSection> =
             FastHashMap::default();
         for item in flat_items {
-            let section = items.entry(item.section.to_owned()).or_default();
+            let section =
+                items.entry(item.section.as_bytes().to_owned()).or_default();
             if item.is_generic() {
                 // generic patterns expect rooted matching
                 // (because Python's `re.match` works that way)
@@ -587,7 +588,7 @@ impl DefaultConfig {
                     })?;
                 section.generics.push((regex, item));
             } else {
-                section.plain.insert(item.name.to_owned(), item);
+                section.plain.insert(item.name.as_bytes().to_owned(), item);
             }
         }
         for section in items.values_mut() {
@@ -605,11 +606,8 @@ impl DefaultConfig {
         section: &[u8],
         item: &[u8],
     ) -> Option<&DefaultConfigItem> {
-        // Core items must be valid UTF-8
-        let section = String::from_utf8_lossy(section);
-        let section_config = self.items.get(section.as_ref())?;
-        let item_name_lossy = String::from_utf8_lossy(item);
-        match section_config.plain.get(item_name_lossy.as_ref()) {
+        let section_config = self.items.get(section)?;
+        match section_config.plain.get(item) {
             Some(item) => Some(item),
             None => {
                 for (regex, generic_item) in &section_config.generics {
