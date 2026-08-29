@@ -59,7 +59,7 @@ class configitem:
         generic=False,
         priority=0,
         experimental=False,
-        documentation="",
+        documentation=b"",
         in_core_extension=None,
     ):
         self.section = section
@@ -145,6 +145,9 @@ def sanitize_item(item):
         item["alias"] = [(k.encode(), v.encode()) for (k, v) in alias]
     if isinstance(item.get("default"), str):
         item["default"] = item["default"].encode()
+    documentation = item.get("documentation")
+    if documentation:
+        item["documentation"] = documentation.encode()
     item["section"] = item["section"].encode()
     item["name"] = item["name"].encode()
 
