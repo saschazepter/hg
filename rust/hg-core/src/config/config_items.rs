@@ -19,9 +19,9 @@ pub struct ConfigItems {
 #[serde(try_from = "RawDefaultConfigItem")]
 pub struct DefaultConfigItem {
     /// Section of the config the item is in (e.g. `[merge-tools]`)
-    section: String,
+    section: Vec<u8>,
     /// Name of the item (e.g. `meld.gui`)
-    name: String,
+    name: Vec<u8>,
     /// Default value (can be dynamic, see [`DefaultConfigItemType`])
     default: Option<DefaultConfigItemType>,
     /// If the config option is generic (e.g. `merge-tools.*`), defines
@@ -34,18 +34,18 @@ pub struct DefaultConfigItem {
     /// Aliases, if any. Each alias is a tuple of `(section, name)` for each
     /// option that is aliased to this one.
     #[serde(default)]
-    alias: Vec<(String, String)>,
+    alias: Vec<(Vec<u8>, Vec<u8>)>,
     /// Whether the config item is marked as experimental
     #[serde(default)]
     experimental: bool,
     /// The (possibly empty) docstring for the item
     #[serde(default)]
-    documentation: String,
+    documentation: Vec<u8>,
     /// Whether the item is part of an in-core extension. This allows us to
     /// hide them if the extension is not enabled, to preserve legacy
     /// behavior.
     #[serde(default)]
-    in_core_extension: Option<String>,
+    in_core_extension: Option<Vec<u8>>,
 }
 
 /// Corresponds to the raw (i.e. on disk) structure of config items. Used as
@@ -76,8 +76,8 @@ impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
 
     fn try_from(value: RawDefaultConfigItem) -> Result<Self, Self::Error> {
         Ok(Self {
-            section: value.section,
-            name: value.name,
+            section: value.section.into_bytes(),
+            name: value.name.into_bytes(),
             default: raw_default_to_concrete(
                 value.default_type,
                 value.default,
@@ -87,10 +87,16 @@ impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
             } else {
                 None
             },
-            alias: value.alias,
+            alias: value
+                .alias
+                .into_iter()
+                .map(|(section, name)| {
+                    (section.into_bytes(), name.into_bytes())
+                })
+                .collect(),
             experimental: value.experimental,
-            documentation: value.documentation,
-            in_core_extension: value.in_core_extension,
+            documentation: value.documentation.into_bytes(),
+            in_core_extension: value.in_core_extension.map(String::into_bytes),
         })
     }
 }
@@ -100,11 +106,11 @@ impl DefaultConfigItem {
         self.priority.is_some()
     }
 
-    pub fn in_core_extension(&self) -> Option<&str> {
+    pub fn in_core_extension(&self) -> Option<&[u8]> {
         self.in_core_extension.as_deref()
     }
 
-    pub fn section(&self) -> &str {
+    pub fn section(&self) -> &[u8] {
         self.section.as_ref()
     }
 }
@@ -120,7 +126,8 @@ impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a str> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section, value.name
+                        String::from_utf8_lossy(&value.section),
+                        String::from_utf8_lossy(&value.name)
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -151,7 +158,8 @@ impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a [u8]> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section, value.name
+                        String::from_utf8_lossy(&value.section),
+                        String::from_utf8_lossy(&value.name)
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -181,7 +189,8 @@ impl TryFrom<&DefaultConfigItem> for Option<bool> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section, value.name
+                        String::from_utf8_lossy(&value.section),
+                        String::from_utf8_lossy(&value.name)
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -210,7 +219,8 @@ impl TryFrom<&DefaultConfigItem> for Option<u32> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section, value.name
+                        String::from_utf8_lossy(&value.section),
+                        String::from_utf8_lossy(&value.name)
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -241,7 +251,8 @@ impl TryFrom<&DefaultConfigItem> for Option<u64> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section, value.name
+                        String::from_utf8_lossy(&value.section),
+                        String::from_utf8_lossy(&value.name)
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -272,7 +283,8 @@ impl TryFrom<&DefaultConfigItem> for Option<i64> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section, value.name
+                        String::from_utf8_lossy(&value.section),
+                        String::from_utf8_lossy(&value.name)
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -301,7 +313,8 @@ impl TryFrom<&DefaultConfigItem> for Option<f64> {
                 let err = HgError::abort(
                     format!(
                         "programming error: wrong query on config item '{}.{}'",
-                        value.section, value.name
+                        String::from_utf8_lossy(&value.section),
+                        String::from_utf8_lossy(&value.name)
                     ),
                     exit_codes::ABORT,
                     Some(format!(
@@ -393,16 +406,23 @@ impl TemplateItem {
         application: TemplateApplication,
     ) -> DefaultConfigItem {
         DefaultConfigItem {
-            section: application.section,
+            section: application.section.into_bytes(),
             name: application
                 .prefix
                 .map(|prefix| format!("{}.{}", prefix, self.suffix))
-                .unwrap_or(self.suffix),
+                .unwrap_or(self.suffix)
+                .into_bytes(),
             default: self.default,
             priority: self.priority,
-            alias: self.alias,
+            alias: self
+                .alias
+                .into_iter()
+                .map(|(section, name)| {
+                    (section.into_bytes(), name.into_bytes())
+                })
+                .collect(),
             experimental: self.experimental,
-            documentation: self.documentation,
+            documentation: self.documentation.into_bytes(),
             in_core_extension: None,
         }
     }
@@ -567,12 +587,12 @@ impl DefaultConfig {
         let mut items: FastHashMap<Vec<u8>, DefaultConfigSection> =
             FastHashMap::default();
         for item in flat_items {
-            let section =
-                items.entry(item.section.as_bytes().to_owned()).or_default();
+            let section = items.entry(item.section.clone()).or_default();
             if item.is_generic() {
                 // generic patterns expect rooted matching
-                // (because Python's `re.match` works that way)
-                let pattern = format!(r"^(?:{})", item.name);
+                // (because Python's `re.match` works that way).
+                let pattern =
+                    format!(r"^(?:{})", String::from_utf8_lossy(&item.name));
                 let regex = regex::bytes::RegexBuilder::new(&pattern)
                     .unicode(false) // `.` should match any byte
                     .build()
@@ -580,7 +600,9 @@ impl DefaultConfig {
                         HgError::abort(
                             format!(
                                 "invalid pattern for config item '{}.{}': {}",
-                                item.section, item.name, e
+                                String::from_utf8_lossy(&item.section),
+                                String::from_utf8_lossy(&item.name),
+                                e
                             ),
                             exit_codes::ABORT,
                             Some("Check 'mercurial/configitems.toml'".into()),
@@ -588,7 +610,7 @@ impl DefaultConfig {
                     })?;
                 section.generics.push((regex, item));
             } else {
-                section.plain.insert(item.name.as_bytes().to_owned(), item);
+                section.plain.insert(item.name.clone(), item);
             }
         }
         for section in items.values_mut() {

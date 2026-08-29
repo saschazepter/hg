@@ -380,7 +380,7 @@ impl Config {
                 .map(|extension| {
                     // Only return the default for an in-core extension item
                     // if said extension is enabled
-                    self.is_extension_enabled(extension.as_bytes())
+                    self.is_extension_enabled(extension)
                 })
                 .unwrap_or(true)
         }))
