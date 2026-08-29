@@ -572,8 +572,10 @@ impl DefaultConfig {
                 // generic patterns expect rooted matching
                 // (because Python's `re.match` works that way)
                 let pattern = format!(r"^(?:{})", item.name);
-                let regex =
-                    regex::bytes::Regex::new(&pattern).map_err(|e| {
+                let regex = regex::bytes::RegexBuilder::new(&pattern)
+                    .unicode(false) // `.` should match any byte
+                    .build()
+                    .map_err(|e| {
                         HgError::abort(
                             format!(
                                 "invalid pattern for config item '{}.{}': {}",
@@ -691,6 +693,12 @@ name = "kdiff3|meld"
 default = true
 generic = true
 
+[[items]]
+section = "merge-tools"
+name = '.*\.gui$'
+default = false
+generic = true
+
 [[template-applications]]
 template = "diff-options"
 section = "commands"
@@ -764,6 +772,9 @@ suffix = "unified"
         // The anchoring applies to all branches of an alternation
         assert!(config.get(b"merge-tools", b"meld").is_some());
         assert!(config.get(b"merge-tools", b"xmeld").is_none());
+
+        // Matching is done on bytes: non-UTF-8 names match like in Python
+        assert!(config.get(b"merge-tools", b"caf\xe9.gui").is_some());
 
         let expected = DefaultConfigItem {
             section: "chgserver".into(),
