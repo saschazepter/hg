@@ -554,7 +554,7 @@ struct DefaultConfigSection {
     /// The generic items (matched by regex).
     ///
     /// Sorted by `(priority, name)`, i.e. in matching order.
-    generics: Vec<(regex::bytes::Regex, DefaultConfigItem)>,
+    generics: Vec<(regex_automata::meta::Regex, DefaultConfigItem)>,
 }
 
 /// Represents the (dynamic) set of default core Mercurial config items from
@@ -613,7 +613,7 @@ impl DefaultConfig {
         // Some generic config names like `.*` and `[^:]+` are used multiple
         // times. Measurements showed that caching them is faster than
         // rebuilding.
-        let mut compiled: FastHashMap<Vec<u8>, regex::bytes::Regex> =
+        let mut compiled: FastHashMap<Vec<u8>, regex_automata::meta::Regex> =
             FastHashMap::default();
         for item in flat_items {
             let section = items.entry(item.section.clone()).or_default();
@@ -627,9 +627,24 @@ impl DefaultConfig {
                             r"^(?:{})",
                             String::from_utf8_lossy(&item.name)
                         );
-                        let regex = regex::bytes::RegexBuilder::new(&pattern)
-                            .unicode(false) // `.` should match any byte
-                            .build()
+                        // Use regex_automata::meta::Regex directly to
+                        // disable the initial `dfa` build. This reduces
+                        // the startup time impact of building these Regex
+                        // by ~80%, with negligible cost at match time for
+                        // the workload.
+                        //
+                        // Feel free to reconsider this tradeoff in the
+                        // future.
+                        let regex = regex_automata::meta::Regex::builder()
+                            .configure(
+                                regex_automata::meta::Config::new().dfa(false),
+                            )
+                            .syntax(
+                                regex_automata::util::syntax::Config::new()
+                                    .unicode(false) // `.` matches any byte
+                                    .utf8(false), // haystacks can be any byte
+                            )
+                            .build(&pattern)
                             .map_err(|e| {
                                 HgError::abort(
                                     format!(
