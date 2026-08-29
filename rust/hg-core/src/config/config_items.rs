@@ -8,7 +8,7 @@ use crate::exit_codes;
 
 /// Corresponds to the structure of `mercurial/configitems.toml`.
 #[derive(Debug, Deserialize)]
-pub struct ConfigItems {
+struct ConfigItems {
     items: Vec<DefaultConfigItem>,
     templates: FastHashMap<String, Vec<TemplateItem>>,
     #[serde(rename = "template-applications")]
