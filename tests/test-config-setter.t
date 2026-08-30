@@ -45,8 +45,8 @@ with repo
   read config from: /etc/mercurial/hgrc.d/XXX.rc (?)
   read config from: $TESTTMP/.hgrc
   read config from: $TESTTMP/.config/hg/hgrc
-  read config from: $TESTTMP/repo/.hg/hgrc (missing-correct-output !)
-  read config from: $TESTTMP/repo/.hg/hgrc-not-shared (missing-correct-output !)
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/repo/.hg/hgrc-not-shared
 
 with share
 
@@ -59,6 +59,6 @@ with share
   read config from: /etc/mercurial/hgrc.d/XXX.rc (?)
   read config from: $TESTTMP/.hgrc
   read config from: $TESTTMP/.config/hg/hgrc
-  read config from: $TESTTMP/repo/.hg/hgrc (missing-correct-output !)
-  read config from: $TESTTMP/share/.hg/hgrc (missing-correct-output !)
-  read config from: $TESTTMP/share/.hg/hgrc-not-shared (missing-correct-output !)
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/share/.hg/hgrc
+  read config from: $TESTTMP/share/.hg/hgrc-not-shared

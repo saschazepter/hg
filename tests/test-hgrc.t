@@ -170,6 +170,8 @@ customized hgrc
 
   $ hg showconfig
   read config from: $TESTTMP/hgrc
+  read config from: $TESTTMP/.hg/hgrc
+  read config from: $TESTTMP/.hg/hgrc-not-shared
   $TESTTMP/hgrc:13: alias.log=log -g
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:11: defaults.identify=-n
@@ -187,6 +189,8 @@ plain hgrc
   $ HGPLAIN=; export HGPLAIN
   $ hg showconfig --config ui.traceback=True --debug
   read config from: $TESTTMP/hgrc
+  read config from: $TESTTMP/.hg/hgrc
+  read config from: $TESTTMP/.hg/hgrc-not-shared
   repo: bundle.mainreporoot=$TESTTMP
   --config: ui.traceback=True
   --verbose: ui.verbose=False
@@ -197,6 +201,8 @@ with environment variables
 
   $ PAGER=p1 EDITOR=e1 VISUAL=e2 hg showconfig --debug
   read config from: $TESTTMP/hgrc
+  read config from: $TESTTMP/.hg/hgrc
+  read config from: $TESTTMP/.hg/hgrc-not-shared
   repo: bundle.mainreporoot=$TESTTMP
   $PAGER: pager.pager=p1
   $VISUAL: ui.editor=e2
@@ -220,6 +226,8 @@ plain mode with exceptions
   $ hg showconfig --config ui.traceback=True --debug
   plain: True
   read config from: $TESTTMP/hgrc
+  read config from: $TESTTMP/.hg/hgrc
+  read config from: $TESTTMP/.hg/hgrc-not-shared
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
   --config: ui.traceback=True
@@ -230,6 +238,8 @@ plain mode with exceptions
   $ hg showconfig --config ui.traceback=True --debug
   plain: True
   read config from: $TESTTMP/hgrc
+  read config from: $TESTTMP/.hg/hgrc
+  read config from: $TESTTMP/.hg/hgrc-not-shared
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
   --config: ui.traceback=True
@@ -240,6 +250,8 @@ plain mode with exceptions
   $ hg showconfig --config ui.traceback=True --debug
   plain: True
   read config from: $TESTTMP/hgrc
+  read config from: $TESTTMP/.hg/hgrc
+  read config from: $TESTTMP/.hg/hgrc-not-shared
   repo: bundle.mainreporoot=$TESTTMP
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
   --config: ui.traceback=True

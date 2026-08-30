@@ -103,12 +103,11 @@ def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:
 
 
 def show_component(ui: uimod.ui, repo) -> None:
-    """show the component used to build the config
-
-    XXX this skip over various source and ignore the repository config, so it
-    XXX is probably useless old code.
-    """
-    for _lvl, t, f in rcutil.rccomponents():
+    """show the component used to build the config"""
+    repo_root = None
+    if repo is not None:
+        repo_root = repo.root
+    for _lvl, t, f in rcutil.all_rc_components(repo_root, use_hgrcpath=True):
         if t == b'path':
             ui.debug(b'read config from: %s\n' % f)
         elif t == b'resource':
