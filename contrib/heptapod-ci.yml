@@ -269,6 +269,44 @@ build-rhg-wheel-libc:
     WHEEL_TYPE: "rhg"
     CI_CLEVER_CLOUD_FLAVOR: "M"
 
+trigger-rpm-rockylinux:
+  extends: .trigger
+  stage: build
+  rules:
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
+    when: never
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    when: manual
+    allow_failure: true
+
+build-rpm-rockylinux:
+  image: registry.heptapod.net:443/mercurial/ci-images/hg-rocky${RHELVERSION}-rpm-build:v3.4
+  stage: build
+  variables:
+    FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: true
+    RPMBUILDDIR: $CI_PROJECT_DIR/rpm/$RHELVERSION
+    PYTHONVERSION: "python3.12"
+  parallel:
+    matrix:
+      - RHELVERSION: ["8", "9", "10"]
+  when: on_success
+  needs:
+  rules:
+  - if: ($CI_COMMIT_BRANCH =~ $RE_BRANCH || $CI_COMMIT_TAG)
+    needs:
+      - trigger-nightly-build
+  - if: $CI_COMMIT_BRANCH =~ $RE_TOPIC
+    needs:
+      - trigger-rpm-rockylinux
+  script:
+    - mkdir -p $RPMBUILDDIR
+    - hg log -r . -T '{node}\n{tag}\n{date|shortdate}'
+    - contrib/packaging/buildrpm --rpmbuilddir $RPMBUILDDIR --python $PYTHONVERSION
+  artifacts:
+    paths:
+      - "$RPMBUILDDIR/RPMS/x86_64/mercurial-[0-9]*.rpm"
+    expire_in: 1 week
+
 .runtests:
     extends: .all
     stage: tests
@@ -625,6 +663,89 @@ test-3.15-rust:
     variables:
         PYTHON: python3.15
         SETUPTOOLS_SCM_PRETEND_VERSION_FOR_MERCURIAL: "9.9.9"
+
+test-install-rpm-rockylinux:
+  image: rockylinux/rockylinux:${RHELVERSION}
+  stage: tests
+  variables:
+    GIT_STRATEGY: none
+    RPMBUILDDIR: $CI_PROJECT_DIR/rpm/$RHELVERSION
+  parallel:
+    matrix:
+      - RHELVERSION: ["8", "9", "10"]
+  needs:
+    - job: build-rpm-rockylinux
+      parallel:
+        matrix:
+          - RHELVERSION: ['$[[ matrix.RHELVERSION ]]']
+  script:
+    - rpm=$(ls -1 $RPMBUILDDIR/RPMS/x86_64/mercurial-*.rpm)
+    - yum install -y $rpm
+    - hg version
+    - hg debuginstall
+
+.test-run-rpm-rockylinux:
+  extends: .runtests-no-check
+  image: registry.heptapod.net:443/mercurial/ci-images/hg-rocky${RHELVERSION}-rpm-test:v3.4
+  stage: platform-compat
+  variables:
+    PYTHON: python3.12
+    RUNTEST_ARGS: "--with-hg /usr/bin/hg --rust"
+    RPMBUILDDIR: $CI_PROJECT_DIR/rpm/$RHELVERSION
+  before_script:
+    - rpm=$(ls -1 $RPMBUILDDIR/RPMS/x86_64/mercurial-*.rpm)
+    - sudo yum install -y -q $rpm
+    - echo "python used, $PYTHON"
+    - for tool in $SHOW_VERSION_OF ; do echo '#' version of $tool; $tool --version; done
+    - ls -1 tests/test-check-*.* tests/test-contrib-check-*.t tests/test-install.t tests/test-run-tests.t > "${TMP_WORK_DIR}"/check-tests.txt
+
+test-run-rpm-rocky8:
+  extends: .test-run-rpm-rockylinux
+  variables:
+    RHELVERSION: "8"
+  needs:
+    # For the RPM artifact
+    - job: build-rpm-rockylinux
+      parallel:
+        matrix:
+          - RHELVERSION: "8"
+    # Make sure RPM installs correctly
+    - job: test-install-rpm-rockylinux
+      parallel:
+        matrix:
+          - RHELVERSION: "8"
+
+test-run-rpm-rocky9:
+  extends: .test-run-rpm-rockylinux
+  variables:
+    RHELVERSION: "9"
+  needs:
+    # For the RPM artifact
+    - job: build-rpm-rockylinux
+      parallel:
+        matrix:
+          - RHELVERSION: "9"
+    # Make sure RPM installs correctly
+    - job: test-install-rpm-rockylinux
+      parallel:
+        matrix:
+          - RHELVERSION: "9"
+
+test-run-rpm-rocky10:
+  extends: .test-run-rpm-rockylinux
+  variables:
+    RHELVERSION: "10"
+  needs:
+    # For the RPM artifact
+    - job: build-rpm-rockylinux
+      parallel:
+        matrix:
+          - RHELVERSION: "10"
+    # Make sure RPM installs correctly
+    - job: test-install-rpm-rockylinux
+      parallel:
+        matrix:
+          - RHELVERSION: "10"
 
 check-pytype:
     extends: .all

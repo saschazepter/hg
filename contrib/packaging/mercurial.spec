@@ -35,9 +35,10 @@ BuildRequires: make, gcc, gettext
 %if "%{?withpython}"
 BuildRequires: readline-devel, openssl-devel, ncurses-devel, zlib-devel, bzip2-devel
 %else
-BuildRequires: %{pythonexe} >= %{pythonver}, %{pythonexe}-devel, python3-docutils
+BuildRequires: %{pythonexe} >= %{pythonver}, %{pythonexe}-devel
 Requires: %{pythonexe} >= %{pythonver}
 %endif
+Requires: openssl
 # The hgk extension uses the wish tcl interpreter, but we don't enforce it
 #Requires: tk
 
@@ -82,7 +83,7 @@ export PATH=$PYPATH:$PATH
 export LD_LIBRARY_PATH=$PYPATH
 export CFLAGS="-L $PYPATH"
 %else
-PYTHON_FULLPATH=$(which python3)
+PYTHON_FULLPATH=$(which %{pythonexe})
 $PYTHON_FULLPATH -m pip install pip setuptools setuptools-scm packaging --upgrade
 %endif
 
@@ -111,7 +112,7 @@ mkdir -p $RPM_BUILD_ROOT%{_bindir}
 pathfix.py -n -i %{hgpyprefix}/bin/python3 $(readlink -f $RPM_BUILD_ROOT%{_bindir}/hg)
 
 %else
-PYTHON_FULLPATH=$(which python3)
+PYTHON_FULLPATH=$(which %{pythonexe})
 make install PYTHON=$PYTHON_FULLPATH DESTDIR=$RPM_BUILD_ROOT PREFIX=$RPM_BUILD_ROOT/%{_prefix} MANDIR=%{_mandir} FLAVOR="--rust"
 
 %endif
