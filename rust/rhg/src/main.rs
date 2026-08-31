@@ -733,10 +733,6 @@ mod commands {
     pub mod debugrequirements;
     pub mod debugrhgsparse;
     pub mod files;
-    #[cfg(feature = "hgfs")]
-    pub mod hgfs_client;
-    #[cfg(feature = "hgfs")]
-    pub mod hgfs_server;
     pub mod purge;
     pub mod root;
     pub mod script_hgignore;
@@ -827,10 +823,6 @@ fn subcommands() -> Subcommands {
         subcommand!(status),
         subcommand!(script_hgignore),
         subcommand!(virtual_share),
-        #[cfg(feature = "hgfs")]
-        subcommand!(hgfs_server),
-        #[cfg(feature = "hgfs")]
-        subcommand!(hgfs_client),
     ];
     let mut commands = Subcommands::new();
     for cmd in subcommands {

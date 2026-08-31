@@ -17,6 +17,8 @@ use tracing_subscriber::prelude::*;
 
 #[derive(clap::Subcommand)]
 enum Command {
+    HgfsClient(commands::hgfs_client::Args),
+    HgfsServer(commands::hgfs_server::Args),
     Status(commands::status::Args),
 }
 
@@ -36,6 +38,8 @@ fn main() {
     setup_tracing();
 
     let result = match args.command {
+        Command::HgfsClient(args) => commands::hgfs_client::run(args),
+        Command::HgfsServer(args) => commands::hgfs_server::run(args),
         Command::Status(args) => {
             let invocation = RepoInvocation::new();
             // TODO status should return a `CommandError` instead of panicking

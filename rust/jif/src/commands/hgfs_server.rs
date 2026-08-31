@@ -7,7 +7,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use clap::Arg;
 use hg::config::Config;
 use hg::errors::HgError;
 use hg::repo::Repo;
@@ -40,16 +39,12 @@ use vfs_api::vfs::vfs_control_server::VfsControlServer;
 
 use crate::error::CommandError;
 
-pub const HELP_TEXT: &str =
-    "Run the hg virtual filesystem control server (EXPERIMENTAL)";
-
-pub fn args() -> clap::Command {
-    clap::command!("debug::hgfs-server").about(HELP_TEXT).arg(
-        Arg::new("socket")
-            .long("socket")
-            .value_parser(clap::value_parser!(OsString))
-            .help("path to the control socket to bind"),
-    )
+/// Run the hg virtual filesystem control server (EXPERIMENTAL)
+#[derive(clap::Args)]
+pub struct Args {
+    /// path to the control socket to bind
+    #[arg(long)]
+    socket: Option<OsString>,
 }
 
 /// gRPC service implementing the `VfsControl` interface.
@@ -177,21 +172,17 @@ fn default_mount_options() -> MountOptions {
     }
 }
 
-pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
-    let socket_path =
-        match invocation.subcommand_args.get_one::<OsString>("socket") {
-            Some(s) => PathBuf::from(s),
-            None => vfs_api::default_socket_path().ok_or_else(|| {
-                CommandError::abort(
-                    "abort: no $XDG_RUNTIME_DIR to derive a socket path; \
-                     pass --socket",
-                )
-            })?,
-        };
+pub fn run(args: Args) -> Result<(), CommandError> {
+    let socket_path = match args.socket {
+        Some(socket) => PathBuf::from(socket),
+        None => vfs_api::default_socket_path().ok_or_else(|| {
+            CommandError::abort(
+                "no $XDG_RUNTIME_DIR to derive a socket path; pass --socket",
+            )
+        })?,
+    };
 
-    serve(socket_path).map_err(|e| {
-        CommandError::abort(format!("abort: hgfs-server error: {e}"))
-    })
+    serve(socket_path).map_err(|e| CommandError::abort(e.to_string()))
 }
 
 #[tokio::main]

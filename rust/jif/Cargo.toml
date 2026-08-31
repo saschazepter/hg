@@ -21,11 +21,19 @@ path = "src/bin/jf.rs"
 full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
 
 [dependencies]
+chrono = "0.4.43"
 clap = { version = "4.5.54", features = ["derive"] }
 format-bytes = "0.3.0"
 hg-core = { path = "../hg-core", default-features = false }
+hg-vfs = { path = "../hg-vfs" }
+hyper-util = { version = "0.1", features = ["tokio"] }
 memchr = "2.7.6"
+tokio = { version = "1", features = ["rt-multi-thread", "net", "macros", "signal"] }
+tokio-stream = { version = "0.1", features = ["net"] }
+tonic = "0.13"
+tower = { version = "0.5", features = ["util"] }
 tracing = { version = "0.1", features = ["attributes"] }
 tracing-chrome = { version = "0.7", optional = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"]}
 rayon = "1.11.0"
+vfs-api = { path = "../vfs-api" }
