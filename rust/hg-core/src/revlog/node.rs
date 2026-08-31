@@ -16,11 +16,6 @@ use crate::errors::HgBacktrace;
 use crate::revlog::RevlogError;
 
 /// The length in bytes of a `Node`
-///
-/// This constant is meant to ease refactors of this module, and
-/// are private so that calling code does not expect all nodes have
-/// the same size, should we support several formats concurrently in
-/// the future.
 pub const NODE_BYTES_LENGTH: usize = 20;
 
 /// The length in bytes set aside on disk for a `Node`. Revlog up to v1 only
