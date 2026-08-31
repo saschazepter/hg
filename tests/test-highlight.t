@@ -154,19 +154,19 @@ hgweb filerevision, html
        data-selectabletag="SPAN"
        data-ishead="1">
   
-  <span id="l1"><span class="sd">&quot;&quot;&quot;Fun with generators. Corresponding Haskell implementation:</span></span><a href="#l1"></a>
+  <span id="l1"><span class="sd">*Fun with generators. Corresponding Haskell implementation:</span></span><a href="#l1"></a> (glob)
   <span id="l2"></span><a href="#l2"></a>
   <span id="l3"><span class="sd">primes = 2 : sieve [3, 5..]</span></span><a href="#l3"></a>
   <span id="l4"><span class="sd">    where sieve (p:ns) = p : sieve [n | n &lt;- ns, mod n p /= 0]</span></span><a href="#l4"></a>
-  <span id="l5"><span class="sd">&quot;&quot;&quot;</span></span><a href="#l5"></a>
+  <span id="l5"><span class="sd">*</span></span><a href="#l5"></a> (glob)
   <span id="l6"></span><a href="#l6"></a>
   <span id="l7"><span class="kn">import</span><span class="w"> </span><span class="nn">itertools</span></span><a href="#l7"></a> (pygments219 !)
   <span id="l7"><span class="kn">import</span> <span class="nn">itertools</span></span><a href="#l7"></a> (no-pygments219 !)
   <span id="l8"></span><a href="#l8"></a>
   <span id="l9"><span class="kn">def</span><span class="w"> </span><span class="nf">primes</span><span class="p">():</span></span><a href="#l9"></a> (pygments219 !)
   <span id="l9"><span class="kn">def</span> <span class="nf">primes</span><span class="p">():</span></span><a href="#l9"></a> (no-pygments219 !)
-  <span id="l10"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></span><a href="#l10"></a> (pygments214 !)
-  <span id="l10">    <span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></span><a href="#l10"></a> (no-pygments214 !)
+  <span id="l10"><span class="w">    </span><span class="sd">*Generate all primes.*</span></span><a href="#l10"></a> (glob) (pygments214 !)
+  <span id="l10">    <span class="sd">*Generate all primes.*</span></span><a href="#l10"></a> (glob) (no-pygments214 !)
   <span id="l11">    <span class="kn">def</span><span class="w"> </span><span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></span><a href="#l11"></a> (pygments219 !)
   <span id="l11">    <span class="kn">def</span> <span class="nf">sieve</span><span class="p">(</span><span class="n">ns</span><span class="p">):</span></span><a href="#l11"></a> (no-pygments219 !)
   <span id="l12">        <span class="n">p</span> <span class="o">=</span> <span class="n">ns</span><span class="o">.</span><span class="n">next</span><span class="p">()</span></span><a href="#l12"></a>
@@ -181,7 +181,7 @@ hgweb filerevision, html
   <span id="l21">    <span class="n">dropwhile</span> <span class="o">=</span> <span class="n">itertools</span><span class="o">.</span><span class="n">dropwhile</span></span><a href="#l21"></a>
   <span id="l22">    <span class="kn">return</span> <span class="n">itertools</span><span class="o">.</span><span class="n">chain</span><span class="p">([</span><span class="mi">2</span><span class="p">],</span> <span class="n">sieve</span><span class="p">(</span><span class="n">dropwhile</span><span class="p">(</span><span class="kn">lambda</span> <span class="n">n</span><span class="p">:</span> <span class="n">n</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">,</span> <span class="n">odds</span><span class="p">)))</span></span><a href="#l22"></a>
   <span id="l23"></span><a href="#l23"></a>
-  <span id="l24"><span class="kn">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span></span><a href="#l24"></a>
+  <span id="l24"><span class="kn">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">*__main__*</span><span class="p">:</span></span><a href="#l24"></a> (glob)
   <span id="l25">    <span class="kn">import</span><span class="w"> </span><span class="nn">sys</span></span><a href="#l25"></a> (pygments219 !)
   <span id="l25">    <span class="kn">import</span> <span class="nn">sys</span></span><a href="#l25"></a> (no-pygments219 !)
   <span id="l26">    <span class="kn">try</span><span class="p">:</span></span><a href="#l26"></a>
@@ -189,8 +189,8 @@ hgweb filerevision, html
   <span id="l28">    <span class="kn">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">IndexError</span><span class="p">):</span></span><a href="#l28"></a>
   <span id="l29">        <span class="n">n</span> <span class="o">=</span> <span class="mi">10</span></span><a href="#l29"></a>
   <span id="l30">    <span class="n">p</span> <span class="o">=</span> <span class="n">primes</span><span class="p">()</span></span><a href="#l30"></a>
-  <span id="l31">    <span class="nb">print</span><span class="p">(</span><span class="s">&quot;The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></span><a href="#l31"></a> (pygments25 !)
-  <span id="l31">    <span class="kn">print</span><span class="p">(</span><span class="s">&quot;The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></span><a href="#l31"></a> (no-pygments25 !)
+  <span id="l31">    <span class="nb">print</span><span class="p">(</span><span class="s">*The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">*</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></span><a href="#l31"></a> (glob) (pygments25 !)
+  <span id="l31">    <span class="kn">print</span><span class="p">(</span><span class="s">*The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">*</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></span><a href="#l31"></a> (glob) (no-pygments25 !)
   <span id="l32"></span><a href="#l32"></a>
   </pre>
   </div>
@@ -337,7 +337,7 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l1">     1</a> <span class="sd">&quot;&quot;&quot;Fun with generators. Corresponding Haskell implementation:</span></td>
+  <td class="source followlines-btn-parent"><a href="#l1">     1</a> <span class="sd">*Fun with generators. Corresponding Haskell implementation:</span></td> (glob)
   </tr>
   <tr id="l2" class="thisrev">
   <td class="annotate parity0">
@@ -405,7 +405,7 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l5">     5</a> <span class="sd">&quot;&quot;&quot;</span></td>
+  <td class="source followlines-btn-parent"><a href="#l5">     5</a> <span class="sd">*</span></td> (glob)
   </tr>
   <tr id="l6" class="thisrev">
   <td class="annotate parity0">
@@ -492,8 +492,8 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l10">    10</a> <span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></td> (pygments214 !)
-  <td class="source followlines-btn-parent"><a href="#l10">    10</a>     <span class="sd">&quot;&quot;&quot;Generate all primes.&quot;&quot;&quot;</span></td> (no-pygments214 !)
+  <td class="source followlines-btn-parent"><a href="#l10">    10</a> <span class="w">    </span><span class="sd">*Generate all primes.*</span></td> (glob) (pygments214 !)
+  <td class="source followlines-btn-parent"><a href="#l10">    10</a>     <span class="sd">*Generate all primes.*</span></td> (glob) (no-pygments214 !)
   </tr>
   <tr id="l11" class="thisrev">
   <td class="annotate parity0">
@@ -732,7 +732,7 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l24">    24</a> <span class="kn">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span></td>
+  <td class="source followlines-btn-parent"><a href="#l24">    24</a> <span class="kn">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">*__main__*</span><span class="p">:</span></td> (glob)
   </tr>
   <tr id="l25" class="thisrev">
   <td class="annotate parity0">
@@ -852,8 +852,8 @@ hgweb fileannotate, html
   <a href="/rev/687f2d169546">changeset</a>
   </div>
   </td>
-  <td class="source followlines-btn-parent"><a href="#l31">    31</a>     <span class="nb">print</span><span class="p">(</span><span class="s">&quot;The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></td> (pygments25 !)
-  <td class="source followlines-btn-parent"><a href="#l31">    31</a>     <span class="kn">print</span><span class="p">(</span><span class="s">&quot;The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></td> (no-pygments25 !)
+  <td class="source followlines-btn-parent"><a href="#l31">    31</a>     <span class="nb">print</span><span class="p">(</span><span class="s">*The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">*</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></td> (glob) (pygments25 !)
+  <td class="source followlines-btn-parent"><a href="#l31">    31</a>     <span class="kn">print</span><span class="p">(</span><span class="s">*The first </span><span class="si">%d</span><span class="s"> primes: </span><span class="si">%s</span><span class="s">*</span> <span class="o">%</span> <span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">itertools</span><span class="o">.</span><span class="n">islice</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="n">n</span><span class="p">))))</span></td> (no-pygments25 !)
   </tr>
   <tr id="l32" class="thisrev">
   <td class="annotate parity0">
