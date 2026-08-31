@@ -3254,8 +3254,11 @@ class localrepository(_localrepo_base_classes):
         Intended for use by strip and rollback, so there's a common
         place for anything that has to be done after destroying history.
         """
-        # refresh all repository caches
-        self.updatecaches()
+        # Refresh all repository caches. Do explicit "pure" detection, otherwise
+        # it could silently downgrade to "mixed".
+        caches = set(repository.CACHES_DEFAULT)
+        caches.add(repository.CACHE_BRANCHMAP_DETECT_PURE_TOPO)
+        self.updatecaches(caches=caches)
 
         # Ensure the persistent tag cache is updated.  Doing it now
         # means that the tag cache only has to worry about destroyed

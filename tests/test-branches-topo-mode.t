@@ -102,8 +102,6 @@ adding and removing a revision should not lose the topo-mode
   repository tip rolled back to revision 4 (undo commit)
   working directory now based on revision 4
   $ cat .hg/cache/branch3-served
-  tip-node=0593ba3b8b2f33f0525304eecffd673e2b665a9b tip-rev=4 topo-mode=mixed (known-bad-output !)
-  tip-node=0593ba3b8b2f33f0525304eecffd673e2b665a9b tip-rev=4 topo-mode=pure (missing-correct-output !)
+  tip-node=0593ba3b8b2f33f0525304eecffd673e2b665a9b tip-rev=4 topo-mode=pure
   C
-  
   $ cd ..
