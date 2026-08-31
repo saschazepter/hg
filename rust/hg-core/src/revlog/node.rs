@@ -30,10 +30,11 @@ pub const NULL_NODE_ID: [u8; NODE_BYTES_LENGTH] = [0u8; NODE_BYTES_LENGTH];
 /// Temporary node id to refer to an added (uncommitted) id
 pub const ADDED_NODE_ID: [u8; NODE_BYTES_LENGTH] = *b"000000000000000added";
 
-/// The length in bytes of a `Node`
+/// The length of a hex-encoded `Node`, in bytes.
 ///
-/// see also `NODES_BYTES_LENGTH` about it being private.
-const NODE_NYBBLES_LENGTH: usize = 2 * NODE_BYTES_LENGTH;
+/// If possible, prefer to use [`Node::nybbles_len`] instead of depending on
+/// this constant, to make future changes to the hash size easier.
+pub const HEX_NODE_LENGTH: usize = 2 * NODE_BYTES_LENGTH;
 
 /// Default for UI presentation
 const SHORT_PREFIX_DEFAULT_NYBBLES_LENGTH: u8 = 12;
@@ -138,9 +139,7 @@ impl Node {
 
     /// Length of the data, in nybbles
     pub fn nybbles_len(&self) -> usize {
-        // public exposure as an instance method only, so that we can
-        // easily support several sizes of hashes if needed in the future.
-        NODE_NYBBLES_LENGTH
+        HEX_NODE_LENGTH
     }
 
     /// Convert from hexadecimal string representation
@@ -151,7 +150,7 @@ impl Node {
     /// changes of hash format.
     pub fn from_hex(hex: impl AsRef<[u8]>) -> Result<Node, FromHexError> {
         let prefix = NodePrefix::from_hex(hex)?;
-        if prefix.nybbles_len() == NODE_NYBBLES_LENGTH {
+        if prefix.nybbles_len() == HEX_NODE_LENGTH {
             Ok(Self { data: prefix.data })
         } else {
             Err(FromHexError)
@@ -202,7 +201,7 @@ impl Node {
 /// or not.
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct NodePrefix {
-    /// In `1..=NODE_NYBBLES_LENGTH`
+    /// In `1..=HEX_NODE_LENGTH`
     nybbles_len: u8,
     /// The first `4 * length_in_nybbles` bits are used (considering bits
     /// within a bytes in big-endian: most significant first), the rest
@@ -221,7 +220,7 @@ impl NodePrefix {
     pub fn from_hex(hex: impl AsRef<[u8]>) -> Result<Self, FromHexError> {
         let hex = hex.as_ref();
         let len = hex.len();
-        if len > NODE_NYBBLES_LENGTH || len == 0 {
+        if len > HEX_NODE_LENGTH || len == 0 {
             return Err(FromHexError);
         }
 
@@ -332,11 +331,11 @@ mod tests {
         ],
     };
 
-    /// Pad an hexadecimal string to reach `NODE_NYBBLES_LENGTH`
+    /// Pad an hexadecimal string to reach `HEX_NODE_LENGTH`
     /// The padding is made with zeros.
     pub fn hex_pad_right(hex: &str) -> String {
         let mut res = hex.to_string();
-        while res.len() < NODE_NYBBLES_LENGTH {
+        while res.len() < HEX_NODE_LENGTH {
             res.push('0');
         }
         res
