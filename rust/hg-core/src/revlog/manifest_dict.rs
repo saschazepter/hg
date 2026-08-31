@@ -551,9 +551,19 @@ impl<'a> Iterator for LazyManifestIter<'a> {
 
 #[cfg(test)]
 mod tests {
+    use rand::SeedableRng;
+    use rand::prelude::*;
+
     use super::*;
     use crate::Node;
     use crate::revlog::manifest::ManifestFlags;
+
+    const FLAGS: [ManifestFlags; 4] = [
+        ManifestFlags::EMPTY,
+        ManifestFlags::EXEC,
+        ManifestFlags::LINK,
+        ManifestFlags::TREE,
+    ];
 
     fn path(path: &[u8]) -> &HgPath {
         HgPath::new(path)
@@ -561,6 +571,15 @@ mod tests {
 
     fn node(hex: &[u8]) -> Node {
         Node::from_hex(hex).unwrap()
+    }
+
+    fn node_n(n: u64) -> Node {
+        node(format!("{n:040x}").as_bytes())
+    }
+
+    /// The path of entry `i` in a manifest from [`Model::new`].
+    fn path_n(i: u64) -> Vec<u8> {
+        format!("dir{:02}/file{i:03}.txt", i / 10).into_bytes()
     }
 
     fn new(data: &[u8]) -> LazyManifest {
@@ -571,6 +590,139 @@ mod tests {
         manifest: &LazyManifest,
     ) -> Result<Vec<DecodedManifestEntry<'_>>, RevlogError> {
         manifest.iter().collect()
+    }
+
+    /// A reference manifest represented as a `BTreeMap`.
+    struct Model(BTreeMap<Vec<u8>, (Node, ManifestFlags)>);
+
+    impl Model {
+        fn from_entries(
+            entries: impl IntoIterator<Item = (Vec<u8>, Node, ManifestFlags)>,
+        ) -> Self {
+            let entries = entries.into_iter();
+            Self(entries.map(|(p, node, flags)| (p, (node, flags))).collect())
+        }
+
+        /// Creates a manifest of `count` entries in `count / 10` directories.
+        fn new(count: u64) -> Self {
+            Self::from_entries(
+                (0..count)
+                    .map(|i| (path_n(i), node_n(i), FLAGS[(i % 4) as usize])),
+            )
+        }
+
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+
+        fn paths(&self) -> Vec<Vec<u8>> {
+            self.0.keys().cloned().collect()
+        }
+
+        fn text(&self) -> Vec<u8> {
+            let mut text = Vec::new();
+            for (path, &(node, flags)) in &self.0 {
+                text.extend_from_slice(path);
+                text.push(b'\0');
+                write!(text, "{node:x}").expect("Vec write never fails");
+                if let Some(byte) = flags.as_byte() {
+                    text.push(byte);
+                }
+                text.push(b'\n');
+            }
+            text
+        }
+
+        fn entries(&self) -> Vec<DecodedManifestEntry<'_>> {
+            self.0
+                .iter()
+                .map(|(p, &(node, flags))| DecodedManifestEntry {
+                    path: path(p),
+                    node,
+                    flags,
+                })
+                .collect()
+        }
+
+        fn get(&self, p: &[u8]) -> Option<DecodedManifestEntry<'_>> {
+            self.0.get_key_value(p).map(|(p, &(node, flags))| {
+                DecodedManifestEntry { path: path(p), node, flags }
+            })
+        }
+
+        /// Returns true if it overwrote an existing path.
+        fn set(&mut self, p: &[u8], node: Node, flags: ManifestFlags) -> bool {
+            self.0.insert(p.to_vec(), (node, flags)).is_some()
+        }
+
+        /// Returns true if the path was found.
+        fn remove(&mut self, p: &[u8]) -> bool {
+            self.0.remove(p).is_some()
+        }
+    }
+
+    /// A [`LazyManifest`] paired with a [`Model`].
+    /// Every edit is applied to both and asserts that they match.
+    struct TestManifest {
+        manifest: LazyManifest,
+        model: Model,
+    }
+
+    impl TestManifest {
+        fn new(count: u64) -> Self {
+            Self::from_model(Model::new(count))
+        }
+
+        fn from_model(model: Model) -> Self {
+            Self { manifest: new(&model.text()), model }
+        }
+
+        fn set(&mut self, p: &[u8], node: Node, flags: ManifestFlags) {
+            let overwrote = self.manifest.set(path(p), node, flags);
+            assert_eq!(overwrote, self.model.set(p, node, flags));
+        }
+
+        fn remove(&mut self, p: &[u8]) {
+            let found = self.manifest.remove(path(p));
+            assert_eq!(found, self.model.remove(p));
+        }
+
+        fn paths(&self) -> Vec<Vec<u8>> {
+            self.model.paths()
+        }
+
+        /// Asserts that `contains` and `get` agree with the model for each of
+        /// `paths`, which may include paths that aren't in the manifest.
+        fn check_lookups(&self, paths: &[Vec<u8>]) {
+            assert_eq!(self.manifest.len(), self.model.len());
+            for p in paths {
+                let expected = self.model.get(p);
+                assert_eq!(self.manifest.contains(path(p)), expected.is_some());
+                assert_eq!(self.manifest.get(path(p)).unwrap(), expected);
+            }
+        }
+
+        /// Asserts the manifest matches the model before and after compacting,
+        /// and that the compacted text parses back to the same entries.
+        fn check(&mut self) {
+            let Self { manifest, model } = self;
+            let expected = model.entries();
+            let check_entries = |manifest: &LazyManifest| {
+                assert_eq!(manifest.len(), expected.len());
+                assert_eq!(manifest.is_empty(), expected.is_empty());
+                assert_eq!(collect(manifest).unwrap(), expected);
+                for entry in &expected {
+                    assert!(manifest.contains(entry.path));
+                    assert_eq!(manifest.get(entry.path).unwrap(), Some(*entry));
+                }
+            };
+
+            check_entries(manifest);
+            let text = model.text();
+            assert_eq!(manifest.compact(), text);
+            check_entries(manifest);
+            check_entries(&new(&text));
+        }
     }
 
     #[test]
@@ -669,6 +821,11 @@ mod tests {
         let text =
             b"subdir/other.py\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n\
             file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
+        let manifest = LazyManifest::new(NODE_BYTES_LENGTH, text.to_vec());
+        assert_eq!(manifest.err(), Some(ManifestError::NotSorted));
+
+        let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            file.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47\n";
         let manifest = LazyManifest::new(NODE_BYTES_LENGTH, text.to_vec());
         assert_eq!(manifest.err(), Some(ManifestError::NotSorted));
     }
@@ -966,5 +1123,170 @@ mod tests {
             collect(&manifest).unwrap(),
             collect(&new(expected)).unwrap()
         );
+    }
+
+    #[test]
+    fn test_compact_runs_of_lines() {
+        let mut manifest = TestManifest::new(100);
+
+        // A run of adjacent updates.
+        for i in 10..15 {
+            manifest.set(&path_n(i), node_n(900 + i), ManifestFlags::TREE);
+        }
+        // A run of adjacent removals.
+        for i in 30..40 {
+            manifest.remove(&path_n(i));
+        }
+        // An update immediately after the removals.
+        manifest.set(&path_n(40), node_n(940), ManifestFlags::EXEC);
+
+        manifest.check();
+    }
+
+    #[test]
+    fn test_compact_consecutive_inserts() {
+        let mut manifest = TestManifest::new(20);
+
+        // Several inserts before the first line.
+        for i in 0..5u64 {
+            let p = format!("aaa{i}.txt").into_bytes();
+            manifest.set(&p, node_n(i), ManifestFlags::EMPTY);
+        }
+        // Several inserts between two existing lines.
+        for i in 0..5u64 {
+            let letter = char::from(b'a' + i as u8);
+            let p = format!("dir00/file000{letter}.txt").into_bytes();
+            manifest.set(&p, node_n(i), ManifestFlags::LINK);
+        }
+        // An update right after the inserts.
+        manifest.set(&path_n(1), node_n(901), ManifestFlags::TREE);
+        // Several inserts after the last line.
+        for i in 0..5u64 {
+            let p = format!("zzz{i}.txt").into_bytes();
+            manifest.set(&p, node_n(i), ManifestFlags::EXEC);
+        }
+
+        manifest.check();
+    }
+
+    #[test]
+    fn test_compact_remove_all() {
+        let mut manifest = TestManifest::new(50);
+        for p in manifest.paths() {
+            manifest.remove(&p);
+        }
+        manifest.check();
+    }
+
+    #[test]
+    fn test_compact_repeatedly() {
+        let mut manifest = TestManifest::new(50);
+
+        for round in 0..5u64 {
+            for i in 0..3u64 {
+                let inserted = format!("new{round}{i}.txt").into_bytes();
+                manifest.set(&inserted, node_n(i), ManifestFlags::TREE);
+                let updated = path_n(i * 10 + round);
+                manifest.set(
+                    &updated,
+                    node_n(900 + round),
+                    ManifestFlags::EXEC,
+                );
+            }
+            manifest.remove(&path_n(round * 10 + 9));
+
+            manifest.check();
+        }
+    }
+
+    #[test]
+    fn test_path_ordering() {
+        let names: [&[u8]; 6] =
+            [b"a", b"a.txt", b"a/b", b"a/b/c", b"a0", b"ab"];
+        let model = Model::from_entries(
+            names
+                .iter()
+                .enumerate()
+                .map(|(i, &p)| (p.to_vec(), node_n(i as u64), FLAGS[i % 4])),
+        );
+        let mut manifest = TestManifest::from_model(model);
+
+        manifest.check();
+
+        // Add new paths by prefixing and suffixing each existing one.
+        for (i, name) in names.iter().enumerate() {
+            let mut p = name.to_vec();
+            p.insert(0, b'.');
+            manifest.set(&p, node_n(100 + i as u64), ManifestFlags::EXEC);
+            let mut p = name.to_vec();
+            p.push(b'.');
+            manifest.set(&p, node_n(200 + i as u64), ManifestFlags::EXEC);
+        }
+
+        manifest.check();
+    }
+
+    #[test]
+    fn test_long_paths() {
+        let lengths = [1usize, 2, 200, 1000, 5000];
+        let model = Model::from_entries(lengths.into_iter().enumerate().map(
+            |(i, len)| {
+                (vec![b'a' + i as u8; len], node_n(i as u64), FLAGS[i % 4])
+            },
+        ));
+        let mut manifest = TestManifest::from_model(model);
+
+        manifest.check();
+        manifest.set(&[b'z'; 2000], node_n(99), ManifestFlags::LINK);
+        manifest.remove(&[b'c'; 200]);
+        manifest.check();
+    }
+
+    #[test]
+    fn test_random_operations() {
+        let mut pool: Vec<Vec<u8>> = vec![
+            b"a".to_vec(),
+            b"a.txt".to_vec(),
+            b"a/b".to_vec(),
+            b"a/b/c".to_vec(),
+            b"a0".to_vec(),
+            b"z".to_vec(),
+            vec![b'x'; 300],
+        ];
+        pool.extend((0..20).map(path_n));
+
+        for seed in 0..64 {
+            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+
+            let model = Model::from_entries(pool.iter().filter_map(|p| {
+                if !rng.random_bool(0.3) {
+                    return None;
+                }
+                let node = node_n(rng.random_range(0..100));
+                let flags = FLAGS[rng.random_range(0..FLAGS.len())];
+                Some((p.clone(), node, flags))
+            }));
+            let mut manifest = TestManifest::from_model(model);
+
+            for _ in 0..30 {
+                let p = &pool[rng.random_range(0..pool.len())];
+                if rng.random_bool(0.25) {
+                    manifest.remove(p);
+                } else {
+                    let node = node_n(rng.random_range(0..100));
+                    let flags = FLAGS[rng.random_range(0..FLAGS.len())];
+                    manifest.set(p, node, flags);
+                }
+
+                manifest.check_lookups(&pool);
+
+                // Compact from a partially edited state, then keep editing.
+                if rng.random_bool(0.2) {
+                    manifest.check();
+                }
+            }
+
+            manifest.check();
+        }
     }
 }
