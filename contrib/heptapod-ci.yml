@@ -451,10 +451,6 @@ test-rhg:
     variables:
         WHEEL_TYPE: "rhg"
         FLAVOR: "--rust --rhg --jif"
-        # The hgfs tests need rhg built with the experimental `hgfs` feature,
-        # which CI does not build; run them locally instead.
-        # This is temporary as the vfs will be moved to `jif` instead
-        RUNTEST_ARGS: "--blacklist tests/blacklists/hgfs"
 
 test-chg:
     extends: .runtests-no-check
