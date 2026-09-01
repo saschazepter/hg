@@ -432,6 +432,8 @@ Change a file node
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
+#if execbit
+
 Change a flag (executable)
   $ chmod +x a
   $ hg ci -m "make a executable"
@@ -439,6 +441,10 @@ Change a flag (executable)
   b453ecafea5f00c8ff3c7f3bbb5939483bf06e4f 755 * a
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
+
+#endif
+
+#if symlink
 
 Change a flag (symlink)
   $ rm a
@@ -448,6 +454,8 @@ Change a flag (symlink)
   e2d7104685c528c6198a4e3681a0c18829704bf2 644 @ a
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
+
+#endif
 
 Remove a manifest line
   $ rm a
