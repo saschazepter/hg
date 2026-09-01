@@ -236,10 +236,9 @@ server lifecycle
 ----------------
 
 chg server should be restarted on code change, and old server will shut down
-automatically. In this test, we use the following time parameters:
+automatically.
 
- - "sleep 1" to make mtime different
- - "sleep 2" to notice mtime change (polling interval is 1 sec)
+"sleep 1" is used to make mtime different
 
 set up repository with an extension:
 
@@ -257,6 +256,13 @@ isolate socket directory for stable result:
   $ mkdir chgsock
   $ CHGSOCKNAME=`pwd`/chgsock/server
 
+wrap the helper script into something short to use in the test
+
+  $ wait_server_exit() {
+  >   "$PYTHON" "$TESTDIR/testlib/wait-on-chg-server-exit.py" "$@" \
+  >     "$TESTTMP/log/server.log" "$TESTTMP/extreload/chgsock"
+  > }
+
 warm up server:
 
   $ CHGDEBUG= chg log 2>&1 | grep -E 'instruction|start'
@@ -273,7 +279,7 @@ new server should be started if extension modified:
 
 old server will shut down, while new server should still be reachable:
 
-  $ sleep 2
+  $ wait_server_exit
   $ CHGDEBUG= chg log 2>&1 | (grep -E 'instruction|start' || true)
 
 socket file should never be unlinked by old server:
@@ -283,7 +289,7 @@ at polling cycle)
   $ ls chgsock/server-*
   chgsock/server-* (glob)
   $ touch chgsock/server-*
-  $ sleep 2
+  $ wait_server_exit --all
   $ ls chgsock/server-*
   chgsock/server-* (glob)
 
@@ -296,7 +302,7 @@ since no server is reachable from socket file, new server should be started:
 shut down servers and restore environment:
 
   $ rm -R chgsock
-  $ sleep 2
+  $ wait_server_exit --all
   $ CHGSOCKNAME=$OLDCHGSOCKNAME
   $ cd ..
 
@@ -313,7 +319,7 @@ the 10th-most-recent line is different when using py3):
 (the "worker process exited" line is matched independently as it order is unstable with the "exiting" line, the worker might exit before the server decide to exit).
 
   $ cat log/server.log.1 log/server.log | tail -10 | grep -v "worker process exited" | filterlog
-  YYYY/MM/DD HH:MM:SS (PID)> confighash = ... mtimehash = ... (no-setprocname !)
+  YYYY/MM/DD HH:MM:SS (PID)> $TESTTMP/extreload/chgsock/server-... now owned, serving. (no-setprocname !)
   YYYY/MM/DD HH:MM:SS (PID)> forked worker process (pid=...)
   YYYY/MM/DD HH:MM:SS (PID)> setprocname: ... (setprocname !)
   YYYY/MM/DD HH:MM:SS (PID)> received fds: ...
@@ -675,3 +681,46 @@ The CHGCGROUP and CHGNAMESPACES variables do not leak into the child process.
   $ chg --kill-chg-daemon
   $ CHGNAMESPACES=ns1 chg --config 'alias.echo=!echo ${CHGNAMESPACES-absent}' echo 2>/dev/null
   absent
+
+umask
+-----
+
+Test that hg uses the umask of the chg client.
+
+#if unix-permissions
+
+  $ cp $HGRCPATH.unconfigured $HGRCPATH
+  $ cat >> $HGRCPATH <<'EOF'
+  > [cmdserver]
+  > log = $TESTTMP/log/umask.log
+  > max-repo-cache = 1
+  > track-log = repocache
+  > EOF
+
+  $ hg init umask
+  $ cd umask
+  $ echo foo > exec
+  $ chmod +x exec
+  $ chg ci -qAm exec
+  $ chg up -qC null
+
+let the master process cache the repo while the umask is permissive:
+
+  $ chg --kill-chg-daemon
+  $ umask 022
+  $ chg root > /dev/null
+
+the log file is only created once the master has loaded the repo:
+
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $TESTTMP/log/umask.log
+
+then update the working copy while it is restrictive:
+
+  $ umask 077
+  $ chg up -qC tip
+  $ f --mode exec
+  exec: mode=700
+
+  $ cd ..
+
+#endif

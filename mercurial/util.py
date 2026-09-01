@@ -194,6 +194,9 @@ def setumask(val: int) -> None:
     os.umask(val)
     global umask
     platform.umask = umask = val & 0o777
+    rustumask = policy.importrust("umask")
+    if rustumask is not None:
+        rustumask.set_umask(umask)
 
 
 # small compat layer

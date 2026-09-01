@@ -1,7 +1,9 @@
 use std::sync::OnceLock;
+use std::sync::atomic::AtomicU32;
+use std::sync::atomic::Ordering;
 
 /// Store the umask for the whole process since it's expensive to get.
-static UMASK: OnceLock<u32> = OnceLock::new();
+static UMASK: OnceLock<AtomicU32> = OnceLock::new();
 
 /// Cache the process umask.
 ///
@@ -14,8 +16,16 @@ pub fn initialize() {
         let mask = libc::umask(0);
         libc::umask(mask);
         #[allow(clippy::useless_conversion)]
-        (mask & 0o777).into()
+        AtomicU32::new(u32::from(mask) & 0o777)
     });
+}
+
+/// Update the cached umask. Used by the chg server, whose clients each have
+/// their own umask (see `mercurial.util.setumask`).
+///
+/// Panics if called before `initialize`.
+pub fn set_umask(mask: u32) {
+    UMASK.get().unwrap().store(mask & 0o777, Ordering::Relaxed);
 }
 
 pub fn get_umask() -> u32 {
@@ -25,5 +35,5 @@ pub fn get_umask() -> u32 {
     // exercise this function need to call `initialize` at the beginning.
     // We're sacrificing a little bit of safety for convenience here,
     initialize();
-    *UMASK.get().unwrap()
+    UMASK.get().unwrap().load(Ordering::Relaxed)
 }
