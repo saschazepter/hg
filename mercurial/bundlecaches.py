@@ -432,8 +432,11 @@ def filterclonebundleentries(
     newentries = []
     for entry in entries:
         url = entry.get(b'URL')
+        if url is None:
+            repo.ui.debug(b'filtering entry with no url\n')
+            continue
         if not pullbundles and not any(
-            [url.startswith(scheme) for scheme in SUPPORTED_CLONEBUNDLE_SCHEMES]
+            url.startswith(scheme) for scheme in SUPPORTED_CLONEBUNDLE_SCHEMES
         ):
             repo.ui.debug(
                 b'filtering %s because not a supported clonebundle scheme\n'
