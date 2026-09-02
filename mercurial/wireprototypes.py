@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import abc
 import enum
+import struct
 import typing
 
 from typing import (
@@ -60,6 +61,15 @@ TRANSPORTS = {
         b'version': 1,
     },
 }
+
+
+STORE_SHAPE_ENCODE = struct.Struct(">BHII")
+"""
+- return code
+- fingerprints block size
+- shards sets block size
+- pattern block size
+"""
 
 
 class ShapeReturnCode(enum.IntEnum):

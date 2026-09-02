@@ -17,6 +17,9 @@ from .interfaces.types import (
     NodeIdT,
 )
 from .node import bin, hex
+from .interfaces.types import (
+    StoreShapePatternsT,
+)
 from . import (
     bundle2,
     changegroup as changegroupmod,
@@ -26,7 +29,7 @@ from . import (
     policy,
     pushkey as pushkeymod,
     pycompat,
-    shape as shapemod,
+    shape as shape_py,
     util,
     wireprototypes,
 )
@@ -41,6 +44,8 @@ from .utils import hashutil
 
 if policy.has_rust():
     shapemod = policy.importrust("shape")
+else:
+    shapemod = shape_py
 
 urlreq = util.urlreq
 
@@ -383,61 +388,63 @@ class wirepeer(
         allowing us to check that we agree on how they're computed."""
         self.requirecap(wireprototypes.SHAPECAP, _(b'use store shapes'))
 
-        def decode(d):
-            lines = d.splitlines()
-            if not lines:
-                msg = b"invalid response, expected status line"
-                self._abort(error.ResponseError(msg, d))
-
-            try:
-                return_code = int(lines[0])
-            except ValueError:
-                msg = b"invalid return code line, expected an integer"
-                self._abort(error.ResponseError(msg, d))
-
+        def decode(data: bytes) -> StoreShapePatternsT:
+            header_spec = wireprototypes.STORE_SHAPE_ENCODE
+            (
+                return_code,
+                fingerprints_size,
+                shards_sets_size,
+                patterns_size,
+            ) = header_spec.unpack(data[: header_spec.size])
+            cursor = header_spec.size
             codes = wireprototypes.ShapeReturnCode
+            if return_code == codes.SHAPE_NOT_FOUND:
+                msg = _(b"shape not found on remote: '%s'") % name
+                self._abort(error.RepoLookupError(msg))
             if return_code != codes.OK:
-                if return_code == codes.SHAPE_NOT_FOUND:
-                    msg = _(b"shape not found on remote: '%s'" % name)
-                    self._abort(error.RepoLookupError(msg))
-                msg = _(b"unknown shape error code: %d" % return_code)
-                self._abort(error.ResponseError(msg, d))
+                msg = _(b"unknown shape error code: %d") % return_code
+                self._abort(error.ResponseError(msg, data))
 
-            if len(lines) < 4:
-                msg = (
-                    b"invalid store_shapes response, "
-                    b"expected at least 4 lines, got %d"
-                )
-                self._abort(error.ResponseError(msg % len(lines), d))
+            assert (
+                cursor + fingerprints_size + shards_sets_size + patterns_size
+            ) == len(data)
 
-            received_fingerprint = lines[1]
-            shape_offset = (
-                len(lines[0]) + len(lines[1]) + 2
-            )  # account for lines
-            (includes, excludes) = shapemod.deserialize(d[shape_offset:])
+            fingerprints_block = data[cursor : cursor + fingerprints_size]
+            cursor += fingerprints_size
+            shards_sets_block = data[cursor : cursor + shards_sets_size]
+            cursor += shards_sets_size
+            patterns_block = data[cursor : cursor + patterns_size]
+            cursor += patterns_size
 
-            (includes, excludes) = narrowspec.to_legacy_patterns(
-                includes, excludes
+            (
+                fingerprints,
+                shard_sets,
+                patterns,
+            ) = shape_py.wire_store_shape_decode(
+                fingerprints_block,
+                shards_sets_block,
+                patterns_block,
             )
+            patterns = narrowspec.to_legacy_patterns(*patterns)
 
             # Check the fingerprint
-            computed_fingerprint = shapemod.fingerprint_for_patterns(
-                includes, excludes
-            )
+            computed_fingerprint = shapemod.fingerprint_for_patterns(*patterns)
             if computed_fingerprint is None:
                 msg = _(b"couldn't compute the fingerprint for server patterns")
-                self._abort(error.ResponseError(msg, d))
+                self._abort(error.ResponseError(msg, data))
 
-            if computed_fingerprint != received_fingerprint:
+            if computed_fingerprint not in fingerprints:
                 # Sanity check
                 # Should only happen if we change how fingerprints are computed
                 msg = _(
-                    b"fingerprint differ for shape '%s': received %s, not %s"
+                    b"fingerprint differ for shape '%s': received %r, not %s"
                 )
-                msg = msg % (name, received_fingerprint, computed_fingerprint)
+                # XXX that message needs better formatting, but waiting for
+                # versionned fingerprint would make this easier to handle.
+                msg %= (name, fingerprints, computed_fingerprint)
                 self._abort(error.Abort(msg))
 
-            return includes, excludes
+            return fingerprints, shard_sets, patterns
 
         return {b"name": encoding.fromlocal(name)}, decode
 

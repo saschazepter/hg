@@ -185,8 +185,13 @@ RequirementT = bytes
 RequirementSetT = set[RequirementT]
 """The collection of requirements for a repository."""
 
-StoreShapePatternsT = tuple[set[bytes], set[bytes]]
-"""Tuple of (legacy) includes and excludes for a given store shape"""
+StoreShapeLegacyPatternsT = tuple[set[bytes], set[bytes]]
+"""Tuple of legacy includes and excludes for a given store shape"""
+StoreShapePatternsT = tuple[
+    list[bytes], list[set[bytes]], tuple[set[bytes], set[bytes]]
+]
+"""Tuple of (legacy) includes and excludes for a given store shape, along
+with a list of all sets of shard fingerprints that make up this shape"""
 
 
 class _ipeerconnection(Protocol):

@@ -1121,16 +1121,53 @@ and there should be additional output to display to the user.
 store_shape
 -----------
 
-Obtain the narrow patterns (includes and excludes) for a given store shape.
+Obtain the narrow patterns (includes and excludes) for a given store shape, as
+well as a list of all sets of fingerprints for every standalone shard that make
+up this shape. The last element is always a set containing only this shape's
+fingerprint, to make clonebundle filtering easier, and to allow for checking
+that fingerprint computation has not drifted between the server and client.
 
-The response format is line-based (``\n`` is the delimiter):
+The payload is split in four binary blocks:
 
-   line 0: return code as ascii bytes.
-           ``1`` if successful, ``2`` if the shape isn't found. Other error
-           codes are reserved for future use. If ``2``, the response is over.
-   line 1: the hexadecimal representation of the fingerprint for this shape
-   rest  : the serialized shape, using the the same serialization used for
-           fingerprints (refer to either Rust or Python implementations)
+Header Block
+~~~~~~~~~~~~
+
+Contains fixed size information and size of the three other blocks.
+
+* u8:  return code
+* u16: size of the shape fingerprints block in bytes
+* u32: size of the "shards sets" block in bytes
+* u32: size of the "patterns" block in bytes
+
+The return code is ``1`` if successful, ``2`` if the shape isn't found. Other
+error codes are reserved for future use. If ``2``, the other blocks should be
+empty
+
+Shape Fingerprints block
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Contains the fingerprint for that shape. Fingerprint of different version can be
+returned, but each fingerprint version should only have one fingerprint.
+
+* u8:   number of fingerprints
+* [u8]: array of fingerprint size (as many entry as the number of fingerprints)
+* [bytes]: each fingerprints (according to the size in the previous field)
+
+Shard sets block:
+~~~~~~~~~~~~~~~~~
+
+* u8: number of shards set
+* [[u8, u16]] array (shard-id size, number of ids in the set)
+* [[bytes]] block of shard-ids
+
+Pattern block:
+~~~~~~~~~~~~~~
+
+The serialized pattern for this store shape
+
+* u32:   number of pattern
+* [u16]: array of pattern size, highest order bytes denote inclusion
+* bytes: the patterns concatenated
 
 stream_out
 ----------

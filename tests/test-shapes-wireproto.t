@@ -115,26 +115,48 @@ Test valid cases
   creating ssh peer from handshake results
   sending store_shape command
   response: (
-    set([
-      b'path:.hgignore',
-      b'path:.hgsub',
-      b'path:.hgsubstate',
-      b'path:.hgtags',
-      b'path:foo/bar/other-secret'
-    ]),
-    set([
-      b'path:.'
-    ])
+    [
+      b'3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6'
+    ],
+    [
+      set([
+        b'7933c8969f86272e8bf29d3554b29372dc6a9c756e651847256078c35bb6a038',
+        b'f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd'
+      ])
+    ],
+    (
+      set([
+        b'path:.hgignore',
+        b'path:.hgsub',
+        b'path:.hgsubstate',
+        b'path:.hgtags',
+        b'path:foo/bar/other-secret'
+      ]),
+      set([
+        b'path:.'
+      ])
+    )
   )
   sending store_shape command
   response: (
-    set([
-      b'path:.'
-    ]),
-    set([
-      b'path:foo/bar/other-secret',
-      b'path:secret'
-    ])
+    [
+      b'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
+    ],
+    [
+      set([
+        b'6beb3b11628649cbaa448b969f17400db31cb34234bbbf7e86425f7d355fb971',
+        b'f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd'
+      ])
+    ],
+    (
+      set([
+        b'path:.'
+      ]),
+      set([
+        b'path:foo/bar/other-secret',
+        b'path:secret'
+      ])
+    )
   )
 
 Test narrow clone with `--store-shape`

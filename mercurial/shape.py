@@ -261,3 +261,163 @@ def shard_tree_matcher(
             include, exclude
         )
         return pattern_tree.matcher(root, warn=warn)
+
+
+def u2b(i: int, size: int) -> bytes:
+    """helper to encode an `int` into `bytes`"""
+    return i.to_bytes(length=size, byteorder='big', signed=False)
+
+
+def b2u(data: bytes) -> int:
+    """helper to decode an `int` from `bytes"""
+    return int.from_bytes(data, byteorder='big', signed=False)
+
+
+PATTERN_INCLUDED_FLAG = 1 << 15
+
+
+def _serialize_v1(shape) -> bytes:
+    """The shape patterns serialized in "v1" format
+
+    This method is likely temporary, as the logic will be implemented in Rust
+    soon enough.
+    """
+    includes, excludes = shape.patterns()
+
+    patterns = [(p, True) for p in includes]
+    patterns.extend((p, False) for p in excludes)
+    assert len(patterns) == len(
+        set(includes) | set(excludes)
+    )  # sanity check duplicates
+
+    patterns.sort(key=lambda x: zero_path(x[0]))
+
+    pieces = [u2b(len(patterns), 4)]
+    for pat, included in patterns:
+        size = len(pat)
+        assert size < PATTERN_INCLUDED_FLAG
+        if included:
+            size |= PATTERN_INCLUDED_FLAG
+        pieces.append(u2b(size, 2))
+    for pat, _included in patterns:
+        pieces.append(pat)
+    return b''.join(pieces)
+
+
+def _deserialize_v1(data: bytes) -> tuple[set[bytes], set[bytes]]:
+    """get patterns from a "v1" serialized block"""
+    # XXX error handling needs to exists at some point
+    assert len(data) >= 4  # XXX should be a proper error
+    count = b2u(data[:4])
+    cursor = 4
+    if count == 0:
+        return (set(), set())
+    sizes = []
+    for __ in range(count):
+        sizes.append(b2u(data[cursor : cursor + 2]))
+        cursor += 2
+    includes = set()
+    excludes = set()
+    for s in sizes:
+        if s & PATTERN_INCLUDED_FLAG:
+            pats = includes
+        else:
+            pats = excludes
+        s &= ~PATTERN_INCLUDED_FLAG
+        pats.add(data[cursor : cursor + s])
+        cursor += s
+    assert cursor == len(data), (
+        cursor,
+        len(data),
+    )  # XXX should be a proper error
+    return (includes, excludes)
+
+
+def _encode_fingerprints(fingerprints: list[bytes]) -> bytes:
+    """encode a "fingerprints" block use by `store_shape` wireprotocol command"""
+    pieces = [u2b(len(fingerprints), 1)]
+    pieces.extend(u2b(len(fp), 1) for fp in fingerprints)
+    pieces.extend(fingerprints)
+    return b''.join(pieces)
+
+
+def _decode_fingerprints(data: bytes) -> list[bytes]:
+    """decode a "fingerprints" block use by `store_shape` wireprotocol command"""
+    # XXX error handling needs to exists at some point
+    count = b2u(data[:1])
+    cursor = 1 + count
+    fingerprints = []
+    for idx in range(1, count + 1):
+        fp_size = b2u(data[idx : idx + 1])
+        fingerprints.append(data[cursor : cursor + fp_size])
+        cursor += fp_size
+    return fingerprints
+
+
+def _encode_shards_sets(shards_sets: list[set[bytes]]) -> bytes:
+    """encode a "shards_sets" block use by `store_shape` wireprotocol command"""
+    pieces = [u2b(len(shards_sets), 1)]
+    for s in shards_sets:
+        assert len(s) >= 1
+        lengths = set(len(shard_id) for shard_id in s)
+        assert len(lengths) == 1
+        length = lengths.pop()
+        pieces.append(u2b(length, 1))
+        pieces.append(u2b(len(s), 2))
+    for s in shards_sets:
+        pieces.extend(sorted(s))
+    return b''.join(pieces)
+
+
+def _decode_shards_sets(data: bytes) -> list[set[bytes]]:
+    """decode a "shards_sets" block use by `store_shape` wireprotocol command"""
+    # XXX error handling needs to exists at some point
+    sets_count = b2u(data[:1])
+    cursor = 1
+    sets_info = []
+    for __ in range(sets_count):
+        sets_info.append(
+            (
+                b2u(data[cursor : cursor + 1]),
+                b2u(data[cursor + 1 : cursor + 3]),
+            )
+        )
+        cursor += 3
+    shards_sets = []
+    for id_size, count in sets_info:
+        one_set = set()
+        for __ in range(count):
+            one_set.add(data[cursor : cursor + id_size])
+            cursor += id_size
+        shards_sets.append(one_set)
+    assert cursor == len(data)
+    return shards_sets
+
+
+# XXX having this in the Python module and not in the Rust module is
+# "unexpected" and should be fixed" sooner than later.
+def wire_store_shape_encode(
+    shards_sets: list[set[bytes]],
+    shape,
+) -> tuple[bytes, bytes, bytes]:
+    """encode the three blocks used by `store_shape` wireprotocol command"""
+    return (
+        _encode_fingerprints([shape.fingerprint()]),
+        _encode_shards_sets(shards_sets),
+        _serialize_v1(shape),
+    )
+
+
+# XXX having this in the Python module and not in the Rust module is
+# "unexpected" and should be fixed" sooner than later.
+def wire_store_shape_decode(
+    fingerprints_block: bytes,
+    shards_sets_block: bytes,
+    patterns_block: bytes,
+) -> tuple[list[bytes], list[set[bytes]], tuple[set[bytes], set[bytes]]]:
+    """decode the three blocks used by `store_shape` wireprotocol command"""
+    return (
+        _decode_fingerprints(fingerprints_block),
+        _decode_shards_sets(shards_sets_block),
+        _deserialize_v1(patterns_block),
+    )

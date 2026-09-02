@@ -460,24 +460,36 @@ class localpeer(peer.Peer, repository.ipeercommands):
         name: bytes,
         **kwargs,
     ) -> StoreShapePatternsT:
-        """Returns the narrow patterns for the shape of this name"""
+        """Returns the narrow patterns for the shape of this name, alongside
+        the list of sets fingerprints of its constituent shards.
+        There can be multiple sets of shard fingerprints since a shape can
+        evolve over time, as well as provide a full shape only fingerprint."""
         if not policy.has_rust():
             raise error.Abort(
                 _(b"server has no shapes support"),
                 hint=_(b"lacking Rust extensions"),
             )
         store_shards = shapemod.get_store_shards(self._repo.root)
-        shape = store_shards.shape(encoding.strfromlocal(name))
+        name_str = encoding.strfromlocal(name)
+        shape = store_shards.shape(name_str)
         if shape is None:
             msg = _(b"shape not found on remote: '%s'") % name
             raise error.RepoLookupError(msg)
         includes, excludes = shape.patterns()
 
-        (legacy_includes, legacy_excludes) = narrowspec.to_legacy_patterns(
-            includes, excludes
+        (
+            legacy_includes,
+            legacy_excludes,
+        ) = narrowspec.to_legacy_patterns(
+            includes,
+            excludes,
         )
         # Checking the fingerprint is useless: we're the same implementation
-        return legacy_includes, legacy_excludes
+        return (
+            [shape.fingerprint()],
+            [],
+            (legacy_includes, legacy_excludes),
+        )
 
     def stream_out(self):
         raise error.Abort(_(b'cannot perform stream clone against local peer'))

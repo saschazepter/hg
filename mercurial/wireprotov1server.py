@@ -27,6 +27,7 @@ from . import (
     pushkey as pushkeymod,
     pycompat,
     requirements as requirementsmod,
+    shape as shape_py,
     streamclone,
     util,
     wireprototypes,
@@ -378,13 +379,18 @@ def store_shape(repo, proto, name, args):
     store_shards = shapemod.get_store_shards(repo.root)
     shape = store_shards.shape(name.decode())
     codes = wireprototypes.ShapeReturnCode
+    header = wireprototypes.STORE_SHAPE_ENCODE
     if shape is None:
-        return wireprototypes.bytesresponse(b"%d\n" % codes.SHAPE_NOT_FOUND)
-    serialized = shape.serialized()
-    fingerprint = shape.fingerprint()
-
-    res = (b"%d" % codes.OK, fingerprint, serialized)
-    return wireprototypes.bytesresponse(b"\n".join(res))
+        rep = header.pack(codes.SHAPE_NOT_FOUND, 0, 0, 0)
+        return wireprototypes.bytesresponse(rep)
+    groups = store_shards.shard_fingerprints_for_shape(name.decode())
+    if groups is None:
+        msg = _(b"could not compute shard fingerprints for shape %s") % name
+        raise error.Abort(msg)
+    blocks = shape_py.wire_store_shape_encode(groups, shape)
+    res = [header.pack(codes.OK, *[len(b) for b in blocks])]
+    res.extend(blocks)
+    return wireprototypes.bytesresponse(b''.join(res))
 
 
 wireprotocaps = [

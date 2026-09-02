@@ -11,7 +11,7 @@ import weakref
 from typing import BinaryIO, Iterable
 
 from .i18n import _
-from .interfaces.types import RepoT, StoreShapePatternsT
+from .interfaces.types import RepoT, StoreShapeLegacyPatternsT
 from . import (
     error,
     match as matchmod,
@@ -290,7 +290,7 @@ def patterns_for_shape(
     repo: RepoT,
     name: bytes,
     fingerprint: bytes | None,
-) -> StoreShapePatternsT:
+) -> StoreShapeLegacyPatternsT:
     """Return the (legacy) include and exclude patterns for this shape.
 
     `fingerprint` is the expected fingerprint to check against"""
@@ -444,7 +444,7 @@ def checkworkingcopynarrowspec(repo):
 def to_legacy_patterns(
     includes: Iterable[bytes],
     excludes: Iterable[bytes],
-) -> StoreShapePatternsT:
+) -> StoreShapeLegacyPatternsT:
     """Convert plain paths-based patterns (from a shape) to the legacy
     narrowspec format"""
     # TODO remove this once we move all of the verification, fingerprinting

@@ -60,6 +60,7 @@ HttpPasswordMgrT = uimod.IHttpPasswordMgr
 PeerT = repository.IPeer
 RepoT = repository.IRepo
 StoreShapePatternsT = repository.StoreShapePatternsT
+StoreShapeLegacyPatternsT = repository.StoreShapeLegacyPatternsT
 # The other are copied for temporary backward compatibility
 LocalRepoMainT = repository.IRepo
 LocalRepoCompleteT = repository.IRepo

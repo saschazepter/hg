@@ -775,7 +775,15 @@ def _tracked_remote_path(
     if shape is not None:
         with remote.commandexecutor() as e:
             command = e.callcommand(b'store_shape', {b'name': shape})
-            (shape_includes, shape_excludes) = command.result()
+            (
+                fingerprints,
+                shards_sets,
+                patterns,
+            ) = command.result()
+            (
+                shape_includes,
+                shape_excludes,
+            ) = patterns
 
     # filter the user passed additions and deletions into actual additions and
     # deletions of excludes and includes
