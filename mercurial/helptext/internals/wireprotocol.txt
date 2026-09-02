@@ -948,9 +948,22 @@ clonebundles_manifest
 A newer version of ``clonebundles`` that supports the `peer-bundle://` scheme,
 as well as extensible arguments.
 
-As of this writing, this command accepts only one argument:
+As of this writing, this command accepts two arguments:
+
+mandatory_params
+   If set to ``1``, the client indicates that it understands mandatory
+   bundlespec parameters (see :hg:`help bundlespec`) and the manifest is
+   served as-is.
+
+   Otherwise the server rewrites the manifest for the client: mandatory
+   parameters that predate the distinction are rewritten in lowercase (as the
+   client only expects lowercase parameters), and entries carrying any other
+   mandatory parameter are omitted, since the client cannot use or filter them
+   out by itself.
 
 store_fingerprint
+   (Legacy argument: new clients set ``mandatory_params`` instead)
+
    If set to the ascii ``string`` of ``1``, the manifest will also include
    clonebundles that have a store fingerprint (see :hg:`help shapes`)
 

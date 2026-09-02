@@ -485,6 +485,40 @@ advisory one is ignored
   no changes found
   2 local changesets published
 
+Mandatory parameter negotiation
+-------------------------------
+
+A client that passes `mandatory_params` (indicating it understands mandatory
+parameters) gets the manifest as is.
+
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/full.hg BUNDLESPEC=gzip-v2;STREAM=v2;advisory-thing=1
+  > http://bad.entry BUNDLESPEC=gzip-v2;MANDATORY-THING=1
+  > EOF
+
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://localhost:$HGPORT1/full.hg BUNDLESPEC=gzip-v2;STREAM=v2;advisory-thing=1
+  http://bad.entry BUNDLESPEC=gzip-v2;MANDATORY-THING=1
+
+An old client that does not pass `mandatory_params` gets a downgraded and
+filtered manifest. The first entry has `STREAM` rewritten to `stream`; the
+second entry is dropped entirely (because `MANDATORY-THING` is new and the
+client won't understand it).
+
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw --legacy-client
+  http://localhost:$HGPORT1/full.hg BUNDLESPEC=gzip-v2;stream=v2;advisory-thing=1
+
+Only the parameter name is rewritten, even when the separator is percent
+encoded, as it is in a manifest written by an older Mercurial. The value is
+copied over untouched, whatever its case.
+
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://localhost:$HGPORT1/full.hg BUNDLESPEC=none-packed1;REQUIREMENTS%3DGENERALDELTA
+  > EOF
+
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw --legacy-client
+  http://localhost:$HGPORT1/full.hg BUNDLESPEC=none-packed1;requirements%3DGENERALDELTA
+
 Automatic fallback when all entries are filtered
 
   $ cat > server/.hg/clonebundles.manifest << EOF

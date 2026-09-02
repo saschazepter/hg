@@ -365,7 +365,7 @@ class wirepeer(
 
     def clonebundles(self):
         if self.capable(b'clonebundles_manifest'):
-            return self._call(b'clonebundles_manifest', store_fingerprint=b'1')
+            return self._call(b'clonebundles_manifest', mandatory_params=b'1')
         else:
             self.requirecap(b'clonebundles', _(b'clone bundles'))
             return self._call(b'clonebundles')
@@ -379,7 +379,7 @@ class wirepeer(
         def decode(d):
             return d[:-1]
 
-        return {b"store_fingerprint": b'1'}, decode
+        return {b"mandatory_params": b'1'}, decode
 
     @batchable
     def store_shape(self, *, name: bytes, **kwargs):

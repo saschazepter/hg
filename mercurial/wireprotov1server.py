@@ -336,7 +336,9 @@ def clonebundles(repo, proto):
     """A legacy version of clonebundles_manifest
 
     This version filtered out new url scheme (like peer-bundle-cache://) to
-    avoid confusion in older clients.
+    avoid confusion in older clients. It also downgrades bundlespec mandatory
+    parameters, since a client old enough to use this command cannot know
+    about them.
     """
     manifest_lines = bundle_cache_util.get_manifest_lines(repo)
     # Filter out peer-bundle-cache:// entries
@@ -346,6 +348,7 @@ def clonebundles(repo, proto):
             continue
         modified_manifest.append(line)
     modified_manifest = _filter_storefp_lines(repo, modified_manifest)
+    modified_manifest = bundlecaches.downgrade_manifest_lines(modified_manifest)
     modified_manifest.append(b'')
     return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
 
@@ -364,13 +367,18 @@ def clonebundles_2(repo, proto, args):
     in case a client does not support them.
     Otherwise, older clients would retrieve and error out on those.
 
-    Bundles with `store_fingerprint` are omitted unless the client passed
-    the `store_fingerprint` arg, indicating it understands how to handle such
-    bundles.
+    Bundles with `store_fingerprint` are omitted unless the client passed the
+    `store_fingerprint` or `mandatory_params` arg, indicating it understands
+    how to handle such bundles.
+
+    Clients that pass `mandatory_params` get the manifest as stored; for the
+    others it is downgraded on their behalf (see `downgrade_manifest_lines`).
     """
     manifest_lines = bundle_cache_util.get_manifest_lines(repo)
-    if args.get(b'store_fingerprint') != b'1':
-        manifest_lines = _filter_storefp_lines(repo, manifest_lines)
+    if args.get(b'mandatory_params') != b'1':
+        if args.get(b'store_fingerprint') != b'1':
+            manifest_lines = _filter_storefp_lines(repo, manifest_lines)
+        manifest_lines = bundlecaches.downgrade_manifest_lines(manifest_lines)
     return wireprototypes.bytesresponse(b''.join(manifest_lines))
 
 

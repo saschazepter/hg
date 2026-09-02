@@ -137,6 +137,7 @@ expected_mods_tested = {
     ('hgext.convert.subversion', '{}'),
     ('hgext.fix', '{}'),
     ('hgext.mq', '{}'),
+    ('mercurial.bundlecaches', '{}'),
     ('mercurial.changelog', '{}'),
     ('mercurial.cmd_impls.clone', '{}'),
     ('mercurial.cmdutil', '{}'),

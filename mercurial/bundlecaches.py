@@ -214,6 +214,29 @@ def canonical_param_name(key: bytes) -> bytes:
     return key.lower()
 
 
+# TODO consolidate the different functions parsing manifest lines and
+# bundlespecs
+def _partition_param(param: bytes) -> tuple[bytes, bytes, bytes]:
+    """Split a bundlespec parameter into its name, separator and value.
+
+    The separator is usually a literal "=", but `_formatrequirementsparams`
+    escapes it along with the name, so it can also be "%3D" (never "%3d").
+
+    >>> _partition_param(b'stream=v2')
+    (b'stream', b'=', b'v2')
+    >>> _partition_param(b'requirements%3Dstore%2Cfncache')
+    (b'requirements', b'%3D', b'store%2Cfncache')
+    >>> _partition_param(b'requirements%3Da=b=c')
+    (b'requirements', b'%3D', b'a=b=c')
+    """
+    name, sep, value = param.partition(b'=')
+    esc_name, esc_sep, esc_value = param.partition(urlreq.quote(b'='))
+    # Pick the separator that occurred first
+    if len(esc_name) < len(name):
+        return esc_name, esc_sep, esc_value
+    return name, sep, value
+
+
 def _parseparams(s):
     """parse bundlespec parameter section
 
@@ -410,6 +433,72 @@ def parseclonebundlesmanifest(repo, s):
         if attrs is not None:
             m.append(attrs)
     return m
+
+
+# Mandatory params that old clients unaware of mandatory bundlespec params
+# already act on under their lowercase names.
+#
+# `downgrade_manifest_lines` consults this when serving a client that didn't
+# pass the `mandatory_params` arg. Params in this set are understood by these
+# old clients, so they are rewritten in lowercase for the client to read. Any
+# other uppercase param means the client cannot use the entry at all, so the
+# whole line is dropped on its behalf.
+LEGACY_CLIENT_MANDATORY_PARAMS: set[bytes] = {
+    b"requirements",
+    b"store-fingerprint",
+    b"stream",
+}
+
+
+def _downgrade_bundlespec(spec: bytes) -> bytes | None:
+    """Rewrite a bundlespec for a client unaware of mandatory parameters.
+
+    Returns None if the client cannot handle it and the entry must be dropped.
+
+    >>> _downgrade_bundlespec(b'none-v2;STREAM=v2;phases=yes')
+    b'none-v2;stream=v2;phases=yes'
+    >>> _downgrade_bundlespec(b'none-v2;STREAM=v2;SHARD-ID=ab12')
+    """
+    head, sep, paramstr = spec.partition(b';')
+    params = []
+    for param in paramstr.split(b';'):
+        key, param_sep, value = _partition_param(param)
+        name = urlreq.unquote(key)
+        is_mandatory = name.isupper()
+        if is_mandatory and name.lower() not in LEGACY_CLIENT_MANDATORY_PARAMS:
+            return None
+        params.append(urlreq.quote(name.lower()) + param_sep + value)
+
+    return head + sep + b';'.join(params)
+
+
+def downgrade_manifest_lines(lines: list[bytes]) -> list[bytes]:
+    """Rewrite manifest lines for a client unaware of mandatory parameters.
+
+    Leaves all lowercase (advisory) params unchanged. For uppercase (mandatory)
+    params, if it is a param that old clients already act on under its lowercase
+    name, lowercase it for the client. Otherwise, drop the entire entry.
+
+    >>> downgrade_manifest_lines([
+    ...     b'http://a BUNDLESPEC=none-v2;STREAM=v2\\n',
+    ...     b'http://b BUNDLESPEC=none-v2;SHARD-ID=ab\\n',
+    ... ])
+    [b'http://a BUNDLESPEC=none-v2;stream=v2\\n']
+    """
+    new_lines = []
+    for line in lines:
+        fields = []
+        for field in line.split():
+            key, eq, value = field.partition(b'=')
+            if urlreq.unquote(key) == b'BUNDLESPEC':
+                spec = _downgrade_bundlespec(value)
+                if spec is None:
+                    break
+                field = key + eq + spec
+            fields.append(field)
+        else:
+            new_lines.append(b' '.join(fields) + b'\n')
+    return new_lines
 
 
 def parse_clonebundle_manifest_line(
