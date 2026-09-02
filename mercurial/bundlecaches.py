@@ -643,6 +643,17 @@ class clonebundleentry:
         return self._cmp(other) != 0
 
 
+def best_clonebundles(ui, entries):
+    """pick the prefered set of clone bundle to use
+
+    That list is usually of size 1 unless sharded bundle are used.
+
+    When sharded bundle are used, their should be a consisted set bundles from
+    an atomic generation that hold all the necesssary data for the clone.
+    """
+    return sortclonebundleentries(ui, entries)[:1]
+
+
 def sortclonebundleentries(ui, entries):
     prefers = ui.configlist(b'ui', b'clonebundleprefers')
     if not prefers:

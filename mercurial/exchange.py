@@ -3030,9 +3030,9 @@ def _maybeapplyclonebundle(pullop: pulloperation):
         )
         return
 
-    entries = bundlecaches.sortclonebundleentries(repo.ui, entries)
+    entries = bundlecaches.best_clonebundles(repo.ui, entries)
     with repo.lock(), repo.transaction(b"clonebundles"):
-        for entry in entries[:1]:
+        for entry in entries:
             url = entry[b'URL']
             digest = entry.get(b'DIGEST')
             if digest:
