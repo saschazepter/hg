@@ -107,8 +107,8 @@ pub struct LazyManifest {
     lines: Arc<Vec<Line>>,
     /// In-memory edits on top of [`Self::lines`], keyed by path.
     edits: BTreeMap<HgPathBuf, Edit>,
-    /// Net change in the number of entries caused by [`Self::edits`].
-    count_delta: isize,
+    /// Number of entries in the manifest after [`Self::edits`].
+    num_entries: usize,
 }
 
 /// An edit to a manifest.
@@ -155,20 +155,18 @@ impl LazyManifest {
     ) -> Result<Self, ManifestError> {
         let data = DynBytes::new(Box::new(data));
         let lines = Self::parse_lines(nodelen, &data)?;
+        let num_entries = lines.len();
         Ok(Self {
             data: Arc::new(data),
             lines: Arc::new(lines),
             edits: BTreeMap::new(),
-            count_delta: 0,
+            num_entries,
         })
     }
 
     /// Returns the number of entries in the manifest.
     pub fn len(&self) -> usize {
-        self.lines
-            .len()
-            .checked_add_signed(self.count_delta)
-            .expect("cannot be negative")
+        self.num_entries
     }
 
     /// Returns true if the manifest is empty.
@@ -262,7 +260,7 @@ impl LazyManifest {
             }
         };
         if !found {
-            self.add_to_count_delta(1);
+            self.num_entries += 1;
         }
         found
     }
@@ -299,28 +297,10 @@ impl LazyManifest {
             }
         };
         if found {
-            self.add_to_count_delta(-1);
+            self.num_entries =
+                self.num_entries.checked_sub(1).expect("should be >= 0");
         }
         found
-    }
-
-    /// Adds `value` to [`Self::count_delta`].
-    /// In tests, this also does a consistency check.
-    fn add_to_count_delta(&mut self, value: isize) {
-        self.count_delta += value;
-        #[cfg(test)]
-        {
-            let expected: isize = self
-                .edits
-                .values()
-                .map(|edit| match edit.operation {
-                    Operation::Insert(_) => 1,
-                    Operation::Update(_) => 0,
-                    Operation::Remove => -1,
-                })
-                .sum();
-            assert_eq!(self.count_delta, expected);
-        }
     }
 
     /// Parses all lines of a manifest.
@@ -437,7 +417,7 @@ impl LazyManifest {
         self.data = Arc::new(DynBytes::new(Box::new(new_data)));
         self.lines = Arc::new(new_lines);
         self.edits.clear();
-        self.count_delta = 0;
+        assert_eq!(self.lines.len(), self.num_entries);
         &self.data
     }
 
@@ -684,11 +664,13 @@ mod tests {
         fn set(&mut self, p: &[u8], node: Node, flags: ManifestFlags) {
             let overwrote = self.manifest.set(path(p), node, flags);
             assert_eq!(overwrote, self.model.set(p, node, flags));
+            assert_eq!(self.manifest.len(), self.model.len());
         }
 
         fn remove(&mut self, p: &[u8]) {
             let found = self.manifest.remove(path(p));
             assert_eq!(found, self.model.remove(p));
+            assert_eq!(self.manifest.len(), self.model.len());
         }
 
         fn paths(&self) -> Vec<Vec<u8>> {
