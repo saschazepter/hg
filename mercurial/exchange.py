@@ -3031,43 +3031,47 @@ def _maybeapplyclonebundle(pullop: pulloperation):
         return
 
     entries = bundlecaches.sortclonebundleentries(repo.ui, entries)
+    with repo.lock(), repo.transaction(b"clonebundles"):
+        for entry in entries[:1]:
+            url = entry[b'URL']
+            digest = entry.get(b'DIGEST')
+            if digest:
+                algorithms = urlmod.digesthandler.digest_algorithms.keys()
+                preference = dict(zip(algorithms, range(len(algorithms))))
+                best_entry = None
+                best_preference = len(preference)
+                for digest_entry in digest.split(b','):
+                    cur_algo, cur_digest = digest_entry.split(b':')
+                    if cur_algo not in preference:
+                        continue
+                    if preference[cur_algo] < best_preference:
+                        best_entry = digest_entry
+                        best_preference = preference[cur_algo]
+                digest = best_entry
 
-    url = entries[0][b'URL']
-    digest = entries[0].get(b'DIGEST')
-    if digest:
-        algorithms = urlmod.digesthandler.digest_algorithms.keys()
-        preference = dict(zip(algorithms, range(len(algorithms))))
-        best_entry = None
-        best_preference = len(preference)
-        for digest_entry in digest.split(b','):
-            cur_algo, cur_digest = digest_entry.split(b':')
-            if cur_algo not in preference:
-                continue
-            if preference[cur_algo] < best_preference:
-                best_entry = digest_entry
-                best_preference = preference[cur_algo]
-        digest = best_entry
-
-    repo.ui.status(_(b'applying clone bundle from %s\n') % url)
-    if trypullbundlefromurl(repo.ui, repo, url, remote, digest):
-        repo.ui.status(_(b'finished applying clone bundle\n'))
-    # Bundle failed.
-    #
-    # We abort by default to avoid the thundering herd of
-    # clients flooding a server that was expecting expensive
-    # clone load to be offloaded.
-    elif repo.ui.configbool(b'ui', b'clonebundlefallback'):
-        repo.ui.warn(_(b'falling back to normal clone\n'))
-    else:
-        raise error.Abort(
-            _(b'error applying bundle'),
-            hint=_(
-                b'if this error persists, consider contacting '
-                b'the server operator or disable clone '
-                b'bundles via '
-                b'"--config ui.clonebundles=false"'
-            ),
-        )
+            msg = _(b'applying clone bundle from %s\n') % url
+            repo.ui.status(msg)
+            if trypullbundlefromurl(repo.ui, repo, url, remote, digest):
+                pass
+            # Bundle failed.
+            #
+            # We abort by default to avoid the thundering herd of
+            # clients flooding a server that was expecting expensive
+            # clone load to be offloaded.
+            elif repo.ui.configbool(b'ui', b'clonebundlefallback'):
+                repo.ui.warn(_(b'falling back to normal clone\n'))
+                return
+            else:
+                raise error.Abort(
+                    _(b'error applying bundle'),
+                    hint=_(
+                        b'if this error persists, consider contacting '
+                        b'the server operator or disable clone '
+                        b'bundles via '
+                        b'"--config ui.clonebundles=false"'
+                    ),
+                )
+    repo.ui.status(_(b'finished applying clone bundle\n'))
 
 
 def inline_clone_bundle_open(ui, url, peer):
