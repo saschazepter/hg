@@ -49,6 +49,9 @@ SUPPORTED_CLONEBUNDLE_SCHEMES = [
     CLONEBUNDLESCHEME,
 ]
 
+# Bundlespec parameters a client must understand to safely use the bundle.
+MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = set()
+
 
 @attr.s
 class bundlespec:
@@ -86,7 +89,7 @@ class bundlespec:
                 value = b"yes" if raw_value else b"no"
             else:
                 value = raw_value
-            parts.append(b'%s=%s' % (param, value))
+            parts.append(b'%s=%s' % (canonical_param_name(param), value))
         return b';'.join(parts)
 
 
@@ -168,10 +171,23 @@ bundle_spec_param_processing = {
 }
 
 
+def canonical_param_name(key: bytes) -> bytes:
+    """The name to use when writing this parameter into a bundlespec.
+
+    All caps for mandatory parameters, lowercase for advisory parameters.
+    """
+    if key in MANDATORY_BUNDLE_SPEC_PARAMS:
+        return key.upper()
+    return key.lower()
+
+
 def _parseparams(s):
     """parse bundlespec parameter section
 
     input: "comp-version;params" string
+
+    Parameter names are normalized to lowercase so that from this point on only
+    lowercase needs to be handled.
 
     return: (spec; {param_key: param_value})
     """
@@ -190,6 +206,13 @@ def _parseparams(s):
         key, value = p.split(b'=', 1)
         key = urlreq.unquote(key)
         value = urlreq.unquote(value)
+        if not key.isupper() and not key.islower():
+            msg = _(
+                b'invalid bundle specification: parameter name must be either '
+                b'all uppercase (mandatory) or all lowercase (advisory): %s'
+            )
+            raise error.InvalidBundleSpecification(msg % key)
+        key = key.lower()
         process = bundle_spec_param_processing.get(key)
         if process is not None:
             value = process(key, value)

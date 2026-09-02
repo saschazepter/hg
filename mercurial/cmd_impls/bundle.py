@@ -36,12 +36,15 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
         if revstrings and not revs:
             raise error.InputError(_(b'no commits to bundle'))
 
-    bundletype = opts.get('type', b'bzip2').lower()
+    bundletype = opts.get('type', b'bzip2')
     try:
         bundlespec = bundlecaches.parsebundlespec(
             repo, bundletype, strict=False
         )
-    except error.UnsupportedBundleSpecification as e:
+    except (
+        error.InvalidBundleSpecification,
+        error.UnsupportedBundleSpecification,
+    ) as e:
         raise error.InputError(
             pycompat.bytestr(e),
             hint=_(b"see 'hg help bundlespec' for supported values for --type"),

@@ -756,3 +756,26 @@ skipping changegroup
   hgtagsfnodes -- {} (mandatory: False)
   cache:rev-branch-cache -- {} (mandatory: False)
   phase-heads -- {} (mandatory: True)
+
+parameter name case
+-------------------
+
+If client knows about the param, uppercase or lowercase doesn't matter.
+
+  $ hg -R t1 bundle --all --quiet --type 'v2;phases=yes' ./case-lower.hg
+  $ hg -R t1 bundle --all --quiet --type 'v2;PHASES=yes' ./case-upper.hg
+  $ cmp ./case-lower.hg ./case-upper.hg
+
+If client doesn't know about the param, uppercase makes the spec unsupported, while
+lowercase is okay.
+TODO: enforce this
+
+  $ hg -R t1 bundle --all --quiet --type 'v2;fooparam=yes' ./case-lower.hg
+  $ hg -R t1 bundle --all --quiet --type 'v2;FOOPARAM=yes' ./case-upper.hg
+
+A name with mixed cases is not valid.
+
+  $ hg -R t1 bundle --all --quiet --type 'v2;Phases=yes' ./case-mixed.hg
+  abort: invalid bundle specification: parameter name must be either all uppercase (mandatory) or all lowercase (advisory): Phases
+  (see 'hg help bundlespec' for supported values for --type)
+  [10]
