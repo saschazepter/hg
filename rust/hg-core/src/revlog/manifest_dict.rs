@@ -109,6 +109,8 @@ pub struct LazyManifest {
     edits: BTreeMap<HgPathBuf, Edit>,
     /// Number of entries in the manifest after [`Self::edits`].
     num_entries: usize,
+    /// Size of the manifest text in bytes after [`Self::edits`].
+    num_bytes: usize,
 }
 
 /// An edit to a manifest.
@@ -156,11 +158,13 @@ impl LazyManifest {
         let data = DynBytes::new(Box::new(data));
         let lines = Self::parse_lines(nodelen, &data)?;
         let num_entries = lines.len();
+        let num_bytes = data.len();
         Ok(Self {
             data: Arc::new(data),
             lines: Arc::new(lines),
             edits: BTreeMap::new(),
             num_entries,
+            num_bytes,
         })
     }
 
@@ -230,18 +234,22 @@ impl LazyManifest {
         flags: ManifestFlags,
     ) -> bool {
         let state = FileState { node, flags };
-        let found = match self.edits.entry(path.to_owned()) {
+        let old_size = match self.edits.entry(path.to_owned()) {
             Entry::Vacant(entry) => {
                 match Self::binary_search(&self.lines, &self.data, path) {
                     Ok(index) => {
-                        let operation = Operation::Update(state);
-                        entry.insert(Edit { index, operation });
-                        true
+                        entry.insert(Edit {
+                            index,
+                            operation: Operation::Update(state),
+                        });
+                        Some(u16_u(self.lines[index].len))
                     }
                     Err(index) => {
-                        let operation = Operation::Insert(state);
-                        entry.insert(Edit { index, operation });
-                        false
+                        entry.insert(Edit {
+                            index,
+                            operation: Operation::Insert(state),
+                        });
+                        None
                     }
                 }
             }
@@ -249,58 +257,69 @@ impl LazyManifest {
                 let operation = &mut entry.get_mut().operation;
                 match operation {
                     Operation::Insert(s) | Operation::Update(s) => {
+                        let old_size = line_size(path, s.flags);
                         *s = state;
-                        true
+                        Some(old_size)
                     }
                     Operation::Remove => {
                         *operation = Operation::Update(state);
-                        false
+                        None
                     }
                 }
             }
         };
-        if !found {
+        if let Some(old_size) = old_size {
+            self.num_bytes =
+                self.num_bytes.checked_sub(old_size).expect("should be >= 0");
+        } else {
             self.num_entries += 1;
         }
-        found
+        self.num_bytes += line_size(path, flags);
+        old_size.is_some()
     }
 
     /// Removes `path` from the manifest. Returns true if it was found.
     pub fn remove(&mut self, path: &HgPath) -> bool {
-        let found = match self.edits.entry(path.to_owned()) {
+        let old_size = match self.edits.entry(path.to_owned()) {
             Entry::Vacant(entry) => {
                 match Self::binary_search(&self.lines, &self.data, path) {
                     Ok(index) => {
-                        let operation = Operation::Remove;
-                        entry.insert(Edit { index, operation });
-                        true
+                        entry.insert(Edit {
+                            index,
+                            operation: Operation::Remove,
+                        });
+                        Some(u16_u(self.lines[index].len))
                     }
-                    Err(_) => false,
+                    Err(_) => None,
                 }
             }
             Entry::Occupied(mut entry) => {
                 let operation = &mut entry.get_mut().operation;
                 match operation {
                     // Path was inserted in memory. Undo that.
-                    Operation::Insert(_) => {
+                    Operation::Insert(s) => {
+                        let old_size = line_size(path, s.flags);
                         entry.remove();
-                        true
+                        Some(old_size)
                     }
                     // Path was updated in memory. Turn it into a removal.
-                    Operation::Update(_) => {
+                    Operation::Update(s) => {
+                        let old_size = line_size(path, s.flags);
                         *operation = Operation::Remove;
-                        true
+                        Some(old_size)
                     }
                     // Path is already removed.
-                    Operation::Remove => false,
+                    Operation::Remove => None,
                 }
             }
         };
-        if found {
+        if let Some(old_size) = old_size {
             self.num_entries =
                 self.num_entries.checked_sub(1).expect("should be >= 0");
+            self.num_bytes =
+                self.num_bytes.checked_sub(old_size).expect("should be >= 0");
         }
-        found
+        old_size.is_some()
     }
 
     /// Parses all lines of a manifest.
@@ -371,10 +390,8 @@ impl LazyManifest {
             return &self.data;
         }
         let old_lines_len = self.lines.len();
-        let new_lines_len = self.len();
-        let new_text_size = self.compute_text_size();
-        let mut new_data = Vec::with_capacity(new_text_size);
-        let mut new_lines = Vec::with_capacity(new_lines_len);
+        let mut new_data = Vec::with_capacity(self.num_bytes);
+        let mut new_lines = Vec::with_capacity(self.num_entries);
         let mut old_line_cursor = 0;
         // Edits are sorted by path. Where several share an index, the inserts
         // come first (because their paths sort before the existing line) and at
@@ -413,32 +430,12 @@ impl LazyManifest {
                 &mut new_lines,
             );
         }
-        debug_assert_eq!(new_data.len(), new_text_size);
         self.data = Arc::new(DynBytes::new(Box::new(new_data)));
         self.lines = Arc::new(new_lines);
         self.edits.clear();
+        assert_eq!(self.data.len(), self.num_bytes);
         assert_eq!(self.lines.len(), self.num_entries);
         &self.data
-    }
-
-    /// Computes the size of the manifest text with [`Self::edits`] applied.
-    fn compute_text_size(&self) -> usize {
-        let mut delta: isize = 0;
-        for (path, &Edit { index, operation }) in &self.edits {
-            match operation {
-                Operation::Insert(state) => {
-                    delta += line_size(path, state.flags) as isize;
-                }
-                Operation::Update(state) => {
-                    delta += line_size(path, state.flags) as isize;
-                    delta -= u16_u(self.lines[index].len) as isize;
-                }
-                Operation::Remove => {
-                    delta -= u16_u(self.lines[index].len) as isize;
-                }
-            }
-        }
-        self.data.len().checked_add_signed(delta).expect("cannot be negative")
     }
 
     /// Copies the lines in `range` (must be nonempty) from [`Self::data`] to
@@ -681,6 +678,7 @@ mod tests {
         /// `paths`, which may include paths that aren't in the manifest.
         fn check_lookups(&self, paths: &[Vec<u8>]) {
             assert_eq!(self.manifest.len(), self.model.len());
+            assert_eq!(self.manifest.num_bytes, self.model.text().len());
             for p in paths {
                 let expected = self.model.get(p);
                 assert_eq!(self.manifest.contains(path(p)), expected.is_some());
