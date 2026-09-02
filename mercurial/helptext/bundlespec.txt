@@ -71,6 +71,17 @@ The compression engines can be prepended with ``stream`` to create a streaming b
 These are bundles that are extremely efficient to produce and consume,
 but do not have guaranteed compatibility with older clients.
 
+Mandatory and Advisory Parameters
+=================================
+
+Parameters with lowercase names are advisory: a client that does not know it can
+safely ignore it and use the bundle anyway.
+
+Parameters with uppercase names are mandatory: a client that does not know it
+must reject the bundle. For example, a bundle holding only a part of the repo
+store advertises that fact through a mandatory parameter, so clients that do
+not understand such bundles should not mistake it for a full copy.
+
 Available Options
 =================
 

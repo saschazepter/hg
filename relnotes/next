@@ -8,6 +8,8 @@
   command for each named path.
 * exchange: rename the `ui.remotecmd` config and `--remotecmd` command flag to
   `ui.remote-cmd` and `--remote-cmd` (with backward compatibility.
+* bundlespec: the case of a parameter name now says whether it is mandatory. See
+  `hg help bundlespec`.
 
 == Default Format Change ==
 
@@ -27,6 +29,10 @@ Mercurial XXX.
 == Backwards Compatibility Changes ==
 
 == Internal API Changes ==
+
+* Extensions adding bundlespec parameters must extend
+  `mercurial.bundlecaches.KNOWN_BUNDLE_SPEC_PARAMS` and, if applicable,
+  `MANDATORY_BUNDLE_SPEC_PARAMS`.
 
 == Miscellaneous ==
 

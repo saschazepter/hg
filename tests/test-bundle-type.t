@@ -768,10 +768,12 @@ If client knows about the param, uppercase or lowercase doesn't matter.
 
 If client doesn't know about the param, uppercase makes the spec unsupported, while
 lowercase is okay.
-TODO: enforce this
 
   $ hg -R t1 bundle --all --quiet --type 'v2;fooparam=yes' ./case-lower.hg
   $ hg -R t1 bundle --all --quiet --type 'v2;FOOPARAM=yes' ./case-upper.hg
+  abort: unsupported mandatory bundle specification parameter: fooparam
+  (see 'hg help bundlespec' for supported values for --type)
+  [10]
 
 A name with mixed cases is not valid.
 

@@ -52,8 +52,13 @@ SUPPORTED_CLONEBUNDLE_SCHEMES = [
 # Bundlespec parameters a client must understand to safely use the bundle.
 MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = set()
 
-# Bundlespec params that are simply copied over (and uppercased) to the manifest
-# line parameters for easier filtering.
+# Bundlespec params copied over to the manifest line parameters for easier
+# filtering. They get uppercased on the way to indicate they are reserved for
+# use by Mercurial, which is different from the uppercase that indicates
+# mandatory bundlespec params.
+#
+# TODO: stop forwarding these params, it's confusing to have uppercase indicate
+# two different things for the same params
 FORWARDED_SPEC_PARAMS = [
     b"store-fingerprint",
     b"shard-id",
@@ -180,6 +185,25 @@ bundle_spec_param_processing = {
 }
 
 
+# Every bundlespec parameter this version of Mercurial knows about.
+#
+# Mercurial rejects bundles with mandatory (uppercase) parameters that aren't
+# in this set.
+#
+# Extensions that extend the parameter set must extend KNOWN_BUNDLE_SPEC_PARAMS
+# to do so.
+#
+# TODO: the value of the parameter might be important in some case, we so need
+# to extend this logic with a way to validate the mandatory parameter value.
+KNOWN_BUNDLE_SPEC_PARAMS: set[bytes] = set().union(
+    *_bundlespeccontentopts.values(),
+    bundle_spec_param_processing,
+    MANDATORY_BUNDLE_SPEC_PARAMS,
+    FORWARDED_SPEC_PARAMS,
+    {b"requirements"},
+)
+
+
 def canonical_param_name(key: bytes) -> bytes:
     """The name to use when writing this parameter into a bundlespec.
 
@@ -221,7 +245,11 @@ def _parseparams(s):
                 b'all uppercase (mandatory) or all lowercase (advisory): %s'
             )
             raise error.InvalidBundleSpecification(msg % key)
+        is_mandatory = key.isupper()
         key = key.lower()
+        if is_mandatory and key not in KNOWN_BUNDLE_SPEC_PARAMS:
+            msg = _(b'unsupported mandatory bundle specification parameter: %s')
+            raise error.UnsupportedBundleSpecification(msg % key)
         process = bundle_spec_param_processing.get(key)
         if process is not None:
             value = process(key, value)

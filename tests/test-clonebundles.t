@@ -453,6 +453,38 @@ Entry with unknown BUNDLESPEC is filtered and not used
   no changes found
   2 local changesets published
 
+Filtering entries with an unknown parameter
+-------------------------------------------
+
+Entry with an unknown mandatory parameter is filtered, while an unknown
+advisory one is ignored
+
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://bad.entry BUNDLESPEC=gzip-v2;FOOPARAM=1
+  > http://localhost:$HGPORT1/full.hg BUNDLESPEC=gzip-v2;fooparam=1
+  > EOF
+
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://bad.entry BUNDLESPEC=gzip-v2;FOOPARAM=1
+  http://localhost:$HGPORT1/full.hg BUNDLESPEC=gzip-v2;fooparam=1
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --debug | grep bad.entry
+  filtering http://bad.entry because unsupported bundle spec: unsupported mandatory bundle specification parameter: fooparam
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT
+    URL: http://localhost:$HGPORT1/full.hg
+      BUNDLESPEC: gzip-v2;fooparam=1
+      COMPRESSION: gzip
+      VERSION: v2
+  $ hg clone -U http://localhost:$HGPORT filter-unknown-mandatory-param
+  applying clone bundle from http://localhost:$HGPORT1/full.hg
+  adding changesets
+  adding manifests
+  adding file changes
+  added 2 changesets with 2 changes to 2 files
+  finished applying clone bundle
+  searching for changes
+  no changes found
+  2 local changesets published
+
 Automatic fallback when all entries are filtered
 
   $ cat > server/.hg/clonebundles.manifest << EOF
