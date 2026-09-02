@@ -3031,8 +3031,13 @@ def _maybeapplyclonebundle(pullop: pulloperation):
         return
 
     entries = bundlecaches.best_clonebundles(repo.ui, entries)
+    entries_len = len(entries)
+    multiple_entries = entries_len > 1
+    if multiple_entries:
+        repo.ui.status(_(b"applying %d clone bundles\n") % len(entries))
+
     with repo.lock(), repo.transaction(b"clonebundles"):
-        for entry in entries:
+        for idx, entry in enumerate(entries):
             url = entry[b'URL']
             digest = entry.get(b'DIGEST')
             if digest:
@@ -3052,15 +3057,23 @@ def _maybeapplyclonebundle(pullop: pulloperation):
             msg = _(b'applying clone bundle from %s\n') % url
             repo.ui.status(msg)
             if trypullbundlefromurl(repo.ui, repo, url, remote, digest):
-                pass
+                if multiple_entries:
+                    msg = _(b'finished applying clone bundle [%d/%d]\n')
+                    msg %= (idx + 1, entries_len)
+                    repo.ui.status(msg)
             # Bundle failed.
             #
             # We abort by default to avoid the thundering herd of
             # clients flooding a server that was expecting expensive
             # clone load to be offloaded.
             elif repo.ui.configbool(b'ui', b'clonebundlefallback'):
-                repo.ui.warn(_(b'falling back to normal clone\n'))
-                return
+                if idx > 0:
+                    msg = _(b'error applying bundle %d/%d: %s')
+                    msg %= (idx + 1, entries_len, url)
+                    raise error.Abort(msg)
+                else:
+                    repo.ui.warn(_(b'falling back to normal clone\n'))
+                    return
             else:
                 raise error.Abort(
                     _(b'error applying bundle'),
@@ -3071,7 +3084,10 @@ def _maybeapplyclonebundle(pullop: pulloperation):
                         b'"--config ui.clonebundles=false"'
                     ),
                 )
-    repo.ui.status(_(b'finished applying clone bundle\n'))
+    if multiple_entries:
+        repo.ui.status(_(b"finished applying %d clone bundles\n") % entries_len)
+    else:
+        repo.ui.status(_(b'finished applying clone bundle\n'))
 
 
 def inline_clone_bundle_open(ui, url, peer):
