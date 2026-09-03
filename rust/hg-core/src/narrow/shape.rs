@@ -191,16 +191,16 @@ pub struct ShardShape {
 }
 
 impl ShardShape {
-    /// Returns a standalone version of this shard, unless it's a shape with
-    /// no paths.
+    /// Returns a standalone version of this shard
+    ///
+    /// Returns None if it is not a shard, i.e. it has no paths.
     pub fn new(store_shards: &StoreShards, shard: &Shard) -> Option<Self> {
-        if shard.shape && shard.paths.is_empty() {
+        if shard.paths.is_empty() {
             return None;
         }
 
         let includes: FastHashSet<_> =
             shard.paths.iter().map(|path| path.as_bytes()).collect();
-        assert!(!includes.is_empty());
 
         let paths =
             store_shards.path_to_shard.keys().map(|path| path.as_bytes());
