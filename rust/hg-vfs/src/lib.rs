@@ -1,8 +1,10 @@
 //! Manager for multiple read-only FUSE mounts.
 
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::thread::available_parallelism;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
@@ -15,7 +17,10 @@ use hg::errors::HgError;
 use hg::repo::Repo;
 use hg::utils::u32_u;
 use hg_fuse::read_write::fuse::HgFuse;
+use hg_fuse::server::local::LocalBackend;
+use hg_fuse::server::local::LocalToken;
 pub use hg_fuse::server::store::BackendMode;
+use hg_fuse::server::store::Store;
 use parking_lot::Mutex;
 
 /// Per-mount options.
@@ -65,10 +70,16 @@ struct MountHandle {
     info: MountInfo,
 }
 
+/// Handle for a repo, which can be shared between multiple mounts.
+struct RepoState {
+    store: Arc<Store<LocalBackend, LocalToken>>,
+}
+
 /// Registry of live read-only FUSE mounts, keyed by mount point.
 #[derive(Default)]
 pub struct MountManager {
     mounts: Mutex<HashMap<PathBuf, MountHandle>>,
+    per_repo_state: Mutex<HashMap<PathBuf, RepoState>>,
 }
 
 impl MountManager {
@@ -89,6 +100,7 @@ impl MountManager {
         mount_point: PathBuf,
         _backing_path: PathBuf,
         _revision: Node,
+        // TODO: these should not be per-mount options, move into MountManager
         options: MountOptions,
     ) -> Result<MountInfo, MountError> {
         let clone_path = repo.working_directory_path().to_path_buf();
@@ -109,6 +121,31 @@ impl MountManager {
             .unwrap_or_else(|| {
                 available_parallelism().map(usize::from).unwrap_or(1)
             });
+
+        let _store = {
+            let mut per_repo_state = self.per_repo_state.lock();
+            match per_repo_state.entry(clone_path.clone()) {
+                Entry::Occupied(occupied) => {
+                    let value = occupied.get();
+                    Arc::clone(&value.store)
+                }
+                Entry::Vacant(vacant) => {
+                    // TODO: thin seems closest to what we want, but may need
+                    // tuning later.
+                    let store_backend =
+                        LocalBackend::new(repo, BackendMode::Thin)?;
+                    let store = Arc::new(Store::new(
+                        store_backend,
+                        options.max_revisions_loaded,
+                        // We won't use timestamps returned by the StoreCache.
+                        SystemTime::UNIX_EPOCH,
+                        None,
+                    ));
+                    vacant.insert(RepoState { store: Arc::clone(&store) });
+                    store
+                }
+            }
+        };
 
         let session =
             HgFuse::mount(&mount_point, options.session_acl, num_threads)?;
