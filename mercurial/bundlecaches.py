@@ -356,6 +356,9 @@ def parseclonebundlesmanifest(repo, s):
 # line parameters for easier filtering.
 FORWARDED_SPEC_PARAMS = [
     b"store-fingerprint",
+    b"shard-id",
+    b"bundle-group-id",
+    b"bundle-group-top-level",
 ]
 
 
@@ -412,14 +415,20 @@ def isstreamclonespec(bundlespec):
 
 digest_regex = re.compile(b'^[a-z0-9]+:[0-9a-f]+(,[a-z0-9]+:[0-9a-f]+)*$')
 
+if typing.TYPE_CHECKING:
+    EntryT = dict[bytes, typing.Any]
+
+NO_GRP_MSG = b"filtering %s because it has shard-id without bundle-group-id\n"
+
 
 def filterclonebundleentries(
     repo,
-    entries,
+    entries: list[EntryT],
     streamclonerequested=False,
     pullbundles=False,
     store_fingerprints: list[bytes] | None = None,
-):
+    shards_sets: list[set[bytes]] | None = None,
+) -> list[EntryT]:
     """Remove incompatible clone bundle manifest entries.
 
     Accepts a list of entries parsed with ``parseclonebundlesmanifest``
@@ -429,7 +438,10 @@ def filterclonebundleentries(
     There is no guarantee we'll be able to apply all returned entries because
     the metadata we use to filter on may be missing or wrong.
     """
-    newentries = []
+
+    newentries: list[EntryT] = []
+    # gather the set of shards available for each group.
+    shards_groups = collections.defaultdict(set)
     for entry in entries:
         url = entry.get(b'URL')
         if url is None:
@@ -456,20 +468,37 @@ def filterclonebundleentries(
             continue
 
         entry_store_fp = entry.get(b"STORE-FINGERPRINT")
-        if store_fingerprints is None and entry_store_fp is not None:
-            msg = b'filtering %s because it uses a store-shape\n'
-            msg %= url
-            repo.ui.debug(msg)
-            continue
-        elif store_fingerprints is not None and entry_store_fp is None:
-            msg = b'filtering %s because it does not use store-shape\n'
+        # bundle with shard id need to be filtered later, when we know which
+        # group id have the complete set of shards we needs.
+        has_shard_id = b"SHARD-ID" in entry
+        if store_fingerprints is None and has_shard_id:
+            # XXX strictly speaking, we could use sharded bundle for a full
+            # clone, but this isn't something we do for now.
+            msg = b'filtering %s because it is sharded bundle\n'
             msg %= url
             repo.ui.debug(msg)
             continue
         elif store_fingerprints is None and entry_store_fp is None:
             pass  # expectation match, we can continue the filtering
-        elif entry_store_fp not in store_fingerprints:
-            msg = b'filtering %s because its store-shape is not the requested one; %s not in (%s)\n'
+        elif store_fingerprints is None and entry_store_fp is not None:
+            msg = b'filtering %s because it uses a store-shape\n'
+            msg %= url
+            repo.ui.debug(msg)
+            continue
+        elif (
+            store_fingerprints is not None
+            and entry_store_fp is None
+            and not has_shard_id
+        ):
+            msg = b'filtering %s because it does not use store-shape\n'
+            msg %= url
+            repo.ui.debug(msg)
+            continue
+        elif (not has_shard_id) and entry_store_fp not in store_fingerprints:
+            msg = (
+                b'filtering %s because its store-shape is not the requested '
+                b'one; %s not in (%s)\n'
+            )
             msg %= (url, entry_store_fp, b', '.join(store_fingerprints))
             repo.ui.debug(msg)
             continue
@@ -573,9 +602,49 @@ def filterclonebundleentries(
             if supported == 0:
                 continue
 
+        # gather the set of available shard-id in each group for further
+        # filtering outside of this loop
+        if b"SHARD-ID" in entry:
+            group_id = entry.get(b"BUNDLE-GROUP-ID")
+            if group_id is None:
+                url = entry.get(b'URL', b'(unknown url)')
+                repo.ui.debug(NO_GRP_MSG % url)
+                continue
+            # XXX need proper error handling at some point
+            shard_id = entry[b"SHARD-ID"]
+            shards_groups[group_id].add(shard_id)
+        elif b"BUNDLE-GROUP-ID" in entry:
+            assert False
         newentries.append(entry)
 
-    return newentries
+    # find all the group that can accomodate at least one of the requested shards set
+    valid_groups = {}
+    for group_id, shards in shards_groups.items():
+        for valid_set in shards_sets:
+            if valid_set.issubset(shards):
+                valid_groups[group_id] = valid_set
+                break
+
+    # only keeps sharded bundle that can build a valid sets
+    final = []
+    for entry in newentries:
+        group_id = entry.get(b"BUNDLE-GROUP-ID")
+        url = entry.get(b'URL', b'(unknown url)')
+        shard_id = entry.get(b"SHARD-ID")
+        if group_id is None:
+            # not sharded, already filtered above
+            final.append(entry)
+        elif group_id not in valid_groups:
+            msg = b'filtering %s because bundle group %s is missing some required shards\n'
+            msg %= (url, group_id)
+            repo.ui.debug(msg)
+        elif shard_id not in valid_groups[group_id]:
+            msg = b'filtering %s because shard %s is not requested\n'
+            msg %= (url, shard_id)
+            repo.ui.debug(msg)
+        else:
+            final.append(entry)
+    return final
 
 
 class clonebundleentry:
@@ -651,7 +720,33 @@ def best_clonebundles(ui, entries):
     When sharded bundle are used, their should be a consisted set bundles from
     an atomic generation that hold all the necesssary data for the clone.
     """
-    return sortclonebundleentries(ui, entries)[:1]
+    assert len(entries) > 0
+    entries = sortclonebundleentries(ui, entries)
+    first = entries[0]
+    group_id = first.get(b"BUNDLE-GROUP-ID")
+    if group_id is None:
+        final = entries[:1]
+    else:
+        # The prefered bundle is sharded, we need to select the full group
+        final = []
+        top_group = None
+        # But we should only select one bundle for each shard
+        seen_shards = set()
+        for e in entries:
+            if e.get(b"BUNDLE-GROUP-ID") == group_id:
+                shard_id = e[b"SHARD-ID"]
+                if shard_id not in seen_shards:
+                    seen_shards.add(shard_id)
+                    if b"BUNDLE-GROUP-TOP-LEVEL" in e:
+                        # XXX needs proper error handling as some point.
+                        assert top_group is None
+                        top_group = e
+                    else:
+                        final.append(e)
+        # XXX needs proper error handling as some point.
+        assert top_group is not None
+        final.insert(0, top_group)
+    return final
 
 
 def sortclonebundleentries(ui, entries):

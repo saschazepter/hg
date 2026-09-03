@@ -3011,6 +3011,7 @@ def _maybeapplyclonebundle(pullop: pulloperation):
         entries,
         streamclonerequested=pullop.streamclonerequested,
         store_fingerprints=store_fingerprints,
+        shards_sets=pullop.shards_sets,
     )
 
     if not entries:
