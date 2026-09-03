@@ -3242,11 +3242,15 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
                 fingerprint = shape_mod.fingerprint_for_patterns(
                     includes, excludes
                 )
+            if fingerprint is None:
+                store_fingerprints = None
+            else:
+                store_fingerprints = [fingerprint]
             entries = bundlecaches.filterclonebundleentries(
                 target,
                 entries,
                 streamclonerequested=opts['stream'],
-                store_fingerprint=fingerprint,
+                store_fingerprints=store_fingerprints,
             )
             entries = bundlecaches.sortclonebundleentries(ui, entries)
             for entry in entries:

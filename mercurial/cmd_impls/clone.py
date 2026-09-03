@@ -464,6 +464,9 @@ def clone(
                     stream = False
                 # internal config: ui.quietbookmarkmove
                 overrides = {(b'ui', b'quietbookmarkmove'): True}
+                pullop_args = {}
+                if shape is not None:
+                    pullop_args[b"store_fingerprints"] = fingerprints
                 with local.ui.configoverride(overrides, b'clone'):
                     exchange.pull(
                         local,
@@ -471,6 +474,7 @@ def clone(
                         heads=revs,
                         streamclonerequested=stream,
                         depth=depth,
+                        opargs=pullop_args,
                     )
             elif srcrepo:
                 # TODO lift restriction once exchange.push() accepts narrow

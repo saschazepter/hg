@@ -166,9 +166,9 @@ The raw manifest looks OK
   peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
 
 Passing in no includes or excludes shows that all entries are filtered out due to their fingerprints
-  $ hg debug::clonebundle-manifest ssh://user@dummy/source --debug | grep 'correct store fingerprint'
-  filtering peer-bundle-cache://outfile-shape-foobar.hg because not the correct store fingerprint (expected feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726)
-  filtering peer-bundle-cache://outfile-shape-foobaz.hg because not the correct store fingerprint (expected bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e)
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --debug | grep 'store-shape'
+  filtering peer-bundle-cache://outfile-shape-foobar.hg because it uses a store-shape
+  filtering peer-bundle-cache://outfile-shape-foobaz.hg because it uses a store-shape
 
 Passing a pattern that matches nothing filters all entries
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=no_match

@@ -1529,6 +1529,7 @@ class pulloperation(i_exc.IPullOperation):
         remotebookmarks=None,
         streamclonerequested=None,
         depth=None,
+        store_fingerprints: list[bytes] | None = None,
     ):
         # repo we pull into
         self.repo: RepoT = repo
@@ -1562,6 +1563,10 @@ class pulloperation(i_exc.IPullOperation):
         self.clonebundleattempted: bool = False
         # Number of ancestor changesets to pull from each pulled head.
         self.depth: int | None = depth
+        # The list valid fingerprints to use for a narrow bundle
+        #
+        # A value of `None` means we are doing a full bundle, not a narrow one.
+        self.store_fingerprints: list[bytes] | None = store_fingerprints
 
     @util.propertycache
     def includepats(self):
@@ -2980,19 +2985,25 @@ def _maybeapplyclonebundle(pullop: pulloperation):
         )
         return
 
-    store_fingerprint = None
-    if pullop.includepats or pullop.excludepats:
-        # This can still return None if any pat is not `path:`.
-        # Should we warn/error?
-        store_fingerprint = shapemod.fingerprint_for_patterns(
-            pullop.includepats, pullop.excludepats
+    # The user has passed in other pattern flags than `--shape`, we need to
+    # compute their fingerprint so the filtering works and we don't
+    # unintentionally select a shaped bundle
+    if pullop.store_fingerprints is not None:
+        store_fingerprints = pullop.store_fingerprints
+    elif pullop.includepats or pullop.excludepats:
+        fp = shapemod.fingerprint_for_patterns(
+            pullop.includepats,
+            pullop.excludepats,
         )
+        store_fingerprints = [fp]
+    else:
+        store_fingerprints = None
 
     entries = bundlecaches.filterclonebundleentries(
         repo,
         entries,
         streamclonerequested=pullop.streamclonerequested,
-        store_fingerprint=store_fingerprint,
+        store_fingerprints=store_fingerprints,
     )
 
     if not entries:

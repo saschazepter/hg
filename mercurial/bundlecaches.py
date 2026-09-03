@@ -418,7 +418,7 @@ def filterclonebundleentries(
     entries,
     streamclonerequested=False,
     pullbundles=False,
-    store_fingerprint=None,
+    store_fingerprints: list[bytes] | None = None,
 ):
     """Remove incompatible clone bundle manifest entries.
 
@@ -452,18 +452,23 @@ def filterclonebundleentries(
             repo.ui.debug(msg % (url, unknown_compression))
             continue
 
-        expected_fingerprint = entry.get(b"STORE-FINGERPRINT")
-        fingerprint_cannot_match = (
-            store_fingerprint is not None and expected_fingerprint is None
-        )
-        fingerprints_differ = store_fingerprint != expected_fingerprint
-        if fingerprint_cannot_match or fingerprints_differ:
-            if expected_fingerprint is None:
-                expected_fingerprint = b"none"
-            repo.ui.debug(
-                b'filtering %s because not the correct store fingerprint '
-                b'(expected %s)\n' % (url, expected_fingerprint)
-            )
+        entry_store_fp = entry.get(b"STORE-FINGERPRINT")
+        if store_fingerprints is None and entry_store_fp is not None:
+            msg = b'filtering %s because it uses a store-shape\n'
+            msg %= url
+            repo.ui.debug(msg)
+            continue
+        elif store_fingerprints is not None and entry_store_fp is None:
+            msg = b'filtering %s because it does not use store-shape\n'
+            msg %= url
+            repo.ui.debug(msg)
+            continue
+        elif store_fingerprints is None and entry_store_fp is None:
+            pass  # expectation match, we can continue the filtering
+        elif entry_store_fp not in store_fingerprints:
+            msg = b'filtering %s because its store-shape is not the requested one; %s not in (%s)\n'
+            msg %= (url, entry_store_fp, b', '.join(store_fingerprints))
+            repo.ui.debug(msg)
             continue
 
         spec = entry.get(b'BUNDLESPEC')
