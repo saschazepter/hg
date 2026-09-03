@@ -1,6 +1,7 @@
 #require jif fuse
 
   $ . "$TESTDIR/testlib/fuse-util.sh"
+  $ . "$TESTDIR/testlib/wait-on-changed.sh"
 
 Use a per-test socket path.
 
@@ -11,9 +12,12 @@ Setup repo
 
   $ hg init source
   $ cd source
-  $ echo a > a
+  $ echo a-rev0 > a
   $ hg commit -Aqm0
   $ REV0=$(hg script::revs .)
+  $ echo a-rev1 > a
+  $ hg commit -Aqm0
+  $ REV1=$(hg script::revs .)
   $ cd ..
 
 Start the server
@@ -95,17 +99,25 @@ Mounting a nonexistent mount point fails
 
 Re-mount so graceful shutdown has a live mount to clean up.
 
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV0
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV1
   mounted */source at */mnt (created * UTC) (glob)
+
+Even though we requested REV1, we remount at REV0 because we reuse the backing dir.
+
+  $ cat "$TESTTMP/mnt/a"
+  a-rev0 (missing-correct-output !)
+  cat: $TESTTMP/mnt/a: Function not implemented (known-bad-output !)
+  [1]
 
 Stale socket file is cleaned up
 -------------------------------
 
   $ STALE="$TESTTMP/stale.sock"
   $ touch "$STALE"
+  $ STALE_FINGERPRINT=$(get_file_fingerprint "$STALE")
   $ jf hgfs-server --socket "$STALE" 2>stale-error.log >/dev/null &
   $ echo $! >> $DAEMON_PIDS
-  $ "$RUNTESTDIR/testlib/wait-on-file" 30 "$STALE"
+  $ wait_on_changed 30 "$STALE" "$STALE_FINGERPRINT"
   $ jf hgfs-client --socket "$STALE" health
   Health: version=* pid=* (glob)
 
