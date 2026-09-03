@@ -13,6 +13,7 @@ Setup repo
   $ cd source
   $ echo a > a
   $ hg commit -Aqm0
+  $ REV0=$(hg script::revs .)
   $ cd ..
 
 Start the server
@@ -39,7 +40,8 @@ Mount the clone
 ---------------
 
   $ mkdir mnt
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt"
+  $ mkdir backing
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV0
   mounted */source at */mnt (created * UTC) (glob)
   $ wait_for_mount "hgvfs" "$TESTTMP/mnt"
   hgvfs on $TESTTMP/mnt type fuse (rw,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
@@ -53,7 +55,7 @@ Mount the clone
 Mounting again at the same point is rejected
 --------------------------------------------
 
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt"
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV0
   abort: already mounted at * (glob)
   [255]
 
@@ -87,13 +89,13 @@ Unmounting an unknown path fails cleanly
 Mounting a nonexistent mount point fails
 ----------------------------------------
 
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/does-not-exist"
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/does-not-exist" --backing-path "$TESTTMP/backing" --revision $REV0
   abort: * (glob)
   [255]
 
 Re-mount so graceful shutdown has a live mount to clean up.
 
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt"
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV0
   mounted */source at */mnt (created * UTC) (glob)
 
 Stale socket file is cleaned up

@@ -25,6 +25,8 @@ message HealthResponse {
 message MountRequest {
   bytes clone_path = 1;
   bytes mount_point = 2;
+  bytes backing_path = 3;
+  bytes revision = 4;
 }
 message MountInfo {
   // When the mount was established, in seconds since the Unix epoch.

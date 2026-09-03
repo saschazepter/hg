@@ -44,6 +44,13 @@ enum ClientCommand {
         /// path to mount the virtual filesystem at
         #[arg(long)]
         mount: OsString,
+        /// backing path that stores mount data
+        #[arg(long)]
+        backing_path: OsString,
+        /// revision to mount the virtual filesystem at; this is ignored if the
+        /// backing path already has information
+        #[arg(long)]
+        revision: String,
     },
     /// unmount a virtual filesystem
     Unmount {
@@ -85,10 +92,12 @@ async fn dispatch(
                 .into_inner();
             println!("Health: version={} pid={}", resp.version, resp.pid);
         }
-        ClientCommand::Mount { clone, mount } => {
+        ClientCommand::Mount { clone, mount, backing_path, revision } => {
             let request = MountRequest {
                 clone_path: clone.as_bytes().to_vec(),
                 mount_point: mount.as_bytes().to_vec(),
+                backing_path: backing_path.as_bytes().to_vec(),
+                revision: revision.as_bytes().to_vec(),
             };
             let resp =
                 client.mount(request).await.map_err(map_status)?.into_inner();
