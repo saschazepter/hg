@@ -467,6 +467,7 @@ def clone(
                 pullop_args = {}
                 if shape is not None:
                     pullop_args[b"store_fingerprints"] = fingerprints
+                    pullop_args[b"shards_sets"] = shards_sets
                 with local.ui.configoverride(overrides, b'clone'):
                     exchange.pull(
                         local,

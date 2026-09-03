@@ -1530,6 +1530,7 @@ class pulloperation(i_exc.IPullOperation):
         streamclonerequested=None,
         depth=None,
         store_fingerprints: list[bytes] | None = None,
+        shards_sets: list[set[bytes]] | None = None,
     ):
         # repo we pull into
         self.repo: RepoT = repo
@@ -1567,6 +1568,12 @@ class pulloperation(i_exc.IPullOperation):
         #
         # A value of `None` means we are doing a full bundle, not a narrow one.
         self.store_fingerprints: list[bytes] | None = store_fingerprints
+        # A list of set of shard-ids that identify a group of sharded bundle
+        # valid for this pull.
+        #
+        # Multiple set can be provided to help with the transitionnal state
+        # during resharding.
+        self.shards_sets: list[set[bytes]] | None = shards_sets
 
     @util.propertycache
     def includepats(self):
