@@ -7,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use hg::Node;
 use hg::config::Config;
 use hg::errors::HgError;
 use hg::repo::Repo;
@@ -76,10 +77,17 @@ impl VfsControl for VfsControlService {
         let clone_path = get_path_from_bytes(&request.clone_path).to_path_buf();
         let mount_point =
             get_path_from_bytes(&request.mount_point).to_path_buf();
+        let backing_path =
+            get_path_from_bytes(&request.backing_path).to_path_buf();
+        let revision = Node::from_hex(request.revision).map_err(|_e| {
+            Status::internal("invalid revision, expected rev40")
+        })?;
         tracing::info!(
             clone_path = %clone_path.display(),
             mount_point = %mount_point.display(),
-            "Mount requested"
+            backing_path = %backing_path.display(),
+            ?revision,
+            "Mount requested",
         );
 
         let manager = Arc::clone(&self.manager);
@@ -95,7 +103,13 @@ impl VfsControl for VfsControlService {
                     },
                 )?;
                 manager
-                    .mount_all_revs(repo, mount_point, default_mount_options())
+                    .mount(
+                        repo,
+                        mount_point,
+                        backing_path,
+                        revision,
+                        default_mount_options(),
+                    )
                     .map_err(mount_error_to_status)
             },
         )

@@ -9,6 +9,7 @@ use std::time::UNIX_EPOCH;
 
 use fuser::BackgroundSession;
 pub use fuser::SessionACL;
+use hg::Node;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::repo::Repo;
@@ -75,16 +76,19 @@ impl MountManager {
         Self::default()
     }
 
-    /// Mount all of `repo`'s revisions at `mount_point`, returning the info for
-    /// the new mount.
+    /// Mount `repo` at `mount_point` using `backing_path` to persist data. If
+    /// `backing_path` is not initialized, check out `revision`. Returns the
+    /// info for the new mount.
     ///
     /// Errors with `AlreadyMounted` if the mount point is already in use. On
     /// success the mount stays live until `unmount` is called or until the
     /// manager is dropped.
-    pub fn mount_all_revs(
+    pub fn mount(
         &self,
         repo: Repo,
         mount_point: PathBuf,
+        _backing_path: PathBuf,
+        _revision: Node,
         options: MountOptions,
     ) -> Result<MountInfo, MountError> {
         let clone_path = repo.working_directory_path().to_path_buf();
