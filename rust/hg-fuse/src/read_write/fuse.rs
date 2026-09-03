@@ -7,6 +7,7 @@ use fuser::FileHandle;
 use fuser::Filesystem;
 use fuser::FopenFlags;
 use fuser::INodeNo;
+use fuser::InitFlags;
 use fuser::MountOption;
 use fuser::SessionACL;
 use hg::errors::HgError;
@@ -19,6 +20,8 @@ use crate::server::store::StoreBackend;
 pub struct HgFuse<S, T> {
     #[expect(unused)]
     state: Arc<State<S, T>>,
+    /// FUSE capability for zero-message open
+    fuse_no_open_support: bool,
 }
 
 const STATELESS_FILE_HANDLE: FileHandle = FileHandle(0);
@@ -47,13 +50,25 @@ impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
         ]);
         config.acl = session_acl;
         config.n_threads = Some(thread_count);
-        let filesystem = Self { state };
+        let filesystem = Self { state, fuse_no_open_support: false };
         Ok(fuser::spawn_mount(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }
 }
 
 impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
+    fn init(
+        &mut self,
+        _req: &fuser::Request,
+        config: &mut fuser::KernelConfig,
+    ) -> std::io::Result<()> {
+        match config.add_capabilities(InitFlags::FUSE_NO_OPEN_SUPPORT) {
+            Ok(()) => self.fuse_no_open_support = true,
+            Err(_) => tracing::warn!("no FUSE_NO_OPEN_SUPPORT capability"),
+        };
+        Ok(())
+    }
+
     fn access(
         &self,
         _req: &fuser::Request,
@@ -84,7 +99,13 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
         _flags: fuser::OpenFlags,
         reply: fuser::ReplyOpen,
     ) {
-        let flags = FopenFlags::FOPEN_KEEP_CACHE | FopenFlags::FOPEN_NOFLUSH;
-        reply.opened(STATELESS_FILE_HANDLE, flags);
+        if self.fuse_no_open_support {
+            // Tell the kernel to use zero-message open
+            reply.error(fuser::Errno::ENOSYS);
+        } else {
+            let flags =
+                FopenFlags::FOPEN_KEEP_CACHE | FopenFlags::FOPEN_NOFLUSH;
+            reply.opened(STATELESS_FILE_HANDLE, flags);
+        }
     }
 }
