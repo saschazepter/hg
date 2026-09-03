@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use fuser::BackgroundSession;
 use fuser::Config;
@@ -11,16 +12,24 @@ use fuser::SessionACL;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 
-pub struct HgFuse {}
+use crate::read_write::state::State;
+use crate::server::store::FileToken;
+use crate::server::store::StoreBackend;
+
+pub struct HgFuse<S, T> {
+    #[expect(unused)]
+    state: Arc<State<S, T>>,
+}
 
 const STATELESS_FILE_HANDLE: FileHandle = FileHandle(0);
 
-impl HgFuse {
+impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
     /// Mount an instance of this FUSE to `destination`.
     /// This function will not try to create the destination folder.
     /// This function returns a handle to the filesystem session, which
     /// if dropped unmounts the filesystem.
     pub fn mount(
+        state: Arc<State<S, T>>,
         destination: impl AsRef<Path>,
         session_acl: SessionACL,
         thread_count: usize,
@@ -38,13 +47,13 @@ impl HgFuse {
         ]);
         config.acl = session_acl;
         config.n_threads = Some(thread_count);
-        let filesystem = Self {};
+        let filesystem = Self { state };
         Ok(fuser::spawn_mount(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }
 }
 
-impl Filesystem for HgFuse {
+impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
     fn access(
         &self,
         _req: &fuser::Request,

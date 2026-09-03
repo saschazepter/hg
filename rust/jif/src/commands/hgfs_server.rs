@@ -167,6 +167,9 @@ fn mount_error_to_status(e: MountError) -> Status {
             path.display()
         )),
         MountError::Hg(e) => Status::internal(e.to_string()),
+        MountError::State(e) => {
+            Status::internal(format!("state error: {:?}", e))
+        }
         MountError::NotMounted(path, _) => {
             Status::not_found(format!("nothing mounted at {}", path.display()))
         }

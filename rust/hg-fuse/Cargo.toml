@@ -12,6 +12,7 @@ workspace = true
 full-tracing = []
 
 [dependencies]
+derive_more = { version = "2.1.1", features = ["from"] }
 clap = {version = "4", features = ["derive"]}
 dashmap = "6.1.0"
 fuser = "0.18.0"

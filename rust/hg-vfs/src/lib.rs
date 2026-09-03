@@ -17,6 +17,7 @@ use hg::errors::HgError;
 use hg::repo::Repo;
 use hg::utils::u32_u;
 use hg_fuse::read_write::fuse::HgFuse;
+use hg_fuse::read_write::state::State;
 use hg_fuse::server::local::LocalBackend;
 use hg_fuse::server::local::LocalToken;
 pub use hg_fuse::server::store::BackendMode;
@@ -56,6 +57,9 @@ pub enum MountError {
     /// Setting up the backend or FUSE session failed.
     #[from]
     Hg(HgError),
+    /// Setting up the state failed.
+    #[from]
+    State(hg_fuse::read_write::state::Error),
     /// Nothing is mounted at this mount point.
     NotMounted(PathBuf, HgBacktrace),
     /// Unmounting (the umount syscall or the session thread-join) failed.
@@ -98,8 +102,8 @@ impl MountManager {
         &self,
         repo: Repo,
         mount_point: PathBuf,
-        _backing_path: PathBuf,
-        _revision: Node,
+        backing_path: PathBuf,
+        revision: Node,
         // TODO: these should not be per-mount options, move into MountManager
         options: MountOptions,
     ) -> Result<MountInfo, MountError> {
@@ -122,7 +126,7 @@ impl MountManager {
                 available_parallelism().map(usize::from).unwrap_or(1)
             });
 
-        let _store = {
+        let store = {
             let mut per_repo_state = self.per_repo_state.lock();
             match per_repo_state.entry(clone_path.clone()) {
                 Entry::Occupied(occupied) => {
@@ -146,9 +150,20 @@ impl MountManager {
                 }
             }
         };
+        let state = Arc::new(State::new(
+            store,
+            backing_path,
+            revision,
+            options.user_id,
+            options.group_id,
+        )?);
 
-        let session =
-            HgFuse::mount(&mount_point, options.session_acl, num_threads)?;
+        let session = HgFuse::mount(
+            state,
+            &mount_point,
+            options.session_acl,
+            num_threads,
+        )?;
 
         let created_at = SystemTime::now()
             .duration_since(UNIX_EPOCH)
