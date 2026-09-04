@@ -109,10 +109,10 @@ unfortunate that the phase information for the secret one is lost.
   >   echo
   > }
 
-  $ for t in "None" "bzip2" "gzip" "none-v2" "v2" "v1" "gzip-v1" "v3"; do
+  $ for t in "none" "bzip2" "gzip" "none-v2" "v2" "v1" "gzip-v1" "v3"; do
   >   testbundle $t
   > done
-  % test bundle type None
+  % test bundle type none
   ===================================
   7 changesets found
   HG20\x00\x00 (esc)
