@@ -28,13 +28,20 @@ use crate::utils::u_u32;
 use crate::utils::u16_u;
 use crate::utils::u32_u;
 
-/// Minimum length of a manifest line, excluding the newline.
-/// This represents 1 byte path, 1 NUL, and hex node.
-const MINIMUM_LINE_LENGTH: usize = 2 + HEX_NODE_LENGTH;
+/// Size of the null byte that separates the path from the node.
+const NULL_SIZE: usize = 1;
+
+/// Size of the newline that ends a line.
+const NEWLINE_SIZE: usize = 1;
+
+/// Minimum length of a manifest line (1 byte path, \0, node, \n).
+const MINIMUM_LINE_LENGTH: usize =
+    1 + NULL_SIZE + HEX_NODE_LENGTH + NEWLINE_SIZE;
 
 /// A guess at the average length of a line in a manifest. We divide the text
 /// size by this to choose a capacity for [`LazyManifest::lines`].
-const AVG_LINE_LENGTH_GUESS: usize = 30 + 1 + HEX_NODE_LENGTH;
+const AVG_LINE_LENGTH_GUESS: usize =
+    30 + NULL_SIZE + HEX_NODE_LENGTH + NEWLINE_SIZE;
 
 /// Errors for corrupt manifests.
 #[derive(Debug, PartialEq, Eq)]
@@ -45,8 +52,8 @@ pub enum ManifestError {
     NoTrailingNewline,
     /// Manifest has a line with an empty path.
     EmptyPath,
-    /// Manifest has a line whose length (excluding newline) is too short to be
-    /// valid.
+    /// Manifest has a line whose length (including newline) is too short to
+    /// be valid.
     LineTooShort(usize),
     /// The paths in the manifest are not in ascending order.
     NotSorted,
@@ -59,7 +66,7 @@ pub enum ManifestError {
 struct Line {
     /// Offset of the start of the line.
     offset: u32,
-    /// Length of the line, excluding the newline.
+    /// Length of the line, including the newline.
     /// This must be at least [`MINIMUM_LINE_LENGTH`].
     len: u16,
     /// Flags after the node, or empty.
@@ -70,9 +77,8 @@ impl Line {
     /// Returns the length of the path, in bytes.
     fn path_len(&self) -> usize {
         let flag_size = if self.flags.is_empty() { 0 } else { 1 };
-        let null_size = 1;
         // This cannot overflow since `self.len >= MINIMUM_LINE_LENGTH`.
-        u16_u(self.len) - flag_size - HEX_NODE_LENGTH - null_size
+        u16_u(self.len) - flag_size - HEX_NODE_LENGTH - NULL_SIZE - NEWLINE_SIZE
     }
 
     /// Reads this line from the manifest's full text.
@@ -83,7 +89,7 @@ impl Line {
         let i = u32_u(self.offset);
         let n = self.path_len();
         let path = HgPath::new(&data[i..][..n]);
-        let hex_node_id = &data[i + n + 1..][..HEX_NODE_LENGTH];
+        let hex_node_id = &data[i + n + NULL_SIZE..][..HEX_NODE_LENGTH];
         ManifestEntry { path, hex_node_id, flags: self.flags }
     }
 }
@@ -353,13 +359,14 @@ impl LazyManifest {
         if str.first() == Some(&b'\0') {
             return Err(ManifestError::EmptyPath);
         }
-        if str.len() < MINIMUM_LINE_LENGTH {
-            return Err(ManifestError::LineTooShort(str.len()));
+        let len = str.len() + NEWLINE_SIZE;
+        if len < MINIMUM_LINE_LENGTH {
+            return Err(ManifestError::LineTooShort(len));
         }
         let last = str.last().expect("already checked minimum length");
         let flags =
             ManifestFlags::from_byte(*last).unwrap_or(ManifestFlags::EMPTY);
-        let line = Line { offset: u_u32(offset), len: u_u16(str.len()), flags };
+        let line = Line { offset: u_u32(offset), len: u_u16(len), flags };
         if str[line.path_len()] != b'\0' {
             return Err(ManifestError::InvalidLine);
         }
@@ -440,14 +447,14 @@ impl LazyManifest {
         for (path, &Edit { index, operation }) in &self.edits {
             match operation {
                 Operation::Insert(state) => {
-                    delta += (line_size(path, state.flags) + 1) as isize;
+                    delta += line_size(path, state.flags) as isize;
                 }
                 Operation::Update(state) => {
-                    delta += (line_size(path, state.flags) + 1) as isize;
-                    delta -= (u16_u(self.lines[index].len) + 1) as isize;
+                    delta += line_size(path, state.flags) as isize;
+                    delta -= u16_u(self.lines[index].len) as isize;
                 }
                 Operation::Remove => {
-                    delta -= (u16_u(self.lines[index].len) + 1) as isize;
+                    delta -= u16_u(self.lines[index].len) as isize;
                 }
             }
         }
@@ -466,8 +473,7 @@ impl LazyManifest {
         let first = self.lines[range.start];
         let last = self.lines[range.end - 1];
         let start = u32_u(first.offset);
-        // Include the newline at the end of the last line.
-        let end = u32_u(last.offset) + u16_u(last.len) + 1;
+        let end = u32_u(last.offset) + u16_u(last.len);
         for &line in &self.lines[range] {
             let offset = new_data.len() + u32_u(line.offset) - start;
             new_lines.push(Line { offset: u_u32(offset), ..line });
@@ -476,11 +482,10 @@ impl LazyManifest {
     }
 }
 
-/// The size of the line that [`write_line`] writes, excluding the newline.
+/// The size of the line that [`write_line`] writes, including the newline.
 fn line_size(path: &HgPath, flags: ManifestFlags) -> usize {
     let flag_size = if flags.is_empty() { 0 } else { 1 };
-    let null_size = 1;
-    path.len() + null_size + HEX_NODE_LENGTH + flag_size
+    path.len() + NULL_SIZE + HEX_NODE_LENGTH + flag_size + NEWLINE_SIZE
 }
 
 /// Appends a line to `new_data` and appends its position to `new_lines`.
@@ -499,8 +504,7 @@ fn write_line(
         new_data.push(byte);
     }
     new_data.push(b'\n');
-    // Exclude the newline from the length.
-    let len = new_data.len() - offset - 1;
+    let len = new_data.len() - offset;
     new_lines.push(Line { offset: u_u32(offset), len: u_u16(len), flags });
 }
 
@@ -804,7 +808,7 @@ mod tests {
     fn test_invalid() {
         let text = b"\n";
         let manifest = LazyManifest::new(NODE_BYTES_LENGTH, text.to_vec());
-        assert_eq!(manifest.err(), Some(ManifestError::LineTooShort(0)));
+        assert_eq!(manifest.err(), Some(ManifestError::LineTooShort(1)));
 
         let text = b"\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
         let manifest = LazyManifest::new(NODE_BYTES_LENGTH, text.to_vec());
