@@ -411,11 +411,19 @@ def _filecommit(
         extras = ms.extras(fname) if ms.active() else {}
         source_is_other = extras.get(b'filenode-source') == b'other'
         merged = extras.get(b'merged') == b'yes'
+        # When otherctx is p2, this is true by definition. When rebasing a
+        # merge, otherctx is the old merge, and manifest2 is its p2. In that
+        # case, if this is False, then the old merge used 2 filelog parents,
+        # and we must do that again.
+        other_fnode = repo.nullid
+        if ms.active():
+            other_fnode = ms.otherctx.manifest().get(fname, repo.nullid)
+        is_other_f = other_fnode == fparent2
 
-        if ms.active() and source_is_other:
+        if ms.active() and source_is_other and is_other_f:
             # It come entirely from the remote side!
             fparent1, fparent2 = fparent2, repo.nullid
-        elif ms.active() and not merged:
+        elif not source_is_other and ms.active() and not merged:
             # It come entirely from the local side!
             fparent1, fparent2 = fparent1, repo.nullid
         else:

@@ -65,7 +65,7 @@ and we rebase the merge.
   $ hg ci -Aqm 'default: unrelated change'
   $ hg rebase -q -r 3 -d 4
   $ hg log -G --template "{rev}: {node|short} '{desc}'\n"
-  o    4: 6ba2a11f567e 'default: merge dev'
+  o    4: 78f4d39eaf91 'default: merge dev'
   |\
   | @  3: 7da032ef483b 'default: unrelated change'
   | |
@@ -83,12 +83,10 @@ The rebased merge must keep both parents in the filelog
        0       0 e7f741756072 000000000000 000000000000
        1       1 d5071b2f4759 e7f741756072 000000000000
        2       2 d5e55be20c50 e7f741756072 000000000000
-       3       4 5cd00221333b d5e55be20c50 000000000000 (known-bad-output !)
-       3       4 6a5497802a89 d5071b2f4759 d5e55be20c50 (missing-correct-output !)
+       3       4 6a5497802a89 d5071b2f4759 d5e55be20c50
 
   $ hg annotate -r 4 f
-  4: a-default (known-bad-output !)
-  1: a-default (missing-correct-output !)
+  1: a-default
   0: b
   0: c
   0: d

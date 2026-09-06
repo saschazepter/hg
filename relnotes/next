@@ -11,6 +11,10 @@ Mercurial XXX.
 
 == Bug Fixes ==
 
+* rebase: Keep the filelog ancestry of both sides when rebasing a merge.
+  Files that the destination did not touch used to be recorded as descending
+  from the second parent only, making annotate incorrect.
+
 == Backwards Compatibility Changes ==
 
 == Internal API Changes ==

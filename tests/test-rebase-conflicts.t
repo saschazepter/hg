@@ -276,13 +276,13 @@ Check that the right ancestors is used while rebasing a merge (issue4041)
   committing manifest
   committing changelog
   updating the branch cache
-  rebased as c1ffa3b5274e
+  rebased as 2a7f09cac94c
   rebase status stored
   rebase merging completed
   update back to initial working directory parent
   resolving manifests (no-rust !)
    branchmerge: False, force: False, partial: False (no-rust !)
-   ancestor: c1ffa3b5274e, local: c1ffa3b5274e+, remote: d79e2059b5c0 (no-rust !)
+   ancestor: 2a7f09cac94c, local: 2a7f09cac94c+, remote: d79e2059b5c0 (no-rust !)
    f1.txt: other deleted -> r (no-rust !)
   removing f1.txt (no-rust !)
    f2.txt: remote created -> g (no-rust !)
@@ -299,7 +299,7 @@ Check that the right ancestors is used while rebasing a merge (issue4041)
   2 changesets found
   list of changesets:
   19c888675e133ab5dff84516926a65672eaf04d9
-  c1ffa3b5274e92a9388fe782854e295d2e8d0443
+  2a7f09cac94c7f4b73ebd5cd1a62d3b2e8e336bf
   bundle2-output-bundle: "HG20", 3 parts total
   bundle2-output-part: "changegroup" (params: 1 mandatory 1 advisory) streamed payload
   bundle2-output-part: "cache:rev-branch-cache" (advisory) streamed payload
@@ -309,7 +309,7 @@ Check that the right ancestors is used while rebasing a merge (issue4041)
   bundle2-input-part: "changegroup" (params: 1 mandatory 1 advisory) supported
   adding changesets
   add changeset 19c888675e13
-  add changeset c1ffa3b5274e
+  add changeset 2a7f09cac94c
   adding manifests
   adding file changes
   adding f1.txt revisions
