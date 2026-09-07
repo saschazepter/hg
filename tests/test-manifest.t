@@ -518,4 +518,34 @@ Change a manifest line
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
   57b886b07d3f850247a6d7ebf514b60d080f6041 644   newfile
 
+Diff manifests
+------------------
+
+Diff two manifests
+
+#if rust
+  $ hg status --rev 0 --rev tip 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.diff
+  $ hg status --rev 0 --rev tip --all 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.diff
+  $ hg status --rev tip --rev tip --all 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.diff
+#endif
+
+Diff two manifests filtered by a pattern
+
+#if rust
+  $ hg status --rev 0 --rev tip 're:^[al]' 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.filtercopy
+  $ hg status --rev 0 --rev tip --all 're:^[al]' 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.filtercopy
+#endif
+
+Diff two manifests filtered by a fileset
+
+#if rust
+  $ hg status --rev 0 --rev tip --all 'set:size(">2")' 2>&1 | grep -E 'devel-warn|NotImplementedError'
+  NotImplementedError: LazyManifest.filtercopy
+#endif
+
   $ cd ..
