@@ -114,20 +114,13 @@ impl PyLazyManifest {
         slf: &Bound<'_, Self>,
         py: Python<'_>,
         key: &[u8],
-    ) -> PyResult<(Py<PyBytes>, Py<PyBytes>)> {
+    ) -> PyResult<Py<PyTuple>> {
         Self::with_inner_read(slf, |_self_ref, inner| {
             let entry = inner
                 .get(HgPath::new(key))
                 .into_pyerr(py)?
                 .ok_or_else(|| PyKeyError::new_err(key.to_vec()))?;
-            let flags_bytes = match entry.flags.as_byte() {
-                None => b"" as &[u8],
-                Some(b) => &[b],
-            };
-            Ok((
-                PyBytes::new(py, entry.node.as_bytes()).unbind(),
-                PyBytes::new(py, flags_bytes).unbind(),
-            ))
+            Ok(node_and_flags(py, &entry)?.unbind())
         })
     }
 
@@ -264,6 +257,18 @@ fn convert_tuple_iter_item(
         PyBytes::new(py, entry.flags.as_bytes()),
     );
     Ok(Some(tuple.into_pyobject(py)?.unbind()))
+}
+
+/// Returns the entry's node and flags as a Python tuple.
+fn node_and_flags<'py>(
+    py: Python<'py>,
+    entry: &DecodedManifestEntry<'_>,
+) -> PyResult<Bound<'py, PyTuple>> {
+    let tuple = (
+        PyBytes::new(py, entry.node.as_bytes()),
+        PyBytes::new(py, entry.flags.as_bytes()),
+    );
+    tuple.into_pyobject(py)
 }
 
 pub fn init_module<'py>(
