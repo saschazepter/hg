@@ -258,14 +258,10 @@ fn convert_tuple_iter_item(
     item: Result<DecodedManifestEntry<'_>, RevlogError>,
 ) -> PyResult<Option<Py<PyTuple>>> {
     let entry = item.into_pyerr(py)?;
-    let flags_bytes = match entry.flags.as_byte() {
-        None => b"" as &[u8],
-        Some(b) => &[b],
-    };
     let tuple = (
         PyBytes::new(py, entry.path.as_bytes()),
         PyBytes::new(py, entry.node.as_bytes()),
-        PyBytes::new(py, flags_bytes),
+        PyBytes::new(py, entry.flags.as_bytes()),
     );
     Ok(Some(tuple.into_pyobject(py)?.unbind()))
 }

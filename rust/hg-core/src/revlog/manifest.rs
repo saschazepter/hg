@@ -349,8 +349,19 @@ impl ManifestFlags {
     }
 
     /// Returns the flag byte, or `None` if empty.
-    pub fn as_byte(&self) -> Option<u8> {
+    pub fn as_byte(self) -> Option<u8> {
         self.0.map(|f| f.get())
+    }
+
+    /// Returns the flags as bytes of length 0 or 1.
+    pub fn as_bytes(self) -> &'static [u8] {
+        match self {
+            Self::EMPTY => b"",
+            Self::LINK => b"l",
+            Self::EXEC => b"x",
+            Self::TREE => b"t",
+            _ => unreachable!("invalid manifest flag"),
+        }
     }
 }
 
