@@ -572,6 +572,54 @@ mod tests {
         manifest.iter().collect()
     }
 
+    /// The paths that the random tests choose from.
+    fn path_pool() -> Vec<Vec<u8>> {
+        let mut pool: Vec<Vec<u8>> = vec![
+            b"a".to_vec(),
+            b"a.txt".to_vec(),
+            b"a/b".to_vec(),
+            b"a/b/c".to_vec(),
+            b"a0".to_vec(),
+            b"z".to_vec(),
+            vec![b'x'; 300],
+        ];
+        pool.extend((0..20).map(path_n));
+        pool
+    }
+
+    /// Creates a manifest from a random subset of `pool`.
+    fn random_manifest(
+        rng: &mut rand::rngs::StdRng,
+        pool: &[Vec<u8>],
+    ) -> TestManifest {
+        TestManifest::from_model(Model::from_entries(pool.iter().filter_map(
+            |p| {
+                if !rng.random_bool(0.3) {
+                    return None;
+                }
+                let node = node_n(rng.random_range(0..100));
+                let flags = *FLAGS.choose(rng).expect("FLAGS is not empty");
+                Some((p.clone(), node, flags))
+            },
+        )))
+    }
+
+    /// Applies one random edit to `manifest`.
+    fn random_edit(
+        rng: &mut rand::rngs::StdRng,
+        pool: &[Vec<u8>],
+        manifest: &mut TestManifest,
+    ) {
+        let p = pool.choose(rng).expect("pool is not empty");
+        if rng.random_bool(0.25) {
+            manifest.remove(p);
+        } else {
+            let node = node_n(rng.random_range(0..100));
+            let flags = *FLAGS.choose(rng).expect("FLAGS is not empty");
+            manifest.set(p, node, flags);
+        }
+    }
+
     /// A reference manifest represented as a `BTreeMap`.
     struct Model(BTreeMap<Vec<u8>, (Node, ManifestFlags)>);
 
@@ -1227,40 +1275,13 @@ mod tests {
 
     #[test]
     fn test_random_operations() {
-        let mut pool: Vec<Vec<u8>> = vec![
-            b"a".to_vec(),
-            b"a.txt".to_vec(),
-            b"a/b".to_vec(),
-            b"a/b/c".to_vec(),
-            b"a0".to_vec(),
-            b"z".to_vec(),
-            vec![b'x'; 300],
-        ];
-        pool.extend((0..20).map(path_n));
-
+        let pool = path_pool();
         for seed in 0..64 {
             let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
-
-            let model = Model::from_entries(pool.iter().filter_map(|p| {
-                if !rng.random_bool(0.3) {
-                    return None;
-                }
-                let node = node_n(rng.random_range(0..100));
-                let flags = FLAGS[rng.random_range(0..FLAGS.len())];
-                Some((p.clone(), node, flags))
-            }));
-            let mut manifest = TestManifest::from_model(model);
+            let mut manifest = random_manifest(&mut rng, &pool);
 
             for _ in 0..30 {
-                let p = &pool[rng.random_range(0..pool.len())];
-                if rng.random_bool(0.25) {
-                    manifest.remove(p);
-                } else {
-                    let node = node_n(rng.random_range(0..100));
-                    let flags = FLAGS[rng.random_range(0..FLAGS.len())];
-                    manifest.set(p, node, flags);
-                }
-
+                random_edit(&mut rng, &pool, &mut manifest);
                 manifest.check_lookups(&pool);
 
                 // Compact from a partially edited state, then keep editing.
