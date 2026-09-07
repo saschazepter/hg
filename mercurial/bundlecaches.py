@@ -50,7 +50,11 @@ SUPPORTED_CLONEBUNDLE_SCHEMES = [
 ]
 
 # Bundlespec parameters a client must understand to safely use the bundle.
-MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = set()
+MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = {
+    b"requirements",
+    b"store-fingerprint",
+    b"stream",
+}
 
 # Bundlespec params copied over to the manifest line parameters for easier
 # filtering. They get uppercased on the way to indicate they are reserved for
@@ -235,6 +239,28 @@ def _partition_param(param: bytes) -> tuple[bytes, bytes, bytes]:
     if len(esc_name) < len(name):
         return esc_name, esc_sep, esc_value
     return name, sep, value
+
+
+def canonicalize_spec_params(spec: bytes) -> bytes:
+    """Uppercase the mandatory parameter names of a bundlespec.
+
+    >>> canonicalize_spec_params(b'none-v2;stream=v2;phases=yes')
+    b'none-v2;STREAM=v2;phases=yes'
+    >>> canonicalize_spec_params(b'none-packed1;requirements%3Dstore%2Cfncache')
+    b'none-packed1;REQUIREMENTS%3Dstore%2Cfncache'
+    >>> canonicalize_spec_params(b'none-v2')
+    b'none-v2'
+    """
+    head, sep, paramstr = spec.partition(b';')
+    params = []
+    for param in paramstr.split(b';'):
+        raw_name, param_sep, value = _partition_param(param)
+        name = urlreq.unquote(raw_name)
+        if name in MANDATORY_BUNDLE_SPEC_PARAMS:
+            raw_name = urlreq.quote(name.upper())
+        params.append(raw_name + param_sep + value)
+
+    return head + sep + b';'.join(params)
 
 
 def _parseparams(s):

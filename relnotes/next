@@ -35,6 +35,11 @@ Mercurial XXX.
   understand that it is a partial clone. Clients from 7.2 on send the argument
   and are unaffected.
 
+* bundlespec: the `stream`, `requirements` and `store-fingerprint` parameters
+  are now mandatory, and so are written in uppercase. Both cases are still
+  accepted when reading, and a server writes them back to lowercase when serving
+  a client that doesn't know about mandatory params. See `hg help bundlespec`.
+
 == Internal API Changes ==
 
 * Extensions adding bundlespec parameters must extend

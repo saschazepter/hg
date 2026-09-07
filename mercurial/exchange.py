@@ -122,6 +122,20 @@ def getbundlespec(ui, fh):
     The input file handle is seeked and the original seek position is not
     restored.
     """
+    spec = _inferbundlespec(ui, fh)
+    return bundlecaches.canonicalize_spec_params(spec)
+
+
+def _inferbundlespec(ui, fh):
+    """Build the bundlespec from a bundle file handle.
+
+    All parameter names are returned lowercase and are canonicalized later.
+
+    TODO: this works only while mandatory-ness is a property of the parameter
+    name. A parameter that is mandatory in some bundles and advisory in others
+    would have to be inferred as one or the other here, since the name alone
+    would no longer say which it is.
+    """
 
     def speccompression(alg):
         try:

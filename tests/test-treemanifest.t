@@ -770,7 +770,7 @@ Packed bundle
   writing 5654 bytes for 21 files (zstd rust !)
   bundle requirements:.* treemanifest(,.*)? (re)
   $ hg debugbundle --spec repo-packed.hg
-  none-packed1;requirements%3D(.*%2C)?treemanifest(%2C.*)? (re)
+  none-packed1;REQUIREMENTS%3D(.*%2C)?treemanifest(%2C.*)? (re)
 
 Bundle with changegroup2 is not supported
 

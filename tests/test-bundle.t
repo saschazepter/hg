@@ -296,7 +296,7 @@ packed1 is produced properly
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 2d 63 6f 6d 70 |elta,revlog-comp|
   0030: 72 65 73 73 69 6f 6e 2d 7a 73 74 64 2c 72 65 76 |ression-zstd,rev|
   $ hg debugbundle --spec packed.hg
-  none-packed1;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
+  none-packed1;REQUIREMENTS%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 #endif
 
 #if no-rust zstd
@@ -312,7 +312,7 @@ packed1 is produced properly
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 2d 63 6f 6d 70 |elta,revlog-comp|
   0030: 72 65 73 73 69 6f 6e 2d 7a 73 74 64 2c 72 65 76 |ression-zstd,rev|
   $ hg debugbundle --spec packed.hg
-  none-packed1;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
+  none-packed1;REQUIREMENTS%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 #endif
 
 #if no-rust no-zstd
@@ -328,7 +328,7 @@ packed1 is produced properly
   0020: 65 6c 74 61 2c 72 65 76 6c 6f 67 76 31 2c 73 70 |elta,revlogv1,sp|
   0030: 61 72 73 65 72 65 76 6c 6f 67 00 64 61 74 61 2f |arserevlog.data/|
   $ hg debugbundle --spec packed.hg
-  none-packed1;requirements%3Dgeneraldelta%2Crevlogv1%2Csparserevlog
+  none-packed1;REQUIREMENTS%3Dgeneraldelta%2Crevlogv1%2Csparserevlog
 #endif
 
 generaldelta requirement is not listed in stream clone bundles unless used
@@ -357,7 +357,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
   0030: 72 65 76 6c 6f 67 76 31 00 64 61 74 61 2f 66 6f |revlogv1.data/fo|
 
   $ hg debugbundle --spec packednongd.hg
-  none-packed1;requirements%3Drevlog-compression-zstd%2Crevlogv1
+  none-packed1;REQUIREMENTS%3Drevlog-compression-zstd%2Crevlogv1
 
 #endif
 
@@ -375,7 +375,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
   0030: 72 65 76 6c 6f 67 76 31 00 64 61 74 61 2f 66 6f |revlogv1.data/fo|
 
   $ hg debugbundle --spec packednongd.hg
-  none-packed1;requirements%3Drevlog-compression-zstd%2Crevlogv1
+  none-packed1;REQUIREMENTS%3Drevlog-compression-zstd%2Crevlogv1
 
 
 #endif
@@ -394,7 +394,7 @@ generaldelta requirement is not listed in stream clone bundles unless used
   0030: 01 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 |................|
 
   $ hg debugbundle --spec packednongd.hg
-  none-packed1;requirements%3Drevlogv1
+  none-packed1;REQUIREMENTS%3Drevlogv1
 
 
 #endif

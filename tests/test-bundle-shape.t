@@ -136,14 +136,14 @@ Prepare inline bundles
 
   $ bundlespec="$(hg debugbundle --spec outfile-shape-foobar.hg)"
   $ echo $bundlespec
-  none-v2;stream=v2;requirements*;store-fingerprint=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
+  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
   $ bundlespec2="$(hg debugbundle --spec outfile-shape-foobaz.hg)"
   $ echo $bundlespec2
-  none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
+  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
 
   $ bundlespecfull="$(hg debugbundle --spec outfile-shape-full.hg)"
   $ echo $bundlespecfull
-  none-v2;stream=v2;requirements%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
+  none-v2;STREAM=v2;REQUIREMENTS%3Dgeneraldelta%2Crevlog-compression-zstd%2Crevlogv1%2Csparserevlog
 
   $ mkdir source/.hg/bundle-cache
   $ mv outfile-shape-*.hg source/.hg/bundle-cache/
@@ -162,8 +162,8 @@ Define the special set of files included in all shapes.
 
 The raw manifest looks OK
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --raw
-  peer-bundle-cache://outfile-shape-foobar.hg BUNDLESPEC=none-v2;stream=v2;requirements*;store-fingerprint=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
-  peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;stream=v2;requirements*;store-fingerprint=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
+  peer-bundle-cache://outfile-shape-foobar.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
+  peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
 
 Passing in no includes or excludes shows that all entries are filtered out due to their fingerprints
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --debug | grep 'store-shape'
@@ -176,7 +176,7 @@ Passing a pattern that matches nothing filters all entries
 Passing a matching pattern works
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles
     URL: peer-bundle-cache://outfile-shape-foobar.hg
-      BUNDLESPEC: none-v2;stream=v2;requirements=*;store-fingerprint=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
+      BUNDLESPEC: none-v2;STREAM=v2;REQUIREMENTS=*;STORE-FINGERPRINT=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
       COMPRESSION: none
       VERSION: v2
       STORE-FINGERPRINT: feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726

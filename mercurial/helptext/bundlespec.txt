@@ -118,6 +118,18 @@ revbranchcache
 tagsfnodescache
     Include the "tags-fnodes" cache inside the bundle.
 
+REQUIREMENTS
+    Mandatory. Record the repository requirements the data in a streaming
+    bundle relies on, comma separated. A client that does not support all of
+    them cannot apply the bundle.
+
+STORE-FINGERPRINT
+    Mandatory. Include the fingerprint of the subset of the repository store a
+    streaming bundle covers.
+
+STREAM
+    Mandatory. Produce a streaming bundle in the given stream format.
+
 
 Examples
 ========
