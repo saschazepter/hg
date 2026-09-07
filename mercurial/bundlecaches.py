@@ -54,6 +54,9 @@ MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = {
     b"requirements",
     b"store-fingerprint",
     b"stream",
+    b"shard-id",
+    b"bundle-group-id",
+    b"bundle-group-top-level",
 }
 
 # Bundlespec params copied over to the manifest line parameters for easier

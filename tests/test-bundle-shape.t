@@ -433,6 +433,11 @@ Bundle generation
   stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 4, requirements: *, shard-id: f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b} (mandatory: True) (glob)
   stream2 -- {bundle-group-id: 1335303a, bundle-group-top-level: 1, bytecount: *, filecount: 8, requirements: *, shard-id: f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd} (mandatory: True) (glob)
 
+Sharded bundles have sharding params in uppercase, indicating they are mandatory
+
+  $ hg debugbundle --spec $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
+  none-v2;STREAM=v2;REQUIREMENTS*;SHARD-ID=f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd;BUNDLE-GROUP-ID=1335303a;BUNDLE-GROUP-TOP-LEVEL=1 (glob)
+
   $ rm $TESTTMP/source/.hg/bundle-cache/*
 
 Test json output

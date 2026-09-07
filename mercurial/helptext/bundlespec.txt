@@ -130,6 +130,19 @@ STORE-FINGERPRINT
 STREAM
     Mandatory. Produce a streaming bundle in the given stream format.
 
+SHARD-ID
+    Mandatory. Include the identifier of the store shard that a sharded
+    bundle covers.
+
+BUNDLE-GROUP-ID
+    Mandatory. Include the identifier of the group of sharded bundles that
+    this bundle belongs to. A bundle must only be combined with bundles in
+    the same group.
+
+BUNDLE-GROUP-TOP-LEVEL
+    Mandatory. Include the store's top level entries (e.g. the changelog,
+    manifest, caches) in this bundle.
+
 
 Examples
 ========
