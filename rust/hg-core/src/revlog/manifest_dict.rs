@@ -189,9 +189,14 @@ impl LazyManifest {
 
     /// Returns an iterator over manifest entries.
     pub fn iter(&self) -> LazyManifestIter<'_> {
+        LazyManifestIter { raw: self.raw_iter() }
+    }
+
+    /// Returns an iterator over manifest entries, without decoding.
+    fn raw_iter(&self) -> RawIter<'_> {
         let mut iter_edits = self.edits.iter();
         let next_edit = iter_edits.next().map(|t| (t.0.as_ref(), *t.1));
-        LazyManifestIter { inner: self, index: 0, iter_edits, next_edit }
+        RawIter { inner: self, index: 0, iter_edits, next_edit }
     }
 
     /// Returns true if the manifest contains the given path.
@@ -484,16 +489,38 @@ fn write_line(
     new_lines.push(Line { offset: u_u32(offset), len: u_u16(len), flags });
 }
 
-/// An iterator over manifest entries.
-pub struct LazyManifestIter<'a> {
+/// An entry as stored in a [`LazyManifest`], before decoding.
+#[derive(Copy, Clone)]
+enum RawEntry<'a> {
+    /// An entry from [`LazyManifest::data`].
+    Line(Line),
+    /// An entry from [`LazyManifest::edits`].
+    Edited(&'a HgPath, FileState),
+}
+
+impl<'a> RawEntry<'a> {
+    /// Decodes the entry.
+    fn decode(
+        &self,
+        data: &'a [u8],
+    ) -> Result<DecodedManifestEntry<'a>, RevlogError> {
+        match self {
+            Self::Line(line) => line.read(data).decode(),
+            Self::Edited(path, state) => Ok(state.entry(path)),
+        }
+    }
+}
+
+/// An iterator over manifest entries, without decoding.
+struct RawIter<'a> {
     inner: &'a LazyManifest,
     index: usize,
     iter_edits: std::collections::btree_map::Iter<'a, HgPathBuf, Edit>,
     next_edit: Option<(&'a HgPath, Edit)>,
 }
 
-impl<'a> Iterator for LazyManifestIter<'a> {
-    type Item = Result<DecodedManifestEntry<'a>, RevlogError>;
+impl<'a> Iterator for RawIter<'a> {
+    type Item = RawEntry<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let len = self.inner.lines.len();
@@ -506,11 +533,11 @@ impl<'a> Iterator for LazyManifestIter<'a> {
                     self.iter_edits.next().map(|t| (t.0.as_ref(), *t.1));
                 match operation {
                     Operation::Insert(state) => {
-                        return Some(Ok(state.entry(path)));
+                        return Some(RawEntry::Edited(path, state));
                     }
                     Operation::Update(state) => {
                         self.index += 1;
-                        return Some(Ok(state.entry(path)));
+                        return Some(RawEntry::Edited(path, state));
                     }
                     Operation::Remove => {
                         self.index += 1;
@@ -522,10 +549,23 @@ impl<'a> Iterator for LazyManifestIter<'a> {
                 break;
             }
             self.index += 1;
-            let line = self.inner.lines[i];
-            return Some(line.read(&self.inner.data).decode());
+            return Some(RawEntry::Line(self.inner.lines[i]));
         }
         None
+    }
+}
+
+/// An iterator over manifest entries.
+pub struct LazyManifestIter<'a> {
+    raw: RawIter<'a>,
+}
+
+impl<'a> Iterator for LazyManifestIter<'a> {
+    type Item = Result<DecodedManifestEntry<'a>, RevlogError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let entry = self.raw.next()?;
+        Some(entry.decode(&self.raw.inner.data))
     }
 }
 
