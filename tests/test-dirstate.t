@@ -450,6 +450,72 @@ We should make sure all of it (docket + data) is preserved
 
   $ hg status
   A foo
+
+#if dirstate-v2
+
+Test undoing a transaction with each dirstate-v2 write mode
+-----------------------------------------------------------
+
+  $ hg debugstate --no-dates > $TESTTMP/undo-before
+  $ check_undone () {
+  >   hg debugstate --no-dates > $TESTTMP/undo-after
+  >   diff $TESTTMP/undo-before $TESTTMP/undo-after && echo 'dirstate preserved'
+  >   hg status
+  >   hg verify -q
+  > }
+
+Roll back a commit that appended to the data file
+
+  $ current_uid=$(find_dirstate_uuid)
+  $ hg commit -qm appended \
+  >   --config devel.dirstate.v2.data_update_mode=force-append
+  $ dirstate_uuid_has_not_changed
+  not testing because using Python implementation (no-rust no-rhg !)
+  $ hg rollback -q
+  $ check_undone
+  dirstate preserved
+  A foo
+
+Roll back a commit that replaced the data file
+
+  $ current_uid=$(find_dirstate_uuid)
+  $ hg commit -qm rewritten \
+  >   --config devel.dirstate.v2.data_update_mode=force-new
+  $ dirstate_uuid_has_not_changed also-if-python
+  [1]
+  $ hg rollback -q
+  $ check_undone
+  dirstate preserved
+  A foo
+
+Fail a commit that appended to the data file
+
+  $ hg commit -qm appended \
+  >   --config devel.dirstate.v2.data_update_mode=force-append \
+  >   --config devel.debug.abort-transaction=abort-post-finalize
+  transaction abort!
+  rollback completed
+  abort: requested abort-post-finalize
+  [255]
+  $ check_undone
+  dirstate preserved
+  A foo
+
+Fail a commit that replaced the data file
+
+  $ hg commit -qm rewritten \
+  >   --config devel.dirstate.v2.data_update_mode=force-new \
+  >   --config devel.debug.abort-transaction=abort-post-finalize
+  transaction abort!
+  rollback completed
+  abort: requested abort-post-finalize
+  [255]
+  $ check_undone
+  dirstate preserved
+  A foo
+
+#endif
+
   $ cd ..
 
 Check dirstate ordering
