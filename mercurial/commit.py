@@ -405,12 +405,21 @@ def _filecommit(
     elif fparent1 == repo.nullid:
         fparent1, fparent2 = fparent2, repo.nullid
     elif fparent2 != repo.nullid:
-        if ms.active() and ms.extras(fname).get(b'filenode-source') == b'other':
+        # The file is in both manifest1 and manifest2. Let's check if it should
+        # be a merge in the filelog, or if we should just keep one parent.
+
+        extras = ms.extras(fname) if ms.active() else {}
+        source_is_other = extras.get(b'filenode-source') == b'other'
+        merged = extras.get(b'merged') == b'yes'
+
+        if ms.active() and source_is_other:
+            # It come entirely from the remote side!
             fparent1, fparent2 = fparent2, repo.nullid
-        elif ms.active() and ms.extras(fname).get(b'merged') != b'yes':
+        elif ms.active() and not merged:
+            # It come entirely from the local side!
             fparent1, fparent2 = fparent1, repo.nullid
-        # is one parent an ancestor of the other?
         else:
+            # is one parent an ancestor of the other?
             fparentancestors = flog.commonancestorsheads(fparent1, fparent2)
             if fparent1 in fparentancestors:
                 fparent1, fparent2 = fparent2, repo.nullid
