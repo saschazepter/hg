@@ -17,6 +17,7 @@ use hg::utils::hg_path::HgPath;
 use pyo3::Bound;
 use pyo3::IntoPyObject;
 use pyo3::Py;
+use pyo3::PyAny;
 use pyo3::PyRef;
 use pyo3::PyRefMut;
 use pyo3::PyResult;
@@ -29,7 +30,6 @@ use pyo3::pyclass;
 use pyo3::pymethods;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
-use pyo3::types::PyFunction;
 use pyo3::types::PyModule;
 use pyo3::types::PyModuleMethods;
 use pyo3::types::PyTuple;
@@ -169,9 +169,10 @@ impl PyLazyManifest {
     }
 
     #[expect(unused_variables)]
+    #[pyo3(signature = (m2, clean = false))]
     fn diff(
         slf: &Bound<'_, Self>,
-        m2: &PyLazyManifest,
+        m2: &Bound<'_, Self>,
         clean: bool,
     ) -> PyResult<Py<PyDict>> {
         Err(PyNotImplementedError::new_err("LazyManifest.diff"))
@@ -180,7 +181,7 @@ impl PyLazyManifest {
     #[expect(unused_variables)]
     fn filtercopy(
         slf: &Bound<'_, Self>,
-        filterfn: &Bound<'_, PyFunction>,
+        matchfn: &Bound<'_, PyAny>,
     ) -> PyResult<PyLazyManifest> {
         Err(PyNotImplementedError::new_err("LazyManifest.filtercopy"))
     }
