@@ -547,9 +547,7 @@ Diff two manifests filtered by a pattern
 
 Diff two manifests filtered by a fileset
 
-#if rust
-  $ hg status --rev 0 --rev tip --all 'set:size(">2")' 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.filtercopy
-#endif
+  $ hg status --rev 0 --rev tip --all 'set:size(">2")'
+  A newfile
 
   $ cd ..

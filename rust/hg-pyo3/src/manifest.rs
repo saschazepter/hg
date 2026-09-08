@@ -18,6 +18,7 @@ use pyo3::Bound;
 use pyo3::IntoPyObject;
 use pyo3::Py;
 use pyo3::PyAny;
+use pyo3::PyErr;
 use pyo3::PyRef;
 use pyo3::PyRefMut;
 use pyo3::PyResult;
@@ -38,6 +39,7 @@ use pyo3_sharedref::PyShareable;
 use pyo3_sharedref::py_shared_iterator;
 
 use crate::exceptions::map_try_lock_error;
+use crate::matchers::extract_matcher;
 use crate::utils::HgPyErrExt;
 use crate::utils::PyBytesDeref;
 use crate::utils::new_submodule;
@@ -193,11 +195,18 @@ impl PyLazyManifest {
         if !matchfn.is_callable() {
             return Err(PyTypeError::new_err("matchfn must be callable"));
         }
+        // Convert to a Rust matcher if possible.
+        let matcher = extract_matcher(matchfn).ok();
         Self::with_inner_read(slf, |_self_ref, inner| {
-            let inner = inner.filter(|path| {
-                let path = PyBytes::new(slf.py(), path.as_bytes());
-                matchfn.call1((path,))?.is_truthy()
-            })?;
+            let inner = match &matcher {
+                Some(matcher) => {
+                    inner.filter(|path| Ok::<_, PyErr>(matcher.matches(path)))
+                }
+                None => inner.filter(|path| {
+                    let path = PyBytes::new(slf.py(), path.as_bytes());
+                    matchfn.call1((path,))?.is_truthy()
+                }),
+            }?;
             Ok(Self { inner: inner.into() })
         })
     }
