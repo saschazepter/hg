@@ -539,12 +539,11 @@ Diff two manifests
 
 Diff two manifests filtered by a pattern
 
-#if rust
-  $ hg status --rev 0 --rev tip 're:^[al]' 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.filtercopy
-  $ hg status --rev 0 --rev tip --all 're:^[al]' 2>&1 | grep -E 'devel-warn|NotImplementedError'
-  NotImplementedError: LazyManifest.filtercopy
-#endif
+  $ hg status --rev 0 --rev tip 're:^[al]'
+  R a
+  $ hg status --rev 0 --rev tip --all 're:^[al]'
+  R a
+  C l
 
 Diff two manifests filtered by a fileset
 

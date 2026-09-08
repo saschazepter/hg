@@ -23,7 +23,6 @@ use pyo3::PyRefMut;
 use pyo3::PyResult;
 use pyo3::Python;
 use pyo3::exceptions::PyKeyError;
-use pyo3::exceptions::PyNotImplementedError;
 use pyo3::exceptions::PyTypeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::pyclass;
@@ -187,12 +186,20 @@ impl PyLazyManifest {
         })
     }
 
-    #[expect(unused_variables)]
     fn filtercopy(
         slf: &Bound<'_, Self>,
         matchfn: &Bound<'_, PyAny>,
     ) -> PyResult<PyLazyManifest> {
-        Err(PyNotImplementedError::new_err("LazyManifest.filtercopy"))
+        if !matchfn.is_callable() {
+            return Err(PyTypeError::new_err("matchfn must be callable"));
+        }
+        Self::with_inner_read(slf, |_self_ref, inner| {
+            let inner = inner.filter(|path| {
+                let path = PyBytes::new(slf.py(), path.as_bytes());
+                matchfn.call1((path,))?.is_truthy()
+            })?;
+            Ok(Self { inner: inner.into() })
+        })
     }
 }
 

@@ -200,6 +200,30 @@ impl LazyManifest {
         RawIter { inner: self, index: 0, iter_edits, next_edit }
     }
 
+    /// Returns a new manifest containing entries whose path satisfies
+    /// `predicate`.
+    pub fn filter<E>(
+        &self,
+        mut predicate: impl FnMut(&HgPath) -> Result<bool, E>,
+    ) -> Result<Self, E> {
+        let mut data = Vec::new();
+        let mut lines = Vec::new();
+        for entry in self.raw_iter() {
+            if predicate(entry.path(&self.data))? {
+                write_entry(entry, &self.data, &mut data, &mut lines);
+            }
+        }
+        let num_entries = lines.len();
+        let num_bytes = data.len();
+        Ok(Self {
+            data: Arc::new(DynBytes::new(Box::new(data))),
+            lines: Arc::new(lines),
+            edits: BTreeMap::new(),
+            num_entries,
+            num_bytes,
+        })
+    }
+
     /// Returns an iterator over the differences from `self` to `other`.
     /// If `clean` is true, includes entries that are the same in both.
     pub fn diff<'a>(
@@ -508,6 +532,26 @@ fn write_line(
     new_lines.push(Line { offset: u_u32(offset), len: u_u16(len), flags });
 }
 
+/// Appends an entry to `new_data`, and its position to `new_lines`.
+fn write_entry(
+    entry: RawEntry<'_>,
+    data: &[u8],
+    new_data: &mut Vec<u8>,
+    new_lines: &mut Vec<Line>,
+) {
+    match entry {
+        RawEntry::Line(line) => {
+            let offset = u32_u(line.offset);
+            let new_offset = new_data.len();
+            new_data.extend_from_slice(&data[offset..][..u16_u(line.len)]);
+            new_lines.push(Line { offset: u_u32(new_offset), ..line });
+        }
+        RawEntry::Edited(path, state) => {
+            write_line(path, state, new_data, new_lines)
+        }
+    }
+}
+
 /// An entry as stored in a [`LazyManifest`], before decoding.
 #[derive(Copy, Clone)]
 enum RawEntry<'a> {
@@ -518,6 +562,14 @@ enum RawEntry<'a> {
 }
 
 impl<'a> RawEntry<'a> {
+    /// Returns the path, without decoding the rest of the entry.
+    fn path(&self, data: &'a [u8]) -> &'a HgPath {
+        match self {
+            Self::Line(line) => line.read(data).path,
+            Self::Edited(path, _) => path,
+        }
+    }
+
     /// Decodes the entry.
     fn decode(
         &self,
@@ -1532,6 +1584,72 @@ mod tests {
                 (None, Some(entry(&m2, b"b.txt"))),
                 (Some(entry(&m1, b"c.txt")), Some(entry(&m2, b"c.txt"))),
             ]
+        );
+    }
+
+    /// Test filtering some/all paths out of a manifest.
+    #[test]
+    fn test_filter() {
+        let text = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n\
+            e.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041l\n";
+        let manifest = new(text);
+
+        let keep_all = |_: &HgPath| Ok::<_, ()>(true);
+        let mut filtered = manifest.filter(keep_all).unwrap();
+        assert_eq!(filtered.len(), 3);
+        assert_eq!(filtered.compact(), text);
+
+        let mut filtered =
+            manifest.filter(|p| Ok::<_, ()>(p != path(b"c.txt"))).unwrap();
+        assert_eq!(filtered.len(), 2);
+        assert_eq!(
+            filtered.compact(),
+            b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            e.txt\x0057b886b07d3f850247a6d7ebf514b60d080f6041l\n"
+        );
+
+        let mut filtered = manifest.filter(|_| Ok::<_, ()>(false)).unwrap();
+        assert!(filtered.is_empty());
+        assert_eq!(filtered.compact(), b"");
+
+        assert_eq!(
+            manifest.filter(|_| Err::<bool, _>("nope")).err(),
+            Some("nope")
+        );
+    }
+
+    /// Test filtering a manifest that has in-memory edits.
+    #[test]
+    fn test_filter_with_edits() {
+        let text = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47x\n";
+        let mut manifest = new(text);
+        assert!(manifest.remove(path(b"a.txt")));
+        manifest.set(
+            path(b"b.txt"),
+            node(b"cccccccccccccccccccccccccccccccccccccccc"),
+            ManifestFlags::LINK,
+        );
+        assert!(manifest.set(
+            path(b"c.txt"),
+            node(b"e14fa8304bb04039a7e7e7ffa170715fa2136e47"),
+            ManifestFlags::EMPTY
+        ));
+
+        // Keeps an in-memory insert and an in-memory update.
+        let mut filtered = manifest.filter(|_| Ok::<_, ()>(true)).unwrap();
+        assert_eq!(
+            filtered.compact(),
+            b"b.txt\x00ccccccccccccccccccccccccccccccccccccccccl\n\
+            c.txt\x00e14fa8304bb04039a7e7e7ffa170715fa2136e47\n"
+        );
+
+        let mut filtered =
+            manifest.filter(|p| Ok::<_, ()>(p == path(b"b.txt"))).unwrap();
+        assert_eq!(
+            filtered.compact(),
+            b"b.txt\x00ccccccccccccccccccccccccccccccccccccccccl\n"
         );
     }
 
