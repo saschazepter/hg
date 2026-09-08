@@ -438,9 +438,9 @@ We should make sure all of it (docket + data) is preserved
 #if dirstate-v2
   $ uid=$(find_dirstate_uuid)
   $ touch bar
-  $ while [ uid = $(find_dirstate_uuid) ]; do
+  $ while [ "$uid" = "$(find_dirstate_uuid)" ]; do
   >    hg add bar;
-  >    hg remove bar;
+  >    hg forget bar;
   > done;
   $ rm bar
 #endif
