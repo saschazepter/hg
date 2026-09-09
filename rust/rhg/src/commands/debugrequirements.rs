@@ -5,9 +5,7 @@ Print the current repo requirements.
 ";
 
 pub fn args() -> clap::Command {
-    clap::command!("debugrequirements")
-        .args_override_self(true)
-        .about(HELP_TEXT)
+    clap::command!("debugrequirements").about(HELP_TEXT)
 }
 
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {

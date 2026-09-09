@@ -11,7 +11,6 @@ Dump the contents of a data file revision
 
 pub fn args() -> clap::Command {
     clap::command!("debugdata")
-        .args_override_self(true)
         .arg(
             Arg::new("changelog")
                 .help("open changelog")

@@ -20,7 +20,6 @@ pub const HELP_TEXT: &str = "Mount a virtual hg filesystem (EXPERIMENTAL)";
 
 pub fn args() -> clap::Command {
     clap::command!("debug::virtual-share")
-        .args_override_self(true)
         .arg(
             Arg::new("destination")
                 .value_parser(clap::value_parser!(std::ffi::OsString))

@@ -132,15 +132,8 @@ Repeating argument takes the last value
   file3
 
 Repeating a global flag also works
-TODO: fix this
   $ $NO_FALLBACK rhg -R invalid -R . root
-  unsupported feature: error: the argument '-R <REPO>' cannot be used multiple times
-  
-  Usage: rhg [OPTIONS] <COMMAND>
-  
-  For more information, try '--help'.
-  
-  [252]
+  $TESTTMP/repository
 
 Listing tracked files from subdirectory
   $ mkdir -p path/to/directory

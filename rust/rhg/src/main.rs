@@ -161,6 +161,7 @@ fn main_with_result(
 
     let app = command!()
         .subcommand_required(true)
+        .args_override_self(true)
         .arg(
             Arg::new("repository")
                 .help("repository root directory")

@@ -15,7 +15,6 @@ Output the current or given revision of files
 
 pub fn args() -> clap::Command {
     clap::command!("cat")
-        .args_override_self(true)
         .arg(
             Arg::new("rev")
                 .help("search the repository as it is in REV")

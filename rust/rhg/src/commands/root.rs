@@ -14,7 +14,6 @@ Returns 0 on success.
 
 pub fn args() -> clap::Command {
     clap::command!("root")
-        .args_override_self(true)
         .arg(
             Arg::new("share-source")
                 .long("share-source")
