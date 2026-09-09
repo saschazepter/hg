@@ -229,6 +229,7 @@ Show debug commands if there are no other candidates
   debug::is-ancestor
   debug::is-this-rhg
   debug::link-revs
+  debug::python
   debug::revlog-reencoded-delta-info
   debug::sharded-stream-bundles
   debug::stable-tail-info
@@ -444,6 +445,7 @@ Show all commands + options
   debug::is-ancestor: 
   debug::is-this-rhg: 
   debug::link-revs: changelog, manifest, dir, dump-raw
+  debug::python: 
   debug::revlog-reencoded-delta-info: changelog, manifest, dir, start-rev, stop-rev, delete, report, reuse-stored-delta
   debug::sharded-stream-bundles: template
   debug::stable-tail-info: naive, display-revs

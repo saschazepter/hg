@@ -3201,6 +3201,14 @@ def debugpickmergetool(ui, repo, *pats, **opts):
             ui.write(b'%s = %s\n' % (path, tool))
 
 
+@command(b'debug::python', [], _(b'[ARGS]...'), norepo=True)
+def debug_python(ui, *args):
+    """Call the Python interpreter used by this Mercurial"""
+    cmd = [sys.executable]
+    cmd.extend(args)
+    return subprocess.run(cmd).returncode
+
+
 @command(
     b'debug::clonebundle-manifest',
     [
