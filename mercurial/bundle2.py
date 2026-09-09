@@ -225,13 +225,14 @@ rbcstruct = struct.Struct(b'>III')
 
 def outdebug(ui, message):
     """debug regarding output stream (bundling)"""
-    if ui.configbool(b'devel', b'bundle2.debug'):
+    # Checking `ui.debugflag` to avoid the cost of config lookup
+    if ui.debugflag and ui.configbool(b'devel', b'bundle2.debug'):
         ui.debug(b'bundle2-output: %s\n' % message)
 
 
 def indebug(ui, message):
     """debug on input stream (unbundling)"""
-    if ui.configbool(b'devel', b'bundle2.debug'):
+    if ui.debugflag and ui.configbool(b'devel', b'bundle2.debug'):
         ui.debug(b'bundle2-input: %s\n' % message)
 
 
