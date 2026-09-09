@@ -25,6 +25,7 @@ use hg_fuse::server::store::Store;
 use parking_lot::Mutex;
 
 /// Per-mount options.
+#[derive(Default)]
 pub struct MountOptions {
     /// What kind of working copy to present.
     pub backend_mode: BackendMode,
@@ -84,6 +85,7 @@ struct RepoState {
 pub struct MountManager {
     mounts: Mutex<HashMap<PathBuf, MountHandle>>,
     per_repo_state: Mutex<HashMap<PathBuf, RepoState>>,
+    mount_options: MountOptions,
 }
 
 impl MountManager {
@@ -104,8 +106,6 @@ impl MountManager {
         mount_point: PathBuf,
         backing_path: PathBuf,
         revision: Node,
-        // TODO: these should not be per-mount options, move into MountManager
-        options: MountOptions,
     ) -> Result<MountInfo, MountError> {
         let clone_path = repo.working_directory_path().to_path_buf();
         let mount_point = canonical_mount_point(&mount_point);
@@ -134,13 +134,13 @@ impl MountManager {
                     Arc::clone(&value.store)
                 }
                 Entry::Vacant(vacant) => {
-                    // TODO: thin seems closest to what we want, but may need
-                    // tuning later.
-                    let store_backend =
-                        LocalBackend::new(repo, BackendMode::Thin)?;
+                    let store_backend = LocalBackend::new(
+                        repo,
+                        self.mount_options.backend_mode,
+                    )?;
                     let store = Arc::new(Store::new(
                         store_backend,
-                        options.max_revisions_loaded,
+                        self.mount_options.max_revisions_loaded,
                         // We won't use timestamps returned by the StoreCache.
                         SystemTime::UNIX_EPOCH,
                         None,
@@ -154,14 +154,14 @@ impl MountManager {
             store,
             backing_path,
             revision,
-            options.user_id,
-            options.group_id,
+            self.mount_options.user_id,
+            self.mount_options.group_id,
         )?);
 
         let session = HgFuse::mount(
             state,
             &mount_point,
-            options.session_acl,
+            self.mount_options.session_acl,
             num_threads,
         )?;
 

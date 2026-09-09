@@ -13,11 +13,8 @@ use hg::errors::HgError;
 use hg::repo::Repo;
 use hg::utils::files::get_bytes_from_path;
 use hg::utils::files::get_path_from_bytes;
-use hg_vfs::BackendMode;
 use hg_vfs::MountError;
 use hg_vfs::MountManager;
-use hg_vfs::MountOptions;
-use hg_vfs::SessionACL;
 use tokio::net::UnixListener;
 use tokio::signal::unix::Signal;
 use tokio::signal::unix::SignalKind;
@@ -103,13 +100,7 @@ impl VfsControl for VfsControlService {
                     },
                 )?;
                 manager
-                    .mount(
-                        repo,
-                        mount_point,
-                        backing_path,
-                        revision,
-                        default_mount_options(),
-                    )
+                    .mount(repo, mount_point, backing_path, revision)
                     .map_err(mount_error_to_status)
             },
         )
@@ -176,16 +167,6 @@ fn mount_error_to_status(e: MountError) -> Status {
         MountError::Unmount(e, _) => {
             Status::internal(format!("unmount failed: {e}"))
         }
-    }
-}
-
-fn default_mount_options() -> MountOptions {
-    MountOptions {
-        backend_mode: BackendMode::default(),
-        session_acl: SessionACL::Owner,
-        user_id: None,
-        group_id: None,
-        max_revisions_loaded: None,
     }
 }
 
