@@ -754,3 +754,40 @@ Top-level bundle listed last in the manifest is still applied first
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
   $ rm reordered-full -rf
+
+Entry filtering
+===============
+
+Manifest contains a full bundle, store-fingerprint bundles, and sharded bundles.
+
+  $ cd $TESTTMP
+  $ cat > source/.hg/clonebundles.manifest << EOF
+  > peer-bundle-cache://no-shape.hg BUNDLESPEC=$bundlespecfull
+  > peer-bundle-cache://shape-dir2.hg BUNDLESPEC=$bundlespec
+  > peer-bundle-cache://shape-other.hg BUNDLESPEC=$bundlespec2
+  > peer-bundle-cache://shard-top.hg BUNDLESPEC=$bundlespecfull;SHARD-ID=1111;BUNDLE-GROUP-ID=abcd;BUNDLE-GROUP-TOP-LEVEL=1
+  > peer-bundle-cache://shard-other.hg BUNDLESPEC=$bundlespecfull;SHARD-ID=2222;BUNDLE-GROUP-ID=abcd
+  > EOF
+
+If the client did not request a store shape, filter out all but the full bundle
+
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --debug | grep -E 'filtering|URL:'
+  filtering peer-bundle-cache://shape-dir2.hg because it uses a store-shape
+  filtering peer-bundle-cache://shape-other.hg because it uses a store-shape
+  filtering peer-bundle-cache://shard-top.hg because it is sharded bundle
+  filtering peer-bundle-cache://shard-other.hg because it is sharded bundle
+    URL: peer-bundle-cache://no-shape.hg
+
+If the client requests a store shape, filter out all but the bundle with the matching
+store-fingerprint
+TODO: fix this
+
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug 2>&1 | grep TypeError
+  TypeError: 'NoneType' object is not iterable (known-bad-output !)
+
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug 2>&1 | grep -E 'filtering|URL:'
+  filtering peer-bundle-cache://no-shape.hg because it does not use store-shape
+  filtering peer-bundle-cache://shape-other.hg because its store-shape is not the requested one; bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e not in (feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726)
+  filtering peer-bundle-cache://shard-top.hg because no shards were requested (missing-correct-output !)
+  filtering peer-bundle-cache://shard-other.hg because no shards were requested (missing-correct-output !)
+    URL: peer-bundle-cache://shape-dir2.hg (missing-correct-output !)
