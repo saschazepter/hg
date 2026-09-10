@@ -284,10 +284,11 @@ Upgrading to/from delta-info-flags
        unrelated        :    0     ( 0.00%)
   -deltas against p1    :  661 (13.71%)
   -deltas against p2    :   11 ( 0.23%)
+  -deltas against ancs  : 2162 (44.85%)
+  -deltas against other :   14 ( 0.29%)
   +deltas against p1    :  645 (14.05%)
   +deltas against p2    :   82 ( 1.79%)
-   deltas against ancs  :    0 ( 0.00%)
-  -deltas against other : 2176 (45.15%)
+  +deltas against ancs  :    0 ( 0.00%)
   +deltas against other :    0 ( 0.00%)
   [1]
 #endif
@@ -503,11 +504,12 @@ Upgrading to/from delta-info-flags
        unrelated        :    0     ( 0.00%)
   -deltas against p1    :  645 (14.05%)
   -deltas against p2    :   82 ( 1.79%)
+  -deltas against ancs  :    0 ( 0.00%)
+  -deltas against other :    0 ( 0.00%)
   +deltas against p1    :  661 (13.71%)
   +deltas against p2    :   11 ( 0.23%)
-   deltas against ancs  :    0 ( 0.00%)
-  -deltas against other :    0 ( 0.00%)
-  +deltas against other : 2176 (45.15%)
+  +deltas against ancs  : 2162 (44.85%)
+  +deltas against other :   14 ( 0.29%)
   [1]
 #endif
 #endif

@@ -505,7 +505,8 @@ def debug_revlog(ui, revlog):
                         nump2 += 1
                     elif delta != nodemod.nullrev:
                         numother += 1
-                        numother_nad += 1
+                        if nad:
+                            numother_nad += 1
 
             # Obtain data on the raw chunks in the revlog.
             if hasattr(r, '_inner'):

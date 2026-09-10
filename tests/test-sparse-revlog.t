@@ -328,8 +328,8 @@ sanity check the change pattern
       unrelated        :    0     ( 0.00%)
   deltas against p1    :  661 (13.71%)
   deltas against p2    :   11 ( 0.23%)
-  deltas against ancs  :    0 ( 0.00%)
-  deltas against other : 2176 (45.15%)
+  deltas against ancs  : 2162 (44.85%)
+  deltas against other :   14 ( 0.29%)
 #endif
 #else
 #if zlib-ng
