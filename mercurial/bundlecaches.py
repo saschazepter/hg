@@ -664,37 +664,36 @@ def filterclonebundleentries(
         # bundle with shard id need to be filtered later, when we know which
         # group id have the complete set of shards we needs.
         has_shard_id = b"SHARD-ID" in entry
-        if store_fingerprints is None and has_shard_id:
-            # XXX strictly speaking, we could use sharded bundle for a full
-            # clone, but this isn't something we do for now.
-            msg = b'filtering %s because it is sharded bundle\n'
-            msg %= url
-            repo.ui.debug(msg)
-            continue
-        elif store_fingerprints is None and entry_store_fp is None:
-            pass  # expectation match, we can continue the filtering
-        elif store_fingerprints is None and entry_store_fp is not None:
-            msg = b'filtering %s because it uses a store-shape\n'
-            msg %= url
-            repo.ui.debug(msg)
-            continue
-        elif (
-            store_fingerprints is not None
-            and entry_store_fp is None
-            and not has_shard_id
-        ):
-            msg = b'filtering %s because it does not use store-shape\n'
-            msg %= url
-            repo.ui.debug(msg)
-            continue
-        elif (not has_shard_id) and entry_store_fp not in store_fingerprints:
-            msg = (
-                b'filtering %s because its store-shape is not the requested '
-                b'one; %s not in (%s)\n'
-            )
-            msg %= (url, entry_store_fp, b', '.join(store_fingerprints))
-            repo.ui.debug(msg)
-            continue
+        if store_fingerprints is None:
+            if has_shard_id:
+                # XXX strictly speaking, we could use sharded bundle for a full
+                # clone, but this isn't something we do for now.
+                msg = b'filtering %s because it is sharded bundle\n'
+                msg %= url
+                repo.ui.debug(msg)
+                continue
+            elif entry_store_fp is not None:
+                msg = b'filtering %s because it uses a store-shape\n'
+                msg %= url
+                repo.ui.debug(msg)
+                continue
+            # otherwise the expectation matches, we can continue the filtering
+        else:
+            if has_shard_id:
+                pass  # sharded bundles are filtered further below
+            elif entry_store_fp is None:
+                msg = b'filtering %s because it does not use store-shape\n'
+                msg %= url
+                repo.ui.debug(msg)
+                continue
+            elif entry_store_fp not in store_fingerprints:
+                msg = (
+                    b'filtering %s because its store-shape is not the '
+                    b'requested one; %s not in (%s)\n'
+                )
+                msg %= (url, entry_store_fp, b', '.join(store_fingerprints))
+                repo.ui.debug(msg)
+                continue
 
         spec = entry.get(b'BUNDLESPEC')
         if spec:
