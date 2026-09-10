@@ -389,7 +389,6 @@ impl LazyManifest {
         if !self.is_dirty() {
             return &self.data;
         }
-        let old_lines_len = self.lines.len();
         let mut new_data = Vec::with_capacity(self.num_bytes);
         let mut new_lines = Vec::with_capacity(self.num_entries);
         let mut old_line_cursor = 0;
@@ -422,10 +421,10 @@ impl LazyManifest {
                 }
             }
         }
-        if old_line_cursor < old_lines_len {
+        if old_line_cursor < self.lines.len() {
             // Copy the rest of the untouched lines.
             self.copy_lines(
-                old_line_cursor..old_lines_len,
+                old_line_cursor..self.lines.len(),
                 &mut new_data,
                 &mut new_lines,
             );
