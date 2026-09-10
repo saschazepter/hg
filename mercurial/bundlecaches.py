@@ -680,7 +680,13 @@ def filterclonebundleentries(
             # otherwise the expectation matches, we can continue the filtering
         else:
             if has_shard_id:
-                pass  # sharded bundles are filtered further below
+                if not shards_sets:
+                    msg = b'filtering %s because no shards were requested\n'
+                    msg %= url
+                    repo.ui.debug(msg)
+                    continue
+                else:
+                    pass  # sharded bundles are filtered further below
             elif entry_store_fp is None:
                 msg = b'filtering %s because it does not use store-shape\n'
                 msg %= url

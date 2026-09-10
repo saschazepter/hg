@@ -780,14 +780,10 @@ If the client did not request a store shape, filter out all but the full bundle
 
 If the client requests a store shape, filter out all but the bundle with the matching
 store-fingerprint
-TODO: fix this
 
-  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug 2>&1 | grep TypeError
-  TypeError: 'NoneType' object is not iterable (known-bad-output !)
-
-  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug 2>&1 | grep -E 'filtering|URL:'
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug | grep -E 'filtering|URL:'
   filtering peer-bundle-cache://no-shape.hg because it does not use store-shape
   filtering peer-bundle-cache://shape-other.hg because its store-shape is not the requested one; bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e not in (feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726)
-  filtering peer-bundle-cache://shard-top.hg because no shards were requested (missing-correct-output !)
-  filtering peer-bundle-cache://shard-other.hg because no shards were requested (missing-correct-output !)
-    URL: peer-bundle-cache://shape-dir2.hg (missing-correct-output !)
+  filtering peer-bundle-cache://shard-top.hg because no shards were requested
+  filtering peer-bundle-cache://shard-other.hg because no shards were requested
+    URL: peer-bundle-cache://shape-dir2.hg
