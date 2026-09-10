@@ -412,6 +412,9 @@ def debug_revlog(ui, revlog):
     # delta against first or second parent (not prev)
     nump1 = 0
     nump2 = 0
+    # delta against first or second parent chain (not prev)
+    num_p1_chain = 0
+    num_p2_chain = 0
     # delta against neither prev nor parents
     numother = 0
     # delta against other that is a non-ancestor
@@ -468,11 +471,17 @@ def debug_revlog(ui, revlog):
                     addsize(size, fullsize)
                     addsize(size, snapsizedepth[0])
             else:
-                nad = (
-                    delta != p1
-                    and delta != p2
-                    and not r.isancestorrev(delta, rev)
-                )
+                nad = False
+                p1_chain = False
+                p2_chain = False
+                if delta != p1 and delta != p2:
+                    if p1 != nodemod.nullrev and delta in r._deltachain(p1)[0]:
+                        p1_chain = True
+                    elif (
+                        p2 != nodemod.nullrev and delta in r._deltachain(p2)[0]
+                    ):
+                        p2_chain = True
+                    nad = not r.isancestorrev(delta, rev)
                 chainlengths.append(chainlengths[delta] + 1)
                 baseaddr = chainbases[delta]
                 revaddr = r.start(rev)
@@ -505,7 +514,11 @@ def debug_revlog(ui, revlog):
                         nump2 += 1
                     elif delta != nodemod.nullrev:
                         numother += 1
-                        if nad:
+                        if p1_chain:
+                            num_p1_chain += 1
+                        elif p2_chain:
+                            num_p2_chain += 1
+                        elif nad:
                             numother_nad += 1
 
             # Obtain data on the raw chunks in the revlog.
@@ -532,7 +545,9 @@ def debug_revlog(ui, revlog):
 
     numdeltas = numrevs - numfull - numempty - numsemi
     numoprev = numprev - nump1prev - nump2prev - numprev_nad
-    num_other_ancestors = numother - numother_nad
+    num_other_ancestors = numother - (
+        numother_nad + num_p1_chain + num_p2_chain
+    )
     totalrawsize = datasize[2]
     datasize[2] /= numrevs
     fulltotal = fullsize[2]
@@ -713,6 +728,14 @@ def debug_revlog(ui, revlog):
             )
             ui.writenoi18n(
                 b'deltas against p2    : ' + fmt % pcfmt(nump2, numdeltas)
+            )
+            ui.writenoi18n(
+                b'deltas against chain1: '
+                + fmt % pcfmt(num_p1_chain, numdeltas)
+            )
+            ui.writenoi18n(
+                b'deltas against chain2: '
+                + fmt % pcfmt(num_p2_chain, numdeltas)
             )
             ui.writenoi18n(
                 b'deltas against ancs  : '

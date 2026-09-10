@@ -195,7 +195,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,56 +8,56 @@
+  @@ -8,58 +8,58 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -284,12 +284,14 @@ Upgrading to/from delta-info-flags
        unrelated        :    0     ( 0.00%)
   -deltas against p1    :  661 (13.71%)
   -deltas against p2    :   11 ( 0.23%)
-  -deltas against ancs  : 2162 (44.85%)
-  -deltas against other :   14 ( 0.29%)
+  -deltas against chain1: 2139 (44.38%)
+  -deltas against chain2:   37 ( 0.77%)
   +deltas against p1    :  645 (14.05%)
   +deltas against p2    :   82 ( 1.79%)
-  +deltas against ancs  :    0 ( 0.00%)
-  +deltas against other :    0 ( 0.00%)
+  +deltas against chain1:    0 ( 0.00%)
+  +deltas against chain2:    0 ( 0.00%)
+   deltas against ancs  :    0 ( 0.00%)
+   deltas against other :    0 ( 0.00%)
   [1]
 #endif
 #else
@@ -415,7 +417,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,56 +8,56 @@
+  @@ -8,58 +8,58 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -504,12 +506,14 @@ Upgrading to/from delta-info-flags
        unrelated        :    0     ( 0.00%)
   -deltas against p1    :  645 (14.05%)
   -deltas against p2    :   82 ( 1.79%)
-  -deltas against ancs  :    0 ( 0.00%)
-  -deltas against other :    0 ( 0.00%)
+  -deltas against chain1:    0 ( 0.00%)
+  -deltas against chain2:    0 ( 0.00%)
   +deltas against p1    :  661 (13.71%)
   +deltas against p2    :   11 ( 0.23%)
-  +deltas against ancs  : 2162 (44.85%)
-  +deltas against other :   14 ( 0.29%)
+  +deltas against chain1: 2139 (44.38%)
+  +deltas against chain2:   37 ( 0.77%)
+   deltas against ancs  :    0 ( 0.00%)
+   deltas against other :    0 ( 0.00%)
   [1]
 #endif
 #endif
