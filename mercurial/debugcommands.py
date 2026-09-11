@@ -3273,8 +3273,8 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
             )
             entries = bundlecaches.sortclonebundleentries(ui, entries)
             for entry in entries:
-                ui.writenoi18n(b'  URL: %s\n' % (entry.get(b'URL', b''),))
-                for key, value in entry.items():
+                ui.writenoi18n(b'  URL: %s\n' % (entry.attrs.get(b'URL', b''),))
+                for key, value in entry.attrs.items():
                     if key == b'URL':
                         continue
                     if isinstance(value, list):

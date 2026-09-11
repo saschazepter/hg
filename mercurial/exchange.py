@@ -3063,8 +3063,8 @@ def _maybeapplyclonebundle(pullop: pulloperation):
 
     with repo.lock(), repo.transaction(b"clonebundles"):
         for idx, entry in enumerate(entries):
-            url = entry[b'URL']
-            digest = entry.get(b'DIGEST')
+            url = entry.attrs[b'URL']
+            digest = entry.attrs.get(b'DIGEST')
             if digest:
                 algorithms = urlmod.digesthandler.digest_algorithms.keys()
                 preference = dict(zip(algorithms, range(len(algorithms))))

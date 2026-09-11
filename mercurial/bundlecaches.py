@@ -476,16 +476,12 @@ def parsebundlespec(repo, spec, strict=True):
 
 
 def parseclonebundlesmanifest(repo: RepoT, s: bytes) -> list[EntryT]:
-    """Parses the raw text of a clone bundles manifest.
-
-    Returns a list of dicts. The dicts have a ``URL`` key corresponding
-    to the URL and other keys are the attributes for the entry.
-    """
+    """Parses the raw text of a clone bundles manifest."""
     m = []
     for line in s.splitlines():
-        attrs = parse_clonebundle_manifest_line(repo, line)
-        if attrs is not None:
-            m.append(attrs)
+        entry = parse_clonebundle_manifest_line(repo, line)
+        if entry is not None:
+            m.append(entry)
     return m
 
 
@@ -555,6 +551,24 @@ def downgrade_manifest_lines(lines: list[bytes]) -> list[bytes]:
     return new_lines
 
 
+@attr.s
+class ClonebundleManifestEntry:
+    """A parsed line of a clonebundles manifest.
+
+    A line is a URL followed by ``key=value`` attributes. The ``BUNDLESPEC``
+    attribute has its own parameters. This class exists so that the parsed
+    bundlespec can be kept next to those attributes instead of having its
+    parameters forwarded up into them, which would mix two unrelated uppercase
+    conventions:
+    - an uppercase attribute is reserved for use by Mercurial
+    - an uppercase bundlespec parameter is mandatory: a client must understand
+      it to use the bundle
+    """
+
+    # The attributes written on the line, keyed by attribute name.
+    attrs = attr.ib(type=dict[bytes, typing.Any])
+
+
 def parse_clonebundle_manifest_line(repo: RepoT, line: bytes) -> EntryT | None:
     fields = line.split()
     if not fields:
@@ -585,7 +599,7 @@ def parse_clonebundle_manifest_line(repo: RepoT, line: bytes) -> EntryT | None:
                 pass
             except error.UnsupportedBundleSpecification:
                 pass
-    return attrs
+    return ClonebundleManifestEntry(attrs)
 
 
 def isstreamclonespec(bundlespec):
@@ -608,7 +622,7 @@ def isstreamclonespec(bundlespec):
 digest_regex = re.compile(b'^[a-z0-9]+:[0-9a-f]+(,[a-z0-9]+:[0-9a-f]+)*$')
 
 if typing.TYPE_CHECKING:
-    EntryT = dict[bytes, typing.Any]
+    EntryT = ClonebundleManifestEntry
 
 NO_GRP_MSG = b"filtering %s because it has shard-id without bundle-group-id\n"
 
@@ -635,7 +649,7 @@ def filterclonebundleentries(
     # gather the set of shards available for each group.
     shards_groups = collections.defaultdict(set)
     for entry in entries:
-        url = entry.get(b'URL')
+        url = entry.attrs.get(b'URL')
         if url is None:
             repo.ui.debug(b'filtering entry with no url\n')
             continue
@@ -650,7 +664,7 @@ def filterclonebundleentries(
 
         supported = util.compengines.supported_wire_delta_compression()
         unknown_compression = None
-        for c in entry.get(b'DELTA-COMPRESSION', []):
+        for c in entry.attrs.get(b'DELTA-COMPRESSION', []):
             if c not in supported:
                 unknown_compression = c
                 break
@@ -659,10 +673,10 @@ def filterclonebundleentries(
             repo.ui.debug(msg % (url, unknown_compression))
             continue
 
-        entry_store_fp = entry.get(b"STORE-FINGERPRINT")
+        entry_store_fp = entry.attrs.get(b"STORE-FINGERPRINT")
         # bundle with shard id need to be filtered later, when we know which
         # group id have the complete set of shards we needs.
-        has_shard_id = b"SHARD-ID" in entry
+        has_shard_id = b"SHARD-ID" in entry.attrs
         if store_fingerprints is None:
             if has_shard_id:
                 # XXX strictly speaking, we could use sharded bundle for a full
@@ -700,7 +714,7 @@ def filterclonebundleentries(
                 repo.ui.debug(msg)
                 continue
 
-        spec = entry.get(b'BUNDLESPEC')
+        spec = entry.attrs.get(b'BUNDLESPEC')
         if spec:
             try:
                 bundlespec = parsebundlespec(repo, spec, strict=True)
@@ -742,13 +756,13 @@ def filterclonebundleentries(
             )
             continue
 
-        if b'REQUIRESNI' in entry and not sslutil.hassni:
+        if b'REQUIRESNI' in entry.attrs and not sslutil.hassni:
             repo.ui.debug(b'filtering %s because SNI not supported\n' % url)
             continue
 
-        if b'REQUIREDRAM' in entry:
+        if b'REQUIREDRAM' in entry.attrs:
             try:
-                requiredram = util.sizetoint(entry[b'REQUIREDRAM'])
+                requiredram = util.sizetoint(entry.attrs[b'REQUIREDRAM'])
             except error.ParseError:
                 repo.ui.debug(
                     b'filtering %s due to a bad REQUIREDRAM attribute\n' % url
@@ -762,15 +776,15 @@ def filterclonebundleentries(
                 )
                 continue
 
-        if b'DIGEST' in entry:
-            if not digest_regex.match(entry[b'DIGEST']):
+        if b'DIGEST' in entry.attrs:
+            if not digest_regex.match(entry.attrs[b'DIGEST']):
                 repo.ui.debug(
                     b'filtering %s due to a bad DIGEST attribute\n' % url
                 )
                 continue
             supported = 0
             seen = {}
-            for digest_entry in entry[b'DIGEST'].split(b','):
+            for digest_entry in entry.attrs[b'DIGEST'].split(b','):
                 algo, digest = digest_entry.split(b':')
                 if algo not in seen:
                     seen[algo] = digest
@@ -801,16 +815,16 @@ def filterclonebundleentries(
 
         # gather the set of available shard-id in each group for further
         # filtering outside of this loop
-        if b"SHARD-ID" in entry:
-            group_id = entry.get(b"BUNDLE-GROUP-ID")
+        if b"SHARD-ID" in entry.attrs:
+            group_id = entry.attrs.get(b"BUNDLE-GROUP-ID")
             if group_id is None:
-                url = entry.get(b'URL', b'(unknown url)')
+                url = entry.attrs.get(b'URL', b'(unknown url)')
                 repo.ui.debug(NO_GRP_MSG % url)
                 continue
             # XXX need proper error handling at some point
-            shard_id = entry[b"SHARD-ID"]
+            shard_id = entry.attrs[b"SHARD-ID"]
             shards_groups[group_id].add(shard_id)
-        elif b"BUNDLE-GROUP-ID" in entry:
+        elif b"BUNDLE-GROUP-ID" in entry.attrs:
             assert False
         newentries.append(entry)
 
@@ -825,9 +839,9 @@ def filterclonebundleentries(
     # only keeps sharded bundle that can build a valid sets
     final = []
     for entry in newentries:
-        group_id = entry.get(b"BUNDLE-GROUP-ID")
-        url = entry.get(b'URL', b'(unknown url)')
-        shard_id = entry.get(b"SHARD-ID")
+        group_id = entry.attrs.get(b"BUNDLE-GROUP-ID")
+        url = entry.attrs.get(b'URL', b'(unknown url)')
+        shard_id = entry.attrs.get(b"SHARD-ID")
         if group_id is None:
             # not sharded, already filtered above
             final.append(entry)
@@ -851,8 +865,8 @@ def _cmp_entries_by_prefers(
 ) -> int:
     """Order two manifest entries against the ``ui.clonebundleprefers`` items."""
     for prefkey, prefvalue in prefers:
-        avalue = a.get(prefkey)
-        bvalue = b.get(prefkey)
+        avalue = a.attrs.get(prefkey)
+        bvalue = b.attrs.get(prefkey)
 
         # Special case for b missing attribute and a matches exactly.
         if avalue is not None and bvalue is None and avalue == prefvalue:
@@ -895,7 +909,7 @@ def best_clonebundles(ui, entries):
     assert len(entries) > 0
     entries = sortclonebundleentries(ui, entries)
     first = entries[0]
-    group_id = first.get(b"BUNDLE-GROUP-ID")
+    group_id = first.attrs.get(b"BUNDLE-GROUP-ID")
     if group_id is None:
         final = entries[:1]
     else:
@@ -905,11 +919,11 @@ def best_clonebundles(ui, entries):
         # But we should only select one bundle for each shard
         seen_shards = set()
         for e in entries:
-            if e.get(b"BUNDLE-GROUP-ID") == group_id:
-                shard_id = e[b"SHARD-ID"]
+            if e.attrs.get(b"BUNDLE-GROUP-ID") == group_id:
+                shard_id = e.attrs[b"SHARD-ID"]
                 if shard_id not in seen_shards:
                     seen_shards.add(shard_id)
-                    if b"BUNDLE-GROUP-TOP-LEVEL" in e:
+                    if b"BUNDLE-GROUP-TOP-LEVEL" in e.attrs:
                         # XXX needs proper error handling as some point.
                         assert top_group is None
                         top_group = e

@@ -325,7 +325,7 @@ def _filter_storefp_lines(repo: RepoT, lines: list[bytes]) -> list[bytes]:
     modified_manifest = []
     for line in lines:
         parsed = bundlecaches.parse_clonebundle_manifest_line(repo, line)
-        if parsed is not None and parsed.get(b'STORE-FINGERPRINT'):
+        if parsed is not None and parsed.attrs.get(b'STORE-FINGERPRINT'):
             continue
         modified_manifest.append(line)
     return modified_manifest
@@ -547,15 +547,15 @@ def find_pullbundle(repo, proto, opts, clheads, heads, common):
     common_anc = cl.ancestors([cl.rev(rev) for rev in common], inclusive=True)
     compformats = clientcompressionsupport(proto)
     for entry in res:
-        comp = entry.get(b'COMPRESSION')
+        comp = entry.attrs.get(b'COMPRESSION')
         altcomp = util.compengines._bundlenames.get(comp)
         if comp and comp not in compformats and altcomp not in compformats:
             continue
         # No test yet for VERSION, since V2 is supported by any client
         # that advertises partial pulls
-        if b'heads' in entry:
+        if b'heads' in entry.attrs:
             try:
-                bundle_heads = decodehexstring(entry[b'heads'])
+                bundle_heads = decodehexstring(entry.attrs[b'heads'])
             except TypeError:
                 # Bad heads entry
                 continue
@@ -568,15 +568,15 @@ def find_pullbundle(repo, proto, opts, clheads, heads, common):
                 for rev in bundle_heads
             ):
                 continue
-        if b'bases' in entry:
+        if b'bases' in entry.attrs:
             try:
-                bundle_bases = decodehexstring(entry[b'bases'])
+                bundle_bases = decodehexstring(entry.attrs[b'bases'])
             except TypeError:
                 # Bad bases entry
                 continue
             if not all(cl.rev(rev) in common_anc for rev in bundle_bases):
                 continue
-        path = entry[b'URL']
+        path = entry.attrs[b'URL']
         repo.ui.debug(b'sending pullbundle "%s"\n' % path)
         try:
             return repo.vfs.open(path)
