@@ -568,17 +568,31 @@ class ClonebundleManifestEntry:
     # The attributes written on the line, keyed by attribute name.
     attrs = attr.ib(type=dict[bytes, typing.Any])
 
+    # The parsed BUNDLESPEC, or None if the line has no bundlespec.
+    parsed_bundlespec = attr.ib(
+        default=None,
+        type=typing.Union[bundlespec, None],
+    )
+
 
 if typing.TYPE_CHECKING:
     EntryT = ClonebundleManifestEntry
 
 
 def parse_clonebundle_manifest_line(repo: RepoT, line: bytes) -> EntryT | None:
+    """Parse one `<URL> key=value ...` line of a clonebundles manifest.
+
+    Returns None for a blank line, and for a line whose BUNDLESPEC this client
+    cannot parse -- the reason is logged with `ui.debug` first. Nothing
+    downstream can use an entry whose bundlespec did not parse, so the line is
+    dropped here rather than carried along and filtered out later.
+    """
     fields = line.split()
     if not fields:
         return None
 
     attrs: dict[bytes, typing.Any] = {b'URL': fields[0]}
+    bundlespec = None
     for rawattr in fields[1:]:
         key, value = rawattr.split(b'=', 1)
         key = util.urlreq.unquote(key)
@@ -599,11 +613,16 @@ def parse_clonebundle_manifest_line(repo: RepoT, line: bytes) -> EntryT | None:
                 for param in FORWARDED_BUNDLE_SPEC_PARAMS:
                     if value := bundlespec.params.get(param):
                         attrs[param.upper()] = value
-            except error.InvalidBundleSpecification:
-                pass
-            except error.UnsupportedBundleSpecification:
-                pass
-    return ClonebundleManifestEntry(attrs)
+            except error.InvalidBundleSpecification as e:
+                repo.ui.debug(stringutil.forcebytestr(e) + b'\n')
+                return None
+            except error.UnsupportedBundleSpecification as e:
+                repo.ui.debug(
+                    b'filtering %s because unsupported bundle '
+                    b'spec: %s\n' % (attrs[b'URL'], stringutil.forcebytestr(e))
+                )
+                return None
+    return ClonebundleManifestEntry(attrs, bundlespec)
 
 
 def isstreamclonespec(bundlespec):
@@ -715,47 +734,34 @@ def filterclonebundleentries(
                 repo.ui.debug(msg)
                 continue
 
-        spec = entry.attrs.get(b'BUNDLESPEC')
-        if spec:
-            try:
-                bundlespec = parsebundlespec(repo, spec, strict=True)
-
-                # If a stream clone was requested, filter out non-streamclone
-                # entries.
-                if isstreamclonespec(bundlespec):
-                    if (
-                        streamclonerequested is not None
-                        and not streamclonerequested
-                    ):
-                        repo.ui.debug(
-                            b'filtering %s because it is a stream clonebundle\n'
-                            % url
-                        )
-                        continue
-                elif streamclonerequested:
+        if entry.parsed_bundlespec is None:
+            # If we don't have a spec and requested a stream clone, we don't
+            # know what the entry is so don't attempt to apply it.
+            if streamclonerequested:
+                repo.ui.debug(
+                    b'filtering %s because cannot determine if a stream '
+                    b'clone bundle\n' % url
+                )
+                continue
+        else:
+            # If a stream clone was requested, filter out non-streamclone
+            # entries.
+            if isstreamclonespec(entry.parsed_bundlespec):
+                if (
+                    streamclonerequested is not None
+                    and not streamclonerequested
+                ):
                     repo.ui.debug(
-                        b'filtering %s because it is not a stream clonebundle\n'
+                        b'filtering %s because it is a stream clonebundle\n'
                         % url
                     )
                     continue
-
-            except error.InvalidBundleSpecification as e:
-                repo.ui.debug(stringutil.forcebytestr(e) + b'\n')
-                continue
-            except error.UnsupportedBundleSpecification as e:
+            elif streamclonerequested:
                 repo.ui.debug(
-                    b'filtering %s because unsupported bundle '
-                    b'spec: %s\n' % (url, stringutil.forcebytestr(e))
+                    b'filtering %s because it is not a stream clonebundle\n'
+                    % url
                 )
                 continue
-        # If we don't have a spec and requested a stream clone, we don't know
-        # what the entry is so don't attempt to apply it.
-        elif streamclonerequested:
-            repo.ui.debug(
-                b'filtering %s because cannot determine if a stream '
-                b'clone bundle\n' % url
-            )
-            continue
 
         if b'REQUIRESNI' in entry.attrs and not sslutil.hassni:
             repo.ui.debug(b'filtering %s because SNI not supported\n' % url)

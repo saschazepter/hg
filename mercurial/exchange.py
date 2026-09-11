@@ -3007,7 +3007,10 @@ def _maybeapplyclonebundle(pullop: pulloperation):
     pullop.clonebundleattempted = True
 
     entries = bundlecaches.parseclonebundlesmanifest(repo, res)
-    if not entries:
+    # Check the raw manifest rather than the parsed entries, since lines that don't
+    # parse are filtered out. Here we're checking for no bundles at all; later we check
+    # for no good bundles (and emit a suggestion to report to the server operator).
+    if not res.strip():
         repo.ui.note(
             _(
                 b'no clone bundles available on remote; '
