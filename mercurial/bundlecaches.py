@@ -574,6 +574,17 @@ class ClonebundleManifestEntry:
         type=typing.Union[bundlespec, None],
     )
 
+    def bundlespec_param(self, name: bytes) -> bytes | None:
+        """Value of a bundlespec parameter.
+
+        None if the line has no bundlespec, if it has no such parameter, or if
+        that parameter has an empty value.
+        """
+        if self.parsed_bundlespec is None:
+            return None
+        # A param with an empty value is treated the same as no param.
+        return self.parsed_bundlespec.params.get(name) or None
+
 
 if typing.TYPE_CHECKING:
     EntryT = ClonebundleManifestEntry
@@ -693,10 +704,10 @@ def filterclonebundleentries(
             repo.ui.debug(msg % (url, unknown_compression))
             continue
 
-        entry_store_fp = entry.attrs.get(b"STORE-FINGERPRINT")
+        entry_store_fp = entry.bundlespec_param(BUNDLESPEC_STORE_FINGERPRINT)
         # bundle with shard id need to be filtered later, when we know which
         # group id have the complete set of shards we needs.
-        has_shard_id = b"SHARD-ID" in entry.attrs
+        has_shard_id = entry.bundlespec_param(BUNDLESPEC_SHARD_ID) is not None
         if store_fingerprints is None:
             if has_shard_id:
                 # XXX strictly speaking, we could use sharded bundle for a full
@@ -822,16 +833,16 @@ def filterclonebundleentries(
 
         # gather the set of available shard-id in each group for further
         # filtering outside of this loop
-        if b"SHARD-ID" in entry.attrs:
-            group_id = entry.attrs.get(b"BUNDLE-GROUP-ID")
+        if has_shard_id:
+            group_id = entry.bundlespec_param(BUNDLESPEC_BUNDLE_GROUP_ID)
             if group_id is None:
                 url = entry.attrs.get(b'URL', b'(unknown url)')
                 repo.ui.debug(NO_GRP_MSG % url)
                 continue
             # XXX need proper error handling at some point
-            shard_id = entry.attrs[b"SHARD-ID"]
+            shard_id = entry.bundlespec_param(BUNDLESPEC_SHARD_ID)
             shards_groups[group_id].add(shard_id)
-        elif b"BUNDLE-GROUP-ID" in entry.attrs:
+        elif entry.bundlespec_param(BUNDLESPEC_BUNDLE_GROUP_ID) is not None:
             assert False
         newentries.append(entry)
 
@@ -846,9 +857,9 @@ def filterclonebundleentries(
     # only keeps sharded bundle that can build a valid sets
     final = []
     for entry in newentries:
-        group_id = entry.attrs.get(b"BUNDLE-GROUP-ID")
+        group_id = entry.bundlespec_param(BUNDLESPEC_BUNDLE_GROUP_ID)
         url = entry.attrs.get(b'URL', b'(unknown url)')
-        shard_id = entry.attrs.get(b"SHARD-ID")
+        shard_id = entry.bundlespec_param(BUNDLESPEC_SHARD_ID)
         if group_id is None:
             # not sharded, already filtered above
             final.append(entry)
@@ -916,7 +927,7 @@ def best_clonebundles(ui, entries):
     assert len(entries) > 0
     entries = sortclonebundleentries(ui, entries)
     first = entries[0]
-    group_id = first.attrs.get(b"BUNDLE-GROUP-ID")
+    group_id = first.bundlespec_param(BUNDLESPEC_BUNDLE_GROUP_ID)
     if group_id is None:
         final = entries[:1]
     else:
@@ -926,11 +937,14 @@ def best_clonebundles(ui, entries):
         # But we should only select one bundle for each shard
         seen_shards = set()
         for e in entries:
-            if e.attrs.get(b"BUNDLE-GROUP-ID") == group_id:
-                shard_id = e.attrs[b"SHARD-ID"]
+            if e.bundlespec_param(BUNDLESPEC_BUNDLE_GROUP_ID) == group_id:
+                shard_id = e.bundlespec_param(BUNDLESPEC_SHARD_ID)
                 if shard_id not in seen_shards:
                     seen_shards.add(shard_id)
-                    if b"BUNDLE-GROUP-TOP-LEVEL" in e.attrs:
+                    if (
+                        e.bundlespec_param(BUNDLESPEC_BUNDLE_GROUP_TOP_LEVEL)
+                        is not None
+                    ):
                         # XXX needs proper error handling as some point.
                         assert top_group is None
                         top_group = e

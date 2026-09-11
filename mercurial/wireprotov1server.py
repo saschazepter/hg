@@ -325,7 +325,9 @@ def _filter_storefp_lines(repo: RepoT, lines: list[bytes]) -> list[bytes]:
     modified_manifest = []
     for line in lines:
         parsed = bundlecaches.parse_clonebundle_manifest_line(repo, line)
-        if parsed is not None and parsed.attrs.get(b'STORE-FINGERPRINT'):
+        if parsed is not None and parsed.bundlespec_param(
+            bundlecaches.BUNDLESPEC_STORE_FINGERPRINT
+        ):
             continue
         modified_manifest.append(line)
     return modified_manifest
