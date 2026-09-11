@@ -179,7 +179,6 @@ Passing a matching pattern works
       BUNDLESPEC: none-v2;STREAM=v2;REQUIREMENTS=*;STORE-FINGERPRINT=feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
       COMPRESSION: none
       VERSION: v2
-      STORE-FINGERPRINT: feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726
 
 Non-streaming, non-narrow cloning
 ---------------------------------

@@ -78,20 +78,6 @@ MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = {
     BUNDLESPEC_BUNDLE_GROUP_TOP_LEVEL,
 }
 
-# Bundlespec params copied over to the manifest line parameters for easier
-# filtering. They get uppercased on the way to indicate they are reserved for
-# use by Mercurial, which is different from the uppercase that indicates
-# mandatory bundlespec params.
-#
-# TODO: stop forwarding these params, it's confusing to have uppercase indicate
-# two different things for the same params
-FORWARDED_BUNDLE_SPEC_PARAMS = [
-    BUNDLESPEC_STORE_FINGERPRINT,
-    BUNDLESPEC_SHARD_ID,
-    BUNDLESPEC_BUNDLE_GROUP_ID,
-    BUNDLESPEC_BUNDLE_GROUP_TOP_LEVEL,
-]
-
 
 @attr.s
 class bundlespec:
@@ -225,7 +211,6 @@ KNOWN_BUNDLE_SPEC_PARAMS: set[bytes] = set().union(
     *_bundlespeccontentopts.values(),
     bundle_spec_param_processing,
     MANDATORY_BUNDLE_SPEC_PARAMS,
-    FORWARDED_BUNDLE_SPEC_PARAMS,
     {
         BUNDLESPEC_REQUIREMENTS,
         BUNDLESPEC_SHAPE,
@@ -621,9 +606,6 @@ def parse_clonebundle_manifest_line(repo: RepoT, line: bytes) -> EntryT | None:
                 if raw_dc is not None:
                     attrs[b'DELTA-COMPRESSION'] = raw_dc.split(b',')
                 attrs[b'VERSION'] = bundlespec.version
-                for param in FORWARDED_BUNDLE_SPEC_PARAMS:
-                    if value := bundlespec.params.get(param):
-                        attrs[param.upper()] = value
             except error.InvalidBundleSpecification as e:
                 repo.ui.debug(stringutil.forcebytestr(e) + b'\n')
                 return None

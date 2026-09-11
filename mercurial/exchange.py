@@ -191,7 +191,13 @@ def _inferbundlespec(ui, fh):
                 requirements = urlreq.unquote(part.params[b'requirements'])
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
-                for param in bundlecaches.FORWARDED_BUNDLE_SPEC_PARAMS:
+                # These are spelled the same way in stream2 parts and the bundlespec.
+                for param in [
+                    b"store-fingerprint",
+                    b"shard-id",
+                    b"bundle-group-id",
+                    b"bundle-group-top-level",
+                ]:
                     value = part.params.get(param)
                     if value is not None:
                         params = b"%s;%s=%s" % (params, param, value)
