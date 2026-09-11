@@ -195,7 +195,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,58 +8,58 @@
+  @@ -8,66 +8,58 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -292,6 +292,14 @@ Upgrading to/from delta-info-flags
   +deltas against chain2:    0 ( 0.00%)
    deltas against ancs  :    0 ( 0.00%)
    deltas against other :    0 ( 0.00%)
+  -
+  -revision with p1        : 5000 (99.98%)
+  -revision with p2        :  625 (12.50%)
+  -
+  -revs with quality info  : 5000 (99.98%)
+  -revs with good delta    : 4820 (96.38%)
+  -revs with small p1 delta: 4770 (95.40% of revs with p1)
+  -revs with small p2 delta:   52 ( 8.32% of revs with p2)
   [1]
 #endif
 #else
@@ -417,7 +425,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,58 +8,58 @@
+  @@ -8,58 +8,66 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -514,6 +522,14 @@ Upgrading to/from delta-info-flags
   +deltas against chain2:   37 ( 0.77%)
    deltas against ancs  :    0 ( 0.00%)
    deltas against other :    0 ( 0.00%)
+  +
+  +revision with p1        : 5000 (99.98%)
+  +revision with p2        :  625 (12.50%)
+  +
+  +revs with quality info  : 5000 (99.98%)
+  +revs with good delta    : 4820 (96.38%)
+  +revs with small p1 delta: 4770 (95.40% of revs with p1)
+  +revs with small p2 delta:   52 ( 8.32% of revs with p2)
   [1]
 #endif
 #endif

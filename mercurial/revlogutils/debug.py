@@ -367,7 +367,7 @@ def debug_revlog(ui, revlog):
     format = r._format_version
     v = r._format_flags
     flags = []
-    gdelta = False
+    delta_info = gdelta = False
 
     if v & constants.FLAG_INLINE_DATA:
         flags.append(b'inline')
@@ -382,6 +382,7 @@ def debug_revlog(ui, revlog):
 
     if v & constants.FLAG_DELTA_INFO:
         gdelta = True
+        delta_info = True
         flags.append(b'delta-info')
 
     if not flags:
@@ -424,6 +425,13 @@ def debug_revlog(ui, revlog):
     nump1prev = 0
     nump2prev = 0
 
+    revs_has_quality = 0
+    revs_quality_is_good = 0
+    revs_quality_p1_small = 0
+    revs_quality_p2_small = 0
+    revs_has_p1 = 0
+    revs_has_p2 = 0
+
     # data about delta chain of each revs
     chainlengths = []
     chainbases = []
@@ -447,9 +455,26 @@ def debug_revlog(ui, revlog):
         l[2] += size
 
     with r.reading():
+        idx = r.index
+
         numrevs = len(r)
         for rev in range(numrevs):
             p1, p2 = r.parentrevs(rev)
+
+            if p1 != nodemod.nullrev:
+                revs_has_p1 += 1
+            if p2 != nodemod.nullrev:
+                revs_has_p2 += 1
+            flag = idx.flags(rev)
+            if flag & constants.REVIDX_DELTA_QUALITY:
+                revs_has_quality += 1
+                if flag & constants.REVIDX_DELTA_GOOD:
+                    revs_quality_is_good += 1
+                if flag & constants.REVIDX_DELTA_P1_SMALL:
+                    revs_quality_p1_small += 1
+                if flag & constants.REVIDX_DELTA_P2_SMALL:
+                    revs_quality_p2_small += 1
+
             delta = r.deltaparent(rev)
             if format > 0:
                 s = r.rawsize(rev)
@@ -745,6 +770,25 @@ def debug_revlog(ui, revlog):
                 b'deltas against other : '
                 + fmt % pcfmt(numother_nad, numdeltas)
             )
+
+        if delta_info:
+            ui.write(b'\n')
+            d = fmt % pcfmt(revs_has_p1, numrevs)
+            ui.writenoi18n(b'revision with p1        : ' + d)
+            d = fmt % pcfmt(revs_has_p2, numrevs)
+            ui.writenoi18n(b'revision with p2        : ' + d)
+
+            ui.write(b'\n')
+            d = fmt % pcfmt(revs_has_quality, numrevs)
+            ui.writenoi18n(b'revs with quality info  : ' + d)
+            d = fmt % pcfmt(revs_quality_is_good, numrevs)
+            ui.writenoi18n(b'revs with good delta    : ' + d)
+            d = fmt % pcfmt(revs_quality_p1_small, revs_has_p1)
+            d = d.replace(b")", b" of revs with p1)")
+            ui.writenoi18n(b'revs with small p1 delta: ' + d)
+            d = fmt % pcfmt(revs_quality_p2_small, revs_has_p2)
+            d = d.replace(b")", b" of revs with p2)")
+            ui.writenoi18n(b'revs with small p2 delta: ' + d)
 
 
 def debug_delta_find(ui, revlog, rev, base_rev=nodemod.nullrev):
