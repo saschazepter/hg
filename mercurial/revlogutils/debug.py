@@ -745,7 +745,7 @@ def debug_revlog(ui, revlog):
                 b'    other-ancestor   : ' + fmt2 % pcfmt(numoprev, numprev)
             )
             ui.writenoi18n(
-                b'    unrelated        : ' + fmt2 % pcfmt(numoprev, numprev)
+                b'    unrelated        : ' + fmt2 % pcfmt(numprev_nad, numprev)
             )
         if gdelta:
             ui.writenoi18n(
