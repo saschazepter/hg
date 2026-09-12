@@ -3458,7 +3458,12 @@ def debugrequirements(ui, repo):
 
 @command(
     b'debugrevlog',
-    cmdutil.debugrevlogopts + [(b'd', b'dump', False, _(b'dump index data'))],
+    cmdutil.debugrevlogopts
+    + [
+        (b'd', b'dump', False, _(b'dump index data')),
+        (b'', b'start-rev', '', _(b'start a this revlog rev')),
+        (b'', b'stop-rev', '', _(b'stop before thie revlog rev')),
+    ],
     _(b'-c|-m|FILE'),
     optionalrepo=True,
 )
@@ -3471,7 +3476,17 @@ def debugrevlog(ui, repo, file_=None, **opts):
     if opts.get("dump"):
         revlog_debug.dump(ui, r)
     else:
-        revlog_debug.debug_revlog(ui, r)
+        start_rev = opts.get("start_rev")
+        if start_rev:
+            start_rev = int(start_rev)
+        else:
+            start_rev = None
+        stop_rev = opts.get("stop_rev")
+        if stop_rev:
+            stop_rev = int(stop_rev)
+        else:
+            stop_rev = None
+        revlog_debug.debug_revlog(ui, r, start_rev=start_rev, stop_rev=stop_rev)
     return 0
 
 

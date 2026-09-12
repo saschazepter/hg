@@ -499,7 +499,7 @@ Show all commands + options
   debugrebuildfncache: only-data
   debugrename: rev
   debugrequires: 
-  debugrevlog: changelog, manifest, dir, dump
+  debugrevlog: changelog, manifest, dir, dump, start-rev, stop-rev
   debugrevlogindex: changelog, manifest, dir, format
   debugrevspec: optimize, show-revs, show-set, show-stage, no-optimized, verify-optimized
   debugserve: sshstdio, logiofd, logiofile

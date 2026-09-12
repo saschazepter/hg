@@ -361,7 +361,7 @@ def link_revs(revlog) -> Iterator[tuple[RevnumT, RevnumT, int, list[int]]]:
         )
 
 
-def debug_revlog(ui, revlog):
+def debug_revlog(ui, revlog, start_rev=None, stop_rev=None):
     """code for `hg debugrevlog`"""
     r = revlog
     format = r._format_version
@@ -458,7 +458,35 @@ def debug_revlog(ui, revlog):
         idx = r.index
 
         numrevs = len(r)
+        if start_rev is None:
+            start_rev = 0
+        elif start_rev < 0:
+            msg = b"invalid start-rev: %d < 0" % start_rev
+            raise error.InputError(msg)
+        elif start_rev >= numrevs:
+            msg = b"invalid start-rev: %d >= %d" % (start_rev, numrevs)
+            raise error.InputError(msg)
+        if stop_rev is None:
+            stop_rev = numrevs
+        elif stop_rev <= 0:
+            msg = b"invalid stop-rev: %d <= 0" % stop_rev
+            raise error.InputError(msg)
+        elif stop_rev > numrevs:
+            msg = b"invalid stop-rev: %d > %d" % (stop_rev, numrevs)
+            raise error.InputError(msg)
+
         for rev in range(numrevs):
+            delta = r.deltaparent(rev)
+            if delta == nodemod.nullrev:
+                chainlengths.append(0)
+                chainbases.append(r.start(rev))
+            else:
+                chainlengths.append(chainlengths[delta] + 1)
+                chainbases.append(chainbases[delta])
+
+        # update the expected number of revision
+        numrevs = stop_rev - start_rev
+        for rev in range(start_rev, stop_rev):
             p1, p2 = r.parentrevs(rev)
 
             if p1 != nodemod.nullrev:
@@ -484,8 +512,6 @@ def debug_revlog(ui, revlog):
                 nummerges += 1
             size = r.length(rev)
             if delta == nodemod.nullrev:
-                chainlengths.append(0)
-                chainbases.append(r.start(rev))
                 chainspans.append(size)
                 if size == 0:
                     numempty += 1
@@ -507,10 +533,8 @@ def debug_revlog(ui, revlog):
                     ):
                         p2_chain = True
                     nad = not r.isancestorrev(delta, rev)
-                chainlengths.append(chainlengths[delta] + 1)
                 baseaddr = chainbases[delta]
                 revaddr = r.start(rev)
-                chainbases.append(baseaddr)
                 chainspans.append((revaddr - baseaddr) + size)
                 if size == 0:
                     numempty += 1
@@ -562,6 +586,9 @@ def debug_revlog(ui, revlog):
 
             chunktypecounts[chunktype] += 1
             chunktypesizes[chunktype] += size
+
+    chainlengths = chainlengths[start_rev:stop_rev]
+    chainbases = chainlengths[start_rev:stop_rev]
 
     # Adjust size min value for empty cases
     for size in (datasize, fullsize, semisize, deltasize):
