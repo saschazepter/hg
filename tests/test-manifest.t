@@ -1,3 +1,10 @@
+======================
+Test manifest handling
+======================
+
+Setup
+=====
+
   $ cat >> $HGRCPATH <<EOF
   > [devel]
   > manifest.fast-delta.paranoid=yes
@@ -27,6 +34,9 @@ Source bundle was generated with the following script:
   new changesets b73562a03cfe:5bdc995175ba (2 drafts)
   (run 'hg update' to get a working copy)
 
+Reading the manifest without a working copy
+-------------------------------------------
+
 The next call is expected to return nothing:
 
   $ hg manifest
@@ -34,10 +44,16 @@ The next call is expected to return nothing:
   $ hg co
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
+Reading the manifest of the working copy parent
+-----------------------------------------------
+
   $ hg manifest
   a
   b/a
   l
+
+Listing files
+-------------
 
   $ hg files -vr .
            2   a
@@ -55,6 +71,9 @@ The next call is expected to return nothing:
   b/a 5bdc
   l 5bdc
 
+Manifest output formats
+-----------------------
+
   $ hg manifest -v
   644   a
   755 * b/a
@@ -68,6 +87,9 @@ The next call is expected to return nothing:
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 644   a
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
+
+Selecting the revision to read
+------------------------------
 
   $ hg manifest -r 0
   a
@@ -272,8 +294,8 @@ A mix of adds and removes should remove all dropped entries.
   $ hg verify -q
   $ cd ..
 
-Test manifest cache interraction with shares
-============================================
+Test manifest cache interaction with shares
+===========================================
 
   $ echo '[extensions]' >> $HGRCPATH
   $ echo 'share=' >> $HGRCPATH
@@ -415,6 +437,8 @@ Test rust manifest
   > EOF
 
 Read manifest
+-------------
+
   $ hg manifest --debug --config rust.exp-manifest=False
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 644   a
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
@@ -424,7 +448,11 @@ Read manifest
   b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 755 * b/a
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
+Change a manifest line
+----------------------
+
 Change a file node
+
   $ echo change >> a
   $ hg ci -m "change a"
   $ hg manifest --debug
@@ -435,6 +463,7 @@ Change a file node
 #if execbit
 
 Change a flag (executable)
+
   $ chmod +x a
   $ hg ci -m "make a executable"
   $ hg manifest --debug
@@ -447,6 +476,7 @@ Change a flag (executable)
 #if symlink
 
 Change a flag (symlink)
+
   $ rm a
   $ ln -s target a
   $ hg ci -m "make a symlink"
@@ -458,6 +488,8 @@ Change a flag (symlink)
 #endif
 
 Remove a manifest line
+----------------------
+
   $ rm a
   $ hg rm a
   $ hg ci -m "remove a"
@@ -466,6 +498,8 @@ Remove a manifest line
   047b75c6d7a3ef6a2243bd0e99f94f6ea6683597 644 @ l
 
 Add a manifest line
+-------------------
+
   $ touch newfile
   $ hg add newfile
   $ hg ci -m "add newfile"
@@ -475,6 +509,8 @@ Add a manifest line
   b80de5d138758541c5f05265ad144ab9fa86d1db 644   newfile
 
 Change a manifest line
+----------------------
+
   $ echo change > newfile
   $ hg ci -m "change newfile"
   $ hg manifest --debug
