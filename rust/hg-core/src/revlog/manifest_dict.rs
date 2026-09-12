@@ -796,6 +796,7 @@ mod tests {
         }
     }
 
+    /// Test querying an empty manifest.
     #[test]
     fn test_empty() {
         let manifest = new(b"");
@@ -812,6 +813,7 @@ mod tests {
         assert_eq!(collect(&manifest).unwrap(), &[]);
     }
 
+    /// Test querying a manifest with one entry.
     #[test]
     fn test_one() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
@@ -837,6 +839,7 @@ mod tests {
         assert_eq!(collect(&manifest).unwrap(), &[entry]);
     }
 
+    /// Test querying a manifest with two entries.
     #[test]
     fn test_two() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
@@ -871,6 +874,7 @@ mod tests {
         assert_eq!(collect(&manifest).unwrap(), &[entry_1, entry_2]);
     }
 
+    /// Test parsing invalid manifests.
     #[test]
     fn test_invalid() {
         let text = b"\n";
@@ -901,6 +905,7 @@ mod tests {
         assert_eq!(manifest.err(), Some(ManifestError::NotSorted));
     }
 
+    /// Test parsing a manifest with an unsupported node length.
     #[test]
     fn test_unsupported_node_length() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
@@ -911,6 +916,7 @@ mod tests {
         );
     }
 
+    /// Test removing a path from an empty manifest.
     #[test]
     fn test_remove_empty() {
         let mut manifest = new(b"");
@@ -919,6 +925,7 @@ mod tests {
         assert_eq!(collect(&manifest).unwrap(), &[]);
     }
 
+    /// Test removing a path from a manifest with one entry.
     #[test]
     fn test_remove_one() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
@@ -933,6 +940,7 @@ mod tests {
         assert!(!manifest.remove(path(b"file.txt")));
     }
 
+    /// Test removing a path from a manifest with two entries.
     #[test]
     fn test_remove_two() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
@@ -961,6 +969,7 @@ mod tests {
         assert!(manifest.is_empty());
     }
 
+    /// Test setting a path in an empty manifest.
     #[test]
     fn test_set_empty() {
         let mut manifest = new(b"");
@@ -980,6 +989,7 @@ mod tests {
         assert_eq!(manifest.get(entry.path).unwrap(), Some(entry));
     }
 
+    /// Test setting a path in a manifest with one entry.
     #[test]
     fn test_set_one() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
@@ -1007,6 +1017,7 @@ mod tests {
         assert_eq!(manifest.get(entry_2.path).unwrap(), Some(entry_2));
     }
 
+    /// Test setting a path that overwrites an existing manifest entry.
     #[test]
     fn test_set_overwrite() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
@@ -1024,6 +1035,7 @@ mod tests {
         assert_eq!(manifest.get(entry.path).unwrap(), Some(entry));
     }
 
+    /// Test setting a path and then removing it.
     #[test]
     fn test_set_remove() {
         let mut manifest = new(b"");
@@ -1043,6 +1055,7 @@ mod tests {
         assert_eq!(manifest.get(entry.path).unwrap(), None);
     }
 
+    /// Test removing a path and then setting it again.
     #[test]
     fn test_remove_set() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
@@ -1063,6 +1076,7 @@ mod tests {
         assert_eq!(manifest.get(entry.path).unwrap(), Some(entry));
     }
 
+    /// Test basic cases of compacting the manifest text.
     #[test]
     fn test_compact() {
         let text = b"file.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n";
@@ -1118,6 +1132,8 @@ mod tests {
         assert_eq!(collect(&manifest).unwrap(), &[entry_2]);
     }
 
+    /// Test compacting a manifest when it starts out empty, after adding
+    /// entries, and again after removing the entries.
     #[test]
     fn test_compact_from_empty() {
         let mut manifest = new(b"");
@@ -1153,6 +1169,7 @@ mod tests {
         assert_eq!(collect(&manifest).unwrap(), &[]);
     }
 
+    /// Test various edge cases of compacting.
     #[test]
     fn test_compact_edge_cases() {
         let text = b"a.txt\x001cba44d2ee7e7f148329f51923e71a319168e2e5\n\
@@ -1196,6 +1213,7 @@ mod tests {
         );
     }
 
+    /// Test compacting when there are runs of consecutive updates and removals.
     #[test]
     fn test_compact_runs_of_lines() {
         let mut manifest = TestManifest::new(100);
@@ -1214,6 +1232,7 @@ mod tests {
         manifest.check();
     }
 
+    /// Test compacting when there are runs of consecutive inserts.
     #[test]
     fn test_compact_consecutive_inserts() {
         let mut manifest = TestManifest::new(20);
@@ -1240,6 +1259,7 @@ mod tests {
         manifest.check();
     }
 
+    /// Test compacting after removing every path in the manifest.
     #[test]
     fn test_compact_remove_all() {
         let mut manifest = TestManifest::new(50);
@@ -1249,6 +1269,7 @@ mod tests {
         manifest.check();
     }
 
+    /// Test compacting repeatedly after multiple rounds of changes.
     #[test]
     fn test_compact_repeatedly() {
         let mut manifest = TestManifest::new(50);
@@ -1270,6 +1291,8 @@ mod tests {
         }
     }
 
+    /// Test that paths in the manifest are kept in the correct order,
+    /// especially when there is a mix of on-disk and in-memory entries.
     #[test]
     fn test_path_ordering() {
         let names: [&[u8]; 6] =
@@ -1297,6 +1320,7 @@ mod tests {
         manifest.check();
     }
 
+    /// Test that manifests with long paths work.
     #[test]
     fn test_long_paths() {
         let lengths = [1usize, 2, 200, 1000, 5000];
@@ -1313,6 +1337,7 @@ mod tests {
         manifest.check();
     }
 
+    /// Test consistency with the model after performing random operations.
     #[test]
     fn test_random_operations() {
         let pool = path_pool();
