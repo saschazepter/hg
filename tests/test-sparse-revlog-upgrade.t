@@ -195,7 +195,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,66 +8,58 @@
+  @@ -8,69 +8,58 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -219,6 +219,9 @@ Upgrading to/from delta-info-flags
   -      lvl-5   :          35903 ( 0.14%)
   -      lvl-6   :           8584 ( 0.03%)
   -    deltas    : 19554320 (78.87%)
+  -      good    : 19554320 (78.87%)
+  -      other   :        0 ( 0.00%)
+  -      unknown :        0 ( 0.00%)
   +      lvl-1   :             26 ( 0.52%)  non-ancestor-bases:       10 (38.46%)
   +      lvl-2   :             63 ( 1.26%)  non-ancestor-bases:       55 (87.30%)
   +      lvl-3   :            108 ( 2.16%)  non-ancestor-bases:       99 (91.67%)
@@ -425,7 +428,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,58 +8,66 @@
+  @@ -8,58 +8,69 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -466,6 +469,9 @@ Upgrading to/from delta-info-flags
   +      lvl-5   :          35903 ( 0.14%)
   +      lvl-6   :           8584 ( 0.03%)
   +    deltas    : 19554320 (78.87%)
+  +      good    : 19554320 (78.87%)
+  +      other   :        0 ( 0.00%)
+  +      unknown :        0 ( 0.00%)
    
    chunks        :     5001
        0x78 (x)  :     5001 (100.00%)

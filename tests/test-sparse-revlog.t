@@ -296,6 +296,9 @@ sanity check the change pattern
         lvl-5   :          35903 ( 0.14%)
         lvl-6   :           8584 ( 0.03%)
       deltas    : 19554320 (78.87%)
+        good    : 19554320 (78.87%)
+        other   :        0 ( 0.00%)
+        unknown :        0 ( 0.00%)
   
   chunks        :     5001
       0x78 (x)  :     5001 (100.00%)

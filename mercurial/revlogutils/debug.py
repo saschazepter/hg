@@ -443,7 +443,14 @@ def debug_revlog(ui, revlog, start_rev=None, stop_rev=None):
     semisize = [None, 0, 0]
     # snapshot count per depth
     snapsizedepth = collections.defaultdict(lambda: [None, 0, 0])
-    deltasize = [None, 0, 0]
+    deltasize = [
+        None,  # min deltas' size
+        0,  # max deltas' size
+        0,  # deltas' size
+        0,  # good deltas' size
+        0,  # not-good deltas' size
+        0,  # unknown deltas' size
+    ]
     chunktypecounts = {}
     chunktypesizes = {}
 
@@ -494,9 +501,11 @@ def debug_revlog(ui, revlog, start_rev=None, stop_rev=None):
             if p2 != nodemod.nullrev:
                 revs_has_p2 += 1
             flag = idx.flags(rev)
+            is_good = None
             if flag & constants.REVIDX_DELTA_QUALITY:
                 revs_has_quality += 1
-                if flag & constants.REVIDX_DELTA_GOOD:
+                is_good = flag & constants.REVIDX_DELTA_GOOD
+                if is_good:
                     revs_quality_is_good += 1
                 if flag & constants.REVIDX_DELTA_P1_SMALL:
                     revs_quality_p1_small += 1
@@ -549,6 +558,12 @@ def debug_revlog(ui, revlog, start_rev=None, stop_rev=None):
                     addsize(size, snapsizedepth[depth])
                 else:
                     addsize(size, deltasize)
+                    if is_good is None:
+                        deltasize[5] += size
+                    elif is_good:
+                        deltasize[3] += size
+                    else:
+                        deltasize[4] += size
                     if delta == rev - 1:
                         numprev += 1
                         if delta == p1:
@@ -688,6 +703,16 @@ def debug_revlog(ui, revlog, start_rev=None, stop_rev=None):
             + fmt % pcfmt(snaptotal[depth], totalsize)
         )
     ui.writenoi18n(b'    deltas    : ' + fmt % pcfmt(deltatotal, totalsize))
+    if delta_info:
+        ui.writenoi18n(
+            b'      good    : ' + fmt % pcfmt(deltasize[3], totalsize)
+        )
+        ui.writenoi18n(
+            b'      other   : ' + fmt % pcfmt(deltasize[4], totalsize)
+        )
+        ui.writenoi18n(
+            b'      unknown : ' + fmt % pcfmt(deltasize[5], totalsize)
+        )
 
     letters = string.ascii_letters.encode('ascii')
 
@@ -751,7 +776,7 @@ def debug_revlog(ui, revlog, start_rev=None, stop_rev=None):
         )
     ui.writenoi18n(
         b'delta size (min/max/avg)             : %d / %d / %d\n'
-        % tuple(deltasize)
+        % tuple(deltasize[:3])
     )
 
     if numdeltas > 0:
