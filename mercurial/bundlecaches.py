@@ -66,7 +66,7 @@ MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = {
 #
 # TODO: stop forwarding these params, it's confusing to have uppercase indicate
 # two different things for the same params
-FORWARDED_SPEC_PARAMS = [
+FORWARDED_BUNDLE_SPEC_PARAMS = [
     b"store-fingerprint",
     b"shard-id",
     b"bundle-group-id",
@@ -206,7 +206,7 @@ KNOWN_BUNDLE_SPEC_PARAMS: set[bytes] = set().union(
     *_bundlespeccontentopts.values(),
     bundle_spec_param_processing,
     MANDATORY_BUNDLE_SPEC_PARAMS,
-    FORWARDED_SPEC_PARAMS,
+    FORWARDED_BUNDLE_SPEC_PARAMS,
     {b"requirements"},
 )
 
@@ -555,7 +555,7 @@ def parse_clonebundle_manifest_line(
                 if raw_dc is not None:
                     attrs[b'DELTA-COMPRESSION'] = raw_dc.split(b',')
                 attrs[b'VERSION'] = bundlespec.version
-                for param in FORWARDED_SPEC_PARAMS:
+                for param in FORWARDED_BUNDLE_SPEC_PARAMS:
                     if value := bundlespec.params.get(param):
                         attrs[param.upper()] = value
             except error.InvalidBundleSpecification:

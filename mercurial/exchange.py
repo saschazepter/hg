@@ -189,7 +189,7 @@ def _inferbundlespec(ui, fh):
                 requirements = urlreq.unquote(part.params[b'requirements'])
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
-                for param in bundlecaches.FORWARDED_SPEC_PARAMS:
+                for param in bundlecaches.FORWARDED_BUNDLE_SPEC_PARAMS:
                     value = part.params.get(param)
                     if value is not None:
                         params = b"%s;%s=%s" % (params, param, value)
