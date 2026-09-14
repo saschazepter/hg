@@ -87,7 +87,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,56 +8,59 @@
+  @@ -8,69 +8,61 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -111,6 +111,9 @@ Upgrading to/from delta-info-flags
   -      lvl-5   :          53181 ( 0.22%)
   -      lvl-6   :           5660 ( 0.02%)
   -    deltas    : 18427461 (77.85%)
+  -      good    : 18427461 (77.85%)
+  -      other   :        0 ( 0.00%)
+  -      unknown :        0 ( 0.00%)
   +      lvl-1   :             26 ( 0.52%)  non-ancestor-bases:       10 (38.46%)
   +      lvl-2   :             76 ( 1.52%)  non-ancestor-bases:       69 (90.79%)
   +      lvl-3   :            114 ( 2.28%)  non-ancestor-bases:      111 (97.37%)
@@ -178,11 +181,22 @@ Upgrading to/from delta-info-flags
        unrelated        :    0     ( 0.00%)
   -deltas against p1    :  655 (13.61%)
   -deltas against p2    :   11 ( 0.23%)
+  -deltas against chain1: 2142 (44.51%)
+  -deltas against chain2:   36 ( 0.75%)
   +deltas against p1    :  644 (14.05%)
   +deltas against p2    :   70 ( 1.53%)
+  +deltas against chain1:    0 ( 0.00%)
+  +deltas against chain2:    0 ( 0.00%)
    deltas against ancs  :    0 ( 0.00%)
-  -deltas against other : 2178 (45.26%)
-  +deltas against other :    0 ( 0.00%)
+   deltas against other :    0 ( 0.00%)
+  -
+  -revision with p1        : 5000 (99.98%)
+  -revision with p2        :  625 (12.50%)
+  -
+  -revs with quality info  : 5000 (99.98%)
+  -revs with good delta    : 4812 (96.22%)
+  -revs with small p1 delta: 4765 (95.30% of revs with p1)
+  -revs with small p2 delta:   49 ( 7.84% of revs with p2)
   [1]
 #else
   $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
@@ -320,7 +334,7 @@ Upgrading to/from delta-info-flags
    
    revisions     :     5001
        merges    :      625 (12.50%)
-  @@ -8,59 +8,56 @@
+  @@ -8,61 +8,69 @@
        empty     :        0 ( 0.00%)
                       text  :        0 (100.00%)
                       delta :        0 (100.00%)
@@ -363,6 +377,9 @@ Upgrading to/from delta-info-flags
   +      lvl-5   :          53181 ( 0.22%)
   +      lvl-6   :           5660 ( 0.02%)
   +    deltas    : 18427461 (77.85%)
+  +      good    : 18427461 (77.85%)
+  +      other   :        0 ( 0.00%)
+  +      unknown :        0 ( 0.00%)
    
    chunks        :     5001
        0x78 (x)  :     5001 (100.00%)
@@ -411,11 +428,22 @@ Upgrading to/from delta-info-flags
        unrelated        :    0     ( 0.00%)
   -deltas against p1    :  644 (14.05%)
   -deltas against p2    :   70 ( 1.53%)
+  -deltas against chain1:    0 ( 0.00%)
+  -deltas against chain2:    0 ( 0.00%)
   +deltas against p1    :  655 (13.61%)
   +deltas against p2    :   11 ( 0.23%)
+  +deltas against chain1: 2142 (44.51%)
+  +deltas against chain2:   36 ( 0.75%)
    deltas against ancs  :    0 ( 0.00%)
-  -deltas against other :    0 ( 0.00%)
-  +deltas against other : 2178 (45.26%)
+   deltas against other :    0 ( 0.00%)
+  +
+  +revision with p1        : 5000 (99.98%)
+  +revision with p2        :  625 (12.50%)
+  +
+  +revs with quality info  : 5000 (99.98%)
+  +revs with good delta    : 4812 (96.22%)
+  +revs with small p1 delta: 4765 (95.30% of revs with p1)
+  +revs with small p2 delta:   49 ( 7.84% of revs with p2)
   [1]
 #else
   $ cmp ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt | diff -u ../revlog-stats-pre-upgrade.txt ../revlog-stats-post-upgrade.txt
