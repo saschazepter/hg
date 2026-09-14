@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import collections
+import functools
 import re
 import typing
 
@@ -845,22 +846,17 @@ def filterclonebundleentries(
     return final
 
 
-class clonebundleentry:
-    """Represents an item in a clone bundles manifest.
-
-    This rich class is needed to support sorting since sorted() in Python 3
-    doesn't support ``cmp`` and our comparison is complex enough that ``key=``
-    won't work.
-    """
-
-    def __init__(self, value, prefers):
-        self.value = value
-        self.prefers = prefers
-
-    def _cmp(self, other):
-        for prefkey, prefvalue in self.prefers:
-            avalue = self.value.get(prefkey)
-            bvalue = other.value.get(prefkey)
+def _cmp_entries_by_prefers(
+    prefers: list[list[bytes]],
+    a: EntryT,
+    b: EntryT,
+) -> int:
+    """Order two manifest entries against the ``ui.clonebundleprefers`` items."""
+    # TODO remove `if True` in child commit
+    if True:
+        for prefkey, prefvalue in prefers:
+            avalue = a.get(prefkey)
+            bvalue = b.get(prefkey)
 
             # Special case for b missing attribute and a matches exactly.
             if avalue is not None and bvalue is None and avalue == prefvalue:
@@ -890,24 +886,6 @@ class clonebundleentry:
         # If we got here we couldn't sort by attributes and prefers. Fall
         # back to index order.
         return 0
-
-    def __lt__(self, other):
-        return self._cmp(other) < 0
-
-    def __gt__(self, other):
-        return self._cmp(other) > 0
-
-    def __eq__(self, other):
-        return self._cmp(other) == 0
-
-    def __le__(self, other):
-        return self._cmp(other) <= 0
-
-    def __ge__(self, other):
-        return self._cmp(other) >= 0
-
-    def __ne__(self, other):
-        return self._cmp(other) != 0
 
 
 def best_clonebundles(ui, entries):
@@ -962,5 +940,5 @@ def sortclonebundleentries(ui, entries):
 
     prefers = [_split(p) for p in prefers]
 
-    items = sorted(clonebundleentry(v, prefers) for v in entries)
-    return [i.value for i in items]
+    compare = functools.partial(_cmp_entries_by_prefers, prefers)
+    return sorted(entries, key=functools.cmp_to_key(compare))
