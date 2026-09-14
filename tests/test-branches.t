@@ -2467,3 +2467,47 @@ explicit cache upgrade from scratch should detect the pure topo mode
   0bc7d348d965a85078ec0cc80847c6992e024e36 o B
   2be6fe61602ec536c615c76a452172c23dae3e0c o C
 #endif
+
+heads reported by a branchmap kept in memory across transactions
+-----------------------------------------------------------------
+
+A process holding the lock across several transactions keeps using the same
+in-memory branchmap. The heads it reports must follow the new commits.
+
+`hg rebase` with `rebase.singletransaction=no` creates each commit in its own
+transaction under a single lock. The hook below asks the branchmap whether the
+tip is a head, as the `check:updated-heads` bundle2 part does.
+
+  $ cd $TESTTMP
+  $ cat > check_heads.py << EOF
+  > def check(ui, repo, txnname, **kwargs):
+  >     bm = repo.branchmap()
+  >     tip = repo[b"tip"]
+  >     is_head = bm.all_nodes_are_heads([tip.node()])
+  >     ui.write(b"%s: tip %s is head: %r\n" % (txnname, tip, is_head))
+  > EOF
+
+  $ hg init stale-heads
+  $ cd stale-heads
+  $ echo a > a
+  $ hg ci -Aqm A
+  $ echo b > b
+  $ hg ci -Aqm B
+  $ echo c > c
+  $ hg ci -Aqm C
+  $ hg up -q 'desc(A)'
+  $ echo x > x
+  $ hg ci -Aqm X
+  $ hg rebase -q -s 'desc(B)' -d 'desc(X)' \
+  >   --config extensions.rebase= \
+  >   --config rebase.singletransaction=no \
+  >   --config hooks.pretxnopen=python:$TESTTMP/check_heads.py:check
+  rebase: tip 63663635fd8c is head: True
+  rebase: tip 04fa4428862a is head: True (v2 !)
+  rebase: tip 04fa4428862a is head: False (v3 known-bad-output !)
+  rebase: tip 04fa4428862a is head: True (v3 missing-correct-output !)
+  cleanup: tip 05bc473805bf is head: True
+  strip: tip 05bc473805bf is head: True
+  repair: tip 05bc473805bf is head: True (v2 !)
+  repair: tip 05bc473805bf is head: False (v3 known-bad-output !)
+  repair: tip 05bc473805bf is head: True (v3 missing-correct-output !)
