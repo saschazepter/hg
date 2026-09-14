@@ -1671,6 +1671,8 @@ class BranchCacheV3(_LocalBranchCache):
             if may_fast_path and touched.issubset(self._topo_only_branches):
                 self._needs_populate_topo_only = True
                 self._topo_seed = None
+                if '_all_head_nodes' in vars(self):
+                    del self._all_head_nodes
                 for branch in self._topo_only_branches:
                     self._entries.pop(branch, None)
                     self._open_entries.pop(branch, None)

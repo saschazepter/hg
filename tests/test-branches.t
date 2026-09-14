@@ -2503,11 +2503,7 @@ tip is a head, as the `check:updated-heads` bundle2 part does.
   >   --config rebase.singletransaction=no \
   >   --config hooks.pretxnopen=python:$TESTTMP/check_heads.py:check
   rebase: tip 63663635fd8c is head: True
-  rebase: tip 04fa4428862a is head: True (v2 !)
-  rebase: tip 04fa4428862a is head: False (v3 known-bad-output !)
-  rebase: tip 04fa4428862a is head: True (v3 missing-correct-output !)
+  rebase: tip 04fa4428862a is head: True
   cleanup: tip 05bc473805bf is head: True
   strip: tip 05bc473805bf is head: True
-  repair: tip 05bc473805bf is head: True (v2 !)
-  repair: tip 05bc473805bf is head: False (v3 known-bad-output !)
-  repair: tip 05bc473805bf is head: True (v3 missing-correct-output !)
+  repair: tip 05bc473805bf is head: True
