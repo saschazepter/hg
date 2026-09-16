@@ -723,7 +723,7 @@ def has_tls1_0():
         return False
 
     # If openssl reports no ciphers, the protocol version is blocked by security policies
-    return not matchoutput("openssl ciphers -s -tls1", b"")
+    return matchoutput("openssl ciphers -s -tls1", br"\S")
 
 
 @check("tls1.1", "TLS 1.1 protocol support")
@@ -735,7 +735,7 @@ def has_tls1_1():
         return False
 
     # If openssl reports no ciphers, the protocol version is blocked by security policies
-    return not matchoutput("openssl ciphers -s -tls1_1", b"")
+    return matchoutput("openssl ciphers -s -tls1_1", br"\S")
 
 
 @check("tls1.2", "TLS 1.2 protocol support")
