@@ -2290,7 +2290,7 @@ class revlog:
             )
 
         if node is None:
-            node = self.hash(rawtext, p1, p2)
+            node = self.hash(rawtext, p1, p2, fast=self._new_hash_fast)
         rev = self.index.get_rev(node)
         if rev is not None:
             if self.configs.feature.link_revs:
