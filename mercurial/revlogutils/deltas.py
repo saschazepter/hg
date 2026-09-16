@@ -2329,9 +2329,13 @@ class deltacomputer:
                 if gather_debug:
                     snapshotdepth = 0
             elif base not in excluded_bases:
-                self.decompress_cached(cachedelta)
-                delta = revinfo.cachedelta.u_delta
-                header, data = revlog.compress(delta)
+                as_stored = self._cached_delta_as_stored(cachedelta)
+                if as_stored is not None:
+                    header, data, delta = as_stored
+                else:
+                    self.decompress_cached(cachedelta)
+                    delta = revinfo.cachedelta.u_delta
+                    header, data = revlog.compress(delta)
                 deltalen = len(header) + len(data)
                 dbg_type = b"delta"
                 if gather_debug:
