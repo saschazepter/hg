@@ -121,9 +121,9 @@ def resolve_store_vfs_options(ui, requirements, features):
             b'devel', b'fileindex.garbage-timestamp'
         )
 
-        options[b'fast-sha1-for-new-manifest'] = ui.configbool(
-            b'experimental', b'fast-sha1-for-new-manifest'
-        )
+    options[b'fast-sha1-for-new-manifest'] = ui.configbool(
+        b'experimental', b'fast-sha1-for-new-manifest'
+    )
 
     return options
 
