@@ -83,13 +83,8 @@ def parse_config_opts(ui, config):
 
     for cfg in config:
         try:
-            name, value = (cfgelem.strip() for cfgelem in cfg.split(b'=', 1))
-            section, name = name.split(b'.', 1)
-            if not section or not name:
-                raise IndexError
-            ui.setconfig(section, name, value, b'--config')
-            configs.append((section, name, value))
-        except (IndexError, ValueError):
+            section, name, value = configmod.parse_single_arg(cfg)
+        except ValueError:
             raise error.InputError(
                 _(
                     b'malformed --config option: %r '
@@ -97,5 +92,7 @@ def parse_config_opts(ui, config):
                 )
                 % pycompat.bytestr(cfg)
             )
+        ui.setconfig(section, name, value, b'--config')
+        configs.append((section, name, value))
 
     return configs

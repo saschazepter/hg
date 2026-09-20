@@ -325,3 +325,48 @@ class config:
         self.parse(
             path, fp.read(), sections=sections, remap=remap, include=include
         )
+
+
+def parse_single_arg(spec: bytes) -> tuple[bytes, bytes, bytes]:
+    """parse a ``section.name=value`` specification into a triplet
+
+    Whitespaces around the ``section.name`` part and around the value are
+    stripped.
+
+    A ``ValueError`` is raised for malformed specifications.
+
+    >>> parse_single_arg(b'ui.username=Babar')
+    (b'ui', b'username', b'Babar')
+    >>> parse_single_arg(b' ui.username = Babar the king ')
+    (b'ui', b'username', b'Babar the king')
+
+    The name part may contain dots and the value may be empty:
+
+    >>> parse_single_arg(b'alias.log.short=')
+    (b'alias', b'log.short', b'')
+
+    Malformed specifications are rejected:
+
+    >>> parse_single_arg(b'ui.username')
+    Traceback (most recent call last):
+        ...
+    ValueError: malformed config specification: b'ui.username'
+    >>> parse_single_arg(b'username=Babar')
+    Traceback (most recent call last):
+        ...
+    ValueError: malformed config specification: b'username=Babar'
+    >>> parse_single_arg(b'.username=Babar')
+    Traceback (most recent call last):
+        ...
+    ValueError: malformed config specification: b'.username=Babar'
+    """
+    if b"=" not in spec:
+        raise ValueError('malformed config specification: %r' % spec)
+    key, value = spec.split(b'=', 1)
+    key = key.strip()
+    if b'.' not in key:
+        raise ValueError('malformed config specification: %r' % spec)
+    section, name = key.split(b'.', 1)
+    if not section or not name:
+        raise ValueError('malformed config specification: %r' % spec)
+    return (section, name, value.strip())
