@@ -682,6 +682,33 @@ The CHGCGROUP and CHGNAMESPACES variables do not leak into the child process.
   $ CHGNAMESPACES=ns1 chg --config 'alias.echo=!echo ${CHGNAMESPACES-absent}' echo 2>/dev/null
   absent
 
+worker process title
+--------------------
+
+Test the process title that the client asks the worker to set.
+
+#if setprocname
+
+  $ cp $HGRCPATH.unconfigured $HGRCPATH
+  $ cat >> $HGRCPATH <<'EOF'
+  > [cmdserver]
+  > log = $TESTTMP/log/procname.log
+  > EOF
+
+  $ hg init procname
+  $ cd procname
+  $ chg --kill-chg-daemon
+  $ chg log -r null -T 'rev: {rev}\n'
+  rev: -1
+  $ $RUNTESTDIR/testlib/wait-on-file 10 $TESTTMP/log/procname.log
+  $ grep -o "setprocname: .*" $TESTTMP/log/procname.log | tail -1 |
+  >   sed -e 's/[0-9][0-9]*/PID/'
+  setprocname: b'chg[worker/PID]'
+
+  $ cd ..
+
+#endif
+
 umask
 -----
 
