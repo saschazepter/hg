@@ -429,7 +429,7 @@ Show all commands + options
   cat: output, rev, decode, include, exclude, template
   clone: noupdate, updaterev, rev, branch, pull, uncompressed, stream, ssh, remotecmd, remote-cmd, insecure
   commit: addremove, close-branch, amend, secret, draft, edit, force-close-branch, interactive, include, exclude, message, logfile, date, user, subrepos, template
-  config: untrusted, exp-all-known, edit, local, source, shared, non-shared, global, template
+  config: untrusted, exp-all-known, set, edit, local, source, shared, non-shared, global, template
   continue: dry-run
   copy: forget, after, at-rev, force, include, exclude, dry-run
   debug-delta-find: changelog, manifest, dir, template, source

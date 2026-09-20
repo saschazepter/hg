@@ -4,29 +4,40 @@ from __future__ import annotations
 
 import os
 
-from typing import Any, Collection
+from typing import Any, Collection, TYPE_CHECKING
 
 from ..i18n import _
+from ..interfaces.types import (
+    RepoT,
+    VfsT,
+)
 
 from .. import (
     cmdutil,
+    config as configmod,
     error,
     formatter,
+    lock as lockmod,
     pycompat,
     requirements,
     ui as uimod,
     util,
+    vfs as vfsmod,
 )
 
 from . import (
     ConfigLevelT,
     EDIT_LEVELS,
     LEVEL_SHARED,
+    LEVEL_USER,
     NO_REPO_EDIT_LEVELS,
     rcutil,
 )
 
 EDIT_FLAG = 'edit'
+
+if TYPE_CHECKING:
+    ConfigSpecT = tuple[bytes, bytes, bytes]
 
 
 def find_edit_level(
@@ -67,6 +78,124 @@ def _files_by_level(repo) -> dict[ConfigLevelT, list[bytes]]:
         assert isinstance(value, bytes)
         rc_by_level.setdefault(lvl, []).append(value)
     return rc_by_level
+
+
+# machine writes go to "<hgrc><-suffix>[.<ext>]"
+MANAGED_SUFFIX = b'-managed'
+
+# edits are covered by a lock file in the same dir as the file we edit.
+CONFIG_LOCK_NAME = b'config.lock'
+
+_MANAGED_HEADER = (
+    b"# This file is managed by Mercurial, do not edit it by hand.\n"
+    b"# Use `hg config --set` to change the values it holds.\n"
+)
+
+
+def parse_config_args(values: Collection[bytes]) -> Collection[ConfigSpecT]:
+    configs = []
+    for value_spec in values:
+        try:
+            configs.append(configmod.parse_single_arg(value_spec))
+        except ValueError:
+            msg = _(b'malformed --set option: \'%s\'')
+            hint = _(b'use --set section.name=value')
+            raise error.InputError(msg % value_spec, hint=hint)
+    return configs
+
+
+def _target_by_level(
+    repo: RepoT,
+    level: ConfigLevelT,
+) -> tuple[VfsT, bytes, bytes,]:
+    """return the vfs, and base file name and the managed file name
+
+    create the associated directory if needed
+    """
+    rc_by_level = _files_by_level(repo)
+    level_files = rc_by_level.get(level)
+    if not level_files:
+        # every platform is expected to provide a user-level config file
+        # location, so this is mostly a safety net
+        msg = _(
+            b'no "%s" configuration file location known'
+            % pycompat.bytestr(level)
+        )
+        raise error.Abort(msg)
+
+    base_file = level_files[0]
+    directory = os.path.dirname(base_file)
+    assert directory
+    if not os.path.isdir(directory):
+        util.makedirs(directory)
+    base_file = os.path.basename(base_file)
+    core, ext = os.path.splitext(base_file)
+    managed = core + MANAGED_SUFFIX + ext
+    return (
+        vfsmod.vfs(directory),
+        base_file,
+        managed,
+    )
+
+
+def set_config(ui: uimod.ui, repo, values: Collection[ConfigSpecT]) -> int:
+    """persist ``section.key=value`` to the managed configuration
+
+    Values are stored in a machine-managed companion file so the file the user
+    edits by hand is never rewritten, and its content always wins.
+    """
+
+    timeout = ui.configint(b'ui', b'timeout')
+    warntimeout = ui.configint(b'ui', b'timeout.warn')
+    vfs, base_file, managed_file = _target_by_level(repo, LEVEL_USER)
+    # grab some lock so concurrent `--set` don't clobber each other's writes.
+    with lockmod.trylock(
+        ui,
+        vfs,
+        CONFIG_LOCK_NAME,
+        timeout,
+        warntimeout,
+        desc=_(b'config update for %s') % base_file,
+    ):
+        # write the new values in the machine-managed file…
+        cfg = configmod.config()
+        managed_content = vfs.tryread(managed_file)
+        if managed_content:
+            cfg.parse(b'<managed>', managed_content)
+        for section, key, value in values:
+            cfg.set(section, key, value)
+        managed_content = _MANAGED_HEADER + cfg.serialize()
+        vfs.write(managed_file, managed_content, atomictemp=True)
+
+        # … and make sure the base file pulls it in.
+        base_content = vfs.tryread(base_file)
+        new_content = _inject_managed_include(base_content, managed_file)
+        if new_content != base_content:
+            vfs.write(base_file, new_content, atomictemp=True)
+    return 0
+
+
+def _inject_managed_include(base_content: bytes, target: bytes) -> bytes:
+    """return `base_content` with a single `%include` of `target`
+
+    >>> _inject_managed_include(b'[ui]\\nusername = Foo\\n', b'.hgrc.managed')
+    b'%include .hgrc.managed\\n[ui]\\nusername = Foo\\n'
+    >>> _inject_managed_include(b'%include .hgrc.managed\\n', b'.hgrc.managed')
+    b'%include .hgrc.managed\\n'
+    >>> _inject_managed_include(b'no newline', b'.hgrc.managed')
+    b'%include .hgrc.managed\\nno newline\\n'
+    """
+    # `%include` is resolved relative to the including file, and both files
+    # live in the same directory, so a bare basename is enough (and stays
+    # valid if the configuration directory is moved around).
+    include_line = b"%%include %s" % target
+    for line in base_content.splitlines():
+        if line.rstrip() == include_line:
+            # already included, nothing to do
+            return base_content
+    if base_content and not base_content.endswith(b'\n'):
+        base_content += b'\n'
+    return include_line + b"\n" + base_content
 
 
 def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:

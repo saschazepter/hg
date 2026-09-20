@@ -2144,6 +2144,7 @@ def _docommit(ui, repo, *pats, **opts):
             None,
             _(b'show all known config option (EXPERIMENTAL)'),
         ),
+        (b'', b'set', [], _(b'set a config option value (EXPERIMENTAL)')),
         (b'e', b'edit', None, _(b'edit user config')),
         (b'l', b'local', None, _(b'edit repository config')),
         (b'', b'source', None, _(b'show source of configuration value')),
@@ -2202,6 +2203,11 @@ def config(ui, repo, *values, **opts):
     Returns 0 on success, 1 if NAME does not exist.
 
     """
+    cmdutil.check_at_most_one_arg(opts, 'edit', 'set')
+    set_args = opts.get('set')
+    if set_args:
+        set_values = config_command.parse_config_args(set_args)
+        return config_command.set_config(ui, repo, set_values)
     edit_level = config_command.find_edit_level(ui, repo, opts)
     if edit_level is not None:
         return config_command.edit_config(ui, repo, edit_level)

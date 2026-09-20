@@ -20,6 +20,14 @@ Small helper to avoid unstable output depending of the host system.
 no repo
 
 #if windows
+  $ USER_RC="$TESTTMP\\mercurial.ini"
+  $ USER_AUTO_RC="$TESTTMP\\mercurial-managed.ini"
+#else
+  $ USER_RC="$TESTTMP/.hgrc"
+  $ USER_AUTO_RC="$TESTTMP/.hgrc-managed"
+#endif
+
+#if windows
   $ hg config --debug no.item
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: *\python*\mercurial.ini (glob)
@@ -102,3 +110,104 @@ with share
   read config from: $TESTTMP/share/.hg/hgrc
   read config from: $TESTTMP/share/.hg/hgrc-not-shared
 #endif
+
+
+Basic testing
+=============
+
+  $ hg config alias.config-set-test-A
+  [1]
+
+  $ hg config --set alias.config-set-test-A=value-1
+  $ hg config alias.config-set-test-A
+  value-1
+
+  $ hg config --set alias.config-set-test-A=value-2
+  $ hg config alias.config-set-test-A
+  value-2
+
+  $ hg config --set alias.config-set-test-B=value-x
+  $ hg config alias.config-set-test-A
+  value-2
+  $ hg config alias.config-set-test-B
+  value-x
+
+Files written to disk
+=====================
+
+The values are stored in a machine-managed companion file; the human-edited
+file only receives a single %include line pointing at it:
+
+  $ cat $USER_RC
+  %include .hgrc-managed (no-windows !)
+  %include mercurial-managed.ini (windows !)
+
+  $ cat $USER_AUTO_RC
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
+  [alias]
+  config-set-test-A = value-2
+  config-set-test-B = value-x
+
+Updating a value overwrites it in place (no duplicated entry) and does not
+inject the %include a second time:
+
+  $ hg config --set alias.config-set-test-A=value-3
+  $ cat $USER_RC
+  %include .hgrc-managed (no-windows !)
+  %include mercurial-managed.ini (windows !)
+  $ cat $USER_AUTO_RC
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
+  [alias]
+  config-set-test-A = value-3
+  config-set-test-B = value-x
+  $ hg config alias.config-set-test-A
+  value-3
+
+Existing hand-written content is preserved when the %include is injected:
+
+  $ rm $USER_RC $USER_AUTO_RC
+  $ cat > $USER_RC <<EOF
+  > [ui]
+  > # a hand written comment
+  > username = Test User
+  > EOF
+  $ hg config --set alias.config-set-test-D=value-d
+  $ cat $USER_RC
+  %include .hgrc-managed (no-windows !)
+  %include mercurial-managed.ini (windows !)
+  [ui]
+  # a hand written comment
+  username = Test User
+  $ hg config ui.username
+  Test User
+  $ hg config alias.config-set-test-D
+  value-d
+
+A later update still does not duplicate the include line:
+
+  $ hg config --set alias.config-set-test-E=value-e
+  $ cat $USER_RC
+  %include .hgrc-managed (no-windows !)
+  %include mercurial-managed.ini (windows !)
+  [ui]
+  # a hand written comment
+  username = Test User
+
+Malformed values
+================
+
+Specifications missing a value or a section are rejected with a clean error:
+
+(HGRCPATH is unset in this file, so the test runner's detailed-exit-code=True
+does not apply and the generic 255 exit code is used for InputError)
+
+  $ hg config --set alias.config-set-test-F
+  abort: malformed --set option: 'alias.config-set-test-F'
+  (use --set section.name=value)
+  [255]
+  $ hg config --set alias=value-f
+  abort: malformed --set option: 'alias=value-f'
+  (use --set section.name=value)
+  [255]
