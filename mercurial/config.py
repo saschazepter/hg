@@ -246,6 +246,53 @@ class config:
                 message = b"unexpected leading whitespace: %s" % message
             raise error.ConfigError(message, (b"%s:%d" % (src, line)))
 
+    def serialize(self) -> bytes:
+        """serialize the config content to bytes
+
+        The output can be parsed back into an equivalent config object.
+
+        (except for "%include" and "%unset" which are not visible to the
+        config object so far.)
+
+        Values holding newlines are emitted as continuation lines.
+
+        ### Basic tests
+        >>> cfg = config()
+        >>> cfg.set(b'ui', b'username', b'Babar')
+        >>> cfg.set(b'ui', b'editor', b'emacs')
+        >>> cfg.set(b'alias', b'log-x', b'log -G')
+        >>> print(cfg.serialize().decode('ascii'), end='')
+        [alias]
+        log-x = log -G
+        [ui]
+        editor = emacs
+        username = Babar
+
+        ### Multi-line tests
+        >>> cfg.set(b'ui', b'multi-line', b'the first line\\nand another one')
+        >>> print(cfg.serialize().decode('ascii'), end='')
+        [alias]
+        log-x = log -G
+        [ui]
+        editor = emacs
+        multi-line = the first line
+          and another one
+        username = Babar
+
+        ### Round trip test
+        >>> round_tripped = config()
+        >>> round_tripped.parse(b'<serialized>', cfg.serialize())
+        >>> round_tripped.serialize() == cfg.serialize()
+        True
+        """
+        chunks = []
+        for section in self.sections():
+            chunks.append(b"[%s]\n" % section)
+            for key, value in sorted(self.items(section)):
+                value = value.replace(b'\n', b'\n  ')
+                chunks.append(b"%s = %s\n" % (key, value))
+        return b"".join(chunks)
+
     def read(
         self,
         path: bytes,
