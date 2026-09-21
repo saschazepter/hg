@@ -786,3 +786,66 @@ store-fingerprint
   filtering peer-bundle-cache://shard-top.hg because no shards were requested
   filtering peer-bundle-cache://shard-other.hg because no shards were requested
     URL: peer-bundle-cache://shape-dir2.hg
+
+Resharding before new bundles exist
+===================================
+
+Previous section added fake entries to test filtering; restore manifest with
+real entries matching the server-shapes config
+
+  $ cd $TESTTMP
+  $ cp source/.hg/clonebundles.old source/.hg/clonebundles.manifest
+
+Add a shape with just the "excluded2" shard
+
+  $ cat $TESTTMP/source-shapes > $TESTTMP/source-shapes-eshape
+  $ cat << EOF >> $TESTTMP/source-shapes-eshape
+  > [[shards]]
+  > name = "excluded-shape"
+  > requires = ["excluded2"]
+  > shape = true
+  > EOF
+  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-eshape
+
+Cloning "excluded-shape" works
+
+  $ hg clone ssh://user@dummy/source before-reshard --noupdate \
+  >   --store-shape excluded-shape --stream | grep 'applying'
+  applying 2 clone bundles
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
+  finished applying clone bundle [1/2]
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
+  finished applying clone bundle [2/2]
+  finished applying 2 clone bundles
+  $ rm -rf before-reshard
+
+Split "excluded2" by adding a shard nested inside it, and add that shard to
+"excluded-shape" so it keeps covering the same files and this is a pure resharding
+
+  $ hg -R source admin::narrow-server --shape-fingerprints | grep excluded-shape
+  f04b9a8178c25fe101ac0301e259658913993344c2291189c249e81001508249 excluded-shape
+  $ cat $TESTTMP/source-shapes > $TESTTMP/source-shapes-split
+  $ cat << EOF >> $TESTTMP/source-shapes-split
+  > [[shards]]
+  > name = "nested"
+  > paths = ["dir1/excluded/nested"]
+  > [[shards]]
+  > name = "excluded-shape"
+  > requires = ["excluded2", "nested"]
+  > shape = true
+  > EOF
+  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-split
+
+The shape still covers the same files, so its fingerprint is unchanged
+
+  $ hg -R source admin::narrow-server --shape-fingerprints | grep excluded-shape
+  f04b9a8178c25fe101ac0301e259658913993344c2291189c249e81001508249 excluded-shape
+
+Attempting to clone "excluded-shape" now fails to use clone bundles, because the
+shards that make it up have changed and the bundles have not been regenerated
+
+  $ hg clone ssh://user@dummy/source after-reshard --noupdate --store-shape excluded-shape --stream --debug 2>&1 | grep 'clone bundles'
+  no compatible clone bundles available on server; falling back to regular clone (known-bad-output !)
+  applying 2 clone bundles (missing-correct-output !)
+  finished applying 2 clone bundles (missing-correct-output !)
+  $ rm -rf after-reshard
