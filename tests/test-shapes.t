@@ -463,6 +463,53 @@ Passing `--override-fingerprint-change-check` allows the update anyways
   00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
   f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 new-shape
 
+Resharding saves previous configs
+---------------------------------
+
+  $ cat > .hg/store/server-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "foo"
+  > paths = ["foo"]
+  > [[shards]]
+  > name = "shape"
+  > requires = ["foo"]
+  > shape = true
+  > EOF
+  $ rm -f .hg/store/server-shapes-previous-*
+
+Reshard by adding a new shard nested under `foo`
+
+  $ cat > ../new-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "foo"
+  > paths = ["foo"]
+  > [[shards]]
+  > name = "nested"
+  > paths = ["foo/nested"]
+  > [[shards]]
+  > name = "shape"
+  > requires = ["foo", "nested"]
+  > shape = true
+  > EOF
+  $ hg admin::narrow-server --shape-update -f ../new-shapes
+
+The previous config is saved in a separate file, named by the list of saved
+configs
+
+  $ cat .hg/store/server-shapes-previous-list
+  server-shapes-previous-5b10ce137aba (no-eol)
+  $ cat .hg/store/`cat .hg/store/server-shapes-previous-list`
+  version = 0
+  [[shards]]
+  name = "foo"
+  paths = ["foo"]
+  [[shards]]
+  name = "shape"
+  requires = ["foo"]
+  shape = true
+
 Test behavior of concurrent updates
 -----------------------------------
 

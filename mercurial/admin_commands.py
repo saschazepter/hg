@@ -370,6 +370,7 @@ def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
     """
     with repo.store_shapes_lock(wait=False):
         old_store_shards = shapemod.get_store_shards(repo.root)
+        old_file_contents = repo.svfs.tryread(shapemod.SHAPES_FILE)
         if file := opts.get("file"):
             try:
                 shapes = util.readfile(file)
@@ -380,7 +381,7 @@ def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
                 )
         else:
             shapes = ui.edit(
-                repo.svfs.tryread(shapemod.SHAPES_FILE),
+                old_file_contents,
                 ui.username(acceptempty=True) or b'',
                 action=b'shape-update',
             )
@@ -397,6 +398,12 @@ def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
             shapes = header + shapes
 
         with repo.lock():
+            # Save old store shards so that existing bundles stay usable until the new
+            # bundles are ready. This is only needed when resharding, since only
+            # resharding affects which bundles are generated.
+            changed_shards = old_store_shards.changed_shards(new_store_shards)
+            if old_file_contents and changed_shards:
+                pure_shapemod.save_previous_config(repo, old_file_contents)
             repo.svfs.write(shapemod.SHAPES_FILE, shapes, atomictemp=True)
 
     return 0

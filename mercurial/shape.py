@@ -19,6 +19,11 @@ from . import (
 
 if typing.TYPE_CHECKING:
     import attr
+    from .interfaces.types import RepoT
+
+
+# File listing filenames of the saved `server-shapes` configs.
+PREVIOUS_SHAPES_LIST = b'server-shapes-previous-list'
 
 
 @attr.s(hash=True)
@@ -421,3 +426,32 @@ def wire_store_shape_decode(
         _decode_shards_sets(shards_sets_block),
         _deserialize_v1(patterns_block),
     )
+
+
+def previous_configs(repo: RepoT) -> list[bytes]:
+    """The filename of each saved `server-shapes` config, oldest first."""
+    return repo.svfs.tryread(PREVIOUS_SHAPES_LIST).splitlines()
+
+
+def read_previous_configs(repo: RepoT) -> list[tuple[bytes, bytes]]:
+    """The (filename, contents) of each saved `server-shapes` config."""
+    configs = []
+    for name in previous_configs(repo):
+        if contents := repo.svfs.tryread(name):
+            configs.append((name, contents))
+    return configs
+
+
+def save_previous_config(repo: RepoT, contents: bytes) -> bytes:
+    """Save `contents` as a previous `server-shapes` config.
+
+    Must be called with the store shapes lock held, since it updates the list
+    of saved configs. Returns the filename it was written to."""
+    digest = pycompat.sysbytes(hashlib.sha256(contents).hexdigest())
+    name = b'server-shapes-previous-' + digest[:12]
+    repo.svfs.write(name, contents, atomictemp=True)
+    saved = previous_configs(repo)
+    if name not in saved:
+        data = b'\n'.join(saved + [name])
+        repo.svfs.write(PREVIOUS_SHAPES_LIST, data, atomictemp=True)
+    return name
