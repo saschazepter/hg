@@ -270,8 +270,10 @@ and publish a shape for it::
 
   1. Add the shard and add its name to the ``requires`` of every shape that
      already covered those paths. Those shapes then still cover the same files
-     and keep their fingerprint, so this is a pure resharding.
-  2. Generate the new bundles.
+     and keep their fingerprint, so this is a pure resharding. The previous
+     ``server-shapes`` files will be saved and used to serve existing sharded
+     bundles.
+  2. Generate the new bundles and add them to the clonebundle manifest.
   3. Add the shape that requires the new shard. No shard changes, so this is a
      pure reshaping.
   4. Clients can begin using the new shape.

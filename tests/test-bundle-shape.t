@@ -841,11 +841,28 @@ The shape still covers the same files, so its fingerprint is unchanged
   $ hg -R source admin::narrow-server --shape-fingerprints | grep excluded-shape
   f04b9a8178c25fe101ac0301e259658913993344c2291189c249e81001508249 excluded-shape
 
-Attempting to clone "excluded-shape" now fails to use clone bundles, because the
-shards that make it up have changed and the bundles have not been regenerated
+"excluded-shape" can still be cloned because the previous config with the old
+shards was saved and its shards set was used
 
   $ hg clone ssh://user@dummy/source after-reshard --noupdate --store-shape excluded-shape --stream --debug 2>&1 | grep 'clone bundles'
-  no compatible clone bundles available on server; falling back to regular clone (known-bad-output !)
-  applying 2 clone bundles (missing-correct-output !)
-  finished applying 2 clone bundles (missing-correct-output !)
+  applying 2 clone bundles
+  finished applying 2 clone bundles
   $ rm -rf after-reshard
+
+Shards sets from previous configs cannot be used for shapes with the same name
+but a different fingerprint
+
+  $ cat $TESTTMP/source-shapes > $TESTTMP/source-shapes-redefined
+  $ cat << EOF >> $TESTTMP/source-shapes-redefined
+  > [[shards]]
+  > name = "nested"
+  > paths = ["dir1/excluded/nested"]
+  > [[shards]]
+  > name = "excluded-shape"
+  > requires = ["nested"]
+  > shape = true
+  > EOF
+  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-redefined --override-fingerprint-change-check
+  $ hg clone ssh://user@dummy/source redefined --noupdate --store-shape excluded-shape --stream --debug 2>&1 | grep 'clone bundles'
+  no compatible clone bundles available on server; falling back to regular clone
+  $ rm -rf redefined

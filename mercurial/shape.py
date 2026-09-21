@@ -13,6 +13,7 @@ from .thirdparty import attr
 from . import (
     error,
     match as matchmod,
+    policy,
     pycompat,
     util,
 )
@@ -20,6 +21,8 @@ from . import (
 if typing.TYPE_CHECKING:
     import attr
     from .interfaces.types import RepoT
+
+rustmod = policy.importrust("shape")
 
 
 # File listing filenames of the saved `server-shapes` configs.
@@ -440,6 +443,30 @@ def read_previous_configs(repo: RepoT) -> list[tuple[bytes, bytes]]:
         if contents := repo.svfs.tryread(name):
             configs.append((name, contents))
     return configs
+
+
+def previous_shards_sets(
+    repo: RepoT, name: str, fingerprint: bytes
+) -> list[set[bytes]]:
+    """Shard fingerprint sets from previous versions of the `server-shapes` config.
+
+    During the period of time between an admin resharding the store and the new sharded
+    bundles getting generated, clients must still be able to clone via the old bundles.
+    Saving and reading the previous versions of the `server-shapes` config allows the
+    old bundles to still be usable.
+
+    Only configs that still define `name` with `fingerprint` are used since a different
+    fingerprint means the shape covers a different set of files."""
+    sets = []
+    for __, contents in read_previous_configs(repo):
+        previous = rustmod.get_store_shards_from_bytes(contents)
+        previous_shape = previous.shape(name)
+        if previous_shape is None:
+            continue
+        if previous_shape.fingerprint() != fingerprint:
+            continue
+        sets.extend(previous.shard_fingerprints_for_shape(name) or [])
+    return sets
 
 
 def save_previous_config(repo: RepoT, contents: bytes) -> bytes:

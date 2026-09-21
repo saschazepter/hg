@@ -400,17 +400,24 @@ def store_shape(repo, proto, name, args):
             _(b"server has no shapes support"),
             hint=_(b"lacking Rust extensions"),
         )
+    shape_name = name.decode()
     store_shards = shapemod.get_store_shards(repo.root)
-    shape = store_shards.shape(name.decode())
+    shape = store_shards.shape(shape_name)
     codes = wireprototypes.ShapeReturnCode
     header = wireprototypes.STORE_SHAPE_ENCODE
     if shape is None:
         rep = header.pack(codes.SHAPE_NOT_FOUND, 0, 0, 0)
         return wireprototypes.bytesresponse(rep)
-    groups = store_shards.shard_fingerprints_for_shape(name.decode())
+    groups = store_shards.shard_fingerprints_for_shape(shape_name)
     if groups is None:
         msg = _(b"could not compute shard fingerprints for shape %s") % name
         raise error.Abort(msg)
+    previous = shape_py.previous_shards_sets(
+        repo, shape_name, shape.fingerprint()
+    )
+    for group in previous:
+        if group not in groups:
+            groups.append(group)
     blocks = shape_py.wire_store_shape_encode(groups, shape)
     res = [header.pack(codes.OK, *[len(b) for b in blocks])]
     res.extend(blocks)
