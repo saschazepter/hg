@@ -167,7 +167,10 @@ def repo_components(repo_path: bytes) -> list[ComponentT]:
     return components
 
 
-def all_rc_components(repo_path: bytes | None, use_hgrcpath=False):
+def all_rc_components(
+    repo_path: bytes | None,
+    use_hgrcpath: bool = False,
+) -> list[ComponentT]:
     components = []
     components.extend(rccomponents(use_hgrcpath=use_hgrcpath))
     if repo_path is not None:
