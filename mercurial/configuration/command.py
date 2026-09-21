@@ -48,6 +48,27 @@ def find_edit_level(
     return None
 
 
+def _files_by_level(repo) -> dict[ConfigLevelT, list[bytes]]:
+    """Find all config files used in the current environment
+
+    The file paths of all these files are returned in a dict, grouped by
+    configuration level.
+
+    This is used to find the file to be editing by level.
+    """
+    repo_path = None
+    if repo is not None:
+        repo_path = repo.root
+    all_rcs = rcutil.all_rc_components(repo_path)
+    rc_by_level = {}
+    for lvl, rc_type, value in all_rcs:
+        if rc_type != b'path':
+            continue
+        assert isinstance(value, bytes)
+        rc_by_level.setdefault(lvl, []).append(value)
+    return rc_by_level
+
+
 def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:
     """let the user edit configuration file for the given level"""
 
@@ -67,16 +88,7 @@ def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:
                 )
             )
 
-    # find rc files paths
-    repo_path = None
-    if repo is not None:
-        repo_path = repo.root
-    all_rcs = rcutil.all_rc_components(repo_path)
-    rc_by_level = {}
-    for lvl, rc_type, values in all_rcs:
-        if rc_type != b'path':
-            continue
-        rc_by_level.setdefault(lvl, []).append(values)
+    rc_by_level = _files_by_level(repo)
 
     if level not in rc_by_level:
         msg = 'unknown config level: %s' % level
