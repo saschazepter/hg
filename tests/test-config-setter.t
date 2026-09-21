@@ -19,6 +19,16 @@ Small helper to avoid unstable output depending of the host system.
 
 no repo
 
+#if windows
+  $ hg config --debug no.item
+  read config from: resource:mercurial.defaultrc.mergetools.rc
+  read config from: *\python*\mercurial.ini (glob)
+  read config from: $TESTTMP\mercurial.ini
+  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\mercurial.ini
+  read config from: $TESTTMP\.hgrc
+  [1]
+#else
   $ hg config --debug no.item | filter_hgrcd
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: */hgtests*/install/etc/mercurial/hgrc (glob) (?)
@@ -27,6 +37,8 @@ no repo
   read config from: /etc/mercurial/hgrc.d/XXX.rc (?)
   read config from: $TESTTMP/.hgrc
   read config from: $TESTTMP/.config/hg/hgrc
+#endif
+
 
 no repo with HGRCPATH
 
@@ -37,6 +49,18 @@ no repo with HGRCPATH
 with repo
 
   $ hg init repo
+#if windows
+  $ hg -R repo config --debug no.item
+  read config from: resource:mercurial.defaultrc.mergetools.rc
+  read config from: *\python*\mercurial.ini (glob)
+  read config from: $TESTTMP\mercurial.ini
+  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\mercurial.ini
+  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\repo\.hg\hgrc
+  read config from: $TESTTMP\repo\.hg\hgrc-not-shared
+  [1]
+#else
   $ hg -R repo config --debug no.item | filter_hgrcd
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: */hgtests*/install/etc/mercurial/hgrc (glob) (?)
@@ -47,10 +71,25 @@ with repo
   read config from: $TESTTMP/.config/hg/hgrc
   read config from: $TESTTMP/repo/.hg/hgrc
   read config from: $TESTTMP/repo/.hg/hgrc-not-shared
+#endif
 
 with share
 
   $ hg share --quiet repo share --config extensions.share=
+
+#if windows
+  $ hg -R share config --debug no.item
+  read config from: resource:mercurial.defaultrc.mergetools.rc
+  read config from: *\python*\mercurial.ini (glob)
+  read config from: $TESTTMP\mercurial.ini
+  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\mercurial.ini
+  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\repo\.hg/hgrc
+  read config from: $TESTTMP\share\.hg\hgrc
+  read config from: $TESTTMP\share\.hg\hgrc-not-shared
+  [1]
+#else
   $ hg -R share config --debug no.item | filter_hgrcd
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: */hgtests*/install/etc/mercurial/hgrc (glob) (?)
@@ -62,3 +101,4 @@ with share
   read config from: $TESTTMP/repo/.hg/hgrc
   read config from: $TESTTMP/share/.hg/hgrc
   read config from: $TESTTMP/share/.hg/hgrc-not-shared
+#endif
