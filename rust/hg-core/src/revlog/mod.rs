@@ -72,6 +72,7 @@ pub type BaseRevision = i32;
     PartialOrd,
     Ord,
 )]
+#[repr(transparent)]
 pub struct Revision(pub BaseRevision);
 
 impl format_bytes::DisplayBytes for Revision {
