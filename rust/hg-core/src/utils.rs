@@ -90,6 +90,11 @@ pub fn u16_u(i: u16) -> usize {
 }
 
 #[inline(always)]
+pub fn u_u8(i: usize) -> u8 {
+    i.try_into().expect("value too large for a u8")
+}
+
+#[inline(always)]
 pub fn u_u16(i: usize) -> u16 {
     i.try_into().expect("value too large for a u16")
 }
