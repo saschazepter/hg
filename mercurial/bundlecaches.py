@@ -52,6 +52,15 @@ SUPPORTED_CLONEBUNDLE_SCHEMES = [
 # Bundlespec parameters a client must understand to safely use the bundle.
 MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = set()
 
+# Bundlespec params that are simply copied over (and uppercased) to the manifest
+# line parameters for easier filtering.
+FORWARDED_SPEC_PARAMS = [
+    b"store-fingerprint",
+    b"shard-id",
+    b"bundle-group-id",
+    b"bundle-group-top-level",
+]
+
 
 @attr.s
 class bundlespec:
@@ -373,16 +382,6 @@ def parseclonebundlesmanifest(repo, s):
         if attrs is not None:
             m.append(attrs)
     return m
-
-
-# Bundlespec params that are simply copied over (and uppercased) to the manifest
-# line parameters for easier filtering.
-FORWARDED_SPEC_PARAMS = [
-    b"store-fingerprint",
-    b"shard-id",
-    b"bundle-group-id",
-    b"bundle-group-top-level",
-]
 
 
 def parse_clonebundle_manifest_line(
