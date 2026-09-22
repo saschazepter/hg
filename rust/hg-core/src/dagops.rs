@@ -134,10 +134,13 @@ pub fn compute_heads<const FILTER: bool>(
             heads.push(rev);
         };
 
-        for parent in graph.parents(rev)?.iter() {
-            if *parent != NULL_REVISION {
-                not_heads.get_mut(parent.0 as usize).unwrap().commit(true);
-            }
+        // Mark parents of the current revs as "not head"
+        let [p1, p2] = graph.parents(rev)?;
+        if p1 != NULL_REVISION {
+            not_heads.get_mut(p1.0 as usize).unwrap().commit(true);
+        }
+        if p2 != NULL_REVISION {
+            not_heads.get_mut(p2.0 as usize).unwrap().commit(true);
         }
     }
     heads.reverse();
