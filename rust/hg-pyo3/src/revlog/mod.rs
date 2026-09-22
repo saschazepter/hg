@@ -1370,6 +1370,9 @@ impl InnerRevlog {
             stop_rev.map(|o| o.extract::<Option<i32>>()).transpose()?.flatten();
         let filtered_revs = filtered_revs.filter(|o| !o.is_none());
 
+        let has_py_cache: bool =
+            slf.borrow().head_revs_py_list.as_ref().is_some();
+
         let (from_core, stop_rev) = Self::with_index_read(slf, |idx| {
             let stop_rev = stop_rev
                 // should this not just be the normal checking?
@@ -1381,9 +1384,9 @@ impl InnerRevlog {
                 idx.head_revs_advanced(
                     &filtered_revs,
                     stop_rev,
-                    stop_rev.is_none(),
+                    stop_rev.is_none() && has_py_cache,
                 )
-            } else if stop_rev.is_some() {
+            } else if stop_rev.is_some() || !has_py_cache {
                 idx.head_revs_advanced(&FastHashSet::default(), stop_rev, false)
             } else {
                 idx.head_revs_shortcut()
