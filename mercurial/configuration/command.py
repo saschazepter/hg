@@ -128,13 +128,17 @@ def _target_by_level(
     if not os.path.isdir(directory):
         util.makedirs(directory)
     base_file = os.path.basename(base_file)
-    core, ext = os.path.splitext(base_file)
-    managed = core + MANAGED_SUFFIX + ext
     return (
         vfsmod.vfs(directory),
         base_file,
-        managed,
+        _managed_sibling(base_file),
     )
+
+
+def _managed_sibling(path: bytes) -> bytes:
+    """return the path of the machine-managed companion of config file `path`"""
+    core, ext = os.path.splitext(path)
+    return core + MANAGED_SUFFIX + ext
 
 
 def set_config(
