@@ -1472,6 +1472,26 @@ impl InnerRevlog {
         })
     }
 
+    /// Get the head bucket informations ready to be sent over the wire.
+    ///
+    /// This is meant to be directly used by the wire protocol code, avoiding
+    /// having to roundtrip heads between Rust and Python.
+    #[pyo3(signature = (filtered_revs, cached=None))]
+    fn _index_encoded_bucket_info(
+        slf: &Bound<'_, Self>,
+        py: Python<'_>,
+        filtered_revs: &Bound<'_, PyAny>,
+        cached: Option<HashMap<usize, Vec<u8>>>,
+    ) -> PyResult<Py<PyBytes>> {
+        let data = Self::with_index_read(slf, |idx| {
+            let filtered_revs: FastHashSet<Revision> =
+                rev_pyiter_collect(filtered_revs, idx)?;
+            idx.encoded_bucket_info(&filtered_revs, cached.as_ref())
+                .map_err(graph_error)
+        })?;
+        Ok(PyBytes::new(py, &data).unbind())
+    }
+
     /// True if the object is a snapshot
     fn _index_issnapshot(
         slf: &Bound<'_, Self>,

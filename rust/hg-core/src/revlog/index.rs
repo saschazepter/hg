@@ -26,6 +26,8 @@ use crate::UncheckedRevision;
 use crate::dagops;
 use crate::discovery::bucket_boundary;
 use crate::discovery::bucket_fingerprints;
+use crate::discovery::cached_head_count;
+use crate::discovery::encode_bucket_info;
 use crate::dyn_bytes::ByteStoreTrunc;
 use crate::dyn_bytes::DynBytes;
 use crate::errors::HgBacktrace;
@@ -771,6 +773,38 @@ impl Index {
         let max_head = heads.last().map_or(-1, |rev| rev.0);
         let tiers = bucket_boundary(max_head);
         Ok(bucket_fingerprints(tiers, &heads))
+    }
+
+    /// An encoded version of the bucket info to be used over the wire
+    ///
+    /// If `cached_fingerprints` is provided, the heads covered by buckets
+    /// whose fingerprint matches the cache will be skipped.
+    ///
+    /// Used by the wireprotocol to serialize the data (see
+    /// `encoded_bucket_info` in `mercurial/exchanges/heads.py` and
+    /// `encode_bucket_info` for the format).
+    pub fn encoded_bucket_info(
+        &self,
+        filtered_revs: &FastHashSet<Revision>,
+        cached_fingerprints: Option<&HashMap<usize, Vec<u8>>>,
+    ) -> Result<Vec<u8>, GraphError> {
+        let bucket_info = self.heads_buckets_info(filtered_revs)?;
+        let skipped_heads =
+            cached_head_count(&bucket_info, cached_fingerprints);
+
+        let mut heads = self
+            .head_revs_advanced(filtered_revs, None, false)?
+            .expect("no python shortcut was requested");
+        if heads == [NULL_REVISION] {
+            // happens for empty repository (for historical reason)
+            heads.clear();
+        }
+        Ok(encode_bucket_info(
+            bucket_info,
+            skipped_heads,
+            &heads[skipped_heads..],
+            |rev| self.node(rev),
+        ))
     }
 
     /// The revision to which apply the delta stored for <rev>

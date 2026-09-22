@@ -316,6 +316,10 @@ def encoded_bucket_info(repo, cached=None) -> bytes:
 
     Used by the wireprotocol to serialize the data.
     """
+    cl = repo.changelog
+    idx = cl.index
+    if hasattr(idx, "encoded_bucket_info"):
+        return idx.encoded_bucket_info(cl.filteredrevs, cached)
     pieces = []
     bucket_info = buckets_info(repo)
 

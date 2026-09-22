@@ -24,12 +24,17 @@ use super::BaseRevision;
 use super::Graph;
 use super::GraphError;
 use super::NULL_REVISION;
+use super::Node;
 use super::Revision;
 use crate::FastHashMap;
 use crate::FastHashSet;
 use crate::ancestors::MissingAncestors;
 use crate::dagops;
+use crate::revlog::node::NODE_BYTES_LENGTH;
 use crate::utils::i32_u32;
+use crate::utils::u_i32;
+use crate::utils::u_u8;
+use crate::utils::u_u32;
 use crate::utils::u32_i32;
 
 type Rng = rand_pcg::Pcg32;
@@ -161,6 +166,96 @@ pub fn bucket_fingerprints(
     }
     info.insert(current_tier as usize, (bucket_end, prev_crc32.to_ne_bytes()));
     info
+}
+
+/// Number of heads covered by the client's cached fingerprints
+///
+/// This should always be an unchanged prefix of the server heads list.
+pub fn cached_head_count(
+    bucket_info: &HashMap<usize, (usize, [u8; 4])>,
+    cached_fingerprints: Option<&HashMap<usize, Vec<u8>>>,
+) -> usize {
+    match cached_fingerprints {
+        None => 0,
+        Some(cached) => {
+            // the set of fingerprint the client knows about
+            let cached_fp: FastHashSet<&[u8]> =
+                cached.values().map(Vec::as_slice).collect();
+            bucket_info
+                .values()
+                // only keep the one matching a cached fingerprint.
+                .filter(|(_, fingerprint)| {
+                    cached_fp.contains(fingerprint.as_slice())
+                })
+                .map(|(head_count, _)| *head_count)
+                .max() // keep the one with the most head.
+                .unwrap_or(0) // if none matched, no heads are cached.
+        }
+    }
+}
+
+/// Encode bucket information for the wire
+///
+/// The `head_revs` are the heads that are not covered by the
+/// `skipped_heads` first ones, that the client already knows about;
+/// `to_node` resolves them to their nodeids.
+///
+/// The data is encoded as follow:
+///
+/// - `u8`: number of buckets
+/// - `u8`: size of bucket's fingerprint
+/// - `u8`: size of head's nodeid
+/// - `u32`: number of skipped heads
+/// - then for each bucket:
+///   - `u32`: bucket-id
+///   - `i32`: number of new heads in that bucket
+///   - `bytes`: the heads fingerprint for that bucket
+/// - then for each head:
+///   - `bytes`: head nodeid
+///
+/// Used by the wireprotocol to serialize the data (see
+/// `encoded_bucket_info` in `mercurial/exchanges/heads.py`).
+pub fn encode_bucket_info<'a>(
+    bucket_info: HashMap<usize, (usize, [u8; 4])>,
+    skipped_heads: usize,
+    head_revs: &[Revision],
+    to_node: impl Fn(Revision) -> &'a Node,
+) -> Vec<u8> {
+    // sizes of the serialized fingerprint and nodeid (`FP_SPEC` size
+    // and `nodelen` on the Python side)
+    let fingerprint_size = 4;
+    let node_size = NODE_BYTES_LENGTH;
+
+    let mut data = Vec::with_capacity(
+        3 + size_of::<u32>()
+            + bucket_info.len() * (2 * size_of::<u32>() + fingerprint_size)
+            + head_revs.len() * node_size,
+    );
+
+    // the wire header: number of buckets, fingerprint size and nodeid
+    // size (u8 each), then number of skipped heads (u32), all big-endian
+    // (`BUCKET_WIRE_HEADER` on the Python side)
+    // `bucket_boundary` yields at most 32 buckets, so the count fits
+    data.push(u_u8(bucket_info.len()));
+    data.push(u_u8(fingerprint_size));
+    data.push(u_u8(node_size));
+    data.extend_from_slice(&u_u32(skipped_heads).to_be_bytes());
+
+    // for each bucket: bucket-id (u32), number of new heads (i32) and
+    // the bucket fingerprint, big-endian (`BUCKET_INFO` on the Python
+    // side)
+    let mut buckets: Vec<_> = bucket_info.into_iter().collect();
+    buckets.sort_unstable();
+    for (bucket_id, (head_count, fingerprint)) in buckets {
+        data.extend_from_slice(&u_u32(bucket_id).to_be_bytes());
+        data.extend_from_slice(&u_i32(head_count).to_be_bytes());
+        data.extend_from_slice(&fingerprint);
+    }
+
+    for rev in head_revs {
+        data.extend_from_slice(to_node(*rev).as_bytes());
+    }
+    data
 }
 
 pub struct PartialDiscovery<G: Graph + Clone> {
