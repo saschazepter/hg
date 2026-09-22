@@ -115,6 +115,10 @@ build-chg:
 build-rhg:
 	(cd rust/rhg; cargo build --release --features "$(HG_RUST_FEATURES)")
 
+.PHONY: build-jif
+build-jif:
+	(cd rust/jif; cargo build --release --features "$(HG_RUST_FEATURES)")
+
 .PHONY: wheel
 wheel:
 	$(PYTHON) -m build --config-setting=--global-option="$(FLAVOR)"
