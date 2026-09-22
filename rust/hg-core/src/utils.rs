@@ -530,3 +530,34 @@ where
         true
     }
 }
+
+/// internal trick to hint the compiler about which likely/unlikely branches
+///
+/// TODO: replace with core::hint::cold_path once we are one Rust 1.95
+#[inline(always)]
+#[cold]
+fn cold() {}
+
+/// mark the conditionnal as "likely to be `true`"
+///
+/// This helps the compiler to produce code better tuned for the execution
+/// profile.
+#[inline(always)]
+pub fn likely(b: bool) -> bool {
+    if !b {
+        cold()
+    }
+    b
+}
+
+/// mark the conditionnal as "unlikely to be `true`"
+///
+/// This helps the compiler to produce code better tuned for the execution
+/// profile.
+#[inline(always)]
+pub fn unlikely(b: bool) -> bool {
+    if b {
+        cold()
+    }
+    b
+}
