@@ -5,7 +5,6 @@ use std::sync::RwLock;
 use std::sync::RwLockReadGuard;
 use std::sync::RwLockWriteGuard;
 
-use bitvec::prelude::*;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use bytes_cast::BytesCast;
@@ -658,26 +657,8 @@ impl Index {
                 None => self.len(),
             };
             let cachable = self.len() == length;
-            let mut not_heads = bitvec![0; length];
-            dagops::retain_heads_fast(
-                self,
-                not_heads.as_mut_bitslice(),
-                filtered_revs,
-            )?;
-            (
-                not_heads
-                    .into_iter()
-                    .enumerate()
-                    .filter_map(|(idx, is_not_head)| {
-                        if is_not_head {
-                            None
-                        } else {
-                            Some(Revision(idx as BaseRevision))
-                        }
-                    })
-                    .collect(),
-                cachable,
-            )
+            let heads = dagops::compute_heads(self, length, filtered_revs)?;
+            (heads, cachable)
         };
         if cachable {
             *self

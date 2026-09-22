@@ -14,7 +14,7 @@
 //!   whose parents, if any, don't belong to the collection.
 use std::collections::BTreeSet;
 
-use bitvec::slice::BitSlice;
+use bitvec::prelude::*;
 
 use super::Graph;
 use super::GraphError;
@@ -89,30 +89,35 @@ pub fn retain_heads(
     Ok(())
 }
 
-/// Optimized version of `retain_heads` that expects an zeroed bitvec of the
-/// size of the graph, to act as a faster but less space-efficient `HashSet`.
-///
-/// # Panics
-///
-/// Can panic if `not_heads` is shorten than the length of graph.
-pub fn retain_heads_fast(
+/// Optimized version of `retain_heads` that directly return head revisions
+pub fn compute_heads(
     graph: &impl Graph,
-    not_heads: &mut BitSlice,
+    length: usize,
     filtered_revs: &FastHashSet<Revision>,
-) -> Result<(), GraphError> {
-    for idx in (0..not_heads.len()).rev() {
+) -> Result<Vec<Revision>, GraphError> {
+    let mut heads = vec![];
+    let mut not_heads = bitvec![0; length];
+    for idx in (0..length).rev() {
         let rev = Revision(idx as BaseRevision);
         if !not_heads[idx] && filtered_revs.contains(&rev) {
             not_heads.get_mut(idx).unwrap().commit(true);
             continue;
         }
+
+        // If we did not see any (unfiltered) children getting there, this is a
+        // head
+        if !not_heads[idx] {
+            heads.push(rev);
+        };
+
         for parent in graph.parents(rev)?.iter() {
             if *parent != NULL_REVISION {
                 not_heads.get_mut(parent.0 as usize).unwrap().commit(true);
             }
         }
     }
-    Ok(())
+    heads.reverse();
+    Ok(heads)
 }
 
 /// Roots of `revs`, passed as a `HashSet`
