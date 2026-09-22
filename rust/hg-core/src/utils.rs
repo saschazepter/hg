@@ -70,6 +70,11 @@ pub fn i32_u32(i: i32) -> u32 {
 }
 
 #[inline(always)]
+pub fn u32_i32(i: u32) -> i32 {
+    i.try_into().expect("i32 can't hold a u32, is the value too large?")
+}
+
+#[inline(always)]
 pub fn u_i64(i: usize) -> i64 {
     i.try_into().expect("value too large for a i64")
 }
