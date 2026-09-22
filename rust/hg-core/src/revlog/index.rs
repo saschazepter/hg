@@ -24,6 +24,8 @@ use crate::GraphError;
 use crate::GraphErrorKind;
 use crate::UncheckedRevision;
 use crate::dagops;
+use crate::discovery::bucket_boundary;
+use crate::discovery::bucket_fingerprints;
 use crate::dyn_bytes::ByteStoreTrunc;
 use crate::dyn_bytes::DynBytes;
 use crate::errors::HgBacktrace;
@@ -741,6 +743,34 @@ impl Index {
         }
 
         Ok((heads_removed, heads_added))
+    }
+
+    /// Return a set of buckets with fingerprint and head count information
+    ///
+    /// The buckets are identified by an integer that defines which subset of
+    /// the repository heads it covers.
+    ///
+    /// If the fingerprint of a bucket did not change, the heads covered by
+    /// that bucket have not changed.
+    ///
+    /// The information returned for each bucket is the number of heads
+    /// covered by this bucket and their fingerprint.
+    pub fn heads_buckets_info(
+        &self,
+        filtered_revs: &FastHashSet<Revision>,
+    ) -> Result<HashMap<usize, (usize, [u8; 4])>, GraphError> {
+        let mut heads = self
+            .head_revs_advanced(filtered_revs, None, false)?
+            .expect("no python shortcut was requested");
+        if heads == [NULL_REVISION] {
+            // happens for empty repository (for historical reason)
+            heads.clear();
+        }
+        // Compute the tiers from the largest visible head.
+        // we don't use `self.len()` as `len - 1` could be filtered.
+        let max_head = heads.last().map_or(-1, |rev| rev.0);
+        let tiers = bucket_boundary(max_head);
+        Ok(bucket_fingerprints(tiers, &heads))
     }
 
     /// The revision to which apply the delta stored for <rev>

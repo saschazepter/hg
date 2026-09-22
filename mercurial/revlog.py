@@ -366,6 +366,7 @@ class RustIndexProxy(MonoBlockIndex):
         self.headrevs = self.inner._index_headrevs
         self.head_node_ids = self.inner._index_head_node_ids
         self.headrevsdiff = self.inner._index_headrevsdiff
+        self.heads_buckets_info = self.inner._index_heads_buckets_info
         self.issnapshot = self.inner._index_issnapshot
         self.findsnapshots = self.inner._index_findsnapshots
         self.deltachain = self.inner._index_deltachain

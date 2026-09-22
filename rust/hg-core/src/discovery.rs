@@ -13,6 +13,7 @@
 
 use std::cmp::max;
 use std::cmp::min;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use rand::Rng as RngTrait;
@@ -80,6 +81,86 @@ pub fn bucket_boundary(max_value: BaseRevision) -> Vec<BaseRevision> {
         .collect();
     tiers.sort_unstable();
     tiers
+}
+
+/// crc32 of the native-endian bytes of a slice of revs
+fn heads_crc32(heads: &[Revision], initial: u32) -> u32 {
+    // create a new hasher should be virtually free, it only contains a u32.
+    let mut hasher = crc32fast::Hasher::new_with_initial(initial);
+    // Safety: `Revision` is a `repr(transparent)` wrapper around a plain
+    // integer, so a slice of revisions is initialized, padding-free memory
+    // that can be viewed as bytes.
+    //
+    // BytesCast wasn't a good option as it want a `from_bytes` method no
+    // suitable here.
+    let bytes = unsafe {
+        std::slice::from_raw_parts(
+            heads.as_ptr().cast::<u8>(),
+            std::mem::size_of_val(heads),
+        )
+    };
+    hasher.update(bytes);
+    hasher.finalize()
+}
+
+/// Compute heads fingerprint for the provided tier values
+///
+/// The `heads` are expected to be unique and sorted in ascending order as
+/// returned by revlog's `head_revs` method. The `tiers` are expected to be
+/// sorted in ascending order as returned by `bucket_boundary`.
+///
+/// The information returned for each bucket is the number of heads covered
+/// by this bucket and their fingerprint.
+///
+/// The strategy for buckets selection and fingerprinting is entirely the
+/// responsibility of the server so the strategy used by this function can be
+/// safely updated (see `_bucket_fingerprints` in
+/// `mercurial/exchanges/heads.py` for a discussion of the alternatives). In
+/// particular, the current fingerprint is affected by the machine
+/// endianness. This sensitivity to endianness has been kept on purpose to
+/// highlight the possible differences.
+pub fn bucket_fingerprints(
+    tiers: Vec<BaseRevision>,
+    heads: &[Revision],
+) -> HashMap<usize, (usize, [u8; 4])> {
+    let mut info = HashMap::with_capacity(tiers.len());
+
+    // consume the tiers in ascending order
+    debug_assert!(tiers.is_sorted());
+    let mut tiers = tiers.into_iter();
+    let mut current_tier =
+        tiers.next().expect("there is always at least one tier");
+
+    let mut prev_crc32: u32 = 0;
+    let mut bucket_start = 0;
+    let mut bucket_end = 0;
+
+    // XXX: Iterating over all heads is sub-optimal. We could use a more
+    // efficient strategy (e.g. binary search) to find bucket boundaries
+    // without iterating over each head. However, that simple approach was
+    // enough for an initial implementation.
+    for rev in heads {
+        while rev.0 > current_tier {
+            if bucket_start != bucket_end {
+                prev_crc32 =
+                    heads_crc32(&heads[bucket_start..bucket_end], prev_crc32);
+                bucket_start = bucket_end;
+            }
+            info.insert(
+                current_tier as usize,
+                (bucket_end, prev_crc32.to_ne_bytes()),
+            );
+            current_tier =
+                tiers.next().expect("the largest tier covers all the heads");
+        }
+        bucket_end += 1;
+    }
+    assert!(tiers.next().is_none(), "the largest tier covers all the heads");
+    if bucket_start != bucket_end {
+        prev_crc32 = heads_crc32(&heads[bucket_start..bucket_end], prev_crc32);
+    }
+    info.insert(current_tier as usize, (bucket_end, prev_crc32.to_ne_bytes()));
+    info
 }
 
 pub struct PartialDiscovery<G: Graph + Clone> {
@@ -647,6 +728,40 @@ mod tests {
         ($revision:literal) => {
             Revision($revision)
         };
+    }
+
+    #[test]
+    /// Test the `bucket_fingerprints` behavior for an empty list
+    fn test_bucket_fingerprints_empty() {
+        let info = bucket_fingerprints(bucket_boundary(-1), &[]);
+        let mut expected = HashMap::new();
+        expected.insert(0, (0, 0u32.to_ne_bytes()));
+        assert_eq!(info, expected);
+    }
+
+    #[test]
+    /// Test the `bucket_fingerprints` behavior in a small case
+    fn test_bucket_fingerprints_simple() {
+        // tiers for a 43 revisions repository (see test_bucket_boundary)
+        let tiers = bucket_boundary(42);
+        let heads = [R!(10), R!(20), R!(22), R!(30), R!(40), R!(42)];
+        let info = bucket_fingerprints(tiers, &heads);
+
+        // fingerprints chain from one bucket to the next
+        let crc_10 = heads_crc32(&heads[0..1], 0);
+        let crc_30 = heads_crc32(&heads[0..4], 0);
+        let crc_40 = heads_crc32(&heads[0..5], 0);
+        let crc_42 = heads_crc32(&heads[0..6], 0);
+
+        let mut expected = HashMap::new();
+        expected.insert(16, (1, crc_10.to_ne_bytes()));
+        expected.insert(32, (4, crc_30.to_ne_bytes()));
+        // buckets without new heads reuse the previous fingerprint
+        expected.insert(36, (4, crc_30.to_ne_bytes()));
+        expected.insert(40, (5, crc_40.to_ne_bytes()));
+        expected.insert(41, (5, crc_40.to_ne_bytes()));
+        expected.insert(42, (6, crc_42.to_ne_bytes()));
+        assert_eq!(info, expected);
     }
 
     /// A PartialDiscovery as for pushing all the heads of `SampleGraph`

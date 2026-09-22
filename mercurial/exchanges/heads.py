@@ -264,6 +264,9 @@ def buckets_info(repo) -> dict[int, tuple[int, bytes]]:
     with this bucket in this bucket and they fingerprint.
     """
     cl = repo.changelog
+    idx = cl.index
+    if hasattr(idx, "heads_buckets_info"):
+        return idx.heads_buckets_info(cl.filteredrevs)
     tiers = _bucket_boundary(len(cl) - 1)
     heads = cl.headrevs()
     if heads == [None]:  # happens for empty repository (for historical reason)

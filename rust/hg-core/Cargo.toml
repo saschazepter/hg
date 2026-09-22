@@ -67,6 +67,7 @@ tracing = { version = "0.1.44", features = ["attributes", "log"] }
 indexmap = "2.13.0"
 sha2 = "0.10.9"
 parking_lot = "0.12.5"
+crc32fast = "1.5.0"
 
 # We don't use the `miniz-oxide` backend to not change rhg benchmarks and until
 # we have a clearer view of which backend is the fastest.

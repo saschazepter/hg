@@ -1461,6 +1461,17 @@ impl InnerRevlog {
         Ok((py_removed, py_added).into_pyobject(py)?.unbind())
     }
 
+    fn _index_heads_buckets_info(
+        slf: &Bound<'_, Self>,
+        filtered_revs: &Bound<'_, PyAny>,
+    ) -> PyResult<HashMap<usize, (usize, [u8; 4])>> {
+        Self::with_index_read(slf, |idx| {
+            let filtered_revs: FastHashSet<Revision> =
+                rev_pyiter_collect(filtered_revs, idx)?;
+            idx.heads_buckets_info(&filtered_revs).map_err(graph_error)
+        })
+    }
+
     /// True if the object is a snapshot
     fn _index_issnapshot(
         slf: &Bound<'_, Self>,
