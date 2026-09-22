@@ -225,7 +225,11 @@ KNOWN_BUNDLE_SPEC_PARAMS: set[bytes] = set().union(
     bundle_spec_param_processing,
     MANDATORY_BUNDLE_SPEC_PARAMS,
     FORWARDED_BUNDLE_SPEC_PARAMS,
-    {BUNDLESPEC_REQUIREMENTS},
+    {
+        BUNDLESPEC_REQUIREMENTS,
+        BUNDLESPEC_SHAPE,
+        BUNDLESPEC_CG_DELTA_COMPRESSION,
+    },
 )
 
 

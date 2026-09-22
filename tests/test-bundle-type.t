@@ -760,16 +760,19 @@ skipping changegroup
 parameter name case
 -------------------
 
-If client knows about the param, uppercase or lowercase doesn't matter.
+If Mercurial knows about the param, uppercase or lowercase doesn't matter.
 
   $ hg -R t1 bundle --all --quiet --type 'v2;phases=yes' ./case-lower.hg
   $ hg -R t1 bundle --all --quiet --type 'v2;PHASES=yes' ./case-upper.hg
   $ cmp ./case-lower.hg ./case-upper.hg
 
-If client doesn't know about the param, uppercase makes the spec unsupported, while
-lowercase is okay.
+A param we don't know about is a mistake when we are the one building the
+bundle, regardless of case.
 
   $ hg -R t1 bundle --all --quiet --type 'v2;fooparam=yes' ./case-lower.hg
+  abort: unknown bundle specification parameter: fooparam
+  (see 'hg help bundlespec' for supported values for --type)
+  [10]
   $ hg -R t1 bundle --all --quiet --type 'v2;FOOPARAM=yes' ./case-upper.hg
   abort: unsupported mandatory bundle specification parameter: fooparam
   (see 'hg help bundlespec' for supported values for --type)

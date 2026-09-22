@@ -40,6 +40,12 @@ Mercurial XXX.
   accepted when reading, and a server writes them back to lowercase when serving
   a client that doesn't know about mandatory params. See `hg help bundlespec`.
 
+* bundle: `hg bundle --type` now reports a parameter name it does not know
+  instead of ignoring it, so a typo'd param name fails rather than quietly
+  producing an unexpected bundle. Parameters read from a peer are still ignored
+  when unknown, since an older client has to tolerate advisory parameters added
+  by a newer one.
+
 == Internal API Changes ==
 
 * Extensions adding bundlespec parameters must extend

@@ -37,6 +37,7 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
             raise error.InputError(_(b'no commits to bundle'))
 
     bundletype = opts.get('type', b'bzip2')
+    spec_hint = _(b"see 'hg help bundlespec' for supported values for --type")
     try:
         bundlespec = bundlecaches.parsebundlespec(
             repo, bundletype, strict=False
@@ -45,10 +46,12 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
         error.InvalidBundleSpecification,
         error.UnsupportedBundleSpecification,
     ) as e:
-        raise error.InputError(
-            pycompat.bytestr(e),
-            hint=_(b"see 'hg help bundlespec' for supported values for --type"),
-        )
+        raise error.InputError(pycompat.bytestr(e), hint=spec_hint)
+
+    for name in bundlespec.params:
+        if name not in bundlecaches.KNOWN_BUNDLE_SPEC_PARAMS:
+            msg = _(b'unknown bundle specification parameter: %s')
+            raise error.InputError(msg % name, hint=spec_hint)
 
     if bundlespec.params.get(bundlecaches.BUNDLESPEC_SHAPE) is not None:
         if shape_mod is None:
