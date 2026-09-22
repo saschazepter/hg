@@ -919,18 +919,47 @@ def clearcaches(cl):
         cl._nodepos = None
 
 
-@command(b'perf::heads|perfheads', formatteropts)
+@command(
+    b'perf::heads|perfheads',
+    [
+        (
+            b'',
+            b'fresh-changelog',
+            False,
+            b'use a new changelog instance everytime',
+        ),
+    ]
+    + formatteropts,
+)
 def perfheads(ui, repo, **opts):
-    """benchmark the computation of a changelog heads"""
+    """benchmark the computation of a changelog heads
+
+    When using --fresh-changelog, a new changelog object is created before
+    running the heads computation. This make sure the index is using a new
+    mmap, that might not be fully populated yet and whose address space is not
+    in the CPU cache yet.
+    """
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
-    cl = repo.changelog
+    new_cl = opts.get(b"fresh_changelog", False)
 
-    def s():
-        clearcaches(cl)
+    if not new_cl:
+        cl = repo.changelog
 
-    def d():
-        len(cl.headrevs())
+        def s():
+            clearcaches(cl)
+
+        def d():
+            len(cl.headrevs())
+
+    else:
+
+        def s():
+            repo.invalidate(clearfilecache=True)
+            repo.changelog
+
+        def d():
+            repo.changelog.headrevs()
 
     timer(d, setup=s)
     fm.end()
