@@ -8,7 +8,8 @@
 //! Discovery operations
 //!
 //! This is a Rust counterpart to the `partialdiscovery` class of
-//! `mercurial.setdiscovery`
+//! `mercurial.setdiscovery`. It also hosts the heads focussed exchange
+//! utilities mirroring `mercurial/exchanges/heads.py`.
 
 use std::cmp::max;
 use std::cmp::min;
@@ -18,6 +19,7 @@ use rand::Rng as RngTrait;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
 
+use super::BaseRevision;
 use super::Graph;
 use super::GraphError;
 use super::NULL_REVISION;
@@ -26,9 +28,59 @@ use crate::FastHashMap;
 use crate::FastHashSet;
 use crate::ancestors::MissingAncestors;
 use crate::dagops;
+use crate::utils::i32_u32;
+use crate::utils::u32_i32;
 
 type Rng = rand_pcg::Pcg32;
 type Seed = [u8; 16];
+
+/// Provide useful bucket boundary according to a maximum value
+///
+/// For a value X, this provides log_2(X) buckets, each bucket being about ½
+/// the size of the previous one.
+///
+/// These buckets will be used by servers to advertise the fingerprint of
+/// their heads. The strategy for bucket selection and fingerprinting is
+/// entirely the responsibility of the server so the strategy used by this
+/// function can be safely updated.
+pub fn bucket_boundary(max_value: BaseRevision) -> Vec<BaseRevision> {
+    if max_value <= 0 {
+        // repository is empty or have a single revision, we don't care about
+        // such repository here.
+        return vec![0];
+    }
+    let max_value = i32_u32(max_value);
+    let bucket_count = max_value.ilog2();
+    let mut tiers: Vec<BaseRevision> = (0..=bucket_count)
+        .map(|idx| {
+            // The bucket for bit `idx` is the largest odd multiple of
+            // `1 << idx` that is not larger than `max_value`
+            //
+            // To compute it, we operate on prefix, ignoring the `idx` lower
+            // bit.
+
+            // drop the lowest `idx` bit.
+            let prefix = max_value >> idx;
+            // An even prefix would result in a bucket identical to the next
+            // value, so we make sure we have an odd prefix. This
+            // works because:
+            //
+            // When the prefix is already odd:
+            //   - `prefix - 1` only change the first bit
+            //   - `| 1` restore it right away
+            //
+            // When the prefix is even:
+            //   - `prefix - 1` will decrement the value down, creating an odd
+            //     number
+            //   - `| 1` will be a no-op as the value is already even.
+            let odd_prefix = (prefix - 1) | 1;
+            // promote the prefix to its expected value
+            u32_i32(odd_prefix << idx)
+        })
+        .collect();
+    tiers.sort_unstable();
+    tiers
+}
 
 pub struct PartialDiscovery<G: Graph + Clone> {
     target_heads: Option<Vec<Revision>>,
@@ -487,6 +539,108 @@ impl<G: Graph + Clone> PartialDiscovery<G> {
 mod tests {
     use super::*;
     use crate::testing::SampleGraph;
+
+    #[test]
+    /// Test simple lower limit cases for `bucket_boundary`
+    fn test_bucket_boundary_no_revision() {
+        assert_eq!(bucket_boundary(-1), vec![0b0000000000000000]);
+        assert_eq!(bucket_boundary(0), vec![0b0000000000000000]);
+        assert_eq!(bucket_boundary(1), vec![0b0000000000000001]);
+    }
+
+    #[test]
+    /// Test simple case of various size for `bucket_boundary`
+    fn test_bucket_boundary_simple() {
+        assert_eq!(
+            bucket_boundary(42),
+            vec![
+                0b0000000000010000,
+                0b0000000000100000,
+                0b0000000000100100,
+                0b0000000000101000,
+                0b0000000000101001,
+                0b0000000000101010,
+            ]
+        );
+        assert_eq!(
+            bucket_boundary(600),
+            vec![
+                0b0000000100000000,
+                0b0000000110000000,
+                0b0000001000000000,
+                0b0000001000100000,
+                0b0000001001000000,
+                0b0000001001010000,
+                0b0000001001010100,
+                0b0000001001010110,
+                0b0000001001010111,
+                0b0000001001011000,
+            ]
+        );
+        assert_eq!(
+            bucket_boundary(1337),
+            vec![
+                0b0000001000000000,
+                0b0000010000000000,
+                0b0000010010000000,
+                0b0000010011000000,
+                0b0000010100000000,
+                0b0000010100100000,
+                0b0000010100110000,
+                0b0000010100110100,
+                0b0000010100110110,
+                0b0000010100111000,
+                0b0000010100111001,
+            ]
+        );
+    }
+
+    #[test]
+    /// tests how the bucket evolves when we cross a power of 2 boundary for
+    /// `bucket_boundary`
+    fn test_bucket_boundary_power_of_two() {
+        assert_eq!(
+            bucket_boundary(1023),
+            vec![
+                0b0000001000000000,
+                0b0000001100000000,
+                0b0000001110000000,
+                0b0000001111000000,
+                0b0000001111100000,
+                0b0000001111110000,
+                0b0000001111111000,
+                0b0000001111111100,
+                0b0000001111111110,
+                0b0000001111111111,
+            ]
+        );
+        assert_eq!(
+            bucket_boundary(1024),
+            vec![
+                0b0000001000000000,
+                0b0000001100000000,
+                0b0000001110000000,
+                0b0000001111000000,
+                0b0000001111100000,
+                0b0000001111110000,
+                0b0000001111111000,
+                0b0000001111111100,
+                0b0000001111111110,
+                0b0000001111111111,
+                0b0000010000000000,
+            ]
+        );
+    }
+
+    #[test]
+    /// Test the upper limit case for `bucket_boundary`
+    fn test_bucket_boundary_max_value() {
+        // all usable bits set, exercising the end of the iteration
+        let tiers = bucket_boundary(BaseRevision::MAX);
+        assert_eq!(tiers.len(), 31);
+        assert_eq!(*tiers.first().unwrap(), 1 << 30);
+        assert_eq!(*tiers.last().unwrap(), BaseRevision::MAX);
+    }
 
     /// Shorthand to reduce boilerplate when creating [`Revision`] for testing
     macro_rules! R {
