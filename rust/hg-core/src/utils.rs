@@ -65,6 +65,11 @@ pub fn i32_u(i: i32) -> usize {
 }
 
 #[inline(always)]
+pub fn i32_u32(i: i32) -> u32 {
+    i.try_into().expect("u32 can't hold a i32, is the value negative?")
+}
+
+#[inline(always)]
 pub fn u_i64(i: usize) -> i64 {
     i.try_into().expect("value too large for a i64")
 }
