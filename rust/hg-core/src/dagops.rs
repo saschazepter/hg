@@ -23,6 +23,7 @@ use super::Revision;
 use crate::BaseRevision;
 use crate::FastHashSet;
 use crate::ancestors::AncestorsIterator;
+use crate::utils::unlikely;
 
 fn remove_parents(
     graph: &impl Graph,
@@ -106,7 +107,7 @@ pub fn compute_heads(
 
         // If we did not see any (unfiltered) children getting there, this is a
         // head
-        if !not_heads[idx] {
+        if unlikely(!not_heads[idx]) {
             heads.push(rev);
         };
 
