@@ -113,10 +113,11 @@ pub fn compute_heads(
         // So, if the current revision was already marked as non-head when we
         // saw a non-filtered child of this revision, we know it cannot be
         // filtered and skip the expensive `contains` check.
-        if !filtered_revs.is_empty()
-            && !not_heads[idx]
-            && filtered_revs.contains(&rev)
-        {
+        if unlikely(
+            !filtered_revs.is_empty()
+                && !not_heads[idx]
+                && filtered_revs.contains(&rev),
+        ) {
             // If this revision is filtered, nobody could have marked it as a
             // non-head already. So we need to mark it as a non-head.
             not_heads.get_mut(idx).unwrap().commit(true);
