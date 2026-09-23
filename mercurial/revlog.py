@@ -4106,7 +4106,7 @@ class revlog:
             deltamode = repository.CG_DELTAMODE_FULL
 
         with self.reading():
-            return self._emit_revisions(
+            yield from self._emit_revisions(
                 nodes,
                 nodesorder,
                 deltamode=deltamode,

@@ -2,7 +2,7 @@
 
 The cg04 variant makes the server send its stored compressed deltas as they
 are. Serving them must not leave the server's changelog open, or the push
-below crashes the server. Reproducing this needs the Rust revlog.
+below crashes the server.
 
 #if cg04
   $ cat >> $HGRCPATH << EOF
@@ -50,21 +50,6 @@ below crashes the server. Reproducing this needs the Rust revlog.
   
   $ echo bar >> b/foo
   $ hg -R b ci -m bar
-#if cg04 rust
-  $ hg --encoding utf-8 -R b push
-  pushing to http://localhost:$HGPORT1/
-  searching for changes
-  abort: HTTP Error 500: Internal Server Error
-  [100]
-  $ hg -R a --encoding utf-8 log
-  changeset:   0:867c11ce77b8
-  branch:      \xc3\xa6 (esc)
-  tag:         tip
-  user:        test
-  date:        Thu Jan 01 00:00:00 1970 +0000
-  summary:     foo
-  
-#else
   $ hg --encoding utf-8 -R b push
   pushing to http://localhost:$HGPORT1/
   searching for changes
@@ -86,7 +71,6 @@ below crashes the server. Reproducing this needs the Rust revlog.
   date:        Thu Jan 01 00:00:00 1970 +0000
   summary:     foo
   
-#endif
   $ killdaemons.py hg.pid
 
 verify 7e7d56fe4833 (encoding fallback in branchmap to maintain compatibility with 1.3.x)
@@ -127,6 +111,4 @@ verify 7e7d56fe4833 (encoding fallback in branchmap to maintain compatibility wi
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
-  remote: added 1 changesets with 1 changes to 1 files (no-cg04 !)
-  remote: added 1 changesets with 1 changes to 1 files (cg04 no-rust !)
-  remote: added 2 changesets with 2 changes to 1 files (cg04 rust !)
+  remote: added 1 changesets with 1 changes to 1 files
