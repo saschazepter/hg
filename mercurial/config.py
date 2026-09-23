@@ -142,6 +142,7 @@ class config:
         value: bytes,
         source: bytes = b"",
     ) -> None:
+        """install `value` for `section.item`, at the current source level"""
         assert not isinstance(
             section, str
         ), b'config section may not be unicode strings on Python 3'
@@ -151,6 +152,19 @@ class config:
         assert not isinstance(
             value, str
         ), b'config values may not be unicode strings on Python 3'
+        self._set_item(section, item, value, source)
+
+    def _set_item(
+        self,
+        section: bytes,
+        item: bytes,
+        value: bytes,
+        source: bytes,
+    ) -> None:
+        """install `value` for `section.item`, at the current source level
+
+        Internal function, use `set(…)` instead.
+        """
         if section not in self:
             self._data[section] = util.cowsortdict()
         else:
