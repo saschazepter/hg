@@ -386,6 +386,10 @@ def _debugchangegroup(ui, gen, all=None, indent=0, **opts):
         def showchunks(named):
             ui.write(b"\n%s%s\n" % (indent_string, named))
             for deltadata in gen.deltaiter():
+                # changegroup 04 can carry full texts instead of deltas
+                data = deltadata.delta
+                if data is None:
+                    data = deltadata.raw_text
                 ui.write(
                     b"%s%s %s %s %s %s %d\n"
                     % (
@@ -395,7 +399,7 @@ def _debugchangegroup(ui, gen, all=None, indent=0, **opts):
                         hex(deltadata.p2),
                         hex(deltadata.link_node),
                         hex(deltadata.delta_base),
-                        len(deltadata.delta),
+                        len(data),
                     )
                 )
 
