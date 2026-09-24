@@ -608,17 +608,13 @@ changegroup4 as well.
      rev linkrev       nodeid    p1-nodeid    p2-nodeid
        0       0 1e88685f5dde 000000000000 000000000000
        1       1 78e3b2ef8a16 1e88685f5dde 000000000000
-       2       3 539308d00c46 000000000000 78e3b2ef8a16 (missing-correct-output !)
-       2       3 539308d00c46 78e3b2ef8a16 000000000000 (known-bad-output !)
+       2       3 539308d00c46 000000000000 78e3b2ef8a16
 #endif
   $ hg --cwd overwrite-cg3 debugrename -r 3 b
   b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3
   $ hg --cwd overwrite-cg4 debugrename -r 3 b
-  b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 (meta-flag !)
-  b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 (parent-swap missing-correct-output !)
-  b not renamed (parent-swap known-bad-output !)
+  b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3
 #if parent-swap
   $ hg --cwd overwrite-cg4 debug-repair-issue6528 --dry-run
-  no affected revisions were found (missing-correct-output !)
-  found affected revision 2 for file 'b' (known-bad-output !)
+  no affected revisions were found
 #endif

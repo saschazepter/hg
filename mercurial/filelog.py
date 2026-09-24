@@ -290,8 +290,9 @@ class filelog(repository.ifilestorage):
         for d in deltas_iter:
             if d.flags & revlog_constants.REVIDX_HASMETA:
                 d.flags &= ~revlog_constants.REVIDX_HASMETA
-                if d.p1 == self.nullid and d.p2 != self.nullid:
-                    d.p1, d.p2 = d.p2, d.p1
+                # same translation as `addrevision`
+                if d.p2 == self.nullid:
+                    d.p1, d.p2 = self.nullid, d.p1
             d.has_filelog_hasmeta_flag = False
             yield d
 
