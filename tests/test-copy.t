@@ -546,3 +546,79 @@ Test uncopy on committed copies
   e106cd025269f85a938d68b6734822c2  clone2-cg3/.hg/store/data/qux.i
   e106cd025269f85a938d68b6734822c2  clone2-cg4/.hg/store/data/qux.i
 #endif
+
+Test downgrade of data from changegroup-v4
+------------------------------------------
+
+A copy onto a file recorded by a merge keeps the other side of the file as a
+filelog parent. It should survive push and pull with both changegroup3 and
+changegroup4 as well.
+
+  $ hg init overwrite
+  $ cd overwrite
+  $ echo a > a
+  $ echo b > b
+  $ hg commit -qAm base
+  $ echo b2 > b
+  $ hg commit -qm 'change b'
+  $ hg update -q 0
+  $ echo c > c
+  $ hg commit -qAm 'add c'
+  $ hg merge -q 1
+  $ hg copy --force a b
+  $ hg commit -qm 'merge, copying a onto b'
+#if meta-flag
+  $ hg debugindex b
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 1e88685f5dde 000000000000 000000000000
+       1       1 78e3b2ef8a16 1e88685f5dde 000000000000
+       2       3 539308d00c46 78e3b2ef8a16 000000000000
+#else
+  $ hg debugindex b
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 1e88685f5dde 000000000000 000000000000
+       1       1 78e3b2ef8a16 1e88685f5dde 000000000000
+       2       3 539308d00c46 000000000000 78e3b2ef8a16
+#endif
+  $ hg debugrename -r 3 b
+  b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3
+  $ cd ..
+
+  $ hg clone --pull overwrite overwrite-cg3 --quiet --config experimental.changegroup4=no
+  $ hg clone --pull overwrite overwrite-cg4 --quiet --config experimental.changegroup4=yes
+
+#if meta-flag
+  $ hg debugindex -R overwrite-cg3 b
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 1e88685f5dde 000000000000 000000000000
+       1       1 78e3b2ef8a16 1e88685f5dde 000000000000
+       2       3 539308d00c46 78e3b2ef8a16 000000000000
+  $ hg debugindex -R overwrite-cg4 b
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 1e88685f5dde 000000000000 000000000000
+       1       1 78e3b2ef8a16 1e88685f5dde 000000000000
+       2       3 539308d00c46 78e3b2ef8a16 000000000000
+#else
+  $ hg debugindex -R overwrite-cg3 b
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 1e88685f5dde 000000000000 000000000000
+       1       1 78e3b2ef8a16 1e88685f5dde 000000000000
+       2       3 539308d00c46 000000000000 78e3b2ef8a16
+  $ hg debugindex -R overwrite-cg4 b
+     rev linkrev       nodeid    p1-nodeid    p2-nodeid
+       0       0 1e88685f5dde 000000000000 000000000000
+       1       1 78e3b2ef8a16 1e88685f5dde 000000000000
+       2       3 539308d00c46 000000000000 78e3b2ef8a16 (missing-correct-output !)
+       2       3 539308d00c46 78e3b2ef8a16 000000000000 (known-bad-output !)
+#endif
+  $ hg --cwd overwrite-cg3 debugrename -r 3 b
+  b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3
+  $ hg --cwd overwrite-cg4 debugrename -r 3 b
+  b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 (meta-flag !)
+  b renamed from a:b789fdd96dc2f3bd229c1dd8eedf0fc60e2b68e3 (parent-swap missing-correct-output !)
+  b not renamed (parent-swap known-bad-output !)
+#if parent-swap
+  $ hg --cwd overwrite-cg4 debug-repair-issue6528 --dry-run
+  no affected revisions were found (missing-correct-output !)
+  found affected revision 2 for file 'b' (known-bad-output !)
+#endif
