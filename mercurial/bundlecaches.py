@@ -852,40 +852,38 @@ def _cmp_entries_by_prefers(
     b: EntryT,
 ) -> int:
     """Order two manifest entries against the ``ui.clonebundleprefers`` items."""
-    # TODO remove `if True` in child commit
-    if True:
-        for prefkey, prefvalue in prefers:
-            avalue = a.get(prefkey)
-            bvalue = b.get(prefkey)
+    for prefkey, prefvalue in prefers:
+        avalue = a.get(prefkey)
+        bvalue = b.get(prefkey)
 
-            # Special case for b missing attribute and a matches exactly.
-            if avalue is not None and bvalue is None and avalue == prefvalue:
-                return -1
+        # Special case for b missing attribute and a matches exactly.
+        if avalue is not None and bvalue is None and avalue == prefvalue:
+            return -1
 
-            # Special case for a missing attribute and b matches exactly.
-            if bvalue is not None and avalue is None and bvalue == prefvalue:
-                return 1
+        # Special case for a missing attribute and b matches exactly.
+        if bvalue is not None and avalue is None and bvalue == prefvalue:
+            return 1
 
-            # We can't compare unless attribute present on both.
-            if avalue is None or bvalue is None:
-                continue
-
-            # Same values should fall back to next attribute.
-            if avalue == bvalue:
-                continue
-
-            # Exact matches come first.
-            if avalue == prefvalue:
-                return -1
-            if bvalue == prefvalue:
-                return 1
-
-            # Fall back to next attribute.
+        # We can't compare unless attribute present on both.
+        if avalue is None or bvalue is None:
             continue
 
-        # If we got here we couldn't sort by attributes and prefers. Fall
-        # back to index order.
-        return 0
+        # Same values should fall back to next attribute.
+        if avalue == bvalue:
+            continue
+
+        # Exact matches come first.
+        if avalue == prefvalue:
+            return -1
+        if bvalue == prefvalue:
+            return 1
+
+        # Fall back to next attribute.
+        continue
+
+    # If we got here we couldn't sort by attributes and prefers. Fall
+    # back to index order.
+    return 0
 
 
 def best_clonebundles(ui, entries):
