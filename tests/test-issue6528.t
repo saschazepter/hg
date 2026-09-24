@@ -830,3 +830,36 @@ upgrading with fast upgrade
   R a.txt
 
   $ cd ..
+
+Test the fix on a filelog whose temporary file gets hash-encoded
+----------------------------------------------------------------
+
+The fix writes a copy of the index to `<index>.tmp-parents-fix`. The store path
+encoding hashes long paths into `dh/`, so the temporary file can end up in a
+directory that does not exist even though the index itself lives under `data/`.
+
+  $ mkdir repo-to-fix-long-name
+  $ cd repo-to-fix-long-name
+  $ tar -xf - < "$TESTDIR"/bundles/issue6528.tar
+  $ LONG_NAME=`"$PYTHON" -c 'print("l" * 100 + ".txt")'`
+  $ cp .hg/store/data/_d.txt.i .hg/store/data/$LONG_NAME.i
+  $ echo data/$LONG_NAME.i >> .hg/store/fncache
+  $ hg debugrevlogindex $LONG_NAME
+     rev linkrev nodeid       p1           p2
+       0       6 2a8d3833f2fb 000000000000 000000000000
+       1       7 2a80419dfc31 2a8d3833f2fb 000000000000
+  $ hg debug-repair-issue6528
+  found affected revision 1 for file 'D.txt'
+  repaired revision 1 of 'filelog data/D.txt.i'
+  found affected revision 1 for file 'b.txt'
+  found affected revision 3 for file 'b.txt'
+  repaired revision 1 of 'filelog data/b.txt.i'
+  repaired revision 3 of 'filelog data/b.txt.i'
+  found affected revision 1 for file 'llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll.txt'
+  abort: $ENOENT$: '$TESTTMP/repo-to-fix-long-name/.hg/store/dh/lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll2238b41da7480c33a1b2d759321a1b031914fa25.tmp-parents-fix'
+  [255]
+  $ hg debugrevlogindex $LONG_NAME
+     rev linkrev nodeid       p1           p2
+       0       6 2a8d3833f2fb 000000000000 000000000000
+       1       7 2a80419dfc31 2a8d3833f2fb 000000000000
+  $ cd ..
