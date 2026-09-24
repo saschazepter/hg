@@ -1083,8 +1083,8 @@ Test the debug statistic when applying a bundle
 Test the progress when applying a bundle with changesets we already have
 -------------------------------------------------------------------------
 
-The bundle carries the manifests and files of all its changesets, but the
-progress totals only count those of the changesets we do not have yet.
+The bundle carries the manifests and files of all its changesets, so the
+progress totals count those of the changesets we already have too.
 
   $ cd ..
   $ hg init progress-src
@@ -1105,11 +1105,11 @@ progress totals only count those of the changesets we do not have yet.
   changesets: 1/3 chunks (33.33%)
   changesets: 2/3 chunks (66.67%)
   changesets: 3/3 chunks (100.00%)
-  manifests: 1/1 chunks (100.00%)
-  manifests: 2/1 chunks (200.00%)
-  manifests: 3/1 chunks (300.00%)
-  files: 1/2 files (50.00%)
-  files: 2/2 files (100.00%)
-  files: 3/2 files (150.00%)
-  files: 4/2 files (200.00%)
-  files: 5/2 files (250.00%)
+  manifests: 1/3 chunks (33.33%)
+  manifests: 2/3 chunks (66.67%)
+  manifests: 3/3 chunks (100.00%)
+  files: 1/5 files (20.00%)
+  files: 2/5 files (40.00%)
+  files: 3/5 files (60.00%)
+  files: 4/5 files (80.00%)
+  files: 5/5 files (100.00%)

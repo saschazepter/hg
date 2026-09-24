@@ -739,6 +739,8 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             def ondupchangelog(cl, rev):
                 if rev < clstart:
                     duprevs.append(rev)  # pytype: disable=attribute-error
+                assert efilesset is not None  # help pytype
+                efilesset.update(cl.changelogrevision(rev).files)
 
             def onchangelog(cl, rev):
                 ctx = cl.changelogrevision(rev)
@@ -782,9 +784,11 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             # pull off the manifest group
             repo.ui.status(_(b"adding manifests\n"))
             # We know that we'll never have more manifests than we had
-            # changesets.
+            # changesets, duplicates included.
             progress = repo.ui.makeprogress(
-                _(b'manifests'), unit=_(b'chunks'), total=changesets
+                _(b'manifests'),
+                unit=_(b'chunks'),
+                total=changesets + len(duprevs),
             )
             on_manifest_rev = None
             if sidedata_helpers:
