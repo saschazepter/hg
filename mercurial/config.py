@@ -324,22 +324,89 @@ class config:
         self._register_source(source)
         self._set_item(section, item, value, source)
 
+    def set_at_source(
+        self,
+        section: bytes,
+        item: bytes,
+        value: bytes,
+        source: bytes,
+    ) -> _ItemT | None:
+        """set a value as if it came from `source`
+
+        Unlike `set`, the value is not installed at the current level but at
+        the level of `source`, so that anything read after `source` keeps
+        precedence over it, as it would on the next configuration read. The
+        value is not installed at all in that case.
+
+        Return None when the new value is the one in use, or the item that
+        shadows it, as a (value, source, level) tuple.
+
+        >>> cfg = config()
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'user-rc',
+        ...     b'[one]\\n'
+        ...     b'key = from-user\\n',
+        ... )
+        >>> cfg.insert_source_before(b'user-rc-managed', b'user-rc')
+
+
+        Value at higher level shadow the insert of a lower one.
+
+        >>> cfg.set_at_source(b'one', b'key', b'managed', b'user-rc-managed')
+        (b'from-user', b'user-rc:2', 10)
+        >>> cfg.get(b'one', b'key')
+        b'from-user'
+
+        Value at lower level are overriden by a lower one.
+
+        >>> cfg.set_at_source(
+        ...     b'one',
+        ...     b'other',
+        ...     b'managed',
+        ...     b'user-rc-managed',
+        ... )
+        >>> cfg.get(b'one', b'other')
+        b'managed'
+        """
+        levels = self._source_levels.get(source)
+        if levels is None:
+            msg = b'setting a value on an unknown source: %s' % source
+            raise error.ProgrammingError(msg)
+        # a source that spans multiple levels holds its own values at the
+        # last one (the earlier ones cover what it includes).
+        level = max(levels)
+        existing = self._get(section, item)
+        # If an higher level value shadow the one we try to add, don't update
+        # the config and return that value.
+        #
+        # Note: if a backup existed for this value that would be impacted by
+        # this `set_at_source`, it will not be visible to `restore`.
+        if existing is None or existing[2] <= level:
+            self._set_item(section, item, value, source, level=level)
+        return existing
+
     def _set_item(
         self,
         section: bytes,
         item: bytes,
         value: bytes,
         source: bytes,
+        level: int | None = None,
     ) -> None:
-        """install `value` for `section.item`, at the current source level
+        """install `value` for `section.item`, at `level`
+
+        The current source level is used when no level is given.
 
         Internal function, use `set(…)` instead.
         """
+        if level is None:
+            level = self._current_source_level
         if section not in self:
             self._data[section] = util.cowsortdict()
         else:
             self._data[section] = self._data[section].preparewrite()
-        self._data[section][item] = (value, source, self._current_source_level)
+        self._data[section][item] = (value, source, level)
 
     def alter(self, section: bytes, key: bytes, new_value: bytes) -> None:
         """alter a value without altering its source or level
