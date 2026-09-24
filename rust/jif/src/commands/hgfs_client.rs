@@ -47,11 +47,11 @@ enum ClientCommand {
         /// path to mount the virtual filesystem at
         #[arg(long)]
         mount: OsString,
-        /// backing path that stores mount data
+        /// storage dir that stores mount data
         #[arg(long)]
-        backing_path: OsString,
+        storage_dir: OsString,
         /// revision to mount the virtual filesystem at; this is ignored if the
-        /// backing path already has information
+        /// storage dir already has information
         #[arg(long)]
         revision: String,
     },
@@ -103,11 +103,11 @@ async fn dispatch(
                 pid = resp.pid
             )?;
         }
-        ClientCommand::Mount { clone, mount, backing_path, revision } => {
+        ClientCommand::Mount { clone, mount, storage_dir, revision } => {
             let request = MountRequest {
                 clone_path: clone.as_bytes().to_vec(),
                 mount_point: mount.as_bytes().to_vec(),
-                backing_path: backing_path.as_bytes().to_vec(),
+                storage_dir: storage_dir.as_bytes().to_vec(),
                 revision: revision.as_bytes().to_vec(),
             };
             let resp =

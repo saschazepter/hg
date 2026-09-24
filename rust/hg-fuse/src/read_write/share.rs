@@ -17,7 +17,7 @@ pub enum Error {
     Io(std::io::Error),
 }
 
-pub struct State<S, T> {
+pub struct Share<S, T> {
     /// The repo that we're serving for
     #[expect(unused)]
     store: Arc<Store<S, T>>,
@@ -29,10 +29,10 @@ pub struct State<S, T> {
     gid: u32,
 }
 
-impl<S: StoreBackend<T>, T: FileToken> State<S, T> {
+impl<S: StoreBackend<T>, T: FileToken> Share<S, T> {
     pub fn new(
         store: Arc<Store<S, T>>,
-        _backing_path: PathBuf,
+        _storage_dir: PathBuf,
         _revision: Node,
         user_id: Option<u32>,
         group_id: Option<u32>,

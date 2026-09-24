@@ -79,15 +79,15 @@ impl VfsControl for VfsControlService {
         let clone_path = get_path_from_bytes(&request.clone_path).to_path_buf();
         let mount_point =
             get_path_from_bytes(&request.mount_point).to_path_buf();
-        let backing_path =
-            get_path_from_bytes(&request.backing_path).to_path_buf();
+        let storage_dir =
+            get_path_from_bytes(&request.storage_dir).to_path_buf();
         let revision = Node::from_hex(request.revision).map_err(|_e| {
             Status::internal("invalid revision, expected rev40")
         })?;
         tracing::info!(
             clone_path = %clone_path.display(),
             mount_point = %mount_point.display(),
-            backing_path = %backing_path.display(),
+            storage_dir = %storage_dir.display(),
             ?revision,
             "Mount requested",
         );
@@ -105,7 +105,7 @@ impl VfsControl for VfsControlService {
                     },
                 )?;
                 manager
-                    .mount(repo, mount_point, backing_path, revision)
+                    .mount(repo, mount_point, storage_dir, revision)
                     .map_err(mount_error_to_status)
             },
         )
@@ -163,8 +163,8 @@ fn mount_error_to_status(e: MountError) -> Status {
             path.display()
         )),
         MountError::Hg(e) => Status::internal(e.to_string()),
-        MountError::State(e) => {
-            Status::internal(format!("state error: {:?}", e))
+        MountError::Share(e) => {
+            Status::internal(format!("share error: {:?}", e))
         }
         MountError::NotMounted(path, _) => {
             Status::not_found(format!("nothing mounted at {}", path.display()))

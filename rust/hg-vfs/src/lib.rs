@@ -17,7 +17,7 @@ use hg::errors::HgError;
 use hg::repo::Repo;
 use hg::utils::u32_u;
 use hg_fuse::read_write::fuse::HgFuse;
-use hg_fuse::read_write::state::State;
+use hg_fuse::read_write::share::Share;
 use hg_fuse::server::local::LocalBackend;
 use hg_fuse::server::local::LocalToken;
 pub use hg_fuse::server::store::BackendMode;
@@ -58,9 +58,9 @@ pub enum MountError {
     /// Setting up the backend or FUSE session failed.
     #[from]
     Hg(HgError),
-    /// Setting up the state failed.
+    /// Setting up the share state failed.
     #[from]
-    State(hg_fuse::read_write::state::Error),
+    Share(hg_fuse::read_write::share::Error),
     /// Nothing is mounted at this mount point.
     NotMounted(PathBuf, HgBacktrace),
     /// Unmounting (the umount syscall or the session thread-join) failed.
@@ -93,8 +93,8 @@ impl MountManager {
         Self::default()
     }
 
-    /// Mount `repo` at `mount_point` using `backing_path` to persist data. If
-    /// `backing_path` is not initialized, check out `revision`. Returns the
+    /// Mount `repo` at `mount_point` using `storage_dir` to persist data. If
+    /// `storage_dir` is not initialized, check out `revision`. Returns the
     /// info for the new mount.
     ///
     /// Errors with `AlreadyMounted` if the mount point is already in use. On
@@ -104,7 +104,7 @@ impl MountManager {
         &self,
         repo: Repo,
         mount_point: PathBuf,
-        backing_path: PathBuf,
+        storage_dir: PathBuf,
         revision: Node,
     ) -> Result<MountInfo, MountError> {
         let clone_path = repo.working_directory_path().to_path_buf();
@@ -150,16 +150,16 @@ impl MountManager {
                 }
             }
         };
-        let state = Arc::new(State::new(
+        let share = Arc::new(Share::new(
             store,
-            backing_path,
+            storage_dir,
             revision,
             self.mount_options.user_id,
             self.mount_options.group_id,
         )?);
 
         let session = HgFuse::mount(
-            state,
+            share,
             &mount_point,
             self.mount_options.session_acl,
             num_threads,

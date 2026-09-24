@@ -13,13 +13,13 @@ use fuser::SessionACL;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
 
-use crate::read_write::state::State;
+use crate::read_write::share::Share;
 use crate::server::store::FileToken;
 use crate::server::store::StoreBackend;
 
 pub struct HgFuse<S, T> {
     #[expect(unused)]
-    state: Arc<State<S, T>>,
+    share: Arc<Share<S, T>>,
     /// FUSE capability for zero-message open
     fuse_no_open_support: bool,
 }
@@ -32,7 +32,7 @@ impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
     /// This function returns a handle to the filesystem session, which
     /// if dropped unmounts the filesystem.
     pub fn mount(
-        state: Arc<State<S, T>>,
+        share: Arc<Share<S, T>>,
         destination: impl AsRef<Path>,
         session_acl: SessionACL,
         thread_count: usize,
@@ -50,7 +50,7 @@ impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
         ]);
         config.acl = session_acl;
         config.n_threads = Some(thread_count);
-        let filesystem = Self { state, fuse_no_open_support: false };
+        let filesystem = Self { share, fuse_no_open_support: false };
         Ok(fuser::spawn_mount(filesystem, mountpoint, &config)
             .when_writing_file(mountpoint)?)
     }

@@ -25,7 +25,7 @@ message HealthResponse {
 message MountRequest {
   bytes clone_path = 1;
   bytes mount_point = 2;
-  bytes backing_path = 3;
+  bytes storage_dir = 3;
   bytes revision = 4;
 }
 message MountInfo {

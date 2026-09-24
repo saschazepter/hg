@@ -44,8 +44,8 @@ Mount the clone
 ---------------
 
   $ mkdir mnt
-  $ mkdir backing
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV0
+  $ mkdir storage
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --storage-dir "$TESTTMP/storage" --revision $REV0
   mounted */source at */mnt (created * UTC) (glob)
   $ wait_for_mount "hgvfs" "$TESTTMP/mnt"
   hgvfs on $TESTTMP/mnt type fuse (rw,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
@@ -59,7 +59,7 @@ Mount the clone
 Mounting again at the same point is rejected
 --------------------------------------------
 
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV0
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --storage-dir "$TESTTMP/storage" --revision $REV0
   abort: already mounted at * (glob)
   [255]
 
@@ -93,16 +93,16 @@ Unmounting an unknown path fails cleanly
 Mounting a nonexistent mount point fails
 ----------------------------------------
 
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/does-not-exist" --backing-path "$TESTTMP/backing" --revision $REV0
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/does-not-exist" --storage-dir "$TESTTMP/storage" --revision $REV0
   abort: * (glob)
   [255]
 
 Re-mount so graceful shutdown has a live mount to clean up.
 
-  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --backing-path "$TESTTMP/backing" --revision $REV1
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/mnt" --storage-dir "$TESTTMP/storage" --revision $REV1
   mounted */source at */mnt (created * UTC) (glob)
 
-Even though we requested REV1, we remount at REV0 because we reuse the backing dir.
+Even though we requested REV1, we remount at REV0 because we reuse the storage dir.
 
   $ cat "$TESTTMP/mnt/a"
   a-rev0 (missing-correct-output !)
