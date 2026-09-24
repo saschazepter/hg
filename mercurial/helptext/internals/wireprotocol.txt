@@ -965,7 +965,7 @@ store_fingerprint
    (Legacy argument: new clients set ``mandatory_params`` instead)
 
    If set to the ascii ``string`` of ``1``, the manifest will also include
-   clonebundles that have a store fingerprint (see :hg:`help shapes`)
+   clonebundles that have a store fingerprint (see :hg:`help -e narrow`).
 
 The return type is a ``string``.
 
