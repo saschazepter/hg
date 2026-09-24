@@ -164,6 +164,7 @@ from .interfaces.types import (
     UnbundleOpT,
 )
 from . import (
+    bundlecaches,
     changegroup,
     encoding,
     error,
@@ -1685,16 +1686,16 @@ def writenewbundle(
         raise error.ProgrammingError(msg)
 
     caps: Capabilities = {}
-    if opts.get(b'obsolescence', False):
+    if opts.get(bundlecaches.BUNDLESPEC_OBSOLESCENCE, False):
         caps[b'obsmarkers'] = (b'V1',)
-    if stream_version := opts.get(b'stream', b""):
+    if stream_version := opts.get(bundlecaches.BUNDLESPEC_STREAM, b""):
         return write_new_stream_bundle(
             repo=repo,
             version=stream_version,
             filename=filename,
             opts=opts,
             vfs=vfs,
-            shape=opts.get(b"shape"),
+            shape=opts.get(bundlecaches.BUNDLESPEC_SHAPE),
         )
     else:
         bundle = bundle20(ui, caps)
@@ -1729,7 +1730,7 @@ def write_new_stream_bundle(
         fingerprint = shape_obj.fingerprint()
 
     caps: Capabilities = {b"stream": [version]}
-    if opts.get(b'obsolescence', False):
+    if opts.get(bundlecaches.BUNDLESPEC_OBSOLESCENCE, False):
         caps[b'obsmarkers'] = (b'V1',)
 
     narrow_info = streamclone.NarrowInfo(
@@ -1814,11 +1815,11 @@ def _addpartsfromopts(repo, bundler, source, outgoing, opts):
     # simplicity.
 
     # we might not always want a changegroup in such bundle for legacy formats
-    if opts.get(b'changegroup', True):
-        cgversion = opts.get(b'cg.version')
+    if opts.get(bundlecaches.BUNDLESPEC_CHANGEGROUP, True):
+        cgversion = opts.get(bundlecaches.BUNDLESPEC_CG_VERSION)
         if cgversion is None:
             cgversion = changegroup.safeversion(repo)
-        delta_comp = opts.get(b'cg.delta-compression')
+        delta_comp = opts.get(bundlecaches.BUNDLESPEC_CG_DELTA_COMPRESSION)
         if delta_comp is not None:
             delta_comp = delta_comp.split(b',')
 
@@ -1848,7 +1849,7 @@ def _addpartsfromopts(repo, bundler, source, outgoing, opts):
                 b','.join(sorted(cg.extras[b'delta-compression'])),
                 mandatory=False,
             )
-        if opts.get(b'phases'):
+        if opts.get(bundlecaches.BUNDLESPEC_PHASES):
             target_phase = phases.draft
             for head in outgoing.ancestorsof:
                 target_phase = max(target_phase, repo[head].phase())
@@ -1861,21 +1862,23 @@ def _addpartsfromopts(repo, bundler, source, outgoing, opts):
     if i_repo.REPO_FEATURE_SIDE_DATA in repo.features:
         part.addparam(b'exp-sidedata', b'1')
 
-    if opts.get(b'tagsfnodescache', True):
+    if opts.get(bundlecaches.BUNDLESPEC_TAGSFNODESCACHE, True):
         addparttagsfnodescache(repo, bundler, outgoing)
 
-    if opts.get(b'revbranchcache', True):
+    if opts.get(bundlecaches.BUNDLESPEC_REVBRANCHCACHE, True):
         addpartrevbranchcache(repo, bundler, outgoing)
 
-    if opts.get(b'obsolescence', False):
+    if opts.get(bundlecaches.BUNDLESPEC_OBSOLESCENCE, False):
         obsmarkers = repo.obsstore.relevantmarkers(nodes=outgoing.missing)
         buildobsmarkerspart(
             bundler,
             obsmarkers,
-            mandatory=opts.get(b'obsolescence-mandatory', True),
+            mandatory=opts.get(
+                bundlecaches.BUNDLESPEC_OBSOLESCENCE_MANDATORY, True
+            ),
         )
 
-    if opts.get(b'phases', False):
+    if opts.get(bundlecaches.BUNDLESPEC_PHASES, False):
         headsbyphase = phases.subsetphaseheads(repo, outgoing.missing)
         phasedata = phases.binaryencode(headsbyphase)
         bundler.newpart(b'phase-heads', data=phasedata)

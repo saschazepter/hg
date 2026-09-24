@@ -377,7 +377,9 @@ def _extsetup(ui):
     # Make bundle choose changegroup3 instead of changegroup2. This affects
     # "hg bundle" command. Note: it does not cover all bundle formats like
     # "packed1". Using "packed1" with lfs will likely cause trouble.
-    bundlecaches._bundlespeccontentopts[b"v2"][b"cg.version"] = b"03"
+    bundlecaches._bundlespeccontentopts[b"v2"][
+        bundlecaches.BUNDLESPEC_CG_VERSION
+    ] = b"03"
 
 
 @eh.filesetpredicate(b'lfs()')

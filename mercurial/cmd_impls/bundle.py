@@ -50,7 +50,7 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
             hint=_(b"see 'hg help bundlespec' for supported values for --type"),
         )
 
-    if bundlespec.params.get(b"shape") is not None:
+    if bundlespec.params.get(bundlecaches.BUNDLESPEC_SHAPE) is not None:
         if shape_mod is None:
             raise error.InputError(
                 _(
@@ -59,7 +59,7 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
                 ),
             )
         # Give more a helpful error than a programming error later on
-        if bundlespec.params.get(b"stream") is None:
+        if bundlespec.params.get(bundlecaches.BUNDLESPEC_STREAM) is None:
             raise error.InputError(
                 _(
                     b"shape bundlespec option is only implemented"
@@ -67,8 +67,10 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
                 ),
             )
 
-    has_changegroup = bundlespec.params.get(b"changegroup", False)
-    cgversion = bundlespec.params[b"cg.version"]
+    has_changegroup = bundlespec.params.get(
+        bundlecaches.BUNDLESPEC_CHANGEGROUP, False
+    )
+    cgversion = bundlespec.params[bundlecaches.BUNDLESPEC_CG_VERSION]
 
     # Packed bundles are a pseudo bundle format for now.
     if cgversion == b's1':
@@ -208,14 +210,20 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
     # support the necessary features.
     cfg = ui.configbool
     obsolescence_cfg = cfg(b'experimental', b'evolution.bundle-obsmarker')
-    bundlespec.set_param(b'obsolescence', obsolescence_cfg, overwrite=False)
+    bundlespec.set_param(
+        bundlecaches.BUNDLESPEC_OBSOLESCENCE, obsolescence_cfg, overwrite=False
+    )
     obs_mand_cfg = cfg(b'experimental', b'evolution.bundle-obsmarker:mandatory')
     bundlespec.set_param(
-        b'obsolescence-mandatory', obs_mand_cfg, overwrite=False
+        bundlecaches.BUNDLESPEC_OBSOLESCENCE_MANDATORY,
+        obs_mand_cfg,
+        overwrite=False,
     )
-    if not bundlespec.params.get(b'phases', False):
+    if not bundlespec.params.get(bundlecaches.BUNDLESPEC_PHASES, False):
         phases_cfg = cfg(b'experimental', b'bundle-phases')
-        bundlespec.set_param(b'phases', phases_cfg, overwrite=False)
+        bundlespec.set_param(
+            bundlecaches.BUNDLESPEC_PHASES, phases_cfg, overwrite=False
+        )
 
     bundle2.writenewbundle(
         ui,

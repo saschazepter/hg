@@ -172,7 +172,7 @@ def _inferbundlespec(ui, fh):
                     version = b'v2'
                 elif cgversion in (b'03', b'04'):
                     version = b'v2'
-                    params[b'cg.version'] = cgversion
+                    params[bundlecaches.BUNDLESPEC_CG_VERSION] = cgversion
                 else:
                     raise error.Abort(
                         _(
@@ -183,7 +183,9 @@ def _inferbundlespec(ui, fh):
                         hint=_(b'try upgrading your Mercurial client'),
                     )
                 if (dcomp := part.params.get(b'delta-compression')) is not None:
-                    params[b'cg.delta-compression'] = dcomp.split(b',')
+                    params[
+                        bundlecaches.BUNDLESPEC_CG_DELTA_COMPRESSION
+                    ] = dcomp.split(b',')
             elif part.type == b'stream2' and version is None:
                 # A stream2 part requires to be part of a v2 bundle
                 requirements = urlreq.unquote(part.params[b'requirements'])
@@ -193,20 +195,28 @@ def _inferbundlespec(ui, fh):
                     value = part.params.get(param)
                     if value is not None:
                         params = b"%s;%s=%s" % (params, param, value)
-                return b'none-v2;stream=v2;%s' % params
+                return b'none-v2;%s=v2;%s' % (
+                    bundlecaches.BUNDLESPEC_STREAM,
+                    params,
+                )
             elif part.type == b'stream3-exp' and version is None:
                 # A stream3 part requires to be part of a v2 bundle
                 requirements = urlreq.unquote(part.params[b'requirements'])
                 splitted = requirements.split()
                 params = bundle2._formatrequirementsparams(splitted)
-                return b'none-v2;stream=v3-exp;%s' % params
+                return b'none-v2;%s=v3-exp;%s' % (
+                    bundlecaches.BUNDLESPEC_STREAM,
+                    params,
+                )
             elif part.type == b'obsmarkers':
-                params[b'obsolescence'] = b'yes'
+                params[bundlecaches.BUNDLESPEC_OBSOLESCENCE] = b'yes'
                 if not part.mandatory:
-                    params[b'obsolescence-mandatory'] = b'no'
+                    params[
+                        bundlecaches.BUNDLESPEC_OBSOLESCENCE_MANDATORY
+                    ] = b'no'
 
         if not version:
-            params[b'changegroup'] = b'no'
+            params[bundlecaches.BUNDLESPEC_CHANGEGROUP] = b'no'
             version = b'v2'
         spec = b'%s-%s' % (comp, version)
         if params:

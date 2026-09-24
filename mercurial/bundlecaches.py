@@ -49,14 +49,32 @@ SUPPORTED_CLONEBUNDLE_SCHEMES = [
     CLONEBUNDLESCHEME,
 ]
 
+# Names of the bundlespec parameters this module knows about.
+BUNDLESPEC_BUNDLE_GROUP_ID = b"bundle-group-id"
+BUNDLESPEC_BUNDLE_GROUP_TOP_LEVEL = b"bundle-group-top-level"
+BUNDLESPEC_CG_DELTA_COMPRESSION = b"cg.delta-compression"
+BUNDLESPEC_CG_VERSION = b"cg.version"
+BUNDLESPEC_CHANGEGROUP = b"changegroup"
+BUNDLESPEC_DELTA_COMPRESSION = b"delta-compression"
+BUNDLESPEC_OBSOLESCENCE = b"obsolescence"
+BUNDLESPEC_OBSOLESCENCE_MANDATORY = b"obsolescence-mandatory"
+BUNDLESPEC_PHASES = b"phases"
+BUNDLESPEC_REQUIREMENTS = b"requirements"
+BUNDLESPEC_REVBRANCHCACHE = b"revbranchcache"
+BUNDLESPEC_SHAPE = b"shape"
+BUNDLESPEC_SHARD_ID = b"shard-id"
+BUNDLESPEC_STORE_FINGERPRINT = b"store-fingerprint"
+BUNDLESPEC_STREAM = b"stream"
+BUNDLESPEC_TAGSFNODESCACHE = b"tagsfnodescache"
+
 # Bundlespec parameters a client must understand to safely use the bundle.
 MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = {
-    b"requirements",
-    b"store-fingerprint",
-    b"stream",
-    b"shard-id",
-    b"bundle-group-id",
-    b"bundle-group-top-level",
+    BUNDLESPEC_REQUIREMENTS,
+    BUNDLESPEC_STORE_FINGERPRINT,
+    BUNDLESPEC_STREAM,
+    BUNDLESPEC_SHARD_ID,
+    BUNDLESPEC_BUNDLE_GROUP_ID,
+    BUNDLESPEC_BUNDLE_GROUP_TOP_LEVEL,
 }
 
 # Bundlespec params copied over to the manifest line parameters for easier
@@ -67,10 +85,10 @@ MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = {
 # TODO: stop forwarding these params, it's confusing to have uppercase indicate
 # two different things for the same params
 FORWARDED_BUNDLE_SPEC_PARAMS = [
-    b"store-fingerprint",
-    b"shard-id",
-    b"bundle-group-id",
-    b"bundle-group-top-level",
+    BUNDLESPEC_STORE_FINGERPRINT,
+    BUNDLESPEC_SHARD_ID,
+    BUNDLESPEC_BUNDLE_GROUP_ID,
+    BUNDLESPEC_BUNDLE_GROUP_TOP_LEVEL,
 ]
 
 
@@ -117,52 +135,52 @@ class bundlespec:
 # Maps bundle version with content opts to choose which part to bundle
 _bundlespeccontentopts: dict[bytes, dict[bytes, bool | bytes]] = {
     b'v1': {
-        b'changegroup': True,
-        b'cg.version': b'01',
-        b'obsolescence': False,
-        b'phases': False,
-        b'tagsfnodescache': False,
-        b'revbranchcache': False,
+        BUNDLESPEC_CHANGEGROUP: True,
+        BUNDLESPEC_CG_VERSION: b'01',
+        BUNDLESPEC_OBSOLESCENCE: False,
+        BUNDLESPEC_PHASES: False,
+        BUNDLESPEC_TAGSFNODESCACHE: False,
+        BUNDLESPEC_REVBRANCHCACHE: False,
     },
     b'v2': {
-        b'changegroup': True,
-        b'cg.version': b'02',
-        b'obsolescence': False,
-        b'phases': False,
-        b'tagsfnodescache': True,
-        b'revbranchcache': True,
+        BUNDLESPEC_CHANGEGROUP: True,
+        BUNDLESPEC_CG_VERSION: b'02',
+        BUNDLESPEC_OBSOLESCENCE: False,
+        BUNDLESPEC_PHASES: False,
+        BUNDLESPEC_TAGSFNODESCACHE: True,
+        BUNDLESPEC_REVBRANCHCACHE: True,
     },
     b'v3': {
-        b'changegroup': True,
-        b'cg.version': b'03',
-        b'obsolescence': False,
-        b'phases': True,
-        b'tagsfnodescache': True,
-        b'revbranchcache': True,
+        BUNDLESPEC_CHANGEGROUP: True,
+        BUNDLESPEC_CG_VERSION: b'03',
+        BUNDLESPEC_OBSOLESCENCE: False,
+        BUNDLESPEC_PHASES: True,
+        BUNDLESPEC_TAGSFNODESCACHE: True,
+        BUNDLESPEC_REVBRANCHCACHE: True,
     },
     b'streamv2': {
-        b'changegroup': False,
-        b'cg.version': b'02',
-        b'obsolescence': False,
-        b'phases': False,
-        b"stream": b"v2",
-        b'tagsfnodescache': False,
-        b'revbranchcache': False,
+        BUNDLESPEC_CHANGEGROUP: False,
+        BUNDLESPEC_CG_VERSION: b'02',
+        BUNDLESPEC_OBSOLESCENCE: False,
+        BUNDLESPEC_PHASES: False,
+        BUNDLESPEC_STREAM: b"v2",
+        BUNDLESPEC_TAGSFNODESCACHE: False,
+        BUNDLESPEC_REVBRANCHCACHE: False,
     },
     b'streamv3-exp': {
-        b'changegroup': False,
-        b'cg.version': b'03',
-        b'obsolescence': False,
-        b'phases': False,
-        b"stream": b"v3-exp",
-        b'tagsfnodescache': False,
-        b'revbranchcache': False,
+        BUNDLESPEC_CHANGEGROUP: False,
+        BUNDLESPEC_CG_VERSION: b'03',
+        BUNDLESPEC_OBSOLESCENCE: False,
+        BUNDLESPEC_PHASES: False,
+        BUNDLESPEC_STREAM: b"v3-exp",
+        BUNDLESPEC_TAGSFNODESCACHE: False,
+        BUNDLESPEC_REVBRANCHCACHE: False,
     },
     b'packed1': {
-        b'cg.version': b's1',
+        BUNDLESPEC_CG_VERSION: b's1',
     },
     b'bundle2': {  # legacy
-        b'cg.version': b'02',
+        BUNDLESPEC_CG_VERSION: b'02',
     },
 }
 _bundlespeccontentopts[b'bundle2'] = _bundlespeccontentopts[b'v2']
@@ -183,12 +201,12 @@ def param_bool(key, value):
 
 # mapping of known parameter name need their value processed
 bundle_spec_param_processing = {
-    b"obsolescence": param_bool,
-    b"obsolescence-mandatory": param_bool,
-    b"phases": param_bool,
-    b"changegroup": param_bool,
-    b"tagsfnodescache": param_bool,
-    b"revbranchcache": param_bool,
+    BUNDLESPEC_OBSOLESCENCE: param_bool,
+    BUNDLESPEC_OBSOLESCENCE_MANDATORY: param_bool,
+    BUNDLESPEC_PHASES: param_bool,
+    BUNDLESPEC_CHANGEGROUP: param_bool,
+    BUNDLESPEC_TAGSFNODESCACHE: param_bool,
+    BUNDLESPEC_REVBRANCHCACHE: param_bool,
 }
 
 
@@ -207,7 +225,7 @@ KNOWN_BUNDLE_SPEC_PARAMS: set[bytes] = set().union(
     bundle_spec_param_processing,
     MANDATORY_BUNDLE_SPEC_PARAMS,
     FORWARDED_BUNDLE_SPEC_PARAMS,
-    {b"requirements"},
+    {BUNDLESPEC_REQUIREMENTS},
 )
 
 
@@ -411,8 +429,10 @@ def parsebundlespec(repo, spec, strict=True):
     # The specification for stream bundles can optionally declare the data formats
     # required to apply it. If we see this metadata, compare against what the
     # repo supports and error if the bundle isn't compatible.
-    if b'requirements' in params:
-        requirements = set(cast(bytes, params[b'requirements']).split(b','))
+    if BUNDLESPEC_REQUIREMENTS in params:
+        requirements = set(
+            cast(bytes, params[BUNDLESPEC_REQUIREMENTS]).split(b',')
+        )
         relevant_reqs = (
             requirements - requirementsmod.STREAM_IGNORABLE_REQUIREMENTS
         )
@@ -425,16 +445,16 @@ def parsebundlespec(repo, spec, strict=True):
             )
 
     # Compute contentopts based on the version
-    if b"stream" in params:
+    if BUNDLESPEC_STREAM in params:
         # This case is fishy as this mostly derails the version selection
         # mechanism. `stream` bundles are quite specific and used differently
         # as "normal" bundles.
         #
         # (we should probably define a cleaner way to do this and raise a
         # warning when the old way is encountered)
-        if params[b"stream"] == b"v2":
+        if params[BUNDLESPEC_STREAM] == b"v2":
             version = b"streamv2"
-        if params[b"stream"] == b"v3-exp":
+        if params[BUNDLESPEC_STREAM] == b"v3-exp":
             version = b"streamv3-exp"
     contentopts = _bundlespeccontentopts.get(version, {}).copy()
     if version == b"streamv2" or version == b"streamv3-exp":
@@ -443,7 +463,7 @@ def parsebundlespec(repo, spec, strict=True):
 
     engine = util.compengines.forbundlename(compression)
     compression, wirecompression = engine.bundletype()
-    wireversion = _bundlespeccontentopts[version][b'cg.version']
+    wireversion = _bundlespeccontentopts[version][BUNDLESPEC_CG_VERSION]
 
     return bundlespec(
         compression, wirecompression, version, wireversion, params, contentopts
@@ -473,9 +493,9 @@ def parseclonebundlesmanifest(repo, s):
 # other uppercase param means the client cannot use the entry at all, so the
 # whole line is dropped on its behalf.
 LEGACY_CLIENT_MANDATORY_PARAMS: set[bytes] = {
-    b"requirements",
-    b"store-fingerprint",
-    b"stream",
+    BUNDLESPEC_REQUIREMENTS,
+    BUNDLESPEC_STORE_FINGERPRINT,
+    BUNDLESPEC_STREAM,
 }
 
 
@@ -551,7 +571,7 @@ def parse_clonebundle_manifest_line(
             try:
                 bundlespec = parsebundlespec(repo, value)
                 attrs[b'COMPRESSION'] = bundlespec.compression
-                raw_dc = bundlespec.params.get(b"delta-compression")
+                raw_dc = bundlespec.params.get(BUNDLESPEC_DELTA_COMPRESSION)
                 if raw_dc is not None:
                     attrs[b'DELTA-COMPRESSION'] = raw_dc.split(b',')
                 attrs[b'VERSION'] = bundlespec.version
@@ -574,7 +594,8 @@ def isstreamclonespec(bundlespec):
     if (
         bundlespec.wirecompression == b'UN'
         and bundlespec.wireversion == b'02'
-        and bundlespec.contentopts.get(b'stream', None) in (b"v2", b"v3-exp")
+        and bundlespec.contentopts.get(BUNDLESPEC_STREAM, None)
+        in (b"v2", b"v3-exp")
     ):
         return True
 
