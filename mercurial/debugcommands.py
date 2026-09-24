@@ -3219,6 +3219,12 @@ def debug_python(ui, *args):
             False,
             _(b'show the raw manifest instead of parsing and filtering it'),
         ),
+        (
+            b'',
+            b'legacy-client',
+            False,
+            _(b'request the manifest the same way as a 6.5-7.1 client'),
+        ),
     ]
     + cmdutil.walkopts,
     _(b'REPO'),
@@ -3234,8 +3240,13 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
         if not target.capable(b'clonebundles'):
             ui.error(_(b'clonebundles not supported by peer\n'))
             return
-        with target.commandexecutor() as e:
-            res = e.callcommand(b'clonebundles', {}).result()
+        if opts['legacy_client']:
+            # `clonebundles_manifest` arrived in 6.5 and took no arguments until
+            # `store_fingerprint` in 7.2.
+            res = target._call(b'clonebundles_manifest')
+        else:
+            with target.commandexecutor() as e:
+                res = e.callcommand(b'clonebundles', {}).result()
         if opts['raw']:
             ui.write(res)
             if res[-1:] != b'\n':

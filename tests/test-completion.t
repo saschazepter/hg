@@ -438,7 +438,7 @@ Show all commands + options
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
   debug::changed-files: compute
-  debug::clonebundle-manifest: stream, raw, include, exclude
+  debug::clonebundle-manifest: stream, raw, legacy-client, include, exclude
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
   debug::heads-bucket-fingerprints: template
