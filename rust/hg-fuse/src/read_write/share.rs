@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use fuser::Errno;
+use fuser::FileAttr;
 use fuser::INodeNo;
 use hg::Node;
 use parking_lot::RwLock;
@@ -45,13 +47,10 @@ pub struct Share<S, T> {
     #[expect(unused)]
     store: Arc<Store<S, T>>,
     /// User ID returned on requests, by default it's the process'
-    #[expect(unused)]
     uid: u32,
     /// Group ID returned on requests, by default it's the process'
-    #[expect(unused)]
     gid: u32,
     /// Inodes in memory.
-    #[expect(unused)]
     inodes: DashMap<INodeNo, InodeHandle>,
 }
 
@@ -85,5 +84,18 @@ impl<S: StoreBackend<T>, T: FileToken> Share<S, T> {
         inodes.insert(ROOT_INODE, Arc::new(RwLock::new(root)));
 
         Ok(Self { store, uid, gid, inodes })
+    }
+
+    // Clone the Arc to minimize the time holding any locks in the inode map.
+    fn get_inode_handle(&self, ino: INodeNo) -> Option<InodeHandle> {
+        self.inodes.get(&ino).map(|inode_handle| Arc::clone(&inode_handle))
+    }
+
+    pub fn getattr(&self, ino: INodeNo) -> Result<FileAttr, Errno> {
+        let Some(inode_handle) = self.get_inode_handle(ino) else {
+            return Err(Errno::ESTALE);
+        };
+        let inode = inode_handle.read();
+        Ok(inode.attr(ino, self.uid, self.gid))
     }
 }

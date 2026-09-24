@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 
 use fuser::BackgroundSession;
 use fuser::Config;
@@ -18,12 +19,12 @@ use crate::server::store::FileToken;
 use crate::server::store::StoreBackend;
 
 pub struct HgFuse<S, T> {
-    #[expect(unused)]
     share: Arc<Share<S, T>>,
     /// FUSE capability for zero-message open
     fuse_no_open_support: bool,
 }
 
+const TTL: Duration = Duration::MAX;
 const STATELESS_FILE_HANDLE: FileHandle = FileHandle(0);
 
 impl<S: StoreBackend<T>, T: FileToken> HgFuse<S, T> {
@@ -77,6 +78,21 @@ impl<S: StoreBackend<T>, T: FileToken> Filesystem for HgFuse<S, T> {
         reply: fuser::ReplyEmpty,
     ) {
         reply.ok();
+    }
+
+    fn getattr(
+        &self,
+        _req: &fuser::Request,
+        ino: INodeNo,
+        _fh: Option<fuser::FileHandle>,
+        reply: fuser::ReplyAttr,
+    ) {
+        match self.share.getattr(ino) {
+            Ok(attributes) => {
+                reply.attr(&TTL, &attributes);
+            }
+            Err(err) => reply.error(err),
+        };
     }
 
     fn opendir(

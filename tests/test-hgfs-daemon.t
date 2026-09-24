@@ -50,10 +50,8 @@ Mount the clone
   $ wait_for_mount "hgvfs" "$TESTTMP/mnt"
   hgvfs on $TESTTMP/mnt type fuse (rw,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
   $ stat "$TESTTMP/mnt" >/dev/null
-  stat: cannot statx '$TESTTMP/mnt': Function not implemented (known-bad-output !)
-  [1]
   $ ls "$TESTTMP/mnt"
-  ls: cannot access '$TESTTMP/mnt': Function not implemented (known-bad-output !)
+  ls: reading directory '$TESTTMP/mnt': Function not implemented
   [2]
 
 Mounting again at the same point is rejected
