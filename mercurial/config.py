@@ -170,6 +170,49 @@ class config:
         levels = self._source_levels.setdefault(source, set())
         levels.add(self._current_source_level)
 
+    def insert_source_before(self, source: bytes, reference: bytes) -> None:
+        """make `source` known, just below `reference`
+
+        This declares a source that was not read, so that values can be
+        attached to it (see `set_at_source`) at proper level: above
+        everything read before `reference`, but below `reference` itself.
+
+        This is meant to insert machine managed file before the traditional
+        config file it get inserted into.
+
+        Nothing happens if `source` is already known.
+
+        >>> cfg = config()
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'file-a',
+        ...     b'[one]\\n'
+        ...     b'key = a\\n',
+        ... )
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'file-b',
+        ...     b'[one]\\n'
+        ...     b'key = b\\n',
+        ... )
+        >>> cfg.insert_source_before(b'file-b-managed', b'file-b')
+        >>> sorted(cfg._source_levels[b'file-b-managed'])
+        [19]
+
+        The level is left alone for a source we already know about:
+
+        >>> cfg.insert_source_before(b'file-b-managed', b'file-a')
+        >>> sorted(cfg._source_levels[b'file-b-managed'])
+        [19]
+        """
+        if source in self._source_levels:
+            return
+        reference_levels = self._source_levels.get(reference)
+        if reference_levels is None:
+            msg = b'inserting before an unknown source: %s' % reference
+            raise error.ProgrammingError(msg)
+        self._source_levels[source] = {min(reference_levels) - 1}
+
     def copy(self) -> config:
         return config(self)
 
