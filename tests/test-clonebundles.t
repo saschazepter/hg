@@ -656,6 +656,26 @@ Filtering unsupported delta-compression away
       DELTA-COMPRESSION: none,zlib,zstd (zstd !)
       VERSION: v2 (zstd !)
 
+Omitting store-fingerprint bundles
+----------------------------------
+
+Clients on or after 7.2 pass the `store_fingerprint` arg, indicating they
+understand how to handle fingerprinted bundles.
+
+  $ cat > server/.hg/clonebundles.manifest << EOF
+  > http://full.entry BUNDLESPEC=none-v2
+  > http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=123
+  > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
+  http://full.entry BUNDLESPEC=none-v2
+  http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=123
+
+Clients before 7.2 do not pass the arg and are not offered `store_fingerprint`
+bundles.
+
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw --legacy-client
+  http://full.entry BUNDLESPEC=none-v2
+
 Testing preferences configuration
 ---------------------------------
 

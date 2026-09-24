@@ -28,6 +28,13 @@ Mercurial XXX.
 
 == Backwards Compatibility Changes ==
 
+* clonebundles: the server now honors the `store_fingerprint` argument of the
+  `clonebundles_manifest` command, which it previously accepted and ignored.
+  Clients from 6.5 to 7.1 do not send that argument and are no longer offered
+  clone bundles that cover only part of the store since they would not
+  understand that it is a partial clone. Clients from 7.2 on send the argument
+  and are unaffected.
+
 == Internal API Changes ==
 
 * Extensions adding bundlespec parameters must extend

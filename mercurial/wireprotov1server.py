@@ -363,8 +363,14 @@ def clonebundles_2(repo, proto, args):
     The only filter on the server side is filtering out inline clonebundles
     in case a client does not support them.
     Otherwise, older clients would retrieve and error out on those.
+
+    Bundles with `store_fingerprint` are omitted unless the client passed
+    the `store_fingerprint` arg, indicating it understands how to handle such
+    bundles.
     """
     manifest_lines = bundle_cache_util.get_manifest_lines(repo)
+    if args.get(b'store_fingerprint') != b'1':
+        manifest_lines = _filter_storefp_lines(repo, manifest_lines)
     return wireprototypes.bytesresponse(b''.join(manifest_lines))
 
 
