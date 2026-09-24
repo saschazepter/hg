@@ -319,6 +319,18 @@ def get_cached_bundle_inline(repo, proto, path):
     return wireprototypes.streamres(gen=stream, prefer_uncompressed=True)
 
 
+def _filter_storefp_lines(repo: RepoT, lines: list[bytes]) -> list[bytes]:
+    """Drop the manifest entries that have the `store-fingerprint` arg,
+    meaning they only cover part of the store."""
+    modified_manifest = []
+    for line in lines:
+        parsed = bundlecaches.parse_clonebundle_manifest_line(repo, line)
+        if parsed is not None and parsed.get(b'STORE-FINGERPRINT'):
+            continue
+        modified_manifest.append(line)
+    return modified_manifest
+
+
 @wireprotocommand(b'clonebundles', b'', permission=b'pull')
 def clonebundles(repo, proto):
     """A legacy version of clonebundles_manifest
@@ -332,12 +344,8 @@ def clonebundles(repo, proto):
     for line in manifest_lines:
         if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
             continue
-        parsed = bundlecaches.parse_clonebundle_manifest_line(repo, line)
-        if parsed is not None and parsed.get(b'STORE-FINGERPRINT'):
-            # Filter out fingerprinted clonebundles for older clients that
-            # can't understand them
-            continue
         modified_manifest.append(line)
+    modified_manifest = _filter_storefp_lines(repo, modified_manifest)
     modified_manifest.append(b'')
     return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
 
