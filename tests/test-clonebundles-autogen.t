@@ -666,17 +666,15 @@ the parameter in uppercase.
   DONE-v1 none-v2;STREAM=v2 * (glob)
 
 Rewrite it the way a pre-7.3 Mercurial would have, then refresh again. The
-stored name no longer matches the configured format, so the bundle looks
-like it's missing and is built a second time.
+entry still matches the configured format, so nothing is regenerated.
 
   $ sed 's/STREAM=v2/stream=v2/' ./server/.hg/clonebundles.auto-gen \
   >     > ./server/.hg/clonebundles.auto-gen.tmp
   $ mv ./server/.hg/clonebundles.auto-gen.tmp ./server/.hg/clonebundles.auto-gen
   $ hg -R ./server/ admin::clone-bundles-refresh
-  clone-bundles: starting bundle generation: none-v2;STREAM=v2 (known-bad-output !)
 
-The file now holds two entries. The lowercase one can never match again.
+Reading it rewrote the stored name in its canonical form, so there is still
+exactly one entry.
 
   $ grep STREAM ./server/.hg/clonebundles.auto-gen
   DONE-v1 none-v2;STREAM=v2 * (glob)
-  DONE-v1 none-v2;stream=v2 * (glob) (known-bad-output !)

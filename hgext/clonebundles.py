@@ -662,7 +662,23 @@ def read_auto_gen(repo):
     data = repo.vfs.tryread(AUTO_GEN_FILE)
     if not data:
         return []
-    return parse_auto_gen(data)
+    bundles = parse_auto_gen(data)
+
+    # Versions of Mercurial from before mandatory params were written in uppercase write
+    # all params in lowercase in the `auto-gen` file. Because this file is compared
+    # against the `clone-bundles.auto-generate.formats` config (which is normalized via
+    # `parsebundlespec`), we should normalize this file as well.
+    for b in bundles:
+        try:
+            spec = bundlecaches.parsebundlespec(repo, b.bundle_type)
+        except (
+            error.InvalidBundleSpecification,
+            error.UnsupportedBundleSpecification,
+        ):
+            pass
+        else:
+            b.bundle_type = spec.as_spec()
+    return bundles
 
 
 def write_auto_gen(repo, bundles):
