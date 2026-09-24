@@ -1078,3 +1078,38 @@ Test the debug statistic when applying a bundle
   added 3 changesets with 3 changes to 3 files
   new changesets 4fe08cd4693e:4652c276ac4f (3 drafts)
   (run 'hg update' to get a working copy)
+
+
+Test the progress when applying a bundle with changesets we already have
+-------------------------------------------------------------------------
+
+The bundle carries the manifests and files of all its changesets, but the
+progress totals only count those of the changesets we do not have yet.
+
+  $ cd ..
+  $ hg init progress-src
+  $ cd progress-src
+  $ touch a b c
+  $ hg commit -qAm 'add a b c'
+  $ touch d
+  $ hg commit -qAm 'add d'
+  $ echo a >> a
+  $ touch e
+  $ hg commit -qAm 'change a, add e'
+  $ hg bundle -a ../progress.hg
+  3 changesets found
+  $ cd ..
+  $ hg clone -q ./progress-src ./progress-overlap --rev 1
+  $ hg -R progress-overlap unbundle ./progress.hg --debug --config progress.debug=true \
+  >   | grep -E '^(changesets|manifests|files):'
+  changesets: 1/3 chunks (33.33%)
+  changesets: 2/3 chunks (66.67%)
+  changesets: 3/3 chunks (100.00%)
+  manifests: 1/1 chunks (100.00%)
+  manifests: 2/1 chunks (200.00%)
+  manifests: 3/1 chunks (300.00%)
+  files: 1/2 files (50.00%)
+  files: 2/2 files (100.00%)
+  files: 3/2 files (150.00%)
+  files: 4/2 files (200.00%)
+  files: 5/2 files (250.00%)
