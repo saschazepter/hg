@@ -36,6 +36,13 @@ if typing.TYPE_CHECKING:
     _BackupT = tuple[bytes, bytes] | tuple[bytes, bytes, bytes, bytes, int]
 
 
+# Distance between the levels of two sources read one after the other.
+#
+# Consecutive sources are spaced out, leaving room to insert a source in
+# between two others afterwards.
+SOURCE_LEVEL_STEP = 10
+
+
 class config:
     def __init__(self, data: config | None = None):
         self._current_source_level: int = 0
@@ -54,13 +61,14 @@ class config:
                 source: set(levels)
                 for source, levels in data._source_levels.items()
             }
-            self._current_source_level = data._current_source_level + 1
+            next_level = data._current_source_level + SOURCE_LEVEL_STEP
+            self._current_source_level = next_level
 
     def new_source(self) -> None:
         """increment the source counter
 
         This is used to define source priority when reading"""
-        self._current_source_level += 1
+        self._current_source_level += SOURCE_LEVEL_STEP
 
     def _register_source(self, source: bytes) -> None:
         """record that `source` was seen at the current source level
@@ -83,9 +91,9 @@ class config:
         >>> cfg.set(b'ui', b'editor', b'vi', b'$EDITOR')
         >>> for src, lvls in sorted(cfg._source_levels.items()):
         ...     print(src, lvls)
-        b'$EDITOR' {3}
-        b'empty-file' {2}
-        b'file-a' {1}
+        b'$EDITOR' {30}
+        b'empty-file' {20}
+        b'file-a' {10}
 
 
         Reading a source again records the new level too:
@@ -97,7 +105,7 @@ class config:
         ...     b'key = b\\n',
         ... )
         >>> sorted(cfg._source_levels[b'file-a'])
-        [1, 4]
+        [10, 40]
 
 
         Reading a source spans several levels when it includes another one,
@@ -126,9 +134,9 @@ class config:
         ...     include=include,
         ... )
         >>> sorted(cfg._source_levels[b'file-a'])
-        [1, 3]
+        [10, 30]
         >>> sorted(cfg._source_levels[b'file-b'])
-        [2]
+        [20]
 
         Each include is accounted for, so a source including two others
         spans four levels, two of them its own:
@@ -144,11 +152,11 @@ class config:
         ...     include=include,
         ... )
         >>> sorted(cfg._source_levels[b'file-a'])
-        [1, 3, 5]
+        [10, 30, 50]
         >>> sorted(cfg._source_levels[b'file-b'])
-        [2]
+        [20]
         >>> sorted(cfg._source_levels[b'file-c'])
-        [4]
+        [40]
 
 
         Values set without a source are not recorded:
@@ -179,7 +187,7 @@ class config:
 
     def update(self, src: config) -> None:
         current_level = self._current_source_level
-        current_level += 1
+        current_level += SOURCE_LEVEL_STEP
         for s, n in src._unset:
             ds = self._data.get(s, None)
             if ds is not None and n in ds:
@@ -204,7 +212,8 @@ class config:
             shifted = {level + current_level for level in source_levels}
             self._source_levels.setdefault(source_name, set()).update(shifted)
         # now adjust the next level to be above everything we just imported.
-        next_level = current_level + src._current_source_level + 1
+        next_level = current_level + src._current_source_level
+        next_level += SOURCE_LEVEL_STEP
         self._current_source_level = next_level
 
     def _get(self, section: bytes, item: bytes) -> _ItemT | None:
