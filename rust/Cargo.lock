@@ -992,6 +992,7 @@ dependencies = [
  "fuser",
  "hg-core",
  "imbl",
+ "parking_lot",
  "quick_cache",
  "rayon",
  "self_cell",

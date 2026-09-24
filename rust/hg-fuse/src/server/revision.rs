@@ -172,6 +172,10 @@ impl<T: FileToken> OwnedRevision<T> {
         Some(self.entry_for_dirstate_node(info))
     }
 
+    pub fn root_ino(&self) -> INodeNo {
+        self.revision.files_root_ino
+    }
+
     /// Return direct children entries for `ino`
     pub fn entries(&self, ino: INodeNo) -> Option<Vec<Entry>> {
         let revision = &self.revision;
