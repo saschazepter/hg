@@ -91,7 +91,7 @@ pub fn retain_heads(
 }
 
 /// Optimized version of `retain_heads` that directly return head revisions
-pub fn compute_heads(
+pub fn compute_heads<const FILTER: bool>(
     graph: &impl Graph,
     length: usize,
     filtered_revs: &FastHashSet<Revision>,
@@ -100,31 +100,31 @@ pub fn compute_heads(
     let mut not_heads = bitvec![0; length];
     for idx in (0..length).rev() {
         let rev = Revision(idx as BaseRevision);
-        // First, we check if the filtered_revs are empty, to fast path
-        // that easy case. The repeated check of the filtered_revs
-        // immutable memory should be easily abstracted away by
-        // branch prediction. This trick is still not as good as not having the
-        // check at all. This conditional branch seems to prevent the
-        // compiler from doing more optimizations.
-        //
-        // Second, the non-filtered graph should be convex, a parent can't be
-        // filtered if its children are not filtered.
-        //
-        // So, if the current revision was already marked as non-head when we
-        // saw a non-filtered child of this revision, we know it cannot be
-        // filtered and skip the expensive `contains` check.
-        if unlikely(
-            !filtered_revs.is_empty()
-                && !not_heads[idx]
-                && filtered_revs.contains(&rev),
-        ) {
-            // If this revision is filtered, nobody could have marked it as a
-            // non-head already. So we need to mark it as a non-head.
-            not_heads.get_mut(idx).unwrap().commit(true);
-            // Then, skip the rest of the processing. A filtered revision
-            // doesn't prevent its parents from being heads (other
-            // non-filtered siblings could however).
-            continue;
+        if FILTER {
+            // First, we check if the filtered_revs are empty, to fast path
+            // that easy case. The repeated check of the filtered_revs
+            // immutable memory should be easily abstracted away by
+            // branch prediction. This trick is still not as good as not having
+            // the check at all. This conditional branch seems to
+            // prevent the compiler from doing more optimizations.
+            //
+            // Second, the non-filtered graph should be convex, a parent can't
+            // be filtered if its children are not filtered.
+            //
+            // So, if the current revision was already marked as non-head when
+            // we saw a non-filtered child of this revision, we know
+            // it cannot be filtered and skip the expensive
+            // `contains` check.
+            if unlikely(!not_heads[idx] && filtered_revs.contains(&rev)) {
+                // If this revision is filtered, nobody could have marked it as
+                // a non-head already. So we need to mark it as
+                // a non-head.
+                not_heads.get_mut(idx).unwrap().commit(true);
+                // Then, skip the rest of the processing. A filtered revision
+                // doesn't prevent its parents from being heads (other
+                // non-filtered siblings could however).
+                continue;
+            }
         }
 
         // If we did not see any (unfiltered) children getting there, this is a

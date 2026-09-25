@@ -657,7 +657,11 @@ impl Index {
                 None => self.len(),
             };
             let cachable = self.len() == length;
-            let heads = dagops::compute_heads(self, length, filtered_revs)?;
+            let heads = if filtered_revs.is_empty() {
+                dagops::compute_heads::<false>(self, length, filtered_revs)?
+            } else {
+                dagops::compute_heads::<true>(self, length, filtered_revs)?
+            };
             (heads, cachable)
         };
         if cachable {
