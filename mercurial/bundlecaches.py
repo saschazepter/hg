@@ -475,7 +475,7 @@ def parsebundlespec(repo, spec, strict=True):
     )
 
 
-def parseclonebundlesmanifest(repo, s):
+def parseclonebundlesmanifest(repo: RepoT, s: bytes) -> list[EntryT]:
     """Parses the raw text of a clone bundles manifest.
 
     Returns a list of dicts. The dicts have a ``URL`` key corresponding
@@ -555,14 +555,12 @@ def downgrade_manifest_lines(lines: list[bytes]) -> list[bytes]:
     return new_lines
 
 
-def parse_clonebundle_manifest_line(
-    repo: RepoT, line: bytes
-) -> dict[bytes, bytes] | None:
+def parse_clonebundle_manifest_line(repo: RepoT, line: bytes) -> EntryT | None:
     fields = line.split()
     if not fields:
-        return
+        return None
 
-    attrs = {b'URL': fields[0]}
+    attrs: dict[bytes, typing.Any] = {b'URL': fields[0]}
     for rawattr in fields[1:]:
         key, value = rawattr.split(b'=', 1)
         key = util.urlreq.unquote(key)
