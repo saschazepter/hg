@@ -569,6 +569,10 @@ class ClonebundleManifestEntry:
     attrs = attr.ib(type=dict[bytes, typing.Any])
 
 
+if typing.TYPE_CHECKING:
+    EntryT = ClonebundleManifestEntry
+
+
 def parse_clonebundle_manifest_line(repo: RepoT, line: bytes) -> EntryT | None:
     fields = line.split()
     if not fields:
@@ -620,9 +624,6 @@ def isstreamclonespec(bundlespec):
 
 
 digest_regex = re.compile(b'^[a-z0-9]+:[0-9a-f]+(,[a-z0-9]+:[0-9a-f]+)*$')
-
-if typing.TYPE_CHECKING:
-    EntryT = ClonebundleManifestEntry
 
 NO_GRP_MSG = b"filtering %s because it has shard-id without bundle-group-id\n"
 
