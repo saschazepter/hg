@@ -14,8 +14,6 @@
 //!   whose parents, if any, don't belong to the collection.
 use std::collections::BTreeSet;
 
-use bitvec::prelude::*;
-
 use super::Graph;
 use super::GraphError;
 use super::NULL_REVISION;
@@ -99,7 +97,7 @@ pub fn compute_heads<const FILTER: bool>(
     filtered_revs: &FastHashSet<Revision>,
 ) -> Result<Vec<Revision>, GraphError> {
     let mut heads = vec![];
-    let mut not_heads = bitvec![0; length];
+    let mut not_heads = vec![false; length];
     for idx in (0..length).rev() {
         let rev = Revision(idx as BaseRevision);
         if FILTER {
@@ -121,7 +119,7 @@ pub fn compute_heads<const FILTER: bool>(
                 // If this revision is filtered, nobody could have marked it as
                 // a non-head already. So we need to mark it as
                 // a non-head.
-                not_heads.get_mut(idx).unwrap().commit(true);
+                not_heads[idx] = true;
                 // Then, skip the rest of the processing. A filtered revision
                 // doesn't prevent its parents from being heads (other
                 // non-filtered siblings could however).
@@ -145,7 +143,7 @@ pub fn compute_heads<const FILTER: bool>(
             return Err(GraphErrorKind::ParentOutOfRange(rev).into());
         }
         if p1 != NULL_REVISION {
-            not_heads.get_mut(p1.0 as usize).unwrap().commit(true);
+            not_heads[p1.0 as usize] = true;
         }
         let p2 = Revision(entry.p2().0); // we check it validity right below;
         if unlikely(p2 < NULL_REVISION) {
@@ -155,7 +153,7 @@ pub fn compute_heads<const FILTER: bool>(
             return Err(GraphErrorKind::ParentOutOfRange(rev).into());
         }
         if p2 != NULL_REVISION {
-            not_heads.get_mut(p2.0 as usize).unwrap().commit(true);
+            not_heads[p2.0 as usize] = true;
         }
     }
     heads.reverse();
