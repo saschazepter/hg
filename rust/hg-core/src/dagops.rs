@@ -23,6 +23,7 @@ use super::Revision;
 use crate::BaseRevision;
 use crate::FastHashSet;
 use crate::ancestors::AncestorsIterator;
+use crate::revlog::index::Index;
 use crate::utils::unlikely;
 
 fn remove_parents(
@@ -92,7 +93,7 @@ pub fn retain_heads(
 
 /// Optimized version of `retain_heads` that directly return head revisions
 pub fn compute_heads<const FILTER: bool>(
-    graph: &impl Graph,
+    graph: &Index,
     length: usize,
     filtered_revs: &FastHashSet<Revision>,
 ) -> Result<Vec<Revision>, GraphError> {
