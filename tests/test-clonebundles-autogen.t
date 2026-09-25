@@ -644,3 +644,39 @@ Check the manifest is correct
   no changes found
   15 local changesets published
 
+Entries stored before mandatory parameters became uppercase
+===========================================================
+
+Mandatory parameter names are written in uppercase now, but a
+`clonebundles.auto-gen` written by an older Mercurial has them in lowercase.
+Before we compare the `auto-gen` file against the
+`clone-bundles.auto-generate.formats` config, we should normalize both sides.
+
+  $ cat >> ./server/.hg/hgrc << EOF
+  > [clone-bundles]
+  > auto-generate.formats = none-v2;stream=v2
+  > EOF
+
+The configured format is normalized before use, so the generated entry has
+the parameter in uppercase.
+
+  $ hg -R ./server/ admin::clone-bundles-refresh
+  clone-bundles: starting bundle generation: none-v2;STREAM=v2
+  $ grep STREAM ./server/.hg/clonebundles.auto-gen
+  DONE-v1 none-v2;STREAM=v2 * (glob)
+
+Rewrite it the way a pre-7.3 Mercurial would have, then refresh again. The
+stored name no longer matches the configured format, so the bundle looks
+like it's missing and is built a second time.
+
+  $ sed 's/STREAM=v2/stream=v2/' ./server/.hg/clonebundles.auto-gen \
+  >     > ./server/.hg/clonebundles.auto-gen.tmp
+  $ mv ./server/.hg/clonebundles.auto-gen.tmp ./server/.hg/clonebundles.auto-gen
+  $ hg -R ./server/ admin::clone-bundles-refresh
+  clone-bundles: starting bundle generation: none-v2;STREAM=v2 (known-bad-output !)
+
+The file now holds two entries. The lowercase one can never match again.
+
+  $ grep STREAM ./server/.hg/clonebundles.auto-gen
+  DONE-v1 none-v2;STREAM=v2 * (glob)
+  DONE-v1 none-v2;stream=v2 * (glob) (known-bad-output !)
