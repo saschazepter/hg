@@ -97,9 +97,9 @@ pub fn compute_heads<const FILTER: bool>(
     filtered_revs: &FastHashSet<Revision>,
 ) -> Result<Vec<Revision>, GraphError> {
     let mut heads = vec![];
-    let mut not_heads = vec![false; length];
-    for idx in (0..length).rev() {
-        let rev = Revision(idx as BaseRevision);
+    let mut not_heads = vec![false; length + 1];
+    for idx in (1..(length + 1)).rev() {
+        let rev = Revision((idx - 1) as BaseRevision);
         if FILTER {
             // First, we check if the filtered_revs are empty, to fast path
             // that easy case. The repeated check of the filtered_revs
@@ -142,9 +142,7 @@ pub fn compute_heads<const FILTER: bool>(
         if unlikely(p1 >= rev) {
             return Err(GraphErrorKind::ParentOutOfRange(rev).into());
         }
-        if p1 != NULL_REVISION {
-            not_heads[p1.0 as usize] = true;
-        }
+        not_heads[(p1.0 + 1) as usize] = true;
         let p2 = Revision(entry.p2().0); // we check it validity right below;
         if unlikely(p2 < NULL_REVISION) {
             return Err(GraphErrorKind::ParentOutOfRange(rev).into());
@@ -152,9 +150,7 @@ pub fn compute_heads<const FILTER: bool>(
         if unlikely(p2 >= rev) {
             return Err(GraphErrorKind::ParentOutOfRange(rev).into());
         }
-        if p2 != NULL_REVISION {
-            not_heads[p2.0 as usize] = true;
-        }
+        not_heads[(p2.0 + 1) as usize] = true;
     }
     heads.reverse();
     Ok(heads)
