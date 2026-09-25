@@ -22,6 +22,7 @@ use super::NULL_REVISION;
 use super::Revision;
 use crate::BaseRevision;
 use crate::FastHashSet;
+use crate::GraphErrorKind;
 use crate::ancestors::AncestorsIterator;
 use crate::revlog::index::Index;
 use crate::utils::unlikely;
@@ -135,9 +136,23 @@ pub fn compute_heads<const FILTER: bool>(
         };
 
         // Mark parents of the current revs as "not head"
-        let [p1, p2] = graph.parents(rev)?;
+        let entry = graph.get_entry(rev);
+        let p1 = Revision(entry.p1().0); // we check it validity right below;
+        if unlikely(p1 < NULL_REVISION) {
+            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
+        }
+        if unlikely(p1 >= rev) {
+            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
+        }
         if p1 != NULL_REVISION {
             not_heads.get_mut(p1.0 as usize).unwrap().commit(true);
+        }
+        let p2 = Revision(entry.p2().0); // we check it validity right below;
+        if unlikely(p2 < NULL_REVISION) {
+            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
+        }
+        if unlikely(p2 >= rev) {
+            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
         }
         if p2 != NULL_REVISION {
             not_heads.get_mut(p2.0 as usize).unwrap().commit(true);
