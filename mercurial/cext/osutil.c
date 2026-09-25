@@ -12,6 +12,7 @@
 #include <Python.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +42,10 @@
 #include <pthread.h>
 #endif
 
+#ifdef __linux__
+#include <sys/prctl.h>
+#include <sys/syscall.h>
+#endif
 
 #ifdef __APPLE__
 #include <crt_externs.h>
@@ -705,6 +710,12 @@ bail:
 #endif
 #endif /* ndef SETPROCNAME_USE_NONE */
 
+#if defined(SETPROCNAME_USE_ARGVREWRITE) && defined(PR_SET_MM_MAP)
+/* prctl PR_SET_MM_MAP - works on Linux built with CONFIG_CHECKPOINT_RESTORE.
+ * Try it if possible, falling back to argv rewrite. */
+#define SETPROCNAME_TRY_MM_MAP
+#endif
+
 #ifdef SETPROCNAME_USE_ARGVREWRITE
 
 /* Find the start of argv buffer (argv[0]) and its size */
@@ -847,6 +858,91 @@ static void getarg0size(char **argstart, size_t *argsize) {
 
 #endif /* def SETPROCNAME_USE_ARGVREWRITE */
 
+#ifdef SETPROCNAME_TRY_MM_MAP
+
+/* Change the process cmdline to `name` using prctl PR_SET_MM_MAP. The name
+ * can contain NULs, which separate args in /proc/PID/cmdline.
+ * Unlike rewriting argv, this is not limited by the current cmdline size.
+ * Unlike PR_SET_MM_ARG_START/ARG_END, this does not need CAP_SYS_RESOURCE.
+ *
+ * This is very thread-unsafe since it reads the program break (brk syscall) and
+ * passes it in the prctl. Racing with allocations would corrupt the heap.
+ * To be safe, it refuses to run if the process has more than one thread.
+ *
+ * Returns true on success. */
+static bool setprocname_mm_map(const char *name, size_t name_len)
+{
+	static char *namebuf = NULL;
+	static size_t namesize = 0;
+
+	unsigned int mapsize = 0;
+	if (prctl(PR_SET_MM, PR_SET_MM_MAP_SIZE, &mapsize, 0UL, 0UL) != 0) {
+		return false;
+	}
+	if (mapsize != sizeof(struct prctl_mm_map)) {
+		return false;
+	}
+
+	struct self_stat st;
+	if (!read_self_stat(&st)) {
+		return false;
+	}
+	/* It's too dangerous to proceed if there are multiple threads.
+	 * See the function comment above. */
+	if (st.num_threads != 1) {
+		return false;
+	}
+
+	struct prctl_mm_map map;
+	memset(&map, 0, sizeof(map));
+	map.start_code = st.start_code;
+	map.end_code = st.end_code;
+	map.start_data = st.start_data;
+	map.end_data = st.end_data;
+	map.start_brk = st.start_brk;
+	map.start_stack = st.start_stack;
+	map.env_start = st.env_start;
+	map.env_end = st.env_end;
+
+	map.auxv = NULL;
+	map.auxv_size = 0;         /* keep the saved auxiliary vector */
+	map.exe_fd = (uint32_t)-1; /* keep /proc/self/exe */
+
+	/* The kernel reads the cmdline with FOLL_ANON, so we must copy it to
+	 * anonymous memory. We can't use malloc since it doesn't guarantee that
+	 * (on musl it sometimes uses the ELF data segment). With file-backed
+	 * memory, prctl succeeds but the resulting /proc/self/cmdline is empty. */
+	size_t size = name_len + 1;
+	char *newbuf = mmap(NULL, size, PROT_READ | PROT_WRITE,
+	                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (newbuf == MAP_FAILED) {
+		return false;
+	}
+	memcpy(newbuf, name, name_len);
+	newbuf[name_len] = '\0';
+	map.arg_start = (uintptr_t)newbuf;
+	map.arg_end = (uintptr_t)(newbuf + size);
+
+	/* Do not allocate between here and the prctl. */
+	long curbrk = syscall(SYS_brk, 0UL);
+	if (curbrk == -1) {
+		munmap(newbuf, size);
+		return false;
+	}
+	map.brk = (unsigned long)curbrk;
+
+	if (prctl(PR_SET_MM, PR_SET_MM_MAP, &map, sizeof(map), 0UL) != 0) {
+		munmap(newbuf, size);
+		return false;
+	}
+	if (namebuf) {
+		munmap(namebuf, namesize);
+	}
+	namebuf = newbuf;
+	namesize = size;
+	return true;
+}
+#endif /* def SETPROCNAME_TRY_MM_MAP */
 
 #ifndef SETPROCNAME_USE_NONE
 static PyObject *setprocname(PyObject *self, PyObject *args)
@@ -875,6 +971,16 @@ static PyObject *setprocname(PyObject *self, PyObject *args)
 	{
 		static char *argvstart = NULL;
 		static size_t argvsize = 0;
+#ifdef SETPROCNAME_TRY_MM_MAP
+		if (setprocname_mm_map(name, (size_t)name_len)) {
+			/* `argvstart/argvsize` cache will not be used except
+			   in a very contrived scenario, but clear them anyway,
+			   just in case. */
+			argvstart = NULL;
+			argvsize = 0;
+			Py_RETURN_NONE;
+		}
+#endif
 		if (argvstart == NULL && argvsize == 0) {
 			argvsize = 1; /* do not try to obtain arg0 again */
 			getarg0size(&argvstart, &argvsize);
