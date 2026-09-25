@@ -1946,10 +1946,12 @@ impl<'a> IndexEntry<'a> {
         BigEndian::read_i32(&self.bytes[20..]).into()
     }
 
+    #[inline(always)]
     pub fn p1(&self) -> UncheckedRevision {
         BigEndian::read_i32(&self.bytes[24..]).into()
     }
 
+    #[inline(always)]
     pub fn p2(&self) -> UncheckedRevision {
         BigEndian::read_i32(&self.bytes[28..]).into()
     }
