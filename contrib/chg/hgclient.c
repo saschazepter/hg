@@ -394,14 +394,12 @@ static void readhello(hgclient_t *hgc)
 	debugmsg("capflags=0x%04x, pid=%d", hgc->capflags, hgc->pid);
 }
 
-static void updateprocname(hgclient_t *hgc)
+static void updateprocname(hgclient_t *hgc, proc_name_t proc_name)
 {
-	int r = snprintf(hgc->ctx.data, hgc->ctx.maxdatasize, "chg[worker/%d]",
-	                 (int)getpid());
-	if (r < 0 || (size_t)r >= hgc->ctx.maxdatasize) {
-		abortmsg("insufficient buffer to write procname (r = %d)", r);
-	}
-	hgc->ctx.datasize = (size_t)r;
+	context_t *ctx = &hgc->ctx;
+	enlargecontext(ctx, proc_name.size);
+	memcpy(ctx->data, proc_name.data, proc_name.size);
+	ctx->datasize = proc_name.size;
 	writeblockrequest(hgc, "setprocname2");
 }
 
@@ -474,7 +472,7 @@ static void forwardumask(hgclient_t *hgc)
  *
  * If no background server running, returns NULL.
  */
-hgclient_t *hgc_open(const char *sockname)
+hgclient_t *hgc_open(const char *sockname, proc_name_t proc_name)
 {
 	int fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd < 0) {
@@ -548,7 +546,7 @@ hgclient_t *hgc_open(const char *sockname)
 		abortmsg("insufficient capability: runcommand");
 	}
 	if (hgc->capflags & CAP_SETPROCNAME2) {
-		updateprocname(hgc);
+		updateprocname(hgc, proc_name);
 	}
 	if (hgc->capflags & CAP_ATTACHIO) {
 		attachio(hgc);

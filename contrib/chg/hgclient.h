@@ -15,7 +15,12 @@
 struct hgclient_tag_;
 typedef struct hgclient_tag_ hgclient_t;
 
-hgclient_t *hgc_open(const char *sockname);
+typedef struct {
+	char *data;
+	size_t size;
+} proc_name_t;
+
+hgclient_t *hgc_open(const char *sockname, proc_name_t proc_name);
 void hgc_close(hgclient_t *hgc);
 
 pid_t hgc_peerpgid(const hgclient_t *hgc);

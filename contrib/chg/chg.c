@@ -307,7 +307,8 @@ static void execcmdserver(const struct cmdserveropts *opts)
 }
 
 /* Retry until we can connect to the server. Give up after some time. */
-static hgclient_t *retryconnectcmdserver(struct cmdserveropts *opts, pid_t pid)
+static hgclient_t *retryconnectcmdserver(struct cmdserveropts *opts, pid_t pid,
+                                         proc_name_t proc_name)
 {
 	static const struct timespec sleepreq = {0, 10 * 1000000};
 	int pst = 0;
@@ -320,7 +321,7 @@ static hgclient_t *retryconnectcmdserver(struct cmdserveropts *opts, pid_t pid)
 		sscanf(timeoutenv, "%u", &timeoutsec);
 
 	for (unsigned int i = 0; !timeoutsec || i < timeoutsec * 100; i++) {
-		hgclient_t *hgc = hgc_open(opts->initsockname);
+		hgclient_t *hgc = hgc_open(opts->initsockname, proc_name);
 		if (hgc) {
 			debugmsg("rename %s to %s", opts->initsockname,
 			         opts->sockname);
@@ -359,12 +360,13 @@ cleanup:
 }
 
 /* Connect to a cmdserver. Will start a new server on demand. */
-static hgclient_t *connectcmdserver(struct cmdserveropts *opts)
+static hgclient_t *connectcmdserver(struct cmdserveropts *opts,
+                                    proc_name_t proc_name)
 {
 	const char *sockname =
 	    opts->redirectsockname[0] ? opts->redirectsockname : opts->sockname;
 	debugmsg("try connect to %s", sockname);
-	hgclient_t *hgc = hgc_open(sockname);
+	hgclient_t *hgc = hgc_open(sockname, proc_name);
 	if (hgc)
 		return hgc;
 
@@ -383,7 +385,7 @@ static hgclient_t *connectcmdserver(struct cmdserveropts *opts)
 	if (pid == 0) {
 		execcmdserver(opts);
 	} else {
-		hgc = retryconnectcmdserver(opts, pid);
+		hgc = retryconnectcmdserver(opts, pid, proc_name);
 	}
 
 	return hgc;
@@ -484,6 +486,23 @@ static void execoriginalhg(const char *argv[])
 	debugmsg("execute original hg");
 	if (execvp(gethgcmd(), (char **)argv) < 0)
 		abortmsgerrno("failed to exec original hg");
+}
+
+/*
+ * Format the worker process name. The caller must free the data.
+ */
+static proc_name_t format_proc_name(void)
+{
+	char prefix[32];
+	int r =
+	    snprintf(prefix, sizeof(prefix), "chg[worker/%d]", (int)getpid());
+	if (r < 0 || (size_t)r >= sizeof(prefix))
+		abortmsg("failed to format proc name (r = %d)", r);
+	proc_name_t proc_name;
+	proc_name.data = mallocx(r);
+	proc_name.size = (size_t)r;
+	memcpy(proc_name.data, prefix, (size_t)r);
+	return proc_name;
 }
 
 /*
@@ -604,10 +623,11 @@ int chg_main(int argc, const char *argv[])
 		}
 	}
 
+	proc_name_t proc_name = format_proc_name();
 	hgclient_t *hgc;
 	size_t retry = 0;
 	while (1) {
-		hgc = connectcmdserver(&opts);
+		hgc = connectcmdserver(&opts, proc_name);
 		if (!hgc)
 			abortmsg("cannot open hg client");
 		/* Use `environ(7)` instead of the optional `envp` argument to
@@ -628,6 +648,7 @@ int chg_main(int argc, const char *argv[])
 			         "wrapper, wrap chg instead of hg.",
 			         gethgcmd());
 	}
+	free(proc_name.data);
 
 	setupsignalhandler(hgc_peerpid(hgc), hgc_peerpgid(hgc));
 	atexit(waitpager);
