@@ -12,6 +12,9 @@ for line in sys.stdin:
     pats = [
         r"undefined name 'WindowsError'",
         r"redefinition of unused '[^']+' from line",
+        # Sometimes we use `global` just to be explicit.
+        # (This warning was added in pyflakes 3.3)
+        r"`global [^`]+` is unused: name is never assigned in scope",
         # for cffi, allow re-exports from pure.*
         r"cffi/[^:]*:.*\bimport \*' used",
         r"cffi/[^:]*:.*\*' imported but unused",
