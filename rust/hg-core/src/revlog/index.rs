@@ -631,7 +631,7 @@ impl Index {
             return Ok(heads);
         }
         let mut not_heads = vec![false; length + 1];
-        for idx in (1..(length + 1)).rev() {
+        for idx in (2..(length + 1)).rev() {
             let rev = Revision((idx - 1) as BaseRevision);
             if FILTER {
                 // First, we check if the filtered_revs are empty, to fast path
@@ -687,6 +687,11 @@ impl Index {
                 return Err(GraphErrorKind::ParentOutOfRange(rev).into());
             }
             not_heads[(p2.0 + 1) as usize] = true;
+        }
+        assert!(length > 0);
+        let rev_0 = Revision(0 as BaseRevision);
+        if !(not_heads[1] || filtered_revs.contains(&rev_0)) {
+            heads.push(rev_0);
         }
         heads.reverse();
         Ok(heads)
