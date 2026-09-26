@@ -22,7 +22,6 @@ use crate::Graph;
 use crate::GraphError;
 use crate::GraphErrorKind;
 use crate::UncheckedRevision;
-use crate::dagops;
 use crate::discovery::bucket_boundary;
 use crate::discovery::bucket_fingerprints;
 use crate::discovery::cached_head_count;
@@ -39,6 +38,7 @@ use crate::revlog::node::Node;
 use crate::revlog::node::STORED_NODE_ID_BYTES;
 use crate::utils::descending_revision_set::DescendingRevisionSet;
 use crate::utils::u32_u;
+use crate::utils::unlikely;
 
 pub const INDEX_ENTRY_SIZE: usize = 64;
 pub const INDEX_HEADER_SIZE: usize = 4;
@@ -620,6 +620,75 @@ impl Index {
             .map(|h| h.unwrap())
     }
 
+    /// Optimized version of `retain_heads` that directly return head revisions
+    fn compute_heads<const FILTER: bool>(
+        &self,
+        length: usize,
+        filtered_revs: &FastHashSet<Revision>,
+    ) -> Result<Vec<Revision>, GraphError> {
+        let mut heads = vec![];
+        let mut not_heads = vec![false; length + 1];
+        for idx in (1..(length + 1)).rev() {
+            let rev = Revision((idx - 1) as BaseRevision);
+            if FILTER {
+                // First, we check if the filtered_revs are empty, to fast path
+                // that easy case. The repeated check of the filtered_revs
+                // immutable memory should be easily abstracted away by
+                // branch prediction. This trick is still not as good as not
+                // having the check at all. This conditional
+                // branch seems to prevent the compiler from
+                // doing more optimizations.
+                //
+                // Second, the non-filtered graph should be convex, a parent
+                // can't be filtered if its children are not
+                // filtered.
+                //
+                // So, if the current revision was already marked as non-head
+                // when we saw a non-filtered child of this
+                // revision, we know it cannot be filtered and
+                // skip the expensive `contains` check.
+                if unlikely(!not_heads[idx] && filtered_revs.contains(&rev)) {
+                    // If this revision is filtered, nobody could have marked it
+                    // as a non-head already. So we need to
+                    // mark it as a non-head.
+                    not_heads[idx] = true;
+                    // Then, skip the rest of the processing. A filtered
+                    // revision doesn't prevent its parents
+                    // from being heads (other non-filtered
+                    // siblings could however).
+                    continue;
+                }
+            }
+
+            // If we did not see any (unfiltered) children getting there,
+            // this is a head
+            if unlikely(!not_heads[idx]) {
+                heads.push(rev);
+            };
+
+            // Mark parents of the current revs as "not head"
+            let entry = self.get_entry(rev);
+            let p1 = Revision(entry.p1().0); // we check it validity right below;
+            if unlikely(p1 < NULL_REVISION) {
+                return Err(GraphErrorKind::ParentOutOfRange(rev).into());
+            }
+            if unlikely(p1 >= rev) {
+                return Err(GraphErrorKind::ParentOutOfRange(rev).into());
+            }
+            not_heads[(p1.0 + 1) as usize] = true;
+            let p2 = Revision(entry.p2().0); // we check it validity right below;
+            if unlikely(p2 < NULL_REVISION) {
+                return Err(GraphErrorKind::ParentOutOfRange(rev).into());
+            }
+            if unlikely(p2 >= rev) {
+                return Err(GraphErrorKind::ParentOutOfRange(rev).into());
+            }
+            not_heads[(p2.0 + 1) as usize] = true;
+        }
+        heads.reverse();
+        Ok(heads)
+    }
+
     /// Return the head revisions of this index
     pub fn head_revs_advanced(
         &self,
@@ -658,9 +727,9 @@ impl Index {
             };
             let cachable = self.len() == length;
             let heads = if filtered_revs.is_empty() {
-                dagops::compute_heads::<false>(self, length, filtered_revs)?
+                self.compute_heads::<false>(length, filtered_revs)?
             } else {
-                dagops::compute_heads::<true>(self, length, filtered_revs)?
+                self.compute_heads::<true>(length, filtered_revs)?
             };
             (heads, cachable)
         };

@@ -18,12 +18,8 @@ use super::Graph;
 use super::GraphError;
 use super::NULL_REVISION;
 use super::Revision;
-use crate::BaseRevision;
 use crate::FastHashSet;
-use crate::GraphErrorKind;
 use crate::ancestors::AncestorsIterator;
-use crate::revlog::index::Index;
-use crate::utils::unlikely;
 
 fn remove_parents(
     graph: &impl Graph,
@@ -88,72 +84,6 @@ pub fn retain_heads(
         }
     }
     Ok(())
-}
-
-/// Optimized version of `retain_heads` that directly return head revisions
-pub fn compute_heads<const FILTER: bool>(
-    graph: &Index,
-    length: usize,
-    filtered_revs: &FastHashSet<Revision>,
-) -> Result<Vec<Revision>, GraphError> {
-    let mut heads = vec![];
-    let mut not_heads = vec![false; length + 1];
-    for idx in (1..(length + 1)).rev() {
-        let rev = Revision((idx - 1) as BaseRevision);
-        if FILTER {
-            // First, we check if the filtered_revs are empty, to fast path
-            // that easy case. The repeated check of the filtered_revs
-            // immutable memory should be easily abstracted away by
-            // branch prediction. This trick is still not as good as not having
-            // the check at all. This conditional branch seems to
-            // prevent the compiler from doing more optimizations.
-            //
-            // Second, the non-filtered graph should be convex, a parent can't
-            // be filtered if its children are not filtered.
-            //
-            // So, if the current revision was already marked as non-head when
-            // we saw a non-filtered child of this revision, we know
-            // it cannot be filtered and skip the expensive
-            // `contains` check.
-            if unlikely(!not_heads[idx] && filtered_revs.contains(&rev)) {
-                // If this revision is filtered, nobody could have marked it as
-                // a non-head already. So we need to mark it as
-                // a non-head.
-                not_heads[idx] = true;
-                // Then, skip the rest of the processing. A filtered revision
-                // doesn't prevent its parents from being heads (other
-                // non-filtered siblings could however).
-                continue;
-            }
-        }
-
-        // If we did not see any (unfiltered) children getting there, this is a
-        // head
-        if unlikely(!not_heads[idx]) {
-            heads.push(rev);
-        };
-
-        // Mark parents of the current revs as "not head"
-        let entry = graph.get_entry(rev);
-        let p1 = Revision(entry.p1().0); // we check it validity right below;
-        if unlikely(p1 < NULL_REVISION) {
-            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
-        }
-        if unlikely(p1 >= rev) {
-            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
-        }
-        not_heads[(p1.0 + 1) as usize] = true;
-        let p2 = Revision(entry.p2().0); // we check it validity right below;
-        if unlikely(p2 < NULL_REVISION) {
-            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
-        }
-        if unlikely(p2 >= rev) {
-            return Err(GraphErrorKind::ParentOutOfRange(rev).into());
-        }
-        not_heads[(p2.0 + 1) as usize] = true;
-    }
-    heads.reverse();
-    Ok(heads)
 }
 
 /// Roots of `revs`, passed as a `HashSet`
