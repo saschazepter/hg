@@ -37,6 +37,8 @@ use crate::revlog::node::NULL_NODE;
 use crate::revlog::node::Node;
 use crate::revlog::node::STORED_NODE_ID_BYTES;
 use crate::utils::descending_revision_set::DescendingRevisionSet;
+use crate::utils::i32_u;
+use crate::utils::u_i32;
 use crate::utils::u32_u;
 use crate::utils::unlikely;
 
@@ -614,6 +616,80 @@ impl Index {
         IndexEntry { bytes }
     }
 
+    /// The raw entries for `revs`, as a vec of contiguous slices
+    ///
+    /// This allows code walking a large amount of revision entry efficiently.
+    /// In its current form, get_entry involved jumping through various
+    /// hoops and point indirection that can significantly slow code down.
+    ///
+    /// It might be worth revisiting the utility of this once each type of Index
+    /// (inline, v1, v2…) uses its own types.
+    pub(crate) fn as_slices_of_entries_bytes(
+        &self,
+        start_rev: Revision,
+        stop_rev: Revision,
+    ) -> Vec<&[[u8; INDEX_ENTRY_SIZE]]> {
+        let mut groups = Vec::new();
+        if start_rev >= stop_rev {
+            // empty range, nothing to return
+            return groups;
+        }
+        if start_rev <= NULL_REVISION {
+            groups.push(std::slice::from_ref(NULL_ENTRY));
+        }
+        let start = i32_u(start_rev.0.max(0));
+        let stop = i32_u(stop_rev.0);
+        assert!(stop <= self.len(), "stop rev overflow");
+        // Revision 0 is stored apart, see `IndexData::first_entry`.
+        if start == 0 && 0 < stop {
+            groups.push(std::slice::from_ref(&self.bytes.first_entry));
+        };
+        let start_rev = Revision(start_rev.0.max(1));
+        if self.is_inline() {
+            // Entries are interleaved with the data, so each one stands alone.
+            //
+            // Creating a full vec for them from scratch is not ideal, but
+            // inline revlog has few entry so it should be fine. We
+            // can do something smarter when inline and non-inline
+            // Index stop being handled within the same type.
+            let offsets = self.get_offsets();
+            let offsets = offsets.as_ref().expect("inline should have offsets");
+            for rev in (start_rev.0)..(stop_rev.0) {
+                let start = offsets[rev as usize];
+                let entry = &self.bytes[start..start + INDEX_ENTRY_SIZE];
+                let entry: &[u8; INDEX_ENTRY_SIZE] =
+                    entry.try_into().expect("a whole entry");
+                groups.push(std::slice::from_ref(entry));
+            }
+        } else {
+            // the entries are split in two chunks, the one comming from disk,
+            // and the one added since the creation of this Index.
+            // We might need a slice for each.
+            assert_eq!(self.bytes.bytes.len() % INDEX_ENTRY_SIZE, 0);
+            let base = self.bytes.bytes.as_chunks::<INDEX_ENTRY_SIZE>().0;
+            let base_count = base.len();
+            // data from the immutable content
+            if start < base_count {
+                let base_stop = stop.min(base_count);
+                groups.push(&base[start..base_stop]);
+            }
+            // data from the add content
+            if base_count < stop {
+                let added_start = start.max(base_count) - base_count;
+                let added_stop = stop - base_count;
+                assert_eq!(self.bytes.added.len() % INDEX_ENTRY_SIZE, 0);
+                let added = self.bytes.added.as_chunks::<INDEX_ENTRY_SIZE>().0;
+                groups.push(&added[added_start..added_stop]);
+            }
+        }
+        debug_assert_eq!(
+            u_i32(groups.iter().map(|g| g.len()).sum::<usize>()),
+            stop_rev.0 - start_rev.0,
+            "the groups must cover exactly the revisions asked for",
+        );
+        groups
+    }
+
     /// Return the head revisions of this index
     pub fn head_revs(&self) -> Result<Vec<Revision>, GraphError> {
         self.head_revs_advanced(&FastHashSet::default(), None, false)
@@ -631,10 +707,18 @@ impl Index {
             return Ok(heads);
         }
         let mut not_heads = vec![false; length + 1];
-        for _ in 0..1 {
-            for idx in (2..(length + 1)).rev() {
+
+        let start_rev = Revision(1);
+        let stop_rev = Revision(u_i32(length));
+        let groups_of_entries_bytes =
+            self.as_slices_of_entries_bytes(start_rev, stop_rev);
+
+        let mut idx = length;
+        for group in groups_of_entries_bytes.into_iter().rev() {
+            for bytes in group.iter().rev() {
                 let is_head = !not_heads[idx];
-                let rev = Revision((idx - 1) as BaseRevision);
+                idx -= 1;
+                let rev = Revision(idx as BaseRevision);
                 // First, we check if the filtered_revs are empty, to fast path
                 // that easy case. The repeated check of the filtered_revs
                 // immutable memory should be easily abstracted away by
@@ -666,7 +750,7 @@ impl Index {
                     };
 
                     // Mark parents of the current revs as "not head"
-                    let entry = self.get_entry(rev);
+                    let entry = IndexEntry { bytes };
                     let p1 = Revision(entry.p1().0); // we check it validity right below;
                     if unlikely(p1 < NULL_REVISION) {
                         return Err(
@@ -694,6 +778,7 @@ impl Index {
                 }
             }
         }
+        assert_eq!(idx, 1);
         assert!(length > 0);
         let rev_0 = Revision(0 as BaseRevision);
         if !(not_heads[1] || filtered_revs.contains(&rev_0)) {
