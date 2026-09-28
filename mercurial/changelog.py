@@ -394,6 +394,8 @@ class changelog(revlog.revlog):
 
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""
+        if self.is_delaying:
+            return
         assert not self._inner.is_open
         assert not self.configs.feature.may_inline
         # enforce that older changelog that are still inline are split at the
