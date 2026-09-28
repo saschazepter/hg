@@ -99,6 +99,16 @@ impl Inode {
             flags: 0,
         }
     }
+
+    pub fn is_unloaded_dir(&self) -> bool {
+        match &self.kind {
+            InodeKind::File { .. } => false,
+            InodeKind::Dir { children } => match children {
+                DirEntries::Loaded(_) => false,
+                DirEntries::NotLoaded => true,
+            },
+        }
+    }
 }
 
 pub enum InodeKind {
