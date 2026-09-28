@@ -274,9 +274,12 @@ and publish a shape for it::
      ``server-shapes`` files will be saved and used to serve existing sharded
      bundles.
   2. Generate the new bundles and add them to the clonebundle manifest.
-  3. Add the shape that requires the new shard. No shard changes, so this is a
+  3. Clear the saved configs with
+     :hg:`admin::narrow-server --shape-clear-previous`. They exist to keep old
+     bundles usable and are no longer needed after step 2.
+  4. Add the shape that requires the new shard. No shard changes, so this is a
      pure reshaping.
-  4. Clients can begin using the new shape.
+  5. Clients can begin using the new shape.
 
 Passing ``--override-reshape-and-reshard-check`` applies the update regardless.
 You should rarely want this: a mixed update can publish a shape before the

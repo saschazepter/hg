@@ -163,6 +163,12 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
             _(b"update the server-shape file for this repo"),
         ),
         (
+            b'',
+            b'shape-clear-previous',
+            None,
+            _(b"clear the saved previous server-shapes configs for this repo"),
+        ),
+        (
             b'f',
             b'file',
             b'',
@@ -211,12 +217,16 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         "shape_files",
         "shape_files_hidden",
         "shape_update",
+        "shape_clear_previous",
     )
     if subcommand is None:
         raise error.InputError("need at least one flag")
 
     if subcommand == "shape_update":
         return _shape_update(ui, repo, **opts)
+
+    if subcommand == "shape_clear_previous":
+        return _shape_clear_previous(ui, repo)
 
     cmdutil.check_incompatible_arguments(
         opts,
@@ -362,11 +372,26 @@ def _validate_shape_update(old_store_shards, new_store_shards, **opts) -> None:
             )
 
 
+def _shape_clear_previous(ui: UiT, repo: RepoT) -> int:
+    """Clear the saved previous `server-shapes` configs for this repo.
+
+    This can be done once the sharded bundles for the current config are
+    generated and advertised.
+
+    Always returns exit code 0; failures raise instead of returning.
+    """
+    with repo.store_shapes_lock(wait=False), repo.lock():
+        cleared = pure_shapemod.clear_previous_configs(repo)
+    ui.status(_(b"cleared %d saved server-shapes\n") % len(cleared))
+    return 0
+
+
 def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
     """Replace this repo's `server-shapes` file with new contents.
 
     The new contents are read from the `--file` path or from the user's editor.
-    Returns the exit code for the command.
+
+    Always returns exit code 0; failures raise instead of returning.
     """
     with repo.store_shapes_lock(wait=False):
         old_store_shards = shapemod.get_store_shards(repo.root)

@@ -499,7 +499,7 @@ The previous config is saved in a separate file, named by the list of saved
 configs
 
   $ cat .hg/store/server-shapes-previous-list
-  server-shapes-previous-5b10ce137aba (no-eol)
+  server-shapes-previous-* (no-eol) (glob)
   $ cat .hg/store/`cat .hg/store/server-shapes-previous-list`
   version = 0
   [[shards]]
@@ -509,6 +509,20 @@ configs
   name = "shape"
   requires = ["foo"]
   shape = true
+
+Clearing drops the saved configs and empties the list
+
+  $ saved=`cat .hg/store/server-shapes-previous-list`
+  $ hg admin::narrow-server --shape-clear-previous
+  cleared 1 saved server-shapes
+  $ cat .hg/store/server-shapes-previous-list
+  $ test -f .hg/store/$saved
+  [1]
+
+Clearing again is a no op
+
+  $ hg admin::narrow-server --shape-clear-previous
+  cleared 0 saved server-shapes
 
 Test behavior of concurrent updates
 -----------------------------------

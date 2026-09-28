@@ -482,3 +482,15 @@ def save_previous_config(repo: RepoT, contents: bytes) -> bytes:
         data = b'\n'.join(saved + [name])
         repo.svfs.write(PREVIOUS_SHAPES_LIST, data, atomictemp=True)
     return name
+
+
+def clear_previous_configs(repo: RepoT) -> list[bytes]:
+    """Clear every saved `server-shapes` config.
+
+    Must be called with the store shapes lock held, since it updates the list
+    of saved configs. Returns the filenames that were removed."""
+    cleared = previous_configs(repo)
+    for name in cleared:
+        repo.svfs.tryunlink(name)
+    repo.svfs.write(PREVIOUS_SHAPES_LIST, b'', atomictemp=True)
+    return cleared
