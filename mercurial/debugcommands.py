@@ -278,104 +278,105 @@ def debugbuilddag(
         b'relaxed-block-sync-merge',
     )
     with progress, repo.wlock(), repo.lock(), repo.transaction(b"builddag"):
-        at = -1
-        atbranch = b'default'
-        unfi = repo.unfiltered()
-        nodeids = [unfi[r].node() for r in unfi]
-        id = 0
-        progress.update(id)
-        dag = dagparser.parsedag(text, existing_revs=len(nodeids))
-        for type, data in dag:
-            if type == b'n':
-                ui.notenoi18n(b'node %s\n' % pycompat.bytestr(data))
-                id, ps = data
-
-                files = []
-                filecontent = {}
-
-                p2 = None
-                if mergeable_file:
-                    fn = b"mf"
-                    p1 = repo[ps[0]]
-                    if len(ps) > 1:
-                        p2 = repo[ps[1]]
-                        pa = p1.ancestor(p2)
-                        base, local, other = (
-                            x[fn].data() for x in (pa, p1, p2)
-                        )
-                        m3 = simplemerge.Merge3Text(
-                            base,
-                            local,
-                            other,
-                            relaxed_sync=merge_relaxed_sync,
-                        )
-                        ml = [
-                            l.strip()
-                            for l in simplemerge.render_minimized(m3)[0]
-                        ]
-                        ml.append(b"")
-                    elif at > 0:
-                        ml = p1[fn].data().split(b"\n")
-                    else:
-                        ml = initialmergedlines
-                    ml[id * linesperrev] += b" r%i" % id
-                    mergedtext = b"\n".join(ml)
-                    files.append(fn)
-                    filecontent[fn] = mergedtext
-
-                if overwritten_file:
-                    fn = b"of"
-                    files.append(fn)
-                    filecontent[fn] = b"r%i\n" % id
-
-                if new_file:
-                    fn = b"nf%i" % id
-                    files.append(fn)
-                    filecontent[fn] = b"r%i\n" % id
-                    if len(ps) > 1:
-                        if not p2:
-                            p2 = repo[ps[1]]
-                        for fn in p2:
-                            if fn.startswith(b"nf"):
-                                files.append(fn)
-                                filecontent[fn] = p2[fn].data()
-
-                def fctxfn(repo, cx, path):
-                    if path in filecontent:
-                        return context.memfilectx(
-                            repo, cx, path, filecontent[path]
-                        )
-                    return None
-
-                if len(ps) == 0 or ps[0] < 0:
-                    pars = [None, None]
-                elif len(ps) == 1:
-                    pars = [nodeids[ps[0]], None]
-                else:
-                    pars = [nodeids[p] for p in ps]
-                cx = context.memctx(
-                    repo,
-                    pars,
-                    b"r%i" % id,
-                    files,
-                    fctxfn,
-                    date=(id, 0),
-                    user=b"debugbuilddag",
-                    extra={b'branch': atbranch},
-                )
-                nodeid = repo.commitctx(cx)
-                nodeids.append(nodeid)
-                at = id
-            elif type == b'l':
-                id, name = data
-                ui.notenoi18n(b'tag %s\n' % name)
-                tag = b"%s %s\n"
-                tag %= (hex(repo.changelog.node(id)), name)
-                tags.append(tag)
-            elif type == b'a':
-                ui.notenoi18n(b'branch %s\n' % data)
-                atbranch = data
+        if True:
+            at = -1
+            atbranch = b'default'
+            unfi = repo.unfiltered()
+            nodeids = [unfi[r].node() for r in unfi]
+            id = 0
             progress.update(id)
+            dag = dagparser.parsedag(text, existing_revs=len(nodeids))
+            for type, data in dag:
+                if type == b'n':
+                    ui.notenoi18n(b'node %s\n' % pycompat.bytestr(data))
+                    id, ps = data
+
+                    files = []
+                    filecontent = {}
+
+                    p2 = None
+                    if mergeable_file:
+                        fn = b"mf"
+                        p1 = repo[ps[0]]
+                        if len(ps) > 1:
+                            p2 = repo[ps[1]]
+                            pa = p1.ancestor(p2)
+                            base, local, other = (
+                                x[fn].data() for x in (pa, p1, p2)
+                            )
+                            m3 = simplemerge.Merge3Text(
+                                base,
+                                local,
+                                other,
+                                relaxed_sync=merge_relaxed_sync,
+                            )
+                            ml = [
+                                l.strip()
+                                for l in simplemerge.render_minimized(m3)[0]
+                            ]
+                            ml.append(b"")
+                        elif at > 0:
+                            ml = p1[fn].data().split(b"\n")
+                        else:
+                            ml = initialmergedlines
+                        ml[id * linesperrev] += b" r%i" % id
+                        mergedtext = b"\n".join(ml)
+                        files.append(fn)
+                        filecontent[fn] = mergedtext
+
+                    if overwritten_file:
+                        fn = b"of"
+                        files.append(fn)
+                        filecontent[fn] = b"r%i\n" % id
+
+                    if new_file:
+                        fn = b"nf%i" % id
+                        files.append(fn)
+                        filecontent[fn] = b"r%i\n" % id
+                        if len(ps) > 1:
+                            if not p2:
+                                p2 = repo[ps[1]]
+                            for fn in p2:
+                                if fn.startswith(b"nf"):
+                                    files.append(fn)
+                                    filecontent[fn] = p2[fn].data()
+
+                    def fctxfn(repo, cx, path):
+                        if path in filecontent:
+                            return context.memfilectx(
+                                repo, cx, path, filecontent[path]
+                            )
+                        return None
+
+                    if len(ps) == 0 or ps[0] < 0:
+                        pars = [None, None]
+                    elif len(ps) == 1:
+                        pars = [nodeids[ps[0]], None]
+                    else:
+                        pars = [nodeids[p] for p in ps]
+                    cx = context.memctx(
+                        repo,
+                        pars,
+                        b"r%i" % id,
+                        files,
+                        fctxfn,
+                        date=(id, 0),
+                        user=b"debugbuilddag",
+                        extra={b'branch': atbranch},
+                    )
+                    nodeid = repo.commitctx(cx)
+                    nodeids.append(nodeid)
+                    at = id
+                elif type == b'l':
+                    id, name = data
+                    ui.notenoi18n(b'tag %s\n' % name)
+                    tag = b"%s %s\n"
+                    tag %= (hex(repo.changelog.node(id)), name)
+                    tags.append(tag)
+                elif type == b'a':
+                    ui.notenoi18n(b'branch %s\n' % data)
+                    atbranch = data
+                progress.update(id)
 
         if tags:
             repo.vfs.write(b"localtags", b"".join(tags))
