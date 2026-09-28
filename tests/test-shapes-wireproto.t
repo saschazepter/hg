@@ -296,6 +296,8 @@ Update the server shapes to change the fingerprint of this shape
   > paths = ["foo/bar/other-secret"]
   > shape = true
   > EOF
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  cleared 0 saved server-shapes
   $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
@@ -345,7 +347,9 @@ Update the server shapes to remove the shape
   [100]
 #endif
 
-Reset the shapes
+Reset the shapes, clearing the config the resharding above saved
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  cleared 1 saved server-shapes
   $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 Create another commit to pull
@@ -378,6 +382,8 @@ Update the server shapes to change the fingerprint of this shape
   > paths = ["foo/bar/other-secret"]
   > shape = true
   > EOF
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  cleared 1 saved server-shapes
   $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
@@ -427,7 +433,9 @@ Update the server shapes to remove the shape
   [100]
 #endif
 
-Reset the shapes
+Reset the shapes, clearing the config the resharding above saved
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  cleared 1 saved server-shapes
   $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 

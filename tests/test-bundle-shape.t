@@ -862,7 +862,8 @@ but a different fingerprint
   > requires = ["nested"]
   > shape = true
   > EOF
-  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-redefined --override-fingerprint-change-check
+  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-redefined \
+  >   --override-fingerprint-change-check --override-saved-configs-check
   $ hg clone ssh://user@dummy/source redefined --noupdate --store-shape excluded-shape --stream --debug 2>&1 | grep 'clone bundles'
   no compatible clone bundles available on server; falling back to regular clone
   $ rm -rf redefined

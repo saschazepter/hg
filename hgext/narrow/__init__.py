@@ -278,7 +278,8 @@ and publish a shape for it::
      :hg:`admin::narrow-server --shape-clear-previous`. They exist to keep old
      bundles usable and are no longer needed after step 2.
   4. Add the shape that requires the new shard. No shard changes, so this is a
-     pure reshaping.
+     pure reshaping. It is allowed because the previous configs have been
+     cleared, indicating that new bundles are ready and being advertised.
   5. Clients can begin using the new shape.
 
 Passing ``--override-reshape-and-reshard-check`` applies the update regardless.
