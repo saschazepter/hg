@@ -627,6 +627,9 @@ impl Index {
         filtered_revs: &FastHashSet<Revision>,
     ) -> Result<Vec<Revision>, GraphError> {
         let mut heads = vec![];
+        if length == 0 {
+            return Ok(heads);
+        }
         let mut not_heads = vec![false; length + 1];
         for idx in (1..(length + 1)).rev() {
             let rev = Revision((idx - 1) as BaseRevision);
