@@ -98,6 +98,13 @@ static void enlargecontext(context_t *ctx, size_t newsize)
 		return;
 	}
 
+	/* Grow the buffer exponentially instead of in small increments of 4096,
+	 * removing the potential O(n^2) cost.
+	 */
+	const size_t mingrowth = ctx->maxdatasize + ctx->maxdatasize / 16;
+	if (newsize < mingrowth) {
+		newsize = mingrowth;
+	}
 	newsize = defaultdatasize *
 	          ((newsize + defaultdatasize - 1) / defaultdatasize);
 	ctx->data = reallocx(ctx->data, newsize);
