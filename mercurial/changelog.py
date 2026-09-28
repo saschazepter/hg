@@ -388,6 +388,10 @@ class changelog(revlog.revlog):
             hasmeta_change=hasmeta_change,
         )
 
+    @property
+    def is_delaying(self):
+        return self._v2_delayed or super().is_delaying
+
     def delayupdate(self, tr):
         """delay visibility of index updates to other readers"""
         assert not self._inner.is_open
