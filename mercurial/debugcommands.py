@@ -284,7 +284,8 @@ def debugbuilddag(
         nodeids = [unfi[r].node() for r in unfi]
         id = 0
         progress.update(id)
-        for type, data in dagparser.parsedag(text, existing_revs=len(nodeids)):
+        dag = dagparser.parsedag(text, existing_revs=len(nodeids))
+        for type, data in dag:
             if type == b'n':
                 ui.notenoi18n(b'node %s\n' % pycompat.bytestr(data))
                 id, ps = data
