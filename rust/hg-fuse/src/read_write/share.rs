@@ -245,7 +245,6 @@ impl<S: StoreBackend<T>, T: FileToken> Share<S, T> {
         Ok(entries)
     }
 
-    #[expect(unused)]
     // Similar to `get_inode_handle`, but will load children if it's a
     // directory.
     fn load(&self, ino: INodeNo) -> Result<Option<InodeHandle>, Error> {
@@ -354,6 +353,48 @@ impl<S: StoreBackend<T>, T: FileToken> Share<S, T> {
         let inode = inode_handle.read();
         Ok(inode.attr(ino, self.uid, self.gid))
     }
+
+    // Return entries for all children of this inode.
+    pub fn entries(&self, ino: INodeNo) -> Result<Vec<ReaddirEntry>, Errno> {
+        let inode_handle = match self.load(ino) {
+            Ok(Some(inode_handle)) => inode_handle,
+            Ok(None) => return Err(Errno::ESTALE),
+            Err(err) => {
+                tracing::error!("error loading entries for {}: {:?}", ino, err);
+                return Err(Errno::EIO);
+            }
+        };
+        let inode = inode_handle.read();
+        let children = match &inode.kind {
+            InodeKind::File { .. } => return Err(Errno::ENOTDIR),
+            InodeKind::Dir { children } => match children {
+                DirEntries::NotLoaded => {
+                    // `load()` above is responsible for loading the children.
+                    return Err(Errno::EIO);
+                }
+                DirEntries::Loaded(children) => children,
+            },
+        };
+        let mut entries = Vec::with_capacity(children.len() + 2);
+        entries.push(ReaddirEntry {
+            name: ".".into(),
+            ino,
+            file_type: FileType::Directory,
+        });
+        entries.push(ReaddirEntry {
+            name: "..".into(),
+            ino: inode.parent,
+            file_type: FileType::Directory,
+        });
+        for (name, DirEntry { ino, file_type }) in children.iter() {
+            entries.push(ReaddirEntry {
+                name: name.clone(),
+                ino: *ino,
+                file_type: *file_type,
+            });
+        }
+        Ok(entries)
+    }
 }
 
 impl<S: StoreBackend<T>, T: FileToken> Share<S, T> {
@@ -372,4 +413,10 @@ impl<S: StoreBackend<T>, T: FileToken> Share<S, T> {
             (FileType::RegularFile, self.apply_umask(0o666))
         }
     }
+}
+
+pub struct ReaddirEntry {
+    pub name: OsString,
+    pub ino: INodeNo,
+    pub file_type: FileType,
 }

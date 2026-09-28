@@ -51,8 +51,7 @@ Mount the clone
   hgvfs on $TESTTMP/mnt type fuse (rw,nosuid,nodev,noatime,user_id=*,group_id=*) (glob)
   $ stat "$TESTTMP/mnt" >/dev/null
   $ ls "$TESTTMP/mnt"
-  ls: reading directory '$TESTTMP/mnt': Function not implemented
-  [2]
+  a
 
 Mounting again at the same point is rejected
 --------------------------------------------
