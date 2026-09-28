@@ -369,7 +369,9 @@ def debugbuilddag(
             elif type == b'l':
                 id, name = data
                 ui.notenoi18n(b'tag %s\n' % name)
-                tags.append(b"%s %s\n" % (hex(repo.changelog.node(id)), name))
+                tag = b"%s %s\n"
+                tag %= (hex(repo.changelog.node(id)), name)
+                tags.append(tag)
             elif type == b'a':
                 ui.notenoi18n(b'branch %s\n' % data)
                 atbranch = data
