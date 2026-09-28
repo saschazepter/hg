@@ -184,7 +184,7 @@ def debugapplystreamclonebundle(ui, repo, fname):
 
 
 @command(
-    b'debugbuilddag',
+    b'debug::build-dag|debugbuilddag',
     [
         (
             b'm',

@@ -1032,6 +1032,9 @@ Test list of internal help commands
                  dump index data for a revlog
    debug-revlog-stats
                  display statistics about revlogs in the store
+   debug::build-dag
+                 builds a repo with a given DAG from scratch in the current
+                 empty repo
    debug::changed-files
                  list the stored files changes for a revision
    debug::clonebundle-manifest
@@ -1070,9 +1073,6 @@ Test list of internal help commands
                  apply a stream clone bundle file
    debugbackupbundle
                  lists the changesets available in backup bundles
-   debugbuilddag
-                 builds a repo with a given DAG from scratch in the current
-                 empty repo
    debugbundle   lists the contents of a bundle
    debugcapabilities
                  lists the capabilities of a remote peer

@@ -221,6 +221,7 @@ Show debug commands if there are no other candidates
   debug-repair-issue6528
   debug-revlog-index
   debug-revlog-stats
+  debug::build-dag
   debug::changed-files
   debug::clonebundle-manifest
   debug::fast-upgrade
@@ -240,7 +241,6 @@ Show debug commands if there are no other candidates
   debugantivirusrunning
   debugapplystreamclonebundle
   debugbackupbundle
-  debugbuilddag
   debugbundle
   debugcapabilities
   debugcheckstate
@@ -437,6 +437,7 @@ Show all commands + options
   debug-repair-issue6528: to-report, from-report, paranoid, dry-run
   debug-revlog-index: changelog, manifest, dir, template
   debug-revlog-stats: changelog, manifest, filelogs, template
+  debug::build-dag: mergeable-file, overwritten-file, new-file, from-existing
   debug::changed-files: compute
   debug::clonebundle-manifest: stream, raw, legacy-client, include, exclude
   debug::fast-upgrade: 
@@ -456,7 +457,6 @@ Show all commands + options
   debugantivirusrunning: 
   debugapplystreamclonebundle: 
   debugbackupbundle: recover, patch, git, limit, no-merges, stat, graph, style, template
-  debugbuilddag: mergeable-file, overwritten-file, new-file, from-existing
   debugbundle: all, part-type, spec
   debugcapabilities: bundle2-cap
   debugcheckstate: 
