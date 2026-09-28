@@ -79,7 +79,7 @@ if typing.TYPE_CHECKING:
     _P = ParamSpec("_P")
     _R = TypeVar("_R")
 
-_ConfigItems = dict[tuple[bytes, bytes], object]  # {(section, name) : value}
+_ConfigItems = dict[tuple[bytes, bytes], bytes]  # {(section, name) : value}
 # The **opts args of the various write() methods can be basically anything, but
 # there's no way to express it as "anything but str".  So type it to be the
 # handful of known types that are used.
@@ -767,6 +767,7 @@ class ui:
             candidate = config.get(s, n, None)
             if candidate is not None:
                 level = config.level(s, n)
+                assert level is not None  # helps pytype
                 if level > value_level:
                     value = candidate
                     value_level = level
