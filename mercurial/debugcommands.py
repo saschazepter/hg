@@ -277,8 +277,12 @@ def debugbuilddag(
         b'experimental',
         b'relaxed-block-sync-merge',
     )
-    with progress, repo.wlock(), repo.lock(), repo.transaction(b"builddag"):
-        if True:
+    with progress, repo.wlock(), repo.lock(), repo.transaction(
+        b"builddag"
+    ) as tr:
+        repo.changelog.delayupdate(tr)
+        ml = repo.manifestlog.getstorage(b'').get_revlog()
+        with repo.changelog._writing(tr), ml._writing(tr):
             at = -1
             atbranch = b'default'
             unfi = repo.unfiltered()
