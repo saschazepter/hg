@@ -305,16 +305,16 @@ Update the server shapes to change the fingerprint of this shape
   pulling from $TESTTMP/server
   searching for changes
   abort: fingerprint mismatch for shape 'default'
-    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
-    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    server: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    client: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
   [255]
 #else
   $ hg pull
   pulling from ssh://user@dummy/server
   searching for changes
   remote: abort: fingerprint mismatch for shape 'default'
-    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
-    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    server: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    client: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
   abort: pull failed on remote
   [100]
 #endif
@@ -391,16 +391,16 @@ Update the server shapes to change the fingerprint of this shape
   pulling from $TESTTMP/server
   searching for changes
   abort: fingerprint mismatch for shape 'default'
-    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
-    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    server: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    client: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
   [255]
 #else
   $ hg pull
   pulling from ssh://user@dummy/server
   searching for changes
   remote: abort: fingerprint mismatch for shape 'default'
-    server: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
-    client: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    server: '00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea'
+    client: 'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
   abort: pull failed on remote
   [100]
 #endif

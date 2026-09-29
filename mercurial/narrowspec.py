@@ -309,7 +309,7 @@ def patterns_for_shape(
                 b"fingerprint mismatch for shape '%s'\n"
                 b"  server: '%s'\n  client: '%s'"
             )
-            msg = msg % (name, fingerprint, server_fingerprint)
+            msg = msg % (name, server_fingerprint, fingerprint)
             raise error.Abort(msg)
     includes, excludes = shape.patterns()
     legacy_includes, legacy_excludes = to_legacy_patterns(includes, excludes)
