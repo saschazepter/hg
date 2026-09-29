@@ -856,10 +856,9 @@ directory that does not exist even though the index itself lives under `data/`.
   repaired revision 1 of 'filelog data/b.txt.i'
   repaired revision 3 of 'filelog data/b.txt.i'
   found affected revision 1 for file 'llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll.txt'
-  abort: $ENOENT$: '$TESTTMP/repo-to-fix-long-name/.hg/store/dh/lllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll2238b41da7480c33a1b2d759321a1b031914fa25.tmp-parents-fix'
-  [255]
+  repaired revision 1 of 'filelog data/llllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllll.txt.i'
   $ hg debugrevlogindex $LONG_NAME
      rev linkrev nodeid       p1           p2
        0       6 2a8d3833f2fb 000000000000 000000000000
-       1       7 2a80419dfc31 2a8d3833f2fb 000000000000
+       1       7 2a80419dfc31 000000000000 2a8d3833f2fb
   $ cd ..

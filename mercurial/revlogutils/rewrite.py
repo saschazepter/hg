@@ -572,9 +572,16 @@ def _reorder_filelog_parents(repo, fl, to_fix):
 
     with ui.uninterruptible():
         try:
+            new_file_fs_path = rl.opener.join(new_file_path)
+            # The temporary file's encoded path may be hashed into `dh/` even
+            # when the index file's path is not (the suffix can push it over
+            # the length limit), so its parent directory may not exist yet.
+            util.makedirs(
+                os.path.dirname(new_file_fs_path), rl.opener.createmode
+            )
             util.copyfile(
                 rl.opener.join(index_file),
-                rl.opener.join(new_file_path),
+                new_file_fs_path,
                 checkambig=rl.data_config.check_ambig,
             )
 
