@@ -70,7 +70,7 @@ Using pip
 Users of `pip` can install the Rust extensions with the following commands::
 
   $ pip cache remove mercurial
-  $ pip install mercurial -v \
+  $ pip install mercurial \
         --config-settings --global-option=--rust \
         --no-binary mercurial --force
 
