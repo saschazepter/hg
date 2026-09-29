@@ -609,7 +609,6 @@ required):
 
 - :hg:`backout`
 - :hg:`commit`
-- :hg:`fetch` (for merge commit only)
 - :hg:`graft`
 - :hg:`histedit`
 - :hg:`import`
@@ -629,7 +628,6 @@ messages for each action.
 - ``changeset.commit.amend.normal`` for :hg:`commit --amend` on other
 - ``changeset.commit.normal.merge`` for :hg:`commit` on merges
 - ``changeset.commit.normal.normal`` for :hg:`commit` on other
-- ``changeset.fetch`` for :hg:`fetch` (impling merge commit)
 - ``changeset.gpg.sign`` for :hg:`sign`
 - ``changeset.graft`` for :hg:`graft`
 - ``changeset.histedit.edit`` for ``edit`` of :hg:`histedit`
