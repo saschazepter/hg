@@ -138,7 +138,7 @@ def update(ui, **opts):
     write access to the share source is also mandatory.
 
     It is recommended to run these commands with the ``HGPLAIN`` environment
-    variable (see :hg:`scripting`).
+    variable (see :hg:`help scripting`).
 
     Motivation: in Continuous Integration and Delivery systems (CI/CD), the
     occasional remnant or bogus lock are common sources of waste of time (both

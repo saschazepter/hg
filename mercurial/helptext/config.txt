@@ -2333,7 +2333,7 @@ category impact performance and repository size.
     through push, pull, clone and unbundle.
 
     To fix affected revisions that already exist within the repository, one can
-    use :hg:`debug-repair-issue-6528`.
+    use :hg:`debug-repair-issue6528`.
 
 .. container:: verbose
 

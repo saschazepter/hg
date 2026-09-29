@@ -1033,7 +1033,7 @@ def cmd_admin_clone_bundles_refresh(
     """generate clone bundles according to the configuration
 
     This runs the logic for automatic generation, removing outdated bundles and
-    generating new ones if necessary. See :hg:`help -e clone-bundles` for
+    generating new ones if necessary. See :hg:`help -e clonebundles` for
     details about how to configure this feature.
     """
     debug = repo.ui.configbool(b'devel', b'debug.clonebundles')
