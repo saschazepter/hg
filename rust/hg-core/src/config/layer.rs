@@ -17,6 +17,7 @@ use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
 
+use crate::config::config_items::ConfigItemsError;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::utils::files::get_bytes_from_path;
@@ -377,6 +378,12 @@ pub enum ConfigError {
         default_type: String,
         backtrace: HgBacktrace,
     },
+    /// These contents for `mercurial/configitems.toml` are invalid
+    #[from]
+    Items(ConfigItemsError),
+    /// The `mercurial/configitems.toml` that this binary was compiled with
+    /// is invalid
+    DefaultItems(&'static ConfigItemsError),
 }
 
 fn make_regex(pattern: &'static str) -> Regex {

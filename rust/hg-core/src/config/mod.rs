@@ -19,6 +19,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str;
 
+pub use config_items::ConfigItemsError;
 use format_bytes::DisplayBytes;
 use format_bytes::write_bytes;
 pub use layer::ConfigError;
@@ -40,7 +41,7 @@ use crate::errors::IoResultExt;
 use crate::utils::files::get_bytes_from_os_str;
 
 lazy_static! {
-    static ref DEFAULT_CONFIG: Result<DefaultConfig, HgError> = {
+    static ref DEFAULT_CONFIG: Result<DefaultConfig, ConfigItemsError> = {
         DefaultConfig::from_contents(include_str!(
             "../../../../mercurial/configitems.toml"
         ))
@@ -366,13 +367,8 @@ impl Config {
         section: &[u8],
         item: &[u8],
     ) -> Result<Option<&DefaultConfigItem>, HgError> {
-        let default_config = DEFAULT_CONFIG.as_ref().map_err(|e| {
-            HgError::abort(
-                e.to_string(),
-                crate::exit_codes::ABORT,
-                Some("`mercurial/configitems.toml` is not valid".into()),
-            )
-        })?;
+        let default_config =
+            DEFAULT_CONFIG.as_ref().map_err(ConfigError::DefaultItems)?;
         let default_opt = default_config.get(section, item);
         Ok(default_opt.filter(|default| {
             default

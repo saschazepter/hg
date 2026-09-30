@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use format_bytes::DisplayBytes;
 
 use crate::config::ConfigError;
+use crate::config::ConfigItemsError;
 use crate::config::ConfigParseError;
 use crate::config::ConfigParseErrorKind;
 use crate::config::ConfigValueParseError;
@@ -224,6 +225,12 @@ impl HgError {
                     }
                     Some(Cow::Owned(hint))
                 }
+                ConfigError::Items(_) => {
+                    Some(Cow::Borrowed("Check 'mercurial/configitems.toml'"))
+                }
+                ConfigError::DefaultItems(_) => Some(Cow::Borrowed(
+                    "`mercurial/configitems.toml` is not valid",
+                )),
                 ConfigError::Parse(_)
                 | ConfigError::MalformedCliOption { .. } => None,
             },
@@ -365,6 +372,12 @@ impl fmt::Display for HgError {
                         String::from_utf8_lossy(section),
                         String::from_utf8_lossy(item)
                     )
+                }
+                ConfigError::Items(items_error) => {
+                    format_config_items_error(f, items_error)
+                }
+                ConfigError::DefaultItems(items_error) => {
+                    format_config_items_error(f, items_error)
                 }
             },
             HgError::Path(error) => {
@@ -1192,6 +1205,43 @@ fn format_docket_error(
                 f,
                 "{backtrace}overflow in {} docket serialization",
                 docket_path.display()
+            )
+        }
+    }
+}
+
+fn format_config_items_error(
+    f: &mut std::fmt::Formatter<'_>,
+    items_error: &ConfigItemsError,
+) -> Result<(), std::fmt::Error> {
+    match items_error {
+        ConfigItemsError::Toml(error) => fmt::Display::fmt(error, f),
+        ConfigItemsError::LambdaWithoutReturn => {
+            write!(f, "lambda defined with no return value")
+        }
+        ConfigItemsError::LazyModuleNameNotString => {
+            write!(f, "lazy_module module name should be a string")
+        }
+        ConfigItemsError::LazyModuleWithoutDefault => {
+            write!(f, "lazy_module should have a default value")
+        }
+        ConfigItemsError::InvalidDefaultType(default_type) => {
+            write!(f, "invalid default_type '{default_type}'")
+        }
+        ConfigItemsError::UndefinedTemplate(template) => {
+            write!(
+                f,
+                "template application refers to undefined template \
+                '{template}'"
+            )
+        }
+        ConfigItemsError::InvalidPattern { section, name, error } => {
+            write!(
+                f,
+                "invalid pattern for config item '{}.{}': {}",
+                String::from_utf8_lossy(section),
+                String::from_utf8_lossy(name),
+                error
             )
         }
     }

@@ -6,7 +6,6 @@ use crate::FastHashMap;
 use crate::config::ConfigError;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::exit_codes;
 
 /// Corresponds to the structure of `mercurial/configitems.toml`.
 #[derive(Debug, Deserialize)]
@@ -119,6 +118,37 @@ fn wrong_query(
         backtrace: HgBacktrace::capture(),
     }
     .into()
+}
+
+/// The different ways `mercurial/configitems.toml` can be invalid
+#[derive(Debug)]
+pub enum ConfigItemsError {
+    /// The file is either not valid TOML, or does not have the expected
+    /// structure. This includes all other variants of this enum when they
+    /// happen during deserialization, since `serde` only gives us a message.
+    Toml(toml::de::Error),
+    /// An item with a `lambda` default has no return value
+    LambdaWithoutReturn,
+    /// The module name for a `lazy_module` default is not a string
+    LazyModuleNameNotString,
+    /// An item with a `lazy_module` default has no default value
+    LazyModuleWithoutDefault,
+    /// This type of default is unknown
+    InvalidDefaultType(String),
+    /// A template application refers to this template, which does not exist
+    UndefinedTemplate(String),
+    /// The name of this generic item is not a valid regex
+    InvalidPattern {
+        section: Vec<u8>,
+        name: Vec<u8>,
+        error: Box<regex_automata::meta::BuildError>,
+    },
+}
+
+impl From<ConfigItemsError> for HgError {
+    fn from(error: ConfigItemsError) -> Self {
+        ConfigError::Items(error).into()
+    }
 }
 
 impl DefaultConfigItem {
@@ -407,20 +437,13 @@ fn raw_default_to_concrete(
         Some("list_type") => Some(DefaultConfigItemType::ListType),
         Some("lambda") => match &default {
             Some(default) => Some(DefaultConfigItemType::Lambda(
-                default.to_owned().try_into().map_err(|e| {
-                    HgError::abort(
-                        e.to_string(),
-                        exit_codes::ABORT,
-                        Some("Check 'mercurial/configitems.toml'".into()),
-                    )
-                })?,
+                default
+                    .to_owned()
+                    .try_into()
+                    .map_err(ConfigItemsError::Toml)?,
             )),
             None => {
-                return Err(HgError::abort(
-                    "lambda defined with no return value".to_string(),
-                    exit_codes::ABORT,
-                    Some("Check 'mercurial/configitems.toml'".into()),
-                ));
+                return Err(ConfigItemsError::LambdaWithoutReturn.into());
             }
         },
         Some("lazy_module") => match &default {
@@ -428,29 +451,21 @@ fn raw_default_to_concrete(
                 Some(DefaultConfigItemType::LazyModule(match default {
                     toml::Value::String(module) => module.to_owned(),
                     _ => {
-                        return Err(HgError::abort(
-                            "lazy_module module name should be a string"
-                                .to_string(),
-                            exit_codes::ABORT,
-                            Some("Check 'mercurial/configitems.toml'".into()),
-                        ));
+                        return Err(
+                            ConfigItemsError::LazyModuleNameNotString.into()
+                        );
                     }
                 }))
             }
             None => {
-                return Err(HgError::abort(
-                    "lazy_module should have a default value".to_string(),
-                    exit_codes::ABORT,
-                    Some("Check 'mercurial/configitems.toml'".into()),
-                ));
+                return Err(ConfigItemsError::LazyModuleWithoutDefault.into());
             }
         },
         Some(invalid) => {
-            return Err(HgError::abort(
-                format!("invalid default_type '{}'", invalid),
-                exit_codes::ABORT,
-                Some("Check 'mercurial/configitems.toml'".into()),
-            ));
+            return Err(ConfigItemsError::InvalidDefaultType(
+                invalid.to_owned(),
+            )
+            .into());
         }
     })
 }
@@ -513,28 +528,17 @@ impl DefaultConfig {
 
     /// Returns `Self`, given the contents of `mercurial/configitems.toml`
     #[tracing::instrument(level = "debug", skip_all, name = "configitems.toml")]
-    pub fn from_contents(contents: &str) -> Result<Self, HgError> {
+    pub fn from_contents(contents: &str) -> Result<Self, ConfigItemsError> {
         let mut from_file: ConfigItems =
-            toml::from_str(contents).map_err(|e| {
-                HgError::abort(
-                    e.to_string(),
-                    exit_codes::ABORT,
-                    Some("Check 'mercurial/configitems.toml'".into()),
-                )
-            })?;
+            toml::from_str(contents).map_err(ConfigItemsError::Toml)?;
 
         let mut flat_items = from_file.items;
 
         for application in from_file.template_applications.drain(..) {
             match from_file.templates.get(&application.template) {
                 None => {
-                    return Err(HgError::abort(
-                        format!(
-                            "template application refers to undefined template '{}'",
-                            application.template
-                        ),
-                        exit_codes::ABORT,
-                        Some("Check 'mercurial/configitems.toml'".into()),
+                    return Err(ConfigItemsError::UndefinedTemplate(
+                        application.template,
                     ));
                 }
                 Some(template_items) => {
@@ -586,21 +590,12 @@ impl DefaultConfig {
                                     .utf8(false), // haystacks can be any byte
                             )
                             .build(&pattern)
-                            .map_err(|e| {
-                                HgError::abort(
-                                    format!(
-                                        "invalid pattern for config \
-                                         item '{}.{}': {}",
-                                        String::from_utf8_lossy(&item.section),
-                                        String::from_utf8_lossy(&item.name),
-                                        e
-                                    ),
-                                    exit_codes::ABORT,
-                                    Some(
-                                        "Check 'mercurial/configitems.toml'"
-                                            .into(),
-                                    ),
-                                )
+                            .map_err(|error| {
+                                ConfigItemsError::InvalidPattern {
+                                    section: item.section.clone(),
+                                    name: item.name.clone(),
+                                    error: Box::new(error),
+                                }
                             })?;
                         compiled.insert(item.name.clone(), regex.clone());
                         regex
@@ -741,7 +736,7 @@ suffix = "unified"
         let res = DefaultConfig::from_contents(contents);
         let config = match res {
             Ok(config) => config,
-            Err(e) => panic!("{}", e),
+            Err(e) => panic!("{}", crate::errors::HgError::from(e)),
         };
         let expected = DefaultConfigItem {
             section: "censor".into(),
