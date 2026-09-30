@@ -223,7 +223,7 @@ impl Escaped for u8 {
                 acc.extend(br"\\r");
             }
             c if (*c < b' ' || *c >= 127) => {
-                write!(acc, "\\x{:x}", self).unwrap();
+                write!(acc, "\\x{:02x}", self).unwrap();
             }
             c => {
                 acc.push(*c);
@@ -461,6 +461,14 @@ mod tests {
     );
         let s = b"before $SOME_LONG_NAME_THAT_WE_ASSUME_IS_NOT_AN_ACTUAL_ENV_VAR after";
         assert_eq!(expand_vars(s), &s[..]);
+    }
+
+    #[test]
+    fn test_escaped_bytes() {
+        assert_eq!(b"plain".as_slice().escaped_bytes(), b"plain");
+        assert_eq!(b"\xff".as_slice().escaped_bytes(), b"\\xff");
+        // Always two digits, otherwise this would read as `\x0b`
+        assert_eq!(b"a\0b".as_slice().escaped_bytes(), b"a\\x00b");
     }
 
     #[test]
