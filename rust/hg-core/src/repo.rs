@@ -35,6 +35,7 @@ use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::requirements::DOTENCODE_REQUIREMENT;
 use crate::requirements::FILEINDEX_V1_REQUIREMENT;
 use crate::requirements::PLAIN_ENCODE_REQUIREMENT;
+use crate::requirements::RequirementsErrorKind;
 use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
 use crate::revlog::changelog::Changelog;
@@ -559,7 +560,7 @@ impl Repo {
         let (new_requirements, _config_paths, _store_path) =
             load_requirements(&self.dot_hg)?;
         if &new_requirements != self.requirements() {
-            return Err(HgError::abort_simple("requirements have changed"));
+            return Err(RequirementsErrorKind::Changed.into());
         }
         let mut changelog_lock = self.changelog.get_raw_mut();
         *self.manifestlog.get_raw_mut() = Some(self.new_manifestlog()?);
@@ -803,9 +804,7 @@ fn load_requirements(
     let thin = reqs.contains(requirements::THIN_REQUIREMENT);
 
     if thin {
-        return Err(HgError::unsupported(
-            "rhg does not support thin working copies",
-        ));
+        return Err(RequirementsErrorKind::ThinWorkingCopy.into());
     }
 
     // From `mercurial/localrepo.py`:
@@ -850,7 +849,7 @@ fn load_requirements(
         .contains(requirements::SHARESAFE_REQUIREMENT);
 
         if share_safe != source_is_share_safe {
-            return Err(HgError::unsupported("share-safe mismatch"));
+            return Err(RequirementsErrorKind::ShareSafeMismatch.into());
         }
 
         if share_safe {

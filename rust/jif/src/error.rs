@@ -7,6 +7,7 @@ use format_bytes::Utf8;
 use format_bytes::message;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
+use hg::requirements::RequirementsErrorKind;
 use hg::utils::files::get_bytes_from_path;
 
 use crate::diagnostic::Snippet;
@@ -89,6 +90,13 @@ impl ErrorKind {
                 HgError::ConfigValueParseError(_) => ErrorCode::InvalidConfig,
                 HgError::RepoNotFound { .. } => ErrorCode::RepoNotFound,
                 HgError::InterruptReceived => ErrorCode::Interrupted,
+                HgError::Requirements(error) => match error.kind {
+                    RequirementsErrorKind::ParseError => {
+                        ErrorCode::CorruptedRepository
+                    }
+                    RequirementsErrorKind::Changed => ErrorCode::Abort,
+                    _ => ErrorCode::Unsupported,
+                },
                 // TODO tell these apart once `hg-core` gives them structure
                 HgError::Abort { .. }
                 | HgError::Revlog(_)
@@ -197,6 +205,7 @@ pub fn hg_message(error: &HgError) -> Message {
         | HgError::Pattern(_)
         | HgError::FileIndex(_)
         | HgError::Path(_)
+        | HgError::Requirements(_)
         | HgError::Docket(_) => {
             message!("{error}", error = Utf8(format!("{error:?}")))
         }

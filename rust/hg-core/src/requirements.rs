@@ -1,8 +1,65 @@
 use crate::FastHashSet;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
-use crate::utils::strings::join_display;
 use crate::vfs::VfsImpl;
+
+/// The different ways the requirements of a repository can be invalid, or
+/// unsuitable for this version of Mercurial
+#[derive(Debug, PartialEq)]
+pub enum RequirementsErrorKind {
+    /// The `requires` file is not in the expected format
+    ParseError,
+    /// The repository requires features that we don't know about
+    Unknown(Vec<String>),
+    /// The repository does not have features that we need
+    Missing(Vec<&'static str>),
+    /// Exactly one of these two requirements is needed
+    NeedExactlyOneOf(&'static str, &'static str),
+    /// These two requirements cannot be used at the same time
+    MutuallyExclusive(&'static str, &'static str),
+    /// The repository is a thin working copy, which we don't support
+    ThinWorkingCopy,
+    /// A share and its source disagree on whether they are share-safe
+    ShareSafeMismatch,
+    /// The requirements have changed on disk since we've read them
+    Changed,
+}
+
+/// An error about the requirements of a repository
+#[derive(Debug, PartialEq)]
+pub struct RequirementsError {
+    pub kind: RequirementsErrorKind,
+    pub backtrace: HgBacktrace,
+}
+
+impl RequirementsError {
+    /// Whether falling back to the Python implementation could help
+    pub fn is_unsupported(&self) -> bool {
+        match self.kind {
+            RequirementsErrorKind::ParseError
+            | RequirementsErrorKind::Changed => false,
+            RequirementsErrorKind::Unknown(_)
+            | RequirementsErrorKind::Missing(_)
+            | RequirementsErrorKind::NeedExactlyOneOf(_, _)
+            | RequirementsErrorKind::MutuallyExclusive(_, _)
+            | RequirementsErrorKind::ThinWorkingCopy
+            | RequirementsErrorKind::ShareSafeMismatch => true,
+        }
+    }
+}
+
+impl From<RequirementsErrorKind> for RequirementsError {
+    fn from(kind: RequirementsErrorKind) -> Self {
+        Self { kind, backtrace: HgBacktrace::capture() }
+    }
+}
+
+impl From<RequirementsErrorKind> for HgError {
+    fn from(kind: RequirementsErrorKind) -> Self {
+        RequirementsError::from(kind).into()
+    }
+}
 
 fn parse(bytes: &[u8]) -> Result<FastHashSet<String>, HgError> {
     // The Python code reading this file uses `str.splitlines`
@@ -18,7 +75,7 @@ fn parse(bytes: &[u8]) -> Result<FastHashSet<String>, HgError> {
             if line[0].is_ascii_alphanumeric() && line.is_ascii() {
                 Ok(String::from_utf8(line.into()).unwrap())
             } else {
-                Err(HgError::corrupted("parse error in 'requires' file"))
+                Err(RequirementsErrorKind::ParseError.into())
             }
         })
         .collect()
@@ -48,46 +105,47 @@ pub(crate) fn load_if_exists(
 pub(crate) fn check(reqs: &FastHashSet<String>) -> Result<(), HgError> {
     let unknown: Vec<_> = reqs
         .iter()
-        .map(String::as_str)
         .filter(|feature| {
-            !REQUIRED.contains(feature) && !SUPPORTED.contains(feature)
+            !REQUIRED.contains(&feature.as_str())
+                && !SUPPORTED.contains(&feature.as_str())
         })
+        .cloned()
         .collect();
     if !unknown.is_empty() {
-        return Err(HgError::unsupported(format!(
-            "repository requires feature unknown to this Mercurial: {}",
-            join_display(&unknown, ", ")
-        )));
+        return Err(RequirementsErrorKind::Unknown(unknown).into());
     }
-    let missing: Vec<_> =
-        REQUIRED.iter().filter(|&&feature| !reqs.contains(feature)).collect();
+    let missing: Vec<_> = REQUIRED
+        .iter()
+        .copied()
+        .filter(|&feature| !reqs.contains(feature))
+        .collect();
     if !missing.is_empty() {
-        return Err(HgError::unsupported(format!(
-            "repository is missing feature required by this Mercurial: {}",
-            join_display(&missing, ", ")
-        )));
+        return Err(RequirementsErrorKind::Missing(missing).into());
     }
     let has_fncache = reqs.contains(FNCACHE_REQUIREMENT);
     let has_fileindex = reqs.contains(FILEINDEX_V1_REQUIREMENT);
     if !(has_fncache ^ has_fileindex) {
-        return Err(HgError::unsupported(format!(
-            "bad requirements, need exactly one of {} or {}",
-            FNCACHE_REQUIREMENT, FILEINDEX_V1_REQUIREMENT
-        )));
+        return Err(RequirementsErrorKind::NeedExactlyOneOf(
+            FNCACHE_REQUIREMENT,
+            FILEINDEX_V1_REQUIREMENT,
+        )
+        .into());
     }
     let has_dotencode = reqs.contains(DOTENCODE_REQUIREMENT);
     let has_plainencode = reqs.contains(PLAIN_ENCODE_REQUIREMENT);
     if has_fncache && !(has_dotencode ^ has_plainencode) {
-        return Err(HgError::unsupported(format!(
-            "bad requirements, need exactly one of {} or {}",
-            DOTENCODE_REQUIREMENT, PLAIN_ENCODE_REQUIREMENT
-        )));
+        return Err(RequirementsErrorKind::NeedExactlyOneOf(
+            DOTENCODE_REQUIREMENT,
+            PLAIN_ENCODE_REQUIREMENT,
+        )
+        .into());
     }
     if has_fileindex && has_dotencode {
-        return Err(HgError::unsupported(format!(
-            "bad requirements, {} and {} are mutually exclusive",
-            FILEINDEX_V1_REQUIREMENT, DOTENCODE_REQUIREMENT
-        )));
+        return Err(RequirementsErrorKind::MutuallyExclusive(
+            FILEINDEX_V1_REQUIREMENT,
+            DOTENCODE_REQUIREMENT,
+        )
+        .into());
     }
     Ok(())
 }

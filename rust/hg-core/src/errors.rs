@@ -19,6 +19,8 @@ use crate::file_patterns::RegexBuildError;
 use crate::narrow::shape::DeserializationError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
+use crate::requirements::RequirementsError;
+use crate::requirements::RequirementsErrorKind;
 use crate::revlog::RevlogError;
 use crate::revlog::changelog::ChangelogErrorKind;
 use crate::segmented_bytes::ErrorKind as SegmentedBytesErrorKind;
@@ -26,6 +28,7 @@ use crate::utils::docket::DocketError;
 use crate::utils::docket::DocketErrorKind;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
+use crate::utils::strings::join_display;
 
 /// Common error cases that can happen in many different APIs
 #[derive(Debug, derive_more::From)]
@@ -79,6 +82,9 @@ pub enum HgError {
     Pattern(PatternError),
     #[from]
     FileIndex(FileIndexError),
+    /// The requirements of the repository are invalid or not supported
+    #[from]
+    Requirements(RequirementsError),
     /// An error about a docket or the data files it points to
     #[from]
     Docket(DocketError),
@@ -182,6 +188,7 @@ impl HgError {
                 RevlogError::EllipsisNode { .. }
                 | RevlogError::UnsupportedCompressionEngine { .. },
             ) => true,
+            HgError::Requirements(error) => error.is_unsupported(),
             HgError::Pattern(pattern_error) => matches!(
                 pattern_error,
                 PatternError::UnsupportedSyntax(..)
@@ -738,6 +745,56 @@ impl fmt::Display for HgError {
                     }
                 };
                 f.write_str(&msg)
+            }
+            HgError::Requirements(error) => {
+                error.backtrace.fmt(f)?;
+                if error.is_unsupported() {
+                    f.write_str(unsupported_prefix(f))?;
+                }
+                match &error.kind {
+                    RequirementsErrorKind::ParseError => {
+                        write!(f, "parse error in 'requires' file")
+                    }
+                    RequirementsErrorKind::Unknown(unknown) => {
+                        write!(
+                            f,
+                            "repository requires feature unknown to this \
+                            Mercurial: {}",
+                            join_display(unknown, ", ")
+                        )
+                    }
+                    RequirementsErrorKind::Missing(missing) => {
+                        write!(
+                            f,
+                            "repository is missing feature required by this \
+                            Mercurial: {}",
+                            join_display(missing, ", ")
+                        )
+                    }
+                    RequirementsErrorKind::NeedExactlyOneOf(one, other) => {
+                        write!(
+                            f,
+                            "bad requirements, need exactly one of {one} or \
+                            {other}"
+                        )
+                    }
+                    RequirementsErrorKind::MutuallyExclusive(one, other) => {
+                        write!(
+                            f,
+                            "bad requirements, {one} and {other} are \
+                            mutually exclusive"
+                        )
+                    }
+                    RequirementsErrorKind::ThinWorkingCopy => {
+                        write!(f, "rhg does not support thin working copies")
+                    }
+                    RequirementsErrorKind::ShareSafeMismatch => {
+                        write!(f, "share-safe mismatch")
+                    }
+                    RequirementsErrorKind::Changed => {
+                        write!(f, "requirements have changed")
+                    }
+                }
             }
             HgError::Docket(error) => format_docket_error(f, error),
             HgError::FileIndex(error) => {
