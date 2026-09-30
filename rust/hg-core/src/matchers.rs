@@ -33,6 +33,7 @@ use crate::file_patterns::GlobSuffix;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternResult;
 use crate::file_patterns::PatternSyntax;
+use crate::file_patterns::RegexBuildError;
 use crate::file_patterns::RegexCompleteness;
 use crate::file_patterns::build_single_regex;
 use crate::file_patterns::filter_subincludes;
@@ -978,7 +979,7 @@ fn re_matcher(pattern: &Hir) -> PatternResult<RegexMatcher> {
         .build_from_hir(pattern)
         .map_err(|e| PatternError::RegexError {
             needle: pattern.to_string(),
-            error: e.to_string(),
+            error: RegexBuildError::Build(Box::new(e)),
             backtrace: HgBacktrace::capture(),
         })?;
 

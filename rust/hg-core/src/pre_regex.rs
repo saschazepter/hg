@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 
 use crate::errors::HgBacktrace;
 use crate::file_patterns::PatternError;
+use crate::file_patterns::RegexBuildError;
 
 lazy_static! {
     static ref RE_ESCAPE: Vec<Vec<u8>> = {
@@ -171,7 +172,7 @@ impl PreRegex {
             regex_syntax::parse(re_str).map_err(|err| {
                 PatternError::RegexError {
                     needle: re_str.to_string(),
-                    error: err.to_string(),
+                    error: RegexBuildError::Syntax(Box::new(err)),
                     backtrace: HgBacktrace::capture(),
                 }
             })?,

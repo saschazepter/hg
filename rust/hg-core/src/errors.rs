@@ -14,6 +14,7 @@ use crate::exit_codes;
 use crate::file_index::Error as FileIndexError;
 use crate::file_index::ErrorKind as FileIndexErrorKind;
 use crate::file_patterns::PatternError;
+use crate::file_patterns::RegexBuildError;
 use crate::narrow::shape::DeserializationError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
@@ -740,7 +741,11 @@ fn format_pattern_error(
         PatternError::RegexError { needle, error, backtrace } => {
             // The needle is likely already in the error, but let's
             // be safe
-            write!(f, "{backtrace}invalid regex '{needle}':\n{error}",)
+            writeln!(f, "{backtrace}invalid regex '{needle}':")?;
+            match error {
+                RegexBuildError::Syntax(error) => fmt::Display::fmt(error, f),
+                RegexBuildError::Build(error) => fmt::Display::fmt(error, f),
+            }
         }
         PatternError::NonUtf8Pattern { pattern, valid_up_to, backtrace } => {
             write!(

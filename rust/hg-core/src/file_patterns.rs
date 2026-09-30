@@ -30,6 +30,29 @@ use crate::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::strings::SliceExt;
 use crate::warnings::HgWarningSender;
 
+/// Error type for when building a regex fails
+#[derive(Debug)]
+pub enum RegexBuildError {
+    /// The pattern is not syntactically valid
+    Syntax(Box<regex_syntax::Error>),
+    /// The pattern is valid, but the engine failed to build a regex from it
+    Build(Box<regex_automata::meta::BuildError>),
+}
+
+impl PartialEq for RegexBuildError {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Syntax(this), Self::Syntax(other)) => this == other,
+            // This error type has no way of being compared, this is probably
+            // good enough
+            (Self::Build(this), Self::Build(other)) => {
+                this.to_string() == other.to_string()
+            }
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug, derive_more::From, PartialEq)]
 pub enum PatternError {
     /// An include pattern used an invalid path
@@ -48,7 +71,7 @@ pub enum PatternError {
         /// The provided regex pattern (might be reconstructed from HIR)
         needle: String,
         /// The error returned by the regex engine
-        error: String,
+        error: RegexBuildError,
         backtrace: HgBacktrace,
     },
     /// A non-UTF8 pattern was passed to the regex engine. Note that the engine
