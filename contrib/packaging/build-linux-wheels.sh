@@ -27,19 +27,19 @@ hg purge \
 
 if [ ! -e /src/dist/ ]; then
     mkdir -p /src/dist
-    chown `stat /src/ -c %u:%g` /src/dist/
+    chown "$(stat /src/ -c %u:%g)" /src/dist/
 fi
 
 for py in $PYTHON_TARGETS; do
-    echo 'build wheel for' $py
+    echo 'build wheel for' "$py"
     # cleanup any previous wheel
     tmp_wd="/tmp/wheels/$py/repaired"
-    rm -rf $tmp_wd
-    mkdir -p $tmp_wd
+    rm -rf "$tmp_wd"
+    mkdir -p "$tmp_wd"
     # build a new wheel
-    contrib/build-one-linux-wheel.sh $py $tmp_wd
+    contrib/build-one-linux-wheel.sh "$py" "$tmp_wd"
     # fix the owner back to the repository owner
-    chown `stat /src/ -c %u:%g` $tmp_wd/*.whl
-    mv $tmp_wd/*.whl /src/dist/
+    chown "$(stat /src/ -c %u:%g)" "$tmp_wd"/*.whl
+    mv "$tmp_wd"/*.whl /src/dist/
 done
 
