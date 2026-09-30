@@ -34,6 +34,8 @@ use crate::revlog::RevlogError;
 use crate::revlog::changelog::ChangelogErrorKind;
 use crate::segmented_bytes::ErrorKind as SegmentedBytesErrorKind;
 use crate::sparse::SparseConfigError;
+use crate::update::UpdateError;
+use crate::update::UpdateErrorKind;
 use crate::utils::docket::DocketError;
 use crate::utils::docket::DocketErrorKind;
 use crate::utils::hg_path::HgPathError;
@@ -96,6 +98,9 @@ pub enum HgError {
     Pattern(PatternError),
     #[from]
     FileIndex(FileIndexError),
+    /// Updating the working copy has failed
+    #[from]
+    Update(UpdateError),
     /// The sparse or narrow configuration of the repository is invalid
     #[from]
     Sparse(SparseConfigError),
@@ -208,6 +213,10 @@ impl HgError {
             HgError::Sparse(SparseConfigError::StaleNarrowspec) => {
                 exit_codes::STATE_ERROR
             }
+            HgError::Update(UpdateError {
+                kind: UpdateErrorKind::UntrackedFilesDiffer,
+                ..
+            }) => exit_codes::STATE_ERROR,
             _ => exit_codes::ABORT,
         }
     }
@@ -934,6 +943,34 @@ impl fmt::Display for HgError {
                     }
                 };
                 f.write_str(&msg)
+            }
+            HgError::Update(error) => {
+                fmt::Display::fmt(&error.backtrace, f)?;
+                match &error.kind {
+                    UpdateErrorKind::UntrackedFilesDiffer => {
+                        write!(
+                            f,
+                            "untracked files in working directory differ \
+                            from files in requested revision"
+                        )
+                    }
+                    UpdateErrorKind::ThreadPool(error) => {
+                        fmt::Display::fmt(error, f)
+                    }
+                    UpdateErrorKind::UnknownDirectoryNotEmpty(path) => {
+                        write!(
+                            f,
+                            "conflicting unknown directory '{}' is not empty",
+                            path.display()
+                        )
+                    }
+                    UpdateErrorKind::SimulatedDirstateError => {
+                        write!(
+                            f,
+                            "simulated error while recording dirstate updates"
+                        )
+                    }
+                }
             }
             HgError::Sparse(sparse_error) => match sparse_error {
                 SparseConfigError::IncludesAfterExcludes { context } => {

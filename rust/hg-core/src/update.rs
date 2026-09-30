@@ -35,7 +35,6 @@ use crate::errors::HgError;
 use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
-use crate::exit_codes;
 use crate::matchers::Matcher;
 use crate::narrow;
 use crate::operations::FilesForRevBorrowed;
@@ -605,6 +604,32 @@ pub enum UpdateWarning {
     ReplacingUntracked(HgPathBuf),
 }
 
+/// The different ways updating the working copy can fail
+#[derive(Debug)]
+pub enum UpdateErrorKind {
+    /// Untracked files are in the way, and we were told to abort in that case
+    UntrackedFilesDiffer,
+    /// The thread pool for the parallel update failed to start
+    ThreadPool(rayon::ThreadPoolBuildError),
+    /// This untracked directory is in the way of a file and cannot be removed
+    UnknownDirectoryNotEmpty(PathBuf),
+    /// We were asked to fail while updating the dirstate, for tests
+    SimulatedDirstateError,
+}
+
+/// An error that happened while updating the working copy
+#[derive(Debug)]
+pub struct UpdateError {
+    pub kind: UpdateErrorKind,
+    pub backtrace: HgBacktrace,
+}
+
+impl From<UpdateErrorKind> for HgError {
+    fn from(kind: UpdateErrorKind) -> Self {
+        UpdateError { kind, backtrace: HgBacktrace::capture() }.into()
+    }
+}
+
 /// What to do when encountering a file conflict on disk. There is a different
 /// config for unknown and ignored files.
 #[derive(Copy, Clone, Debug)]
@@ -857,12 +882,7 @@ fn check_unknown_files<'a>(
             let warn = UpdateWarning::UntrackedConflict(conflict.to_owned());
             warnings.send(warn);
         }
-        return Err(HgError::abort(
-            "untracked files in working directory differ \
-            from files in requested revision",
-            exit_codes::STATE_ERROR,
-            None,
-        ));
+        return Err(UpdateErrorKind::UntrackedFilesDiffer.into());
     }
     if !warn_conflicts.is_empty() {
         warn_conflicts.sort_unstable();
@@ -1083,11 +1103,7 @@ pub fn maybe_parallel<T: Send>(
         if workers > 1 {
             // Work in parallel, potentially restricting the number of threads
             match rayon::ThreadPoolBuilder::new().num_threads(workers).build() {
-                Err(error) => Err(HgError::abort(
-                    error.to_string(),
-                    exit_codes::ABORT,
-                    None,
-                )),
+                Err(error) => Err(UpdateErrorKind::ThreadPool(error).into()),
                 Ok(pool) => {
                     tracing::debug!(
                         "restricting {} to {} threads",
@@ -1312,11 +1328,10 @@ fn working_copy_worker<'a: 'b, 'b>(
                 // Give an error message instead of a traceback in the case
                 // where the conflicting unknown directory is not empty
                 if err.kind() == Some(std::io::ErrorKind::DirectoryNotEmpty) {
-                    let msg = format!(
-                        "conflicting unknown directory '{}' is not empty",
-                        path.display()
-                    );
-                    return Err(HgError::abort_simple(msg));
+                    return Err(UpdateErrorKind::UnknownDirectoryNotEmpty(
+                        path,
+                    )
+                    .into());
                 }
                 return Err(HgError::from(err));
             }
@@ -1413,8 +1428,7 @@ fn update_dirstate(
     update_kind: UpdateKind,
 ) -> Result<UpdateStats, HgError> {
     if devel_abort {
-        let msg = "simulated error while recording dirstate updates";
-        return Err(HgError::abort_simple(msg));
+        return Err(UpdateErrorKind::SimulatedDirstateError.into());
     }
     let mut removed = 0;
 
