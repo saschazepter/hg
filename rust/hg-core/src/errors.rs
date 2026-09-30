@@ -82,9 +82,6 @@ pub enum HgError {
     /// An error about a docket or the data files it points to
     #[from]
     Docket(DocketError),
-    /// A race condition has been detected. This *must* be handled locally
-    /// and not directly surface to the user.
-    RaceDetected(String),
     /// An invalid path was found
     #[from]
     Path(HgPathError),
@@ -223,9 +220,6 @@ impl fmt::Display for HgError {
                 write!(f, "{}{}{}", backtrace, prefix, explanation)
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
-            HgError::RaceDetected(context) => {
-                write!(f, "encountered a race condition {context}")
-            }
             HgError::Path(error) => {
                 f.write_str(&hg_path_error_to_string(error, None)?)
             }
@@ -866,6 +860,21 @@ fn format_docket_error(
                 "{backtrace}data file {} is smaller than its 'used size' in \
                 docket {}",
                 data_path.display(),
+                docket_path.display()
+            )
+        }
+        DocketErrorKind::ReadRace => {
+            write!(
+                f,
+                "{backtrace}encountered a race condition between reading \
+                docket {} and its data file",
+                docket_path.display()
+            )
+        }
+        DocketErrorKind::ReadRaceExhausted { tries } => {
+            write!(
+                f,
+                "{backtrace}{} read race happened {tries} times in a row",
                 docket_path.display()
             )
         }

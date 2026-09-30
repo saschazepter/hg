@@ -92,4 +92,10 @@ pub enum DocketErrorKind {
     BadFormatMarker,
     /// A data file is smaller than the size the docket records for it
     DataFileTooSmall { data_path: PathBuf },
+    /// The data file disappeared between reading the docket and reading the
+    /// data file itself. This *must* be handled locally and not directly
+    /// surface to the user.
+    ReadRace,
+    /// We've hit [`Self::ReadRace`] too many times in a row
+    ReadRaceExhausted { tries: usize },
 }

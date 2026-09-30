@@ -45,6 +45,8 @@ use crate::revlog::options::RevlogOpenOptions;
 use crate::revlog::options::default_revlog_options;
 use crate::revlog::path_encode::PathEncoding;
 use crate::utils::debug::debug_wait_for_file_or_print;
+use crate::utils::docket::DocketError;
+use crate::utils::docket::DocketErrorKind;
 use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::strings::SliceExt;
@@ -364,10 +366,13 @@ impl Repo {
                         return Ok(m);
                     }
                     Err(e) => match e {
-                        HgError::RaceDetected(context) => {
+                        HgError::Docket(DocketError {
+                            kind: DocketErrorKind::ReadRace,
+                            ..
+                        }) => {
                             tracing::info!(
-                                "dirstate read race detected {} (retry {}/{})",
-                                context,
+                                "dirstate read race detected between reading \
+                                dirstate docket and data file (retry {}/{})",
                                 tries,
                                 V2_MAX_READ_ATTEMPTS,
                             );
@@ -383,12 +388,11 @@ impl Repo {
                     },
                 }
             }
-            let error = HgError::abort(
-                format!("dirstate read race happened {tries} times in a row"),
-                255,
-                None,
-            );
-            Err(error)
+            Err(DocketError::new(
+                "dirstate",
+                DocketErrorKind::ReadRaceExhausted { tries },
+            )
+            .into())
         } else {
             self.new_dirstate_map_v1()
         }
@@ -429,8 +433,8 @@ impl Repo {
         let uuid = docket.uuid.to_owned();
         let data_size = docket.data_size();
 
-        let context = "between reading dirstate docket and data file";
-        let race_error = HgError::RaceDetected(context.into());
+        let race_error =
+            || DocketError::new("dirstate", DocketErrorKind::ReadRace).into();
         let metadata = docket.tree_metadata();
 
         let mut map = if crate::vfs::is_on_nfs_mount(docket.data_filename()) {
@@ -446,7 +450,7 @@ impl Repo {
                         ) => {
                             // Race where the data file was deleted right after
                             // we read the docket, try again
-                            return Err(race_error);
+                            return Err(race_error());
                         }
                         _ => {
                             return Err(HgError::from(error));
@@ -469,7 +473,7 @@ impl Repo {
                 Ok(None) => {
                     // Race where the data file was deleted right after we
                     // read the docket, try again
-                    return Err(race_error);
+                    return Err(race_error());
                 }
                 Err(e) => return Err(HgError::from(e)),
             }

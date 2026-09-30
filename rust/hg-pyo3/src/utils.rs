@@ -6,6 +6,8 @@ use hg::errors::hg_path_error_to_string;
 use hg::revlog::RevlogError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
+use hg::utils::docket::DocketError;
+use hg::utils::docket::DocketErrorKind;
 use hg::warnings::HgWarningContext;
 use hg::warnings::format::write_warning;
 use pyo3::buffer::Element;
@@ -423,7 +425,10 @@ pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
         err if err.is_unsupported() && !matches!(err, HgError::Pattern(_)) => {
             FallbackError::new_err(err.to_string())
         }
-        HgError::RaceDetected(_) => {
+        HgError::Docket(DocketError {
+            kind: DocketErrorKind::ReadRace,
+            ..
+        }) => {
             unreachable!("must not surface to the user")
         }
         HgError::Path(path_error) => {

@@ -97,7 +97,6 @@ impl ErrorKind {
                 | HgError::Pattern(_)
                 | HgError::FileIndex(_)
                 | HgError::Docket(_)
-                | HgError::RaceDetected(_)
                 | HgError::Path(_) => ErrorCode::Abort,
             },
         }
@@ -183,9 +182,6 @@ pub fn hg_message(error: &HgError) -> Message {
         ),
         HgError::Abort { message, .. } => {
             message!("{message}", message = Utf8(message.clone()))
-        }
-        HgError::RaceDetected(what) => {
-            message!("race detected: {what}", what = Utf8(what.clone()))
         }
         HgError::InterruptReceived => message!("interrupted"),
         HgError::RepoNotFound { at, .. } => message!(
