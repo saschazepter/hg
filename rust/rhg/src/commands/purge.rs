@@ -5,6 +5,8 @@ use format_bytes::format_bytes;
 use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
+use hg::error_display::io_error_to_bytes;
+use hg::errors::HgIoError;
 use hg::errors::IoErrorContext;
 use hg::errors::IoResultExt;
 use hg::matchers::AlwaysMatcher;
@@ -123,23 +125,20 @@ pub fn args() -> clap::Command {
 }
 
 fn handle_removal_result(
-    result: Result<(), impl ToString>,
+    result: Result<(), HgIoError>,
     abort_on_error: bool,
     ui: &Ui,
 ) -> Result<(), CommandError> {
     match result {
         Ok(()) => Ok(()),
         Err(e) => {
-            let message = e.to_string();
+            let message = io_error_to_bytes(&e);
             if abort_on_error {
                 Err(CommandError::abort_bytes(message))
             } else {
                 let message =
-                    message.strip_prefix("abort: ").unwrap_or(&message);
-                ui.write_stderr(&format_bytes!(
-                    b"warning: {}\n",
-                    message.as_bytes()
-                ))?;
+                    message.strip_prefix(b"abort: ").unwrap_or(&message);
+                ui.write_stderr(&format_bytes!(b"warning: {}\n", message))?;
                 Ok(())
             }
         }

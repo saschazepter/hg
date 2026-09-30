@@ -17,6 +17,7 @@ use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
 use hg::dirstate::status::StatusPath;
+use hg::error_display::hg_error_to_bytes;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::errors::IoResultExt;
@@ -570,7 +571,9 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     // relative paths are not handled correctly here and
                     // make rhg falsely claim that we're traversing .hg
                     // TODO improve this situation
-                    CommandError::unsupported(HgError::from(e).to_string())
+                    CommandError::unsupported(hg_error_to_bytes(
+                        &HgError::from(e),
+                    ))
                 })?;
             let files_matcher =
                 hg::matchers::PatternMatcher::new(file_patterns)?;

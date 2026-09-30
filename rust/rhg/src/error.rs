@@ -7,6 +7,9 @@ use hg::config::ConfigParseErrorKind;
 use hg::config::ConfigValueParseError;
 use hg::dirstate::DirstateError;
 use hg::dirstate::status::StatusError;
+use hg::error_display::config_value_parse_error_to_bytes;
+use hg::error_display::hg_error_to_bytes;
+use hg::error_display::hg_error_to_bytes_without_unsupported_prefix;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::errors::HgIoError;
@@ -76,13 +79,13 @@ impl CommandError {
     }
 
     fn abort_with_exit_code_and_hint(
-        message: impl AsRef<str>,
+        message: impl AsRef<[u8]>,
         detailed_exit_code: exit_codes::ExitCode,
         hint: Option<impl AsRef<str>>,
         backtrace: HgBacktrace,
     ) -> Self {
         CommandError::Abort {
-            message: message.as_ref().as_bytes().to_owned(),
+            message: message.as_ref().to_owned(),
             detailed_exit_code,
             hint: hint.map(|h| h.as_ref().as_bytes().to_owned()),
             backtrace,
@@ -106,7 +109,7 @@ impl CommandError {
     /// The generic way of aborting because of an `hg-core` error
     fn prefixed_abort(error: HgError) -> Self {
         CommandError::abort_with_exit_code_and_hint(
-            format!("abort: {error}"),
+            format_bytes!(b"abort: {}", hg_error_to_bytes(&error)),
             error.exit_code(),
             error.hint(),
             // The backtrace is part of the message
@@ -114,9 +117,9 @@ impl CommandError {
         )
     }
 
-    pub fn unsupported(message: impl AsRef<str>) -> Self {
+    pub fn unsupported(message: impl AsRef<[u8]>) -> Self {
         CommandError::UnsupportedFeature {
-            message: message.as_ref().as_bytes().to_owned(),
+            message: message.as_ref().to_owned(),
         }
     }
 }
@@ -132,9 +135,11 @@ impl From<clap::Error> for CommandError {
 impl From<HgError> for CommandError {
     fn from(error: HgError) -> Self {
         if error.is_unsupported() {
-            // The alternate form omits the "unsupported feature" prefix
+            // We have our own way of reporting those
             // TODO get rid of this when the rest of `HgError` is cleaned up
-            return CommandError::unsupported(format!("{error:#}"));
+            return CommandError::unsupported(
+                hg_error_to_bytes_without_unsupported_prefix(&error),
+            );
         }
         match error {
             // These have filenames, which are formatted as bytes
@@ -155,8 +160,8 @@ impl From<HgError> for CommandError {
             }
             // These bring their own prefix
             HgError::IO(_) | HgError::ConfigValueParseError(_) => {
-                CommandError::abort_with_exit_code(
-                    error.to_string(),
+                CommandError::abort_with_exit_code_bytes(
+                    hg_error_to_bytes(&error),
                     error.exit_code(),
                 )
             }
@@ -173,8 +178,8 @@ impl From<shape::Error> for CommandError {
 
 impl From<ConfigValueParseError> for CommandError {
     fn from(error: ConfigValueParseError) -> Self {
-        CommandError::abort_with_exit_code(
-            error.to_string(),
+        CommandError::abort_with_exit_code_bytes(
+            config_value_parse_error_to_bytes(&error),
             exit_codes::CONFIG_ERROR_ABORT,
         )
     }
