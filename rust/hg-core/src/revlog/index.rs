@@ -1172,12 +1172,7 @@ impl Index {
                 if base == NULL_REVISION.0 {
                     return Ok(true);
                 }
-                let [mut p1, mut p2] = self.parents(rev).map_err(|e| {
-                    RevlogError::InvalidRevision {
-                        backtrace: HgBacktrace::capture(),
-                        string: e.to_string(),
-                    }
-                })?;
+                let [mut p1, mut p2] = self.parents(rev)?;
                 while p1 != NULL_REVISION {
                     let p1_entry = self.get_entry(p1);
                     if p1_entry.compressed_len() != 0 || p1.0 == 0 {
