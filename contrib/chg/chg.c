@@ -491,17 +491,28 @@ static void execoriginalhg(const char *argv[])
 /*
  * Format the worker process name. The caller must free the data.
  */
-static proc_name_t format_proc_name(void)
+static proc_name_t format_proc_name(int argc, const char *argv[])
 {
 	char prefix[32];
 	int r =
-	    snprintf(prefix, sizeof(prefix), "chg[worker/%d]", (int)getpid());
+	    snprintf(prefix, sizeof(prefix), "chg[worker/%d]:", (int)getpid());
 	if (r < 0 || (size_t)r >= sizeof(prefix))
 		abortmsg("failed to format proc name (r = %d)", r);
+	size_t size = (size_t)r;
+	for (int i = 0; i < argc; i++) {
+		size += 1 + strlen(argv[i]);
+	}
 	proc_name_t proc_name;
-	proc_name.data = mallocx(r);
-	proc_name.size = (size_t)r;
+	proc_name.data = mallocx(size);
+	proc_name.size = size;
 	memcpy(proc_name.data, prefix, (size_t)r);
+	char *p = proc_name.data + r;
+	for (int i = 0; i < argc; i++) {
+		size_t len = strlen(argv[i]);
+		*p++ = '\0';
+		memcpy(p, argv[i], len);
+		p += len;
+	}
 	return proc_name;
 }
 
@@ -623,7 +634,7 @@ int chg_main(int argc, const char *argv[])
 		}
 	}
 
-	proc_name_t proc_name = format_proc_name();
+	proc_name_t proc_name = format_proc_name(argc, argv);
 	hgclient_t *hgc;
 	size_t retry = 0;
 	while (1) {

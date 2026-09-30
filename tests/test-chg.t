@@ -703,7 +703,7 @@ Test the process title that the client asks the worker to set.
   $ $RUNTESTDIR/testlib/wait-on-file 10 $TESTTMP/log/procname.log
   $ grep -o "setprocname: .*" $TESTTMP/log/procname.log | tail -1 |
   >   sed -e 's/[0-9][0-9]*/PID/'
-  setprocname: b'chg[worker/PID]'
+  setprocname: b'chg[worker/PID]:\x00hg\x00log\x00-r\x00null\x00-T\x00rev: {rev}\\n'
 
   $ cd ..
 
