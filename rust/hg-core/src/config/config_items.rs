@@ -4,6 +4,7 @@ use serde::Deserialize;
 
 use crate::FastHashMap;
 use crate::config::ConfigError;
+use crate::error_display::hg_error_to_bytes;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 
@@ -74,16 +75,16 @@ struct RawDefaultConfigItem {
 }
 
 impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
-    type Error = HgError;
+    /// `serde` needs something that implements `Display` to build its own
+    /// error, which our errors purposefully do not.
+    type Error = String;
 
     fn try_from(value: RawDefaultConfigItem) -> Result<Self, Self::Error> {
         Ok(Self {
             section: value.section.into_bytes(),
             name: value.name.into_bytes(),
-            default: raw_default_to_concrete(
-                value.default_type,
-                value.default,
-            )?,
+            default: raw_default_to_concrete(value.default_type, value.default)
+                .map_err(|e| serde_error_message(&e))?,
             priority: if value.generic {
                 Some(value.priority)
             } else {
@@ -101,6 +102,13 @@ impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
             in_core_extension: value.in_core_extension.map(String::into_bytes),
         })
     }
+}
+
+/// `serde` wants a message that implements `Display` to build its own error
+/// during deserialization, so that is the one place where we need a string.
+fn serde_error_message(error: &HgError) -> String {
+    String::from_utf8(hg_error_to_bytes(error))
+        .expect("default config items come from TOML, which is UTF-8")
 }
 
 /// A programming error: the default value for this item was asked as a type
@@ -396,15 +404,15 @@ impl TemplateItem {
 }
 
 impl TryFrom<RawTemplateItem> for TemplateItem {
-    type Error = HgError;
+    /// `serde` needs something that implements `Display` to build its own
+    /// error, which our errors purposefully do not.
+    type Error = String;
 
     fn try_from(value: RawTemplateItem) -> Result<Self, Self::Error> {
         Ok(Self {
             suffix: value.suffix.into_bytes(),
-            default: raw_default_to_concrete(
-                value.default_type,
-                value.default,
-            )?,
+            default: raw_default_to_concrete(value.default_type, value.default)
+                .map_err(|e| serde_error_message(&e))?,
             priority: if value.generic {
                 Some(value.priority)
             } else {
@@ -736,7 +744,7 @@ suffix = "unified"
         let res = DefaultConfig::from_contents(contents);
         let config = match res {
             Ok(config) => config,
-            Err(e) => panic!("{}", crate::errors::HgError::from(e)),
+            Err(e) => panic!("{}", super::serde_error_message(&e.into())),
         };
         let expected = DefaultConfigItem {
             section: "censor".into(),

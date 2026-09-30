@@ -238,6 +238,7 @@ fn bytes_to_ascii_lossy(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error_display::hg_error_to_bytes;
 
     #[test]
     fn test_decode_internal() {
@@ -248,8 +249,8 @@ mod tests {
             Ok(_) => panic!("expected an error"),
             Err(err) => {
                 assert_eq!(
-                    err.to_string(),
-                    "invalid UTF-8 at offset 1: \"A\\xc3\""
+                    hg_error_to_bytes(&err),
+                    b"invalid UTF-8 at offset 1: \"A\\xc3\""
                 );
                 let HgError::Encoding(err) = err else {
                     panic!("expected an Encoding error")
@@ -281,8 +282,8 @@ mod tests {
             Ok(_) => panic!("expected an error"),
             Err(err) => {
                 assert_eq!(
-                    err.to_string(),
-                    "invalid UTF-8 at offset 1: \"A\\xc3\""
+                    hg_error_to_bytes(&err),
+                    b"invalid UTF-8 at offset 1: \"A\\xc3\""
                 );
                 assert!(matches!(
                     err,

@@ -4,6 +4,7 @@
 use crossbeam_channel::Receiver;
 use crossbeam_channel::Sender;
 
+use crate::error_display::io_error_to_bytes;
 use crate::file_patterns::PatternFileWarning;
 use crate::sparse::SparseNarrowWarning;
 use crate::update::UpdateWarning;
@@ -210,7 +211,7 @@ pub mod format {
                     output,
                     b"update failed to remove {}: \"{}\"!\n",
                     get_bytes_from_path(path),
-                    err.to_string().as_bytes(),
+                    io_error_to_bytes(err),
                 )
             }
             UpdateWarning::CwdRemoved => {
