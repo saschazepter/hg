@@ -1,5 +1,7 @@
 use hg::UncheckedRevision;
 use hg::dirstate::DirstateError;
+use hg::error_display::hg_error_to_bytes;
+use hg::error_display::io_error_to_bytes;
 use hg::errors::HgError;
 use hg::revlog::RevlogError;
 use pyo3::PyErr;
@@ -57,15 +59,22 @@ pub mod mercurial_py_errors {
     pyo3::import_exception!(mercurial.error, RevlogError);
 }
 
+/// For the Python exceptions that are given a `str` and not `bytes`
+pub(crate) fn lossy_string(bytes: &[u8]) -> String {
+    String::from_utf8_lossy(bytes).into_owned()
+}
+
 pub fn revlog_error_from_io(err: impl Into<HgError>) -> PyErr {
     let hg_error = err.into();
     match hg_error {
-        HgError::IO(err) => {
-            mercurial_py_errors::RustRevlogError::new_err(err.to_string())
-        }
+        HgError::IO(err) => mercurial_py_errors::RustRevlogError::new_err(
+            lossy_string(&io_error_to_bytes(&err)),
+        ),
         // Still handle other cases in case we're missing anything. This
         // should get cleaned up along the rest of the error refactor.
-        _ => mercurial_py_errors::RevlogError::new_err(hg_error.to_string()),
+        _ => mercurial_py_errors::RevlogError::new_err(lossy_string(
+            &hg_error_to_bytes(&hg_error),
+        )),
     }
 }
 
@@ -74,9 +83,9 @@ pub fn revlog_error_bare() -> PyErr {
 }
 
 pub fn revlog_error(revlog_error: RevlogError) -> PyErr {
-    mercurial_py_errors::RustRevlogError::new_err(
-        HgError::from(revlog_error).to_string(),
-    )
+    mercurial_py_errors::RustRevlogError::new_err(lossy_string(
+        &hg_error_to_bytes(&HgError::from(revlog_error)),
+    ))
 }
 
 pub fn rev_not_in_index(rev: UncheckedRevision) -> PyErr {

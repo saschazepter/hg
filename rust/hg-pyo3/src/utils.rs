@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use hg::error_display::hg_error_to_bytes;
 use hg::error_display::hg_path_error_to_bytes;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
@@ -24,6 +25,7 @@ use pyo3_sharedref::SharedByPyObject;
 use stable_deref_trait::StableDeref;
 
 use crate::exceptions::FallbackError;
+use crate::exceptions::lossy_string;
 use crate::revlog::InnerRevlog;
 use crate::revlog::PySharedIndex;
 
@@ -419,10 +421,12 @@ where
 
 pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
     match e.into() {
-        err @ HgError::IO { .. } => PyIOError::new_err(err.to_string()),
+        err @ HgError::IO { .. } => {
+            PyIOError::new_err(lossy_string(&hg_error_to_bytes(&err)))
+        }
         // All pattern errors fall back, see below
         err if err.is_unsupported() && !matches!(err, HgError::Pattern(_)) => {
-            FallbackError::new_err(err.to_string())
+            FallbackError::new_err(lossy_string(&hg_error_to_bytes(&err)))
         }
         HgError::Docket(DocketError {
             kind: DocketErrorKind::ReadRace,
@@ -447,12 +451,12 @@ pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
                 .and_then(|m| m.getattr(intern!(py, "ConfigError")))
                 .expect("failed to import error.ConfigError");
             PyErr::from_value(
-                cls.call1((err.to_string().as_bytes(),))
+                cls.call1((hg_error_to_bytes(&err).as_slice(),))
                     .expect("initializing an error.ConfigError failed"),
             )
         }
         err @ HgError::Pattern(_) => {
-            let string_err = err.to_string();
+            let string_err = lossy_string(&hg_error_to_bytes(&err));
             tracing::debug!("Rust status fallback, see trace-level logs");
             tracing::trace!("{}", string_err);
             FallbackError::new_err(string_err)
@@ -481,7 +485,7 @@ pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
                     .expect("setting the hint of an error.Abort failed");
             }
             PyErr::from_value(
-                cls.call((e.to_string().as_bytes(),), Some(&kwargs))
+                cls.call((hg_error_to_bytes(&e).as_slice(),), Some(&kwargs))
                     .expect("initializing an error.Abort failed"),
             )
         }
