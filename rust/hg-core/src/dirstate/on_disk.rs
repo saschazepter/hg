@@ -202,11 +202,20 @@ type OptPathSlice = PathSlice;
 #[derive(Debug, PartialEq)]
 pub enum DirstateV2ParseError {
     /// The tree is somehow corrupted
-    CorruptedTreeMetadata(String, HgBacktrace),
+    CorruptedTreeMetadata {
+        expected_len: usize,
+        got: usize,
+        backtrace: HgBacktrace,
+    },
     /// Not enough bytes to parse whatever needs to be parse
     NotEnoughBytes { start: usize, len: usize, backtrace: HgBacktrace },
     /// This slice is invalid and cannot be parsed
-    InvalidSlice { message: String, backtrace: HgBacktrace },
+    InvalidSlice {
+        /// `None` if the expected length overflows
+        expected_len: Option<usize>,
+        got: usize,
+        backtrace: HgBacktrace,
+    },
     /// This timestamp cannot be represented in the dirstate
     TimestampNotInRange {
         truncated_seconds: u32,
@@ -317,11 +326,12 @@ pub(super) fn read<'on_disk>(
         map.dirstate_version = DirstateVersion::V2;
         return Ok(map);
     }
-    let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|e| {
-        DirstateV2ParseError::CorruptedTreeMetadata(
-            e.to_string(),
-            HgBacktrace::capture(),
-        )
+    let (meta, _) = TreeMetadata::from_bytes(metadata).map_err(|_| {
+        DirstateV2ParseError::CorruptedTreeMetadata {
+            expected_len: std::mem::size_of::<TreeMetadata>(),
+            got: metadata.len(),
+            backtrace: HgBacktrace::capture(),
+        }
     })?;
     let dirstate_map = DirstateMap {
         on_disk,
@@ -714,8 +724,9 @@ where
         }
     };
     T::slice_from_bytes(bytes, len)
-        .map_err(|e| DirstateV2ParseError::InvalidSlice {
-            message: e.to_string(),
+        .map_err(|_| DirstateV2ParseError::InvalidSlice {
+            expected_len: std::mem::size_of::<T>().checked_mul(len),
+            got: bytes.len(),
             backtrace: HgBacktrace::capture(),
         })
         .map(|(slice, _rest)| slice)

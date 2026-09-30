@@ -492,13 +492,15 @@ impl fmt::Display for HgError {
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {
-                    DirstateV2ParseError::CorruptedTreeMetadata(
-                        message,
+                    DirstateV2ParseError::CorruptedTreeMetadata {
+                        expected_len,
+                        got,
                         backtrace,
-                    ) => {
+                    } => {
                         write!(
                             f,
-                            "{backtrace}corrupted dirstate tree: {message}"
+                            "{backtrace}corrupted dirstate tree: \
+                            Expected at least {expected_len} bytes, got {got}"
                         )
                     }
                     DirstateV2ParseError::NotEnoughBytes {
@@ -513,13 +515,19 @@ impl fmt::Display for HgError {
                         )
                     }
                     DirstateV2ParseError::InvalidSlice {
-                        message,
+                        expected_len,
+                        got,
                         backtrace,
                     } => {
-                        write!(
-                            f,
-                            "{backtrace}invalid dirstate slice: {message}"
-                        )
+                        write!(f, "{backtrace}invalid dirstate slice: ")?;
+                        match expected_len {
+                            Some(expected_len) => write!(
+                                f,
+                                "Expected at least {expected_len} bytes, \
+                                got {got}"
+                            ),
+                            None => write!(f, "Expected byte size overflowed"),
+                        }
                     }
                     DirstateV2ParseError::TimestampNotInRange {
                         truncated_seconds,
