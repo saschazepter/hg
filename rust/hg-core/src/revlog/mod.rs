@@ -44,7 +44,6 @@ use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgIoError;
 use crate::errors::IoResultExt;
-use crate::exit_codes;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::validate_persistent_nodemap;
 use crate::utils::RawData;
@@ -470,6 +469,10 @@ pub enum RevlogError {
     /// Pending data was finalized on a revlog that was neither delayed nor
     /// diverted, this is a programming error.
     NoDelayNorDivert { backtrace: HgBacktrace },
+    /// This integer does not correspond to any [`RevlogType`]
+    UnknownRevlogType { value: usize, backtrace: HgBacktrace },
+    /// This type of revlog is not the one expected by the operation
+    UnexpectedRevlogType { kind: RevlogType, backtrace: HgBacktrace },
 }
 
 impl From<HgIoError> for RevlogError {
@@ -505,11 +508,11 @@ impl TryFrom<usize> for RevlogType {
             1002 => Ok(Self::Manifestlog),
             1003 => Ok(Self::Filelog),
             1004 => Ok(Self::Other),
-            t => Err(HgError::abort(
-                format!("Unknown revlog type {}", t),
-                exit_codes::ABORT,
-                None,
-            )),
+            value => Err(RevlogError::UnknownRevlogType {
+                value,
+                backtrace: HgBacktrace::capture(),
+            }
+            .into()),
         }
     }
 }

@@ -422,6 +422,12 @@ impl fmt::Display for HgError {
                         revlog"
                     )
                 }
+                RevlogError::UnknownRevlogType { value, backtrace } => {
+                    write!(f, "{backtrace}Unknown revlog type {value}")
+                }
+                RevlogError::UnexpectedRevlogType { kind, backtrace } => {
+                    write!(f, "{backtrace}invalid revlog type {kind}")
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

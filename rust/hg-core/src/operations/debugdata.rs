@@ -5,10 +5,11 @@
 // This software may be used and distributed according to the terms of the
 // GNU General Public License version 2 or any later version.
 
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::exit_codes;
 use crate::repo::Repo;
 use crate::revlog::Revlog;
+use crate::revlog::RevlogError;
 use crate::revlog::RevlogType;
 use crate::revlog::options::default_revlog_options;
 
@@ -22,11 +23,11 @@ pub fn debug_data(
         RevlogType::Changelog => "00changelog.i",
         RevlogType::Manifestlog => "00manifest.i",
         _ => {
-            return Err(HgError::abort(
-                format!("invalid revlog type {}", kind),
-                exit_codes::ABORT,
-                None,
-            ));
+            return Err(RevlogError::UnexpectedRevlogType {
+                kind,
+                backtrace: HgBacktrace::capture(),
+            }
+            .into());
         }
     };
     let revlog = Revlog::open(
