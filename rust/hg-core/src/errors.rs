@@ -11,6 +11,8 @@ use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
 use crate::dirstate::on_disk::DirstateV2ParseError;
 use crate::dirstate::status::StatusError;
+use crate::encoding::EncodingError;
+use crate::encoding::EncodingErrorKind;
 use crate::exit_codes;
 use crate::file_index::Error as FileIndexError;
 use crate::file_index::ErrorKind as FileIndexErrorKind;
@@ -28,6 +30,7 @@ use crate::utils::docket::DocketError;
 use crate::utils::docket::DocketErrorKind;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
+use crate::utils::strings::Escaped;
 use crate::utils::strings::join_display;
 
 /// Common error cases that can happen in many different APIs
@@ -82,6 +85,9 @@ pub enum HgError {
     Pattern(PatternError),
     #[from]
     FileIndex(FileIndexError),
+    /// Setting up or using the character encoding has failed
+    #[from]
+    Encoding(EncodingError),
     /// The requirements of the repository are invalid or not supported
     #[from]
     Requirements(RequirementsError),
@@ -191,6 +197,10 @@ impl HgError {
                 | RevlogError::UnsupportedCompressionEngine { .. },
             ) => true,
             HgError::Requirements(error) => error.is_unsupported(),
+            HgError::Encoding(EncodingError {
+                kind: EncodingErrorKind::UnsupportedEncoding(_),
+                ..
+            }) => true,
             HgError::Pattern(pattern_error) => matches!(
                 pattern_error,
                 PatternError::UnsupportedSyntax(..)
@@ -770,6 +780,48 @@ impl fmt::Display for HgError {
                     }
                 };
                 f.write_str(&msg)
+            }
+            HgError::Encoding(error) => {
+                error.backtrace.fmt(f)?;
+                match &error.kind {
+                    EncodingErrorKind::UnsupportedEncoding(value) => {
+                        write!(
+                            f,
+                            "{}HGENCODING value '{}' is not supported",
+                            unsupported_prefix(f),
+                            value.to_string_lossy()
+                        )
+                    }
+                    EncodingErrorKind::UnsupportedMode(value) => {
+                        write!(
+                            f,
+                            "HGENCODINGMODE value '{}' is not supported",
+                            value.to_string_lossy()
+                        )
+                    }
+                    EncodingErrorKind::UnsupportedAmbiguousWidth(value) => {
+                        write!(
+                            f,
+                            "HGENCODINGAMBIGUOUS value '{}' is not supported",
+                            value.to_string_lossy()
+                        )
+                    }
+                    EncodingErrorKind::InvalidUtf8 { bytes, valid_up_to } => {
+                        write!(
+                            f,
+                            "invalid UTF-8 at offset {}: \"{}\"",
+                            valid_up_to,
+                            String::from_utf8_lossy(&bytes.escaped_bytes())
+                        )
+                    }
+                    EncodingErrorKind::InvalidAscii { bytes } => {
+                        write!(
+                            f,
+                            "invalid ASCII: \"{}\"",
+                            String::from_utf8_lossy(&bytes.escaped_bytes())
+                        )
+                    }
+                }
             }
             HgError::Requirements(error) => {
                 error.backtrace.fmt(f)?;

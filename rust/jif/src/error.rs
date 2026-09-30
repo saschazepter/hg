@@ -5,6 +5,7 @@ use std::ops::Deref;
 use format_bytes::Message;
 use format_bytes::Utf8;
 use format_bytes::message;
+use hg::encoding::EncodingErrorKind;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::requirements::RequirementsErrorKind;
@@ -99,6 +100,12 @@ impl ErrorKind {
                     }
                     RequirementsErrorKind::Changed => ErrorCode::Abort,
                     _ => ErrorCode::Unsupported,
+                },
+                HgError::Encoding(error) => match error.kind {
+                    EncodingErrorKind::UnsupportedEncoding(_) => {
+                        ErrorCode::Unsupported
+                    }
+                    _ => ErrorCode::Abort,
                 },
                 // TODO tell these apart once `hg-core` gives them structure
                 HgError::Abort { .. }
@@ -214,7 +221,8 @@ pub fn hg_message(error: &HgError) -> Message {
         | HgError::FileIndex(_)
         | HgError::Path(_)
         | HgError::Requirements(_)
-        | HgError::Docket(_) => {
+        | HgError::Docket(_)
+        | HgError::Encoding(_) => {
             message!("{error}", error = Utf8(format!("{error:?}")))
         }
     }

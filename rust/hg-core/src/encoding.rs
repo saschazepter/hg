@@ -2,11 +2,50 @@
 
 use core::str;
 use std::borrow::Cow;
+use std::ffi::OsString;
 
 use unicode_width::UnicodeWidthStr as _;
 
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::utils::strings::Escaped;
+
+/// The different ways setting up or using an [`Encoder`] can fail
+#[derive(Debug, PartialEq)]
+pub enum EncodingErrorKind {
+    /// This value for `HGENCODING` is not supported by the Rust code
+    UnsupportedEncoding(OsString),
+    /// This value for `HGENCODINGMODE` is not supported
+    UnsupportedMode(OsString),
+    /// This value for `HGENCODINGAMBIGUOUS` is not supported
+    UnsupportedAmbiguousWidth(OsString),
+    /// These bytes are not valid UTF-8
+    InvalidUtf8 {
+        bytes: Vec<u8>,
+        /// See [`std::str::Utf8Error::valid_up_to`]
+        valid_up_to: usize,
+    },
+    /// These bytes are not valid ASCII
+    InvalidAscii { bytes: Vec<u8> },
+}
+
+/// An error that happened when setting up or using an [`Encoder`]
+#[derive(Debug, PartialEq)]
+pub struct EncodingError {
+    pub kind: EncodingErrorKind,
+    pub backtrace: HgBacktrace,
+}
+
+impl From<EncodingErrorKind> for EncodingError {
+    fn from(kind: EncodingErrorKind) -> Self {
+        Self { kind, backtrace: HgBacktrace::capture() }
+    }
+}
+
+impl From<EncodingErrorKind> for HgError {
+    fn from(kind: EncodingErrorKind) -> Self {
+        EncodingError::from(kind).into()
+    }
+}
 
 /// String encoder and decoder.
 #[derive(Copy, Clone, Debug)]
@@ -70,10 +109,7 @@ impl Encoder {
             }
             Some(s) if s.eq_ignore_ascii_case("ascii") => Encoding::Ascii,
             Some(s) => {
-                return Err(HgError::unsupported(format!(
-                    "HGENCODING value '{}' is not supported",
-                    s.to_string_lossy()
-                )));
+                return Err(EncodingErrorKind::UnsupportedEncoding(s).into());
             }
         };
         let decoding_mode = match std::env::var_os("HGENCODINGMODE") {
@@ -81,10 +117,7 @@ impl Encoder {
             Some(s) if s == "strict" => Mode::Strict,
             Some(s) if s == "replace" => Mode::Replace,
             Some(s) => {
-                return Err(HgError::abort_simple(format!(
-                    "HGENCODINGMODE value '{}' is not supported",
-                    s.to_string_lossy()
-                )));
+                return Err(EncodingErrorKind::UnsupportedMode(s).into());
             }
         };
         let ambiguous_width = match std::env::var_os("HGENCODINGAMBIGUOUS") {
@@ -92,10 +125,9 @@ impl Encoder {
             Some(s) if s == "narrow" => Width::Narrow,
             Some(s) if s == "wide" => Width::Wide,
             Some(s) => {
-                return Err(HgError::abort_simple(format!(
-                    "HGENCODINGAMBIGUOUS value '{}' is not supported",
-                    s.to_string_lossy()
-                )));
+                return Err(
+                    EncodingErrorKind::UnsupportedAmbiguousWidth(s).into()
+                );
             }
         };
         Ok(Self { local_encoding, decoding_mode, ambiguous_width })
@@ -106,7 +138,7 @@ impl Encoder {
         &self,
         bytes: &'a [u8],
     ) -> Result<&'a str, HgError> {
-        decode_utf8(bytes).map_err(HgError::corrupted)
+        Ok(decode_utf8(bytes)?)
     }
 
     /// Converts a string from internal UTF-8 to the local character encoding.
@@ -129,15 +161,15 @@ impl Encoder {
         bytes: &'a [u8],
     ) -> Result<Cow<'a, str>, HgError> {
         match (self.local_encoding, self.decoding_mode) {
-            (Encoding::Utf8, Mode::Strict) => Ok(Cow::Borrowed(
-                decode_utf8(bytes).map_err(HgError::abort_simple)?,
-            )),
+            (Encoding::Utf8, Mode::Strict) => {
+                Ok(Cow::Borrowed(decode_utf8(bytes)?))
+            }
             (Encoding::Utf8, Mode::Replace) => {
                 Ok(String::from_utf8_lossy(bytes))
             }
-            (Encoding::Ascii, Mode::Strict) => Ok(Cow::Borrowed(
-                decode_ascii(bytes).map_err(HgError::abort_simple)?,
-            )),
+            (Encoding::Ascii, Mode::Strict) => {
+                Ok(Cow::Borrowed(decode_ascii(bytes)?))
+            }
             (Encoding::Ascii, Mode::Replace) => {
                 Ok(Cow::Owned(bytes_to_ascii_lossy(bytes)))
             }
@@ -162,29 +194,26 @@ impl Encoder {
     }
 }
 
-/// Decodes bytes as UTF-8 or returns a detailed error message.
-fn decode_utf8(bytes: &[u8]) -> Result<&str, String> {
+/// Decodes bytes as UTF-8 or returns a detailed error.
+fn decode_utf8(bytes: &[u8]) -> Result<&str, EncodingError> {
     str::from_utf8(bytes).map_err(|err| {
-        format!(
-            "invalid UTF-8 at offset {}: \"{}\"",
-            err.valid_up_to(),
-            str::from_utf8(&bytes.escaped_bytes()).unwrap()
-        )
+        EncodingErrorKind::InvalidUtf8 {
+            bytes: bytes.to_vec(),
+            valid_up_to: err.valid_up_to(),
+        }
+        .into()
     })
 }
 
-/// Decodes bytes as ASCII or returns a detailed error message.
-fn decode_ascii(bytes: &[u8]) -> Result<&str, String> {
+/// Decodes bytes as ASCII or returns a detailed error.
+fn decode_ascii(bytes: &[u8]) -> Result<&str, EncodingError> {
     // TODO: Use `as_ascii` https://github.com/rust-lang/rust/issues/110998
     if bytes.is_ascii() {
         // Safety: Just checked that it's ASCII.
         let str = unsafe { str::from_utf8_unchecked(bytes) };
         Ok(str)
     } else {
-        Err(format!(
-            "invalid ASCII: \"{}\"",
-            str::from_utf8(&bytes.escaped_bytes()).unwrap()
-        ))
+        Err(EncodingErrorKind::InvalidAscii { bytes: bytes.to_vec() }.into())
     }
 }
 
@@ -217,10 +246,22 @@ mod tests {
         assert_eq!(encoder.decode_internal(b"\xc3\xa9").unwrap(), "é");
         match encoder.decode_internal(b"A\xc3") {
             Ok(_) => panic!("expected an error"),
-            Err(HgError::CorruptedRepository(message, ..)) => {
-                assert_eq!(message, "invalid UTF-8 at offset 1: \"A\\xc3\"")
+            Err(err) => {
+                assert_eq!(
+                    err.to_string(),
+                    "invalid UTF-8 at offset 1: \"A\\xc3\""
+                );
+                let HgError::Encoding(err) = err else {
+                    panic!("expected an Encoding error")
+                };
+                assert_eq!(
+                    err.kind,
+                    EncodingErrorKind::InvalidUtf8 {
+                        bytes: b"A\xc3".to_vec(),
+                        valid_up_to: 1
+                    }
+                )
             }
-            Err(_) => panic!("expected a CorruptedRepository error"),
         }
     }
 
@@ -238,10 +279,19 @@ mod tests {
         assert_eq!(encoder.from_local(b"\xc3\xa9").unwrap(), "é");
         match encoder.from_local(b"A\xc3") {
             Ok(_) => panic!("expected an error"),
-            Err(HgError::Abort { message, .. }) => {
-                assert_eq!(message, "invalid UTF-8 at offset 1: \"A\\xc3\"")
+            Err(err) => {
+                assert_eq!(
+                    err.to_string(),
+                    "invalid UTF-8 at offset 1: \"A\\xc3\""
+                );
+                assert!(matches!(
+                    err,
+                    HgError::Encoding(EncodingError {
+                        kind: EncodingErrorKind::InvalidUtf8 { .. },
+                        ..
+                    })
+                ));
             }
-            Err(_) => panic!("expected a CorruptedRepository error"),
         }
     }
 
