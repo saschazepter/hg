@@ -26,6 +26,7 @@ use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
+use crate::errors::UnsupportedFeatureKind;
 use crate::lock::LockError;
 use crate::lock::try_with_lock_no_wait;
 use crate::matchers::get_ignore_files;
@@ -117,7 +118,7 @@ impl Repo {
             if is_dir(root.join(".hg"))? {
                 Self::new_at_path(root, config)
             } else if is_file(&root)? {
-                Err(HgError::unsupported("bundle repository"))
+                Err(UnsupportedFeatureKind::BundleRepo.into())
             } else {
                 Err(HgError::RepoNotFound {
                     at: root,

@@ -9,6 +9,7 @@ use rayon::iter::ParallelIterator;
 
 use crate::UncheckedRevision;
 use crate::errors::HgError;
+use crate::errors::UnsupportedFeatureKind;
 use crate::matchers::Matcher;
 use crate::matchers::VisitChildrenSet;
 use crate::repo::Repo;
@@ -27,7 +28,7 @@ pub fn list_revset_tracked_files<M: Matcher>(
 ) -> Result<FilesForRev<M>, HgError> {
     match crate::revset::resolve_single(revset, repo)?.exclude_wdir() {
         Some(rev) => list_rev_tracked_files(repo, rev.into(), narrow_matcher),
-        None => Err(HgError::unsupported("list wdir files not implemented")),
+        None => Err(UnsupportedFeatureKind::WdirFiles.into()),
     }
 }
 

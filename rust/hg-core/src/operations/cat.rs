@@ -11,6 +11,7 @@ use itertools::PutBack;
 use itertools::put_back;
 
 use crate::errors::HgError;
+use crate::errors::UnsupportedFeatureKind;
 use crate::narrow;
 use crate::repo::Repo;
 use crate::revlog::Node;
@@ -91,7 +92,7 @@ pub fn cat<'a>(
 ) -> Result<CatOutput<'a>, HgError> {
     let Some(rev) = crate::revset::resolve_single(revset, repo)?.exclude_wdir()
     else {
-        return Err(HgError::unsupported("cat wdir not implemented"));
+        return Err(UnsupportedFeatureKind::WdirCat.into());
     };
     let manifest = repo.manifest_for_rev(rev.into())?;
     let mut results: Vec<(&'a HgPath, RawData)> = vec![];

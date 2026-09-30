@@ -200,7 +200,7 @@ pub fn hg_message(error: &HgError) -> Message {
         ),
         HgError::UnsupportedFeature(feature, _) => message!(
             "unsupported feature: {feature}",
-            feature = Utf8(feature.clone())
+            feature = Utf8(format!("{feature:?}"))
         ),
         HgError::Abort { message, .. } => {
             message!("{message}", message = Utf8(message.clone()))

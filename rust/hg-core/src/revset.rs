@@ -6,6 +6,7 @@ use crate::Node;
 use crate::WORKING_DIRECTORY_REVISION;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
+use crate::errors::UnsupportedFeatureKind;
 use crate::repo::Repo;
 use crate::revlog::NULL_REVISION;
 use crate::revlog::NodePrefix;
@@ -37,8 +38,10 @@ pub fn resolve_single(
     match resolve(input, &changelog.revlog) {
         Err(RevlogError::InvalidRevision { string, backtrace }) => {
             // TODO: support for the rest of the language here.
-            let msg = format!("{backtrace}cannot parse revset '{string}'");
-            Err(HgError::unsupported(msg))
+            Err(HgError::UnsupportedFeature(
+                UnsupportedFeatureKind::Revset(string),
+                backtrace,
+            ))
         }
         result => Ok(result?),
     }

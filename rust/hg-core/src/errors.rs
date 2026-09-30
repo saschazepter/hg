@@ -62,9 +62,9 @@ pub enum HgError {
     /// supported by the Rust implementation. Falling back to the Python
     /// implementation may or may not work.
     ///
-    /// The given string is a short explanation for users, not intended to be
-    /// machine-readable.
-    UnsupportedFeature(String, HgBacktrace),
+    /// Some of the other variants also fall in this category, see
+    /// [`Self::is_unsupported`].
+    UnsupportedFeature(UnsupportedFeatureKind, HgBacktrace),
 
     /// Operation cannot proceed for some other reason.
     ///
@@ -167,13 +167,30 @@ pub enum IoErrorContext {
     CurrentExe,
 }
 
+/// Features that are not supported by the Rust implementation and that are
+/// not specific to one of the other error types.
+#[derive(Debug, PartialEq)]
+pub enum UnsupportedFeatureKind {
+    /// The repository is a bundle
+    BundleRepo,
+    /// `cat` on the working directory
+    WdirCat,
+    /// Listing the files of the working directory
+    WdirFiles,
+    /// This revset is either invalid or uses parts of the language that are
+    /// not implemented
+    Revset(String),
+}
+
+impl From<UnsupportedFeatureKind> for HgError {
+    fn from(kind: UnsupportedFeatureKind) -> Self {
+        Self::UnsupportedFeature(kind, HgBacktrace::capture())
+    }
+}
+
 impl HgError {
     pub fn corrupted(explanation: impl Into<String>) -> Self {
         HgError::CorruptedRepository(explanation.into(), HgBacktrace::capture())
-    }
-
-    pub fn unsupported(explanation: impl Into<String>) -> Self {
-        HgError::UnsupportedFeature(explanation.into(), HgBacktrace::capture())
     }
 
     pub fn abort(
@@ -323,9 +340,23 @@ impl fmt::Display for HgError {
             HgError::CorruptedRepository(explanation, backtrace) => {
                 write!(f, "{}{}", backtrace, explanation)
             }
-            HgError::UnsupportedFeature(explanation, backtrace) => {
+            HgError::UnsupportedFeature(kind, backtrace) => {
                 let prefix = unsupported_prefix(f);
-                write!(f, "{}{}{}", backtrace, prefix, explanation)
+                write!(f, "{}{}", backtrace, prefix)?;
+                match kind {
+                    UnsupportedFeatureKind::BundleRepo => {
+                        write!(f, "bundle repository")
+                    }
+                    UnsupportedFeatureKind::WdirCat => {
+                        write!(f, "cat wdir not implemented")
+                    }
+                    UnsupportedFeatureKind::WdirFiles => {
+                        write!(f, "list wdir files not implemented")
+                    }
+                    UnsupportedFeatureKind::Revset(revset) => {
+                        write!(f, "cannot parse revset '{revset}'")
+                    }
+                }
             }
             HgError::AllocationFailed { function, backtrace } => {
                 write!(f, "{backtrace}{function} failed to allocate")
