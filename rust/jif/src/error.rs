@@ -84,9 +84,6 @@ impl ErrorKind {
             ErrorKind::Abort(_) => ErrorCode::Abort,
             ErrorKind::Hg(error) => match error {
                 HgError::IO(_) => ErrorCode::Io,
-                HgError::CorruptedRepository(..) => {
-                    ErrorCode::CorruptedRepository
-                }
                 HgError::UnsupportedFeature(..) => ErrorCode::Unsupported,
                 HgError::ConfigValueParseError(_) => ErrorCode::InvalidConfig,
                 HgError::RepoNotFound { .. } => ErrorCode::RepoNotFound,
@@ -109,8 +106,7 @@ impl ErrorKind {
                     _ => ErrorCode::Abort,
                 },
                 // TODO tell these apart once `hg-core` gives them structure
-                HgError::Abort { .. }
-                | HgError::Revlog(_)
+                HgError::Revlog(_)
                 | HgError::Dirstate(_)
                 | HgError::Shape(_)
                 | HgError::Pattern(_)
@@ -194,17 +190,10 @@ pub fn hg_message(error: &HgError) -> Message {
     // `HgError` must be matched exhaustively here, we want breakage to make
     // us think about the new error type and its implications for the end user.
     match error {
-        HgError::CorruptedRepository(reason, _) => message!(
-            "corrupted repository: {reason}",
-            reason = Utf8(reason.clone())
-        ),
         HgError::UnsupportedFeature(feature, _) => message!(
             "unsupported feature: {feature}",
             feature = Utf8(format!("{feature:?}"))
         ),
-        HgError::Abort { message, .. } => {
-            message!("{message}", message = Utf8(message.clone()))
-        }
         HgError::InterruptReceived => message!("interrupted"),
         HgError::AllocationFailed { function, .. } => {
             message!(

@@ -137,22 +137,6 @@ impl From<HgError> for CommandError {
             return CommandError::unsupported(format!("{error:#}"));
         }
         match error {
-            HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
-                CommandError::abort_with_exit_code_and_hint(
-                    format!("abort: {}", message),
-                    detailed_exit_code,
-                    hint,
-                    backtrace,
-                )
-            }
-            HgError::CorruptedRepository(message, backtrace) => {
-                CommandError::abort_with_exit_code_and_hint(
-                    format!("abort: {}", message),
-                    exit_codes::ABORT,
-                    None::<String>,
-                    backtrace,
-                )
-            }
             // These have filenames, which are formatted as bytes
             HgError::Config(config_error) => match *config_error {
                 ConfigError::Parse(parse_error) => parse_error.into(),

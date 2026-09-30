@@ -50,14 +50,6 @@ pub enum HgError {
     #[from]
     IO(HgIoError),
 
-    /// A file under `.hg/` normally only written by Mercurial is not in the
-    /// expected format. This indicates a bug in Mercurial, filesystem
-    /// corruption, or hardware failure.
-    ///
-    /// The given string is a short explanation for users, not intended to be
-    /// machine-readable.
-    CorruptedRepository(String, HgBacktrace),
-
     /// The respository or requested operation involves a feature not
     /// supported by the Rust implementation. Falling back to the Python
     /// implementation may or may not work.
@@ -65,17 +57,6 @@ pub enum HgError {
     /// Some of the other variants also fall in this category, see
     /// [`Self::is_unsupported`].
     UnsupportedFeature(UnsupportedFeatureKind, HgBacktrace),
-
-    /// Operation cannot proceed for some other reason.
-    ///
-    /// The message is a short explanation for users, not intended to be
-    /// machine-readable.
-    Abort {
-        message: String,
-        detailed_exit_code: exit_codes::ExitCode,
-        hint: Option<String>,
-        backtrace: HgBacktrace,
-    },
 
     /// A memory allocation has failed in this foreign function
     AllocationFailed { function: &'static str, backtrace: HgBacktrace },
@@ -189,36 +170,9 @@ impl From<UnsupportedFeatureKind> for HgError {
 }
 
 impl HgError {
-    pub fn corrupted(explanation: impl Into<String>) -> Self {
-        HgError::CorruptedRepository(explanation.into(), HgBacktrace::capture())
-    }
-
-    pub fn abort(
-        explanation: impl Into<String>,
-        exit_code: exit_codes::ExitCode,
-        hint: Option<String>,
-    ) -> Self {
-        HgError::Abort {
-            message: explanation.into(),
-            detailed_exit_code: exit_code,
-            hint,
-            backtrace: HgBacktrace::capture(),
-        }
-    }
-
-    pub fn abort_simple(explanation: impl Into<String>) -> Self {
-        HgError::Abort {
-            message: explanation.into(),
-            detailed_exit_code: exit_codes::ABORT,
-            hint: None,
-            backtrace: HgBacktrace::capture(),
-        }
-    }
-
     /// The detailed exit code for this error
     pub fn exit_code(&self) -> exit_codes::ExitCode {
         match self {
-            HgError::Abort { detailed_exit_code, .. } => *detailed_exit_code,
             HgError::ConfigValueParseError(_) => exit_codes::CONFIG_ERROR_ABORT,
             HgError::Config(config_error) => match **config_error {
                 ConfigError::Parse(_) | ConfigError::InvalidValue { .. } => {
@@ -244,7 +198,6 @@ impl HgError {
     /// An optional hint for the user.
     pub fn hint(&self) -> Option<Cow<'_, str>> {
         match self {
-            HgError::Abort { hint, .. } => hint.as_deref().map(Cow::Borrowed),
             HgError::Config(config_error) => match &**config_error {
                 ConfigError::NoUsername { .. } => Some(Cow::Borrowed(
                     "use 'hg config --edit' to set your username",
@@ -333,13 +286,7 @@ fn unsupported_prefix(f: &fmt::Formatter) -> &'static str {
 impl fmt::Display for HgError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            HgError::Abort { message, backtrace, .. } => {
-                write!(f, "{}{}", backtrace, message)
-            }
             HgError::IO(io_err) => io_err.fmt(f),
-            HgError::CorruptedRepository(explanation, backtrace) => {
-                write!(f, "{}{}", backtrace, explanation)
-            }
             HgError::UnsupportedFeature(kind, backtrace) => {
                 let prefix = unsupported_prefix(f);
                 write!(f, "{}{}", backtrace, prefix)?;
