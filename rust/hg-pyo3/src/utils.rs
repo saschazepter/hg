@@ -419,7 +419,8 @@ where
 pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
     match e.into() {
         err @ HgError::IO { .. } => PyIOError::new_err(err.to_string()),
-        err @ HgError::UnsupportedFeature(..) => {
+        // All pattern errors fall back, see below
+        err if err.is_unsupported() && !matches!(err, HgError::Pattern(_)) => {
             FallbackError::new_err(err.to_string())
         }
         HgError::RaceDetected(_) => {
@@ -459,29 +460,21 @@ pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
             FallbackError::new_err(string_err)
         }
         HgError::InterruptReceived => PyKeyboardInterrupt::new_err(()),
-        err @ HgError::Abort { detailed_exit_code, .. } => {
+        e => {
             let cls = py
                 .import(intern!(py, "mercurial.error"))
-                .and_then(|m| match detailed_exit_code {
+                .and_then(|m| match e.exit_code() {
                     hg::exit_codes::STATE_ERROR => {
                         m.getattr(intern!(py, "StateError"))
                     }
-                    hg::exit_codes::CONFIG_ERROR_ABORT => {
+                    hg::exit_codes::CONFIG_ERROR_ABORT
+                        if !matches!(e, HgError::ConfigValueParseError(_)) =>
+                    {
                         m.getattr(intern!(py, "ConfigError"))
                     }
                     // TODO more errors
                     _ => m.getattr(intern!(py, "Abort")),
                 })
-                .expect("failed to import error.Abort");
-            PyErr::from_value(
-                cls.call1((err.to_string().as_bytes(),))
-                    .expect("initializing an error.Abort failed"),
-            )
-        }
-        e => {
-            let cls = py
-                .import(intern!(py, "mercurial.error"))
-                .and_then(|m| m.getattr(intern!(py, "Abort")))
                 .expect("failed to import error.Abort");
             PyErr::from_value(
                 cls.call1((e.to_string().as_bytes(),))

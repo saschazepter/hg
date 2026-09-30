@@ -119,18 +119,12 @@ impl From<clap::Error> for CommandError {
 
 impl From<HgError> for CommandError {
     fn from(error: HgError) -> Self {
+        if error.is_unsupported() {
+            // The alternate form omits the "unsupported feature" prefix
+            // TODO get rid of this when the rest of `HgError` is cleaned up
+            return CommandError::unsupported(format!("{error:#}"));
+        }
         match error {
-            HgError::UnsupportedFeature(message, backtrace) => {
-                CommandError::unsupported(format!("{}{}", backtrace, message))
-            }
-            // explicit because some patterns lead to falling back
-            HgError::Pattern(pat) => pat.into(),
-            e @ HgError::Shape(_) => {
-                CommandError::abort(format!("abort: {e}"))
-            }
-            e @ HgError::Revlog(_) => {
-                CommandError::abort(format!("abort: {e}"))
-            }
             HgError::Abort { message, detailed_exit_code, hint, backtrace } => {
                 CommandError::abort_with_exit_code_and_hint(
                     format!("abort: {}", message),
@@ -157,12 +151,28 @@ impl From<HgError> for CommandError {
                     exit_codes::ABORT,
                 )
             }
-            err @ HgError::ConfigValueParseError(_) => {
+            // These are not prefixed with "abort: ", or have their own prefix.
+            // TODO unify this once `HgError` is better cleaned up.
+            HgError::IO(_)
+            | HgError::ConfigValueParseError(_)
+            | HgError::Pattern(_)
+            | HgError::Dirstate(_)
+            | HgError::FileIndex(_)
+            | HgError::Path(_)
+            | HgError::RaceDetected(_)
+            | HgError::InterruptReceived => {
                 CommandError::abort_with_exit_code(
-                    format!("{err}"), exit_codes::CONFIG_ERROR_ABORT
+                    error.to_string(),
+                    error.exit_code(),
                 )
             }
-            _ => CommandError::abort(error.to_string()),
+            _ => CommandError::abort_with_exit_code_and_hint(
+                format!("abort: {error}"),
+                error.exit_code(),
+                error.hint(),
+                // The backtrace is part of the message
+                HgBacktrace::disabled(),
+            ),
         }
     }
 }
@@ -244,12 +254,7 @@ impl From<RevlogError> for CommandError {
 
 impl From<StatusError> for CommandError {
     fn from(error: StatusError) -> Self {
-        match error {
-            StatusError::Path(_) | StatusError::Dirstate(_) => {
-                CommandError::abort(HgError::from(error).to_string())
-            }
-            StatusError::Pattern(pattern_err) => pattern_err.into(),
-        }
+        HgError::from(error).into()
     }
 }
 
@@ -261,20 +266,7 @@ impl From<HgPathError> for CommandError {
 
 impl From<PatternError> for CommandError {
     fn from(error: PatternError) -> Self {
-        match error {
-            PatternError::Path(_)
-            | PatternError::NonRegexPattern(_, _)
-            | PatternError::IO(_)
-            | PatternError::UnclosedGlobAlternation(_, _)
-            | PatternError::UnsupportedSyntaxNarrow(_, _) => {
-                CommandError::abort(HgError::from(error).to_string())
-            }
-            PatternError::UnsupportedSyntax(_, _)
-            | PatternError::RegexError { .. }
-            | PatternError::NonUtf8Pattern { .. } => {
-                CommandError::unsupported(HgError::from(error).to_string())
-            }
-        }
+        HgError::from(error).into()
     }
 }
 

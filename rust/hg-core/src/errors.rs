@@ -1,5 +1,6 @@
 use std::backtrace::Backtrace;
 use std::backtrace::BacktraceStatus;
+use std::borrow::Cow;
 use std::fmt;
 use std::fmt::Write;
 use std::io::ErrorKind;
@@ -151,6 +152,49 @@ impl HgError {
             backtrace: HgBacktrace::capture(),
         }
     }
+
+    /// The detailed exit code for this error
+    pub fn exit_code(&self) -> exit_codes::ExitCode {
+        match self {
+            HgError::Abort { detailed_exit_code, .. } => *detailed_exit_code,
+            HgError::ConfigValueParseError(_) => exit_codes::CONFIG_ERROR_ABORT,
+            _ => exit_codes::ABORT,
+        }
+    }
+
+    /// An optional hint for the user.
+    pub fn hint(&self) -> Option<Cow<'_, str>> {
+        match self {
+            HgError::Abort { hint, .. } => hint.as_deref().map(Cow::Borrowed),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if this error means that Rust needs to fall back to
+    /// Python, hoping it can recover/handle that feature.
+    pub fn is_unsupported(&self) -> bool {
+        match self {
+            HgError::UnsupportedFeature(..) => true,
+            HgError::Pattern(pattern_error) => matches!(
+                pattern_error,
+                PatternError::UnsupportedSyntax(..)
+                    | PatternError::RegexError { .. }
+                    | PatternError::NonUtf8Pattern { .. }
+            ),
+            _ => false,
+        }
+    }
+}
+
+/// The prefix for errors where [`HgError::is_unsupported`] is true. The
+/// alternate form (`{:#}`) can be used to omit it, for callers that have
+/// their own way of reporting such errors.
+fn unsupported_prefix(f: &fmt::Formatter) -> &'static str {
+    if f.alternate() {
+        ""
+    } else {
+        "unsupported feature: "
+    }
 }
 
 // TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
@@ -165,7 +209,8 @@ impl fmt::Display for HgError {
                 write!(f, "{}{}", backtrace, explanation)
             }
             HgError::UnsupportedFeature(explanation, backtrace) => {
-                write!(f, "{}unsupported feature: {}", backtrace, explanation)
+                let prefix = unsupported_prefix(f);
+                write!(f, "{}{}{}", backtrace, prefix, explanation)
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
             HgError::RaceDetected(context) => {
