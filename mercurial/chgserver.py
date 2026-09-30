@@ -656,6 +656,7 @@ class chgcmdserver(commandserver.server):
             procutil.setprocname(name)
 
         capabilities[b'setprocname'] = setprocname
+        capabilities[b'setprocname2'] = setprocname
 
 
 def _tempaddress(address):

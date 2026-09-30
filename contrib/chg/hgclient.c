@@ -44,7 +44,7 @@ enum {
 	CAP_SETENV = 0x0800,
 	CAP_SETUMASK2 = 0x1000,
 	CAP_VALIDATE = 0x2000,
-	CAP_SETPROCNAME = 0x4000,
+	CAP_SETPROCNAME2 = 0x4000,
 };
 
 typedef struct {
@@ -60,7 +60,7 @@ static const cappair_t captable[] = {
     {"setenv", CAP_SETENV},
     {"setumask2", CAP_SETUMASK2},
     {"validate", CAP_VALIDATE},
-    {"setprocname", CAP_SETPROCNAME},
+    {"setprocname2", CAP_SETPROCNAME2},
     {NULL, 0}, /* terminator */
 };
 
@@ -402,7 +402,7 @@ static void updateprocname(hgclient_t *hgc)
 		abortmsg("insufficient buffer to write procname (r = %d)", r);
 	}
 	hgc->ctx.datasize = (size_t)r;
-	writeblockrequest(hgc, "setprocname");
+	writeblockrequest(hgc, "setprocname2");
 }
 
 static void attachio(hgclient_t *hgc)
@@ -547,7 +547,7 @@ hgclient_t *hgc_open(const char *sockname)
 	if (!(hgc->capflags & CAP_RUNCOMMAND)) {
 		abortmsg("insufficient capability: runcommand");
 	}
-	if (hgc->capflags & CAP_SETPROCNAME) {
+	if (hgc->capflags & CAP_SETPROCNAME2) {
 		updateprocname(hgc);
 	}
 	if (hgc->capflags & CAP_ATTACHIO) {
