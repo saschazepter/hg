@@ -175,7 +175,10 @@ impl HgError {
     pub fn is_unsupported(&self) -> bool {
         match self {
             HgError::UnsupportedFeature(..) => true,
-            HgError::Revlog(RevlogError::EllipsisNode { .. }) => true,
+            HgError::Revlog(
+                RevlogError::EllipsisNode { .. }
+                | RevlogError::UnsupportedCompressionEngine { .. },
+            ) => true,
             HgError::Pattern(pattern_error) => matches!(
                 pattern_error,
                 PatternError::UnsupportedSyntax(..)
@@ -427,6 +430,29 @@ impl fmt::Display for HgError {
                 }
                 RevlogError::UnexpectedRevlogType { kind, backtrace } => {
                     write!(f, "{backtrace}invalid revlog type {kind}")
+                }
+                RevlogError::UnsupportedCompressionEngine {
+                    name,
+                    backtrace,
+                } => {
+                    let prefix = unsupported_prefix(f);
+                    write!(
+                        f,
+                        "{backtrace}{prefix}Unsupported compression engine \
+                        '{name}'"
+                    )
+                }
+                RevlogError::InvalidCompressionLevel {
+                    config_item,
+                    level,
+                    max,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}invalid value for `storage.{config_item}` \
+                        config: {level}, expected between 0 and {max} included",
+                    )
                 }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {

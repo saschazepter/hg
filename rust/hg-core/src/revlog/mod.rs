@@ -473,6 +473,16 @@ pub enum RevlogError {
     UnknownRevlogType { value: usize, backtrace: HgBacktrace },
     /// This type of revlog is not the one expected by the operation
     UnexpectedRevlogType { kind: RevlogType, backtrace: HgBacktrace },
+    /// The repository uses a compression engine we don't support
+    UnsupportedCompressionEngine { name: String, backtrace: HgBacktrace },
+    /// The compression level from the config is out of bounds for the engine
+    InvalidCompressionLevel {
+        /// Name of the config item, within the `storage` section
+        config_item: &'static str,
+        level: usize,
+        max: usize,
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {

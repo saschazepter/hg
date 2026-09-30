@@ -11,7 +11,6 @@ use crate::FastHashSet;
 use crate::config::Config;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::exit_codes;
 
 /// Header byte used to identify ZSTD-compressed data
 pub const ZSTD_BYTE: u8 = b'\x28';
@@ -64,9 +63,13 @@ impl CompressionConfig {
                 new = match split.next().unwrap() {
                     "zstd" => CompressionConfig::zstd(zstd_level)?,
                     e => {
-                        return Err(HgError::unsupported(format!(
-                            "Unsupported compression engine '{e}'"
-                        )));
+                        return Err(
+                            RevlogError::UnsupportedCompressionEngine {
+                                name: e.to_string(),
+                                backtrace: HgBacktrace::capture(),
+                            }
+                            .into(),
+                        );
                     }
                 };
             }
@@ -84,29 +87,25 @@ impl CompressionConfig {
         match self {
             CompressionConfig::Zlib { level } => {
                 if new_level > 9 {
-                    return Err(HgError::abort(
-                        format!(
-                            "invalid value for `storage.revlog.zlib.level` \
-                            config: {}, expected between 0 and 9 included",
-                            new_level
-                        ),
-                        exit_codes::ABORT,
-                        None,
-                    ));
+                    return Err(RevlogError::InvalidCompressionLevel {
+                        config_item: "revlog.zlib.level",
+                        level: new_level,
+                        max: 9,
+                        backtrace: HgBacktrace::capture(),
+                    }
+                    .into());
                 }
                 *level = new_level as u8;
             }
             CompressionConfig::Zstd { level, .. } => {
                 if new_level > 22 {
-                    return Err(HgError::abort(
-                        format!(
-                            "invalid value for `storage.revlog.zstd.level` \
-                            config: {}, expected between 0 and 22 included",
-                            new_level
-                        ),
-                        exit_codes::ABORT,
-                        None,
-                    ));
+                    return Err(RevlogError::InvalidCompressionLevel {
+                        config_item: "revlog.zstd.level",
+                        level: new_level,
+                        max: 22,
+                        backtrace: HgBacktrace::capture(),
+                    }
+                    .into());
                 }
                 *level = new_level as u8;
             }
