@@ -175,6 +175,7 @@ impl HgError {
     pub fn is_unsupported(&self) -> bool {
         match self {
             HgError::UnsupportedFeature(..) => true,
+            HgError::Revlog(RevlogError::EllipsisNode { .. }) => true,
             HgError::Pattern(pattern_error) => matches!(
                 pattern_error,
                 PatternError::UnsupportedSyntax(..)
@@ -316,11 +317,7 @@ impl fmt::Display for HgError {
                     backtrace, expected, got
                 ),
                 RevlogError::PythonCache { backtrace, message } => {
-                    write!(
-                        f,
-                        "{}error in Python cache handling: {}",
-                        backtrace, message
-                    )
+                    write!(f, "{}{}", backtrace, message)
                 }
                 RevlogError::PythonIncompleteBuffer { backtrace, message } => {
                     write!(
@@ -330,7 +327,12 @@ impl fmt::Display for HgError {
                     )
                 }
                 RevlogError::EllipsisNode { backtrace } => {
-                    write!(f, "{}encountered an ellipsis node", backtrace)
+                    let prefix = unsupported_prefix(f);
+                    write!(
+                        f,
+                        "{}{}encountered an ellipsis node",
+                        backtrace, prefix
+                    )
                 }
                 RevlogError::InlineDelayedWrite { backtrace } => {
                     write!(
@@ -1014,18 +1016,6 @@ impl<T> HgResultExt<T> for Result<T, HgIoError> {
 impl From<RevlogError> for HgError {
     fn from(err: RevlogError) -> HgError {
         match err {
-            RevlogError::EllipsisNode { backtrace } => {
-                Self::UnsupportedFeature(
-                    "encountered an ellipsis node".to_string(),
-                    backtrace,
-                )
-            }
-            RevlogError::PythonCache { message, backtrace } => HgError::Abort {
-                message,
-                detailed_exit_code: exit_codes::ABORT,
-                hint: None,
-                backtrace,
-            },
             RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
             err => HgError::Revlog(err),
         }
