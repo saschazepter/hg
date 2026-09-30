@@ -819,11 +819,25 @@ static void getarg0size(char **argstart, size_t *argsize) {
 static PyObject *setprocname(PyObject *self, PyObject *args)
 {
 	const char *name = NULL;
-	if (!PyArg_ParseTuple(args, "y", &name))
+	Py_ssize_t name_len = 0;
+	if (!PyArg_ParseTuple(args, "y#", &name, &name_len))
 		return NULL;
 
 #if defined(SETPROCNAME_USE_SETPROCTITLE)
-	setproctitle("%s", name);
+	{
+		/* `name` may contain embedded NUL to separate arguments, but
+		   `setproctitle` requires a C-style string, so convert to spaces. */
+		char *buf = PyMem_Malloc(name_len + 1);
+		if (!buf) {
+			return PyErr_NoMemory();
+		}
+		for (Py_ssize_t i = 0; i < name_len; i++) {
+			buf[i] = name[i] == '\0' ? ' ' : name[i];
+		}
+		buf[name_len] = '\0';
+		setproctitle("%s", buf);
+		PyMem_Free(buf);
+	}
 #elif defined(SETPROCNAME_USE_ARGVREWRITE)
 	{
 		static char *argvstart = NULL;
@@ -834,9 +848,13 @@ static PyObject *setprocname(PyObject *self, PyObject *args)
 		}
 
 		if (argvstart && argvsize > 1) {
-			int n = snprintf(argvstart, argvsize, "%s", name);
-			if (n >= 0 && (size_t)n < argvsize)
-				memset(argvstart + n, 0, argvsize - n);
+			size_t n = (size_t)name_len;
+			/* leave room for a final NUL */
+			if (n > argvsize - 1) {
+				n = argvsize - 1;
+			}
+			memcpy(argvstart, name, n);
+			memset(argvstart + n, 0, argvsize - n);
 		}
 	}
 #endif
@@ -1404,7 +1422,8 @@ static PyMethodDef methods[] = {
 "Returns None for non-existent entries and entries of other types.\n"},
 #ifndef SETPROCNAME_USE_NONE
 	{"setprocname", (PyCFunction)setprocname, METH_VARARGS,
-	 "set process title (best-effort)\n"},
+	 "set process title (best-effort)\n"
+"The name may contain embedded NUL characters to separate arguments.\n"},
 #endif
 #if defined(HAVE_BSD_STATFS) || defined(HAVE_LINUX_STATFS)
 	{"getfstype", (PyCFunction)getfstype, METH_VARARGS,
@@ -1430,7 +1449,7 @@ static PyMethodDef methods[] = {
 	{NULL, NULL}
 };
 
-static const int version = 4;
+static const int version = 5;
 
 static struct PyModuleDef osutil_module = {
 	PyModuleDef_HEAD_INIT,

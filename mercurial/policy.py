@@ -82,7 +82,7 @@ _cextversions: dict[tuple[str, str], int] = {
     ('cext', 'base85'): 1,
     ('cext', 'bdiff'): 3,
     ('cext', 'mpatch'): 1,
-    ('cext', 'osutil'): 4,
+    ('cext', 'osutil'): 5,
     ('cext', 'parsers'): 21,
 }
 
