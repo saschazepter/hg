@@ -77,6 +77,9 @@ pub enum HgError {
         backtrace: HgBacktrace,
     },
 
+    /// A memory allocation has failed in this foreign function
+    AllocationFailed { function: &'static str, backtrace: HgBacktrace },
+
     /// A configuration value is not in the expected syntax.
     ///
     /// These errors can happen in many places in the code because values are
@@ -323,6 +326,9 @@ impl fmt::Display for HgError {
             HgError::UnsupportedFeature(explanation, backtrace) => {
                 let prefix = unsupported_prefix(f);
                 write!(f, "{}{}{}", backtrace, prefix, explanation)
+            }
+            HgError::AllocationFailed { function, backtrace } => {
+                write!(f, "{backtrace}{function} failed to allocate")
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
             HgError::Config(config_error) => match &**config_error {

@@ -2,6 +2,7 @@
 
 use std::marker::PhantomData;
 
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 
 /// A file split into lines, ready for diffing.
@@ -32,9 +33,10 @@ pub fn split_lines(source: &[u8]) -> Result<Lines<'_>, HgError> {
             assert!(!array.is_null());
             Ok(Lines { array, len, _lifetime: PhantomData })
         }
-        Err(_) => {
-            Err(HgError::abort_simple("bdiff_splitlines failed to allocate"))
-        }
+        Err(_) => Err(HgError::AllocationFailed {
+            function: "bdiff_splitlines",
+            backtrace: HgBacktrace::capture(),
+        }),
     }
 }
 
@@ -140,7 +142,10 @@ pub fn diff(a: &Lines, b: &Lines) -> Result<HunkList, HgError> {
             head: out.next,
             len,
         }),
-        Err(_) => Err(HgError::abort_simple("bdiff_diff failed to allocate")),
+        Err(_) => Err(HgError::AllocationFailed {
+            function: "bdiff_diff",
+            backtrace: HgBacktrace::capture(),
+        }),
     }
 }
 

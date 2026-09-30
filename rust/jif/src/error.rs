@@ -94,6 +94,7 @@ impl ErrorKind {
                     ErrorCode::CorruptedRepository
                 }
                 HgError::InterruptReceived => ErrorCode::Interrupted,
+                HgError::AllocationFailed { .. } => ErrorCode::Abort,
                 HgError::Requirements(error) => match error.kind {
                     RequirementsErrorKind::ParseError => {
                         ErrorCode::CorruptedRepository
@@ -205,6 +206,12 @@ pub fn hg_message(error: &HgError) -> Message {
             message!("{message}", message = Utf8(message.clone()))
         }
         HgError::InterruptReceived => message!("interrupted"),
+        HgError::AllocationFailed { function, .. } => {
+            message!(
+                "{function} failed to allocate",
+                function = Utf8(*function)
+            )
+        }
         HgError::RepoNotFound { at, .. } => message!(
             "no repository found in {path}",
             path = get_bytes_from_path(at)
