@@ -468,7 +468,7 @@ Reshaping is refused while a previous config is still saved
   $ hg admin::narrow-server --shape-update -f ../added-shape
   abort: cannot reshape yet: 1 previous server-shapes still saved
   shapes changed: "foo-shape"
-  (generate bundles for the current config, then run 'hg admin::narrow-server --shape-clear-previous')
+  (see 'hg help "narrow.updating the shapes config"' for how to clear the saved configs)
   [10]
 
 Passing `--override-saved-configs-check` allows the update anyways

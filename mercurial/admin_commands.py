@@ -399,8 +399,8 @@ def _validate_shape_update(
                 b"shapes changed: %s"
             ) % (len(saved_configs), _quote_names(shapes))
             hint = _(
-                b"generate bundles for the current config, then run"
-                b" 'hg admin::narrow-server --shape-clear-previous'"
+                b"see 'hg help \"narrow.updating the shapes config\"' for"
+                b" how to clear the saved configs"
             )
             raise error.InputError(msg, hint=hint)
 

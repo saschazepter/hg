@@ -236,7 +236,9 @@ Updating the shapes config
 ..........................
 
 Use :hg:`admin::narrow-server --shape-update` to replace the config. The
-command refuses updates that violate the invariants described below.
+command refuses updates that violate any of the invariants described below.
+
+(1) Shape fingerprints should not change
 
 A shape should keep the same fingerprint for as long as there are clones using
 it. Clients pin themselves to the fingerprint of the shape they cloned, so
@@ -251,7 +253,9 @@ Passing ``--override-fingerprint-change-check`` skips this check. You should
 rarely want this: it is the update that forces every client cloned at that
 shape to re-sync at once.
 
-An update must also be only one of the following, never both at once::
+(2) Resharding OR reshaping
+
+An update must be only one of the following, never both at once::
 
   * a *reshaping*: adding or removing a shape.
   * a *resharding*: changing how the store is partitioned. For example, a
@@ -285,6 +289,21 @@ and publish a shape for it::
 Passing ``--override-reshape-and-reshard-check`` applies the update regardless.
 You should rarely want this: a mixed update can publish a shape before the
 necessary bundles are generated.
+
+(3) No reshaping while previous configs are saved
+
+A reshaping is refused while previous ``server-shapes`` configs are still saved
+(see steps 3-4 in the example above). Saved configs are used to continue
+serving bundles from before a resharding, so clearing the configs indicates
+that new bundles for the resharding are ready and any reshapes will be covered.
+
+A server that does not serve sharded clone bundles has nothing to wait for and
+can clear the saved configs right away.
+
+Passing ``--override-saved-configs-check`` applies the update regardless. You
+should rarely want this if you are using sharded bundles: the shapes you change
+may have no matching bundles until the ones for the current config are
+generated and advertised.
 
 Bundle generation
 .................
