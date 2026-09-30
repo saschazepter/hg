@@ -366,6 +366,17 @@ pub enum ConfigError {
     MalformedCliOption { arg: Vec<u8>, backtrace: HgBacktrace },
     /// We need a username and there is none
     NoUsername { backtrace: HgBacktrace },
+    /// A programming error: the default value for this item was asked as a
+    /// type that is incompatible with its declaration
+    WrongQueryType {
+        section: Vec<u8>,
+        item: Vec<u8>,
+        /// A user-friendly name for the type that was asked for
+        asked: &'static str,
+        /// A user-friendly name for the type of the default value
+        default_type: String,
+        backtrace: HgBacktrace,
+    },
 }
 
 fn make_regex(pattern: &'static str) -> Regex {

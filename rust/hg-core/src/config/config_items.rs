@@ -3,6 +3,8 @@ use format_bytes::format_bytes;
 use serde::Deserialize;
 
 use crate::FastHashMap;
+use crate::config::ConfigError;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::exit_codes;
 
@@ -102,6 +104,23 @@ impl TryFrom<RawDefaultConfigItem> for DefaultConfigItem {
     }
 }
 
+/// A programming error: the default value for this item was asked as a type
+/// that is incompatible with its declaration.
+fn wrong_query(
+    item: &DefaultConfigItem,
+    asked: &'static str,
+    default: &DefaultConfigItemType,
+) -> HgError {
+    ConfigError::WrongQueryType {
+        section: item.section.to_owned(),
+        item: item.name.to_owned(),
+        asked,
+        default_type: default.type_str().to_owned(),
+        backtrace: HgBacktrace::capture(),
+    }
+    .into()
+}
+
 impl DefaultConfigItem {
     fn is_generic(&self) -> bool {
         self.priority.is_some()
@@ -124,23 +143,12 @@ impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a str> {
     ) -> Result<Option<&'a str>, Self::Error> {
         match &value.default {
             Some(default) => {
-                let err = HgError::abort(
-                    format!(
-                        "programming error: wrong query on config item '{}.{}'",
-                        String::from_utf8_lossy(&value.section),
-                        String::from_utf8_lossy(&value.name)
-                    ),
-                    exit_codes::ABORT,
-                    Some(format!(
-                        "asked for '&str', type of default is '{}'",
-                        default.type_str()
-                    )),
-                );
+                let err = || wrong_query(value, "'&str'", default);
                 match default {
                     DefaultConfigItemType::Primitive(toml::Value::String(
                         s,
                     )) => Ok(Some(s)),
-                    _ => Err(err),
+                    _ => Err(err()),
                 }
             }
             None => Ok(None),
@@ -156,24 +164,12 @@ impl<'a> TryFrom<&'a DefaultConfigItem> for Option<&'a [u8]> {
     ) -> Result<Option<&'a [u8]>, Self::Error> {
         match &value.default {
             Some(default) => {
-                let err = HgError::abort(
-                    format!(
-                        "programming error: wrong query on config item '{}.{}'",
-                        String::from_utf8_lossy(&value.section),
-                        String::from_utf8_lossy(&value.name)
-                    ),
-                    exit_codes::ABORT,
-                    Some(format!(
-                        "asked for bytes, type of default is '{}', \
-                        which cannot be interpreted as bytes",
-                        default.type_str()
-                    )),
-                );
+                let err = || wrong_query(value, "bytes", default);
                 match default {
                     DefaultConfigItemType::Primitive(p) => {
                         Ok(p.as_str().map(str::as_bytes))
                     }
-                    _ => Err(err),
+                    _ => Err(err()),
                 }
             }
             None => Ok(None),
@@ -187,23 +183,12 @@ impl TryFrom<&DefaultConfigItem> for Option<bool> {
     fn try_from(value: &DefaultConfigItem) -> Result<Self, Self::Error> {
         match &value.default {
             Some(default) => {
-                let err = HgError::abort(
-                    format!(
-                        "programming error: wrong query on config item '{}.{}'",
-                        String::from_utf8_lossy(&value.section),
-                        String::from_utf8_lossy(&value.name)
-                    ),
-                    exit_codes::ABORT,
-                    Some(format!(
-                        "asked for 'bool', type of default is '{}'",
-                        default.type_str()
-                    )),
-                );
+                let err = || wrong_query(value, "'bool'", default);
                 match default {
                     DefaultConfigItemType::Primitive(toml::Value::Boolean(
                         b,
                     )) => Ok(Some(*b)),
-                    _ => Err(err),
+                    _ => Err(err()),
                 }
             }
             None => Ok(None),
@@ -217,25 +202,14 @@ impl TryFrom<&DefaultConfigItem> for Option<u32> {
     fn try_from(value: &DefaultConfigItem) -> Result<Self, Self::Error> {
         match &value.default {
             Some(default) => {
-                let err = HgError::abort(
-                    format!(
-                        "programming error: wrong query on config item '{}.{}'",
-                        String::from_utf8_lossy(&value.section),
-                        String::from_utf8_lossy(&value.name)
-                    ),
-                    exit_codes::ABORT,
-                    Some(format!(
-                        "asked for 'u32', type of default is '{}'",
-                        default.type_str()
-                    )),
-                );
+                let err = || wrong_query(value, "'u32'", default);
                 match default {
                     DefaultConfigItemType::Primitive(toml::Value::Integer(
                         b,
                     )) => {
                         Ok(Some((*b).try_into().expect("TOML integer to u32")))
                     }
-                    _ => Err(err),
+                    _ => Err(err()),
                 }
             }
             None => Ok(None),
@@ -249,25 +223,14 @@ impl TryFrom<&DefaultConfigItem> for Option<u64> {
     fn try_from(value: &DefaultConfigItem) -> Result<Self, Self::Error> {
         match &value.default {
             Some(default) => {
-                let err = HgError::abort(
-                    format!(
-                        "programming error: wrong query on config item '{}.{}'",
-                        String::from_utf8_lossy(&value.section),
-                        String::from_utf8_lossy(&value.name)
-                    ),
-                    exit_codes::ABORT,
-                    Some(format!(
-                        "asked for 'u64', type of default is '{}'",
-                        default.type_str()
-                    )),
-                );
+                let err = || wrong_query(value, "'u64'", default);
                 match default {
                     DefaultConfigItemType::Primitive(toml::Value::Integer(
                         b,
                     )) => {
                         Ok(Some((*b).try_into().expect("TOML integer to u64")))
                     }
-                    _ => Err(err),
+                    _ => Err(err()),
                 }
             }
             None => Ok(None),
@@ -281,23 +244,12 @@ impl TryFrom<&DefaultConfigItem> for Option<i64> {
     fn try_from(value: &DefaultConfigItem) -> Result<Self, Self::Error> {
         match &value.default {
             Some(default) => {
-                let err = HgError::abort(
-                    format!(
-                        "programming error: wrong query on config item '{}.{}'",
-                        String::from_utf8_lossy(&value.section),
-                        String::from_utf8_lossy(&value.name)
-                    ),
-                    exit_codes::ABORT,
-                    Some(format!(
-                        "asked for 'i64', type of default is '{}'",
-                        default.type_str()
-                    )),
-                );
+                let err = || wrong_query(value, "'i64'", default);
                 match default {
                     DefaultConfigItemType::Primitive(toml::Value::Integer(
                         b,
                     )) => Ok(Some(*b)),
-                    _ => Err(err),
+                    _ => Err(err()),
                 }
             }
             None => Ok(None),
@@ -311,23 +263,12 @@ impl TryFrom<&DefaultConfigItem> for Option<f64> {
     fn try_from(value: &DefaultConfigItem) -> Result<Self, Self::Error> {
         match &value.default {
             Some(default) => {
-                let err = HgError::abort(
-                    format!(
-                        "programming error: wrong query on config item '{}.{}'",
-                        String::from_utf8_lossy(&value.section),
-                        String::from_utf8_lossy(&value.name)
-                    ),
-                    exit_codes::ABORT,
-                    Some(format!(
-                        "asked for 'f64', type of default is '{}'",
-                        default.type_str()
-                    )),
-                );
+                let err = || wrong_query(value, "'f64'", default);
                 match default {
                     DefaultConfigItemType::Primitive(toml::Value::Float(b)) => {
                         Ok(Some(*b))
                     }
-                    _ => Err(err),
+                    _ => Err(err()),
                 }
             }
             None => Ok(None),

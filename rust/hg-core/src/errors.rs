@@ -214,6 +214,16 @@ impl HgError {
                 ConfigError::NoUsername { .. } => Some(Cow::Borrowed(
                     "use 'hg config --edit' to set your username",
                 )),
+                ConfigError::WrongQueryType { asked, default_type, .. } => {
+                    let mut hint = format!(
+                        "asked for {asked}, type of default is \
+                        '{default_type}'"
+                    );
+                    if *asked == "bytes" {
+                        hint.push_str(", which cannot be interpreted as bytes");
+                    }
+                    Some(Cow::Owned(hint))
+                }
                 ConfigError::Parse(_)
                 | ConfigError::MalformedCliOption { .. } => None,
             },
@@ -341,6 +351,20 @@ impl fmt::Display for HgError {
                 }
                 ConfigError::NoUsername { backtrace } => {
                     write!(f, "{backtrace}no username supplied")
+                }
+                ConfigError::WrongQueryType {
+                    section,
+                    item,
+                    backtrace,
+                    ..
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}programming error: wrong query on config \
+                        item '{}.{}'",
+                        String::from_utf8_lossy(section),
+                        String::from_utf8_lossy(item)
+                    )
                 }
             },
             HgError::Path(error) => {
