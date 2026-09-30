@@ -151,16 +151,8 @@ impl From<HgError> for CommandError {
                     exit_codes::ABORT,
                 )
             }
-            // These are not prefixed with "abort: ", or have their own prefix.
-            // TODO unify this once `HgError` is better cleaned up.
-            HgError::IO(_)
-            | HgError::ConfigValueParseError(_)
-            | HgError::Pattern(_)
-            | HgError::Dirstate(_)
-            | HgError::FileIndex(_)
-            | HgError::Path(_)
-            | HgError::RaceDetected(_)
-            | HgError::InterruptReceived => {
+            // These bring their own prefix
+            HgError::IO(_) | HgError::ConfigValueParseError(_) => {
                 CommandError::abort_with_exit_code(
                     error.to_string(),
                     error.exit_code(),
