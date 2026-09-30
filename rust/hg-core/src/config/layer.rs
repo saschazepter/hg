@@ -17,8 +17,8 @@ use indexmap::IndexMap;
 use lazy_static::lazy_static;
 use regex::bytes::Regex;
 
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::exit_codes::CONFIG_PARSE_ERROR_ABORT;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
 
@@ -76,15 +76,11 @@ impl ConfigLayer {
             if let Some((section, item, value)) = parse_one(arg) {
                 layer.add(section, item, value, None);
             } else {
-                Err(HgError::abort(
-                    format!(
-                        "malformed --config option: '{}' \
-                        (use --config section.name=value)",
-                        String::from_utf8_lossy(arg),
-                    ),
-                    CONFIG_PARSE_ERROR_ABORT,
-                    None,
-                ))?
+                return Err(ConfigError::MalformedCliOption {
+                    arg: arg.to_owned(),
+                    backtrace: HgBacktrace::capture(),
+                }
+                .into());
             }
         }
         if layer.sections.is_empty() {
@@ -366,6 +362,10 @@ pub enum ConfigError {
     /// A config file failed to parse
     #[from]
     Parse(ConfigParseError),
+    /// This `--config` CLI argument is not of the expected form
+    MalformedCliOption { arg: Vec<u8>, backtrace: HgBacktrace },
+    /// We need a username and there is none
+    NoUsername { backtrace: HgBacktrace },
 }
 
 fn make_regex(pattern: &'static str) -> Regex {

@@ -196,6 +196,10 @@ impl HgError {
             HgError::ConfigValueParseError(_) => exit_codes::CONFIG_ERROR_ABORT,
             HgError::Config(config_error) => match **config_error {
                 ConfigError::Parse(_) => exit_codes::CONFIG_ERROR_ABORT,
+                ConfigError::MalformedCliOption { .. } => {
+                    exit_codes::CONFIG_PARSE_ERROR_ABORT
+                }
+                _ => exit_codes::ABORT,
             },
             HgError::Sparse(_) => exit_codes::STATE_ERROR,
             _ => exit_codes::ABORT,
@@ -206,6 +210,13 @@ impl HgError {
     pub fn hint(&self) -> Option<Cow<'_, str>> {
         match self {
             HgError::Abort { hint, .. } => hint.as_deref().map(Cow::Borrowed),
+            HgError::Config(config_error) => match &**config_error {
+                ConfigError::NoUsername { .. } => Some(Cow::Borrowed(
+                    "use 'hg config --edit' to set your username",
+                )),
+                ConfigError::Parse(_)
+                | ConfigError::MalformedCliOption { .. } => None,
+            },
             HgError::Sparse(sparse_error) => match sparse_error {
                 SparseConfigError::InvalidNarrowPrefix(_) => {
                     Some(Cow::Owned(format!(
@@ -319,6 +330,17 @@ impl fmt::Display for HgError {
                             f.write_str(&String::from_utf8_lossy(line))
                         }
                     }
+                }
+                ConfigError::MalformedCliOption { arg, backtrace } => {
+                    write!(
+                        f,
+                        "{backtrace}malformed --config option: '{}' \
+                        (use --config section.name=value)",
+                        String::from_utf8_lossy(arg),
+                    )
+                }
+                ConfigError::NoUsername { backtrace } => {
+                    write!(f, "{backtrace}no username supplied")
                 }
             },
             HgError::Path(error) => {

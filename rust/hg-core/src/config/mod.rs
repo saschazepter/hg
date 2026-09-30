@@ -37,7 +37,6 @@ use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgResultExt;
 use crate::errors::IoResultExt;
-use crate::exit_codes;
 use crate::utils::files::get_bytes_from_os_str;
 
 lazy_static! {
@@ -860,11 +859,8 @@ impl Config {
         {
             return Ok(value.into_encoded_bytes());
         }
-        Err(HgError::abort(
-            "no username supplied",
-            exit_codes::ABORT,
-            Some("use 'hg config --edit' to set your username".to_string()),
-        ))
+        Err(ConfigError::NoUsername { backtrace: HgBacktrace::capture() }
+            .into())
     }
 }
 

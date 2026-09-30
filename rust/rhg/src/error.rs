@@ -156,6 +156,7 @@ impl From<HgError> for CommandError {
             // These have filenames, which are formatted as bytes
             HgError::Config(config_error) => match *config_error {
                 ConfigError::Parse(parse_error) => parse_error.into(),
+                other => CommandError::prefixed_abort(other.into()),
             },
             HgError::Sparse(sparse_error) => sparse_error.into(),
             HgError::RepoNotFound { at, backtrace } => {
