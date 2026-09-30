@@ -89,6 +89,9 @@ impl ErrorKind {
                 HgError::UnsupportedFeature(..) => ErrorCode::Unsupported,
                 HgError::ConfigValueParseError(_) => ErrorCode::InvalidConfig,
                 HgError::RepoNotFound { .. } => ErrorCode::RepoNotFound,
+                HgError::SharedPathNotFound { .. } => {
+                    ErrorCode::CorruptedRepository
+                }
                 HgError::InterruptReceived => ErrorCode::Interrupted,
                 HgError::Requirements(error) => match error.kind {
                     RequirementsErrorKind::ParseError => {
@@ -195,6 +198,11 @@ pub fn hg_message(error: &HgError) -> Message {
         HgError::RepoNotFound { at, .. } => message!(
             "no repository found in {path}",
             path = get_bytes_from_path(at)
+        ),
+        HgError::SharedPathNotFound { shared_path, .. } => message!(
+            "corrupted repository: .hg/sharedpath points to nonexistent \
+            directory {path}",
+            path = get_bytes_from_path(shared_path)
         ),
         // TODO render these once `hg-core` gives them structure
         HgError::IO(_)

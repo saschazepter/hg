@@ -833,10 +833,10 @@ fn load_requirements(
             shared_path = dot_hg.join(shared_path)
         }
         if !is_dir(&shared_path)? {
-            return Err(HgError::corrupted(format!(
-                ".hg/sharedpath points to nonexistent directory {}",
-                shared_path.display()
-            )));
+            return Err(HgError::SharedPathNotFound {
+                shared_path,
+                backtrace: HgBacktrace::capture(),
+            });
         }
 
         store_path = shared_path.join("store");

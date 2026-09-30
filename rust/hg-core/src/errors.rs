@@ -95,6 +95,8 @@ pub enum HgError {
     InterruptReceived,
     /// No repository was found for an operation that required one
     RepoNotFound { at: PathBuf, backtrace: HgBacktrace },
+    /// The repository is a share whose source does not exist
+    SharedPathNotFound { shared_path: PathBuf, backtrace: HgBacktrace },
 }
 
 impl From<StatusError> for HgError {
@@ -236,6 +238,14 @@ impl fmt::Display for HgError {
                     f,
                     "{backtrace}no repository found in '{}' (.hg not found)!",
                     at.display()
+                )
+            }
+            HgError::SharedPathNotFound { shared_path, backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}.hg/sharedpath points to nonexistent \
+                    directory {}",
+                    shared_path.display()
                 )
             }
             HgError::Revlog(revlog_error) => match revlog_error {
