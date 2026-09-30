@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use format_bytes::write_bytes;
 use hg::config::Config;
 use hg::config::ConfigOrigin;
-use hg::errors::HgError;
 
+use crate::error::CommandError;
 use crate::ui::formatted;
 use crate::ui::plain;
 
@@ -192,7 +192,7 @@ enum ColorMode {
 
 impl ColorMode {
     // Similar to _modesetup in mercurial/color.py
-    fn get(config: &Config) -> Result<Option<Self>, HgError> {
+    fn get(config: &Config) -> Result<Option<Self>, CommandError> {
         if plain(Some("color")) {
             return Ok(None);
         }
@@ -202,7 +202,7 @@ impl ColorMode {
             .get_with_origin(b"ui", b"color")
             .unwrap_or((enabled_default, &ConfigOrigin::CommandLineColor));
         if enabled == b"debug" {
-            return Err(HgError::unsupported("debug color mode"));
+            return Err(CommandError::unsupported("debug color mode"));
         }
         let auto = enabled == b"auto";
         let always = if !auto {
@@ -225,7 +225,7 @@ impl ColorMode {
             match mode {
                 b"ansi" | b"auto" => Ok(Some(ColorMode::Ansi)),
                 // TODO: support other modes
-                _ => Err(HgError::unsupported(format!(
+                _ => Err(CommandError::unsupported(format!(
                     "color mode {}",
                     String::from_utf8_lossy(mode)
                 ))),
@@ -242,7 +242,7 @@ pub struct ColorConfig {
 
 impl ColorConfig {
     // Similar to _modesetup in mercurial/color.py
-    pub fn new(config: &Config) -> Result<Option<Self>, HgError> {
+    pub fn new(config: &Config) -> Result<Option<Self>, CommandError> {
         Ok(ColorMode::get(config)?.map(|ColorMode::Ansi| ColorConfig {
             styles: effects_from_config(config),
         }))

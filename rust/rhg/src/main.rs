@@ -377,8 +377,7 @@ fn rhg_main(argv: Vec<OsString>) -> ! {
         config_cow.to_mut().tweakdefaults()
     };
     let config = config_cow.as_ref();
-    let ui = Ui::new(config)
-        .unwrap_or_else(|error| early_exit(config, error.into()));
+    let ui = Ui::new(config).unwrap_or_else(|error| early_exit(config, error));
 
     if let Ok(true) = config.get_bool(b"rhg", b"fallback-immediately") {
         exit(

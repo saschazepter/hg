@@ -18,6 +18,7 @@ use hg::warnings::format::write_warning;
 
 use crate::color::ColorConfig;
 use crate::color::Effect;
+use crate::error::CommandError;
 
 pub struct Ui {
     stdout: std::io::Stdout,
@@ -36,7 +37,7 @@ pub enum UiError {
 
 /// The commandline user interface
 impl Ui {
-    pub fn new(config: &Config) -> Result<Self, HgError> {
+    pub fn new(config: &Config) -> Result<Self, CommandError> {
         Ok(Ui {
             // If using something else, also adapt `isatty()` below.
             stdout: std::io::stdout(),

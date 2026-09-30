@@ -201,7 +201,7 @@ macro_rules! record {
 mod tests {
     use format_bytes::message;
     use hg::errors::HgError;
-    use hg::exit_codes::ABORT;
+    use hg::sparse::SparseConfigError;
 
     use super::*;
     use crate::diagnostic::Snippet;
@@ -304,7 +304,9 @@ mod tests {
         let snippet =
             || Snippet::new(b"x".to_vec()).label(0..1, message!("here"));
         output.warn(Warning::new(message!("a")).with_snippet(snippet()));
-        let error = HgError::abort("b", ABORT, Some("c".into()));
+        // Any error with a hint
+        let error = HgError::from(SparseConfigError::StaleNarrowspec);
+        assert!(error.hint().is_some());
         let error = CommandError::from(error);
         output.error(&error.with_snippet(snippet()));
         assert_eq!(output.into_inner().1.0.len(), 2);

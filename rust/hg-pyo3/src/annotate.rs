@@ -8,7 +8,6 @@ use std::sync::Mutex;
 
 use hg::FastHashMap;
 use hg::Revision;
-use hg::errors::HgError;
 use hg::operations::AnnotateOptions;
 use hg::operations::AnnotateOutput;
 use hg::operations::ChangesetAnnotatedFile;
@@ -17,6 +16,7 @@ use hg::revlog::RevisionOrWdir;
 use hg::utils::hg_path::HgPath;
 use hg::utils::strings::CleanWhitespace;
 use pyo3::exceptions::PyValueError;
+use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use pyo3::types::PyDict;
@@ -84,8 +84,7 @@ impl PyChangeCtx {
             AnnotateOutput::Text(output) => FoundAnnotateOutput::Text(output),
             AnnotateOutput::Binary => FoundAnnotateOutput::Binary,
             AnnotateOutput::NotFound => {
-                return handle_not_found(&repo, self.revision, path)
-                    .into_pyerr(py);
+                return handle_not_found(py, &repo, self.revision, path);
             }
         };
         let py_repo = self.py_repo.clone_ref(py);
@@ -118,19 +117,25 @@ enum FoundAnnotateOutput {
 
 /// Similar to `handle_not_found` in rust/rhg/src/commands/annotate.rs.
 fn handle_not_found<T>(
+    py: Python<'_>,
     repo: &Repo,
     rev: RevisionOrWdir,
     path: &HgPath,
-) -> Result<T, HgError> {
-    Err(HgError::abort_simple(match rev.exclude_wdir() {
+) -> PyResult<T> {
+    let message = match rev.exclude_wdir() {
         Some(rev) => {
-            let short = repo.changelog()?.node_from_rev(rev).short();
+            let changelog = repo.changelog().into_pyerr(py)?;
+            let short = changelog.node_from_rev(rev).short();
             format!("{path}: no such file in rev {short:x}",)
         }
         None => {
             format!("{path}: No such file or directory")
         }
-    }))
+    };
+    let cls = py
+        .import(intern!(py, "mercurial.error"))?
+        .getattr(intern!(py, "Abort"))?;
+    Err(PyErr::from_value(cls.call1((message.as_bytes(),))?))
 }
 
 /// Replacement for a Python filectx in the annotate command.

@@ -1,6 +1,5 @@
 use clap::Arg;
 use format_bytes::format_bytes;
-use hg::errors::HgError;
 use hg::utils::strings::SliceExt;
 
 use crate::error::CommandError;
@@ -27,7 +26,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         .expect("missing required CLI argument")
         .as_bytes()
         .split_2(b'.')
-        .ok_or_else(|| HgError::unsupported("hg config <section>"))?;
+        .ok_or_else(|| CommandError::unsupported("hg config <section>"))?;
 
     if let Some(value) = invocation.config.get(section, name) {
         invocation.ui.write_stdout(&format_bytes!(b"{}\n", value))?;
