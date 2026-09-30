@@ -131,19 +131,21 @@ linux-wheels: linux-wheels-x86_64 linux-wheels-x86_64-musl linux-wheels-i686 lin
 img_reg="registry.heptapod.net/mercurial/ci-images"
 img_tag="v3.3"
 whl_sh="/src/contrib/packaging/build-linux-wheels.sh"
+# Override with an empty value to run without a tty (e.g. `make -j4 linux-wheels`)
+DOCKER_RUN_OPTS?=-ti
 
 .PHONY: linux-wheels-x86_64
 linux-wheels-x86_64:
-	docker run --rm -ti -v `pwd`/../..:/src $(img_reg)/core-wheel-x86_64-c:$(img_tag) $(whl_sh)
+	docker run --rm $(DOCKER_RUN_OPTS) -v `pwd`/../..:/src $(img_reg)/core-wheel-x86_64-c:$(img_tag) $(whl_sh)
 
 .PHONY: linux-wheels-x86_64-musl
 linux-wheels-x86_64-musl:
-	docker run --rm -ti -v `pwd`/../..:/src $(img_reg)/core-wheel-x86_64-musl-c:$(img_tag) $(whl_sh)
+	docker run --rm $(DOCKER_RUN_OPTS) -v `pwd`/../..:/src $(img_reg)/core-wheel-x86_64-musl-c:$(img_tag) $(whl_sh)
 
 .PHONY: linux-wheels-i686
 linux-wheels-i686:
-	docker run --rm -ti -v `pwd`/../..:/src $(img_reg)/core-wheel-i686-c:$(img_tag) $(whl_sh)
+	docker run --rm $(DOCKER_RUN_OPTS) -v `pwd`/../..:/src $(img_reg)/core-wheel-i686-c:$(img_tag) $(whl_sh)
 
 .PHONY: linux-wheels-i686-musl
 linux-wheels-i686-musl:
-	docker run --rm -ti -v `pwd`/../..:/src $(img_reg)/core-wheel-i686-musl-c:$(img_tag) $(whl_sh)
+	docker run --rm $(DOCKER_RUN_OPTS) -v `pwd`/../..:/src $(img_reg)/core-wheel-i686-musl-c:$(img_tag) $(whl_sh)
