@@ -408,6 +408,20 @@ impl fmt::Display for HgError {
                 RevlogError::UnboundDeltaChain { base, rev, backtrace } => {
                     write!(f, "{backtrace}unbound delta chain {base} <- {rev}")
                 }
+                RevlogError::WriteOutsideContext { backtrace } => {
+                    write!(
+                        f,
+                        "{backtrace}adding revision outside of the \
+                        `with_write` context"
+                    )
+                }
+                RevlogError::NoDelayNorDivert { backtrace } => {
+                    write!(
+                        f,
+                        "{backtrace}neither delay nor divert found on this \
+                        revlog"
+                    )
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

@@ -59,7 +59,6 @@ use crate::dyn_bytes::DynBytes;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::IoResultExt;
-use crate::exit_codes;
 use crate::revlog::RevlogIndexNodeLookup;
 use crate::revlog::RevlogType;
 use crate::revlog::index::RevisionDataParams;
@@ -1405,11 +1404,10 @@ impl InnerRevlog {
         let is_inline = self.is_inline();
         let handles = match &mut self.writing_handles {
             None => {
-                return Err(HgError::abort(
-                    "adding revision outside of the `with_write` context",
-                    exit_codes::ABORT,
-                    None,
-                ));
+                return Err(RevlogError::WriteOutsideContext {
+                    backtrace: HgBacktrace::capture(),
+                }
+                .into());
             }
             Some(handles) => handles,
         };
@@ -1458,11 +1456,10 @@ impl InnerRevlog {
                 }
             }
         } else if self.delayed_buffer.is_some() {
-            return Err(HgError::abort(
-                "invalid delayed write on inline revlog",
-                exit_codes::ABORT,
-                None,
-            ));
+            return Err(RevlogError::InlineDelayedWrite {
+                backtrace: HgBacktrace::capture(),
+            }
+            .into());
         } else {
             offset += current_revision * INDEX_ENTRY_SIZE;
             transaction.add(&canonical_index_file, offset);
@@ -1542,11 +1539,10 @@ impl InnerRevlog {
     pub fn delay(&mut self) -> Result<Option<PathBuf>, HgError> {
         assert!(!self.is_open());
         if self.is_inline() {
-            return Err(HgError::abort(
-                "revlog with delayed write should not be inline",
-                exit_codes::ABORT,
-                None,
-            ));
+            return Err(RevlogError::InlineDelayedWrite {
+                backtrace: HgBacktrace::capture(),
+            }
+            .into());
         }
         if self.delayed_buffer.is_some() || self.original_index_file.is_some() {
             // Delay or divert already happening
@@ -1573,11 +1569,10 @@ impl InnerRevlog {
     ) -> Result<(Option<PathBuf>, bool), HgError> {
         assert!(!self.is_open());
         if self.is_inline() {
-            return Err(HgError::abort(
-                "revlog with delayed write should not be inline",
-                exit_codes::ABORT,
-                None,
-            ));
+            return Err(RevlogError::InlineDelayedWrite {
+                backtrace: HgBacktrace::capture(),
+            }
+            .into());
         }
         if self.original_index_file.is_some() {
             return Ok((None, true));
@@ -1612,20 +1607,18 @@ impl InnerRevlog {
     pub fn finalize_pending(&mut self) -> Result<PathBuf, HgError> {
         assert!(!self.is_open());
         if self.is_inline() {
-            return Err(HgError::abort(
-                "revlog with delayed write should not be inline",
-                exit_codes::ABORT,
-                None,
-            ));
+            return Err(RevlogError::InlineDelayedWrite {
+                backtrace: HgBacktrace::capture(),
+            }
+            .into());
         }
         match (self.delayed_buffer.as_ref(), self.original_index_file.as_ref())
         {
             (None, None) => {
-                return Err(HgError::abort(
-                    "neither delay nor divert found on this revlog",
-                    exit_codes::ABORT,
-                    None,
-                ));
+                return Err(RevlogError::NoDelayNorDivert {
+                    backtrace: HgBacktrace::capture(),
+                }
+                .into());
             }
             (Some(delay), None) => {
                 let mut index_file_handle =

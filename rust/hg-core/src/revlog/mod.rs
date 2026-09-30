@@ -464,6 +464,12 @@ pub enum RevlogError {
         rev: Revision,
         backtrace: HgBacktrace,
     },
+    /// A revision was added outside of the write context, this is a
+    /// programming error.
+    WriteOutsideContext { backtrace: HgBacktrace },
+    /// Pending data was finalized on a revlog that was neither delayed nor
+    /// diverted, this is a programming error.
+    NoDelayNorDivert { backtrace: HgBacktrace },
 }
 
 impl From<HgIoError> for RevlogError {
