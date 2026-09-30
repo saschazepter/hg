@@ -476,8 +476,14 @@ pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
                     _ => m.getattr(intern!(py, "Abort")),
                 })
                 .expect("failed to import error.Abort");
+            let kwargs = PyDict::new(py);
+            if let Some(hint) = e.hint() {
+                kwargs
+                    .set_item(intern!(py, "hint"), hint.as_bytes())
+                    .expect("setting the hint of an error.Abort failed");
+            }
             PyErr::from_value(
-                cls.call1((e.to_string().as_bytes(),))
+                cls.call((e.to_string().as_bytes(),), Some(&kwargs))
                     .expect("initializing an error.Abort failed"),
             )
         }
