@@ -44,6 +44,7 @@ use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgIoError;
 use crate::errors::IoResultExt;
+use crate::revlog::changelog::ChangelogErrorKind;
 use crate::revlog::index::Index;
 use crate::revlog::nodemap::validate_persistent_nodemap;
 use crate::utils::RawData;
@@ -451,6 +452,8 @@ pub enum RevlogError {
     /// A read-only bulk scan of a revlog was requested while the revlog had
     /// writes in flight.
     BulkReadDuringWrite { backtrace: HgBacktrace },
+    /// The contents of a changelog entry are invalid
+    CorruptedChangelog { kind: ChangelogErrorKind, backtrace: HgBacktrace },
     /// The base of a delta is not a valid revision
     BadDeltaBase {
         base: UncheckedRevision,

@@ -20,6 +20,7 @@ use crate::narrow::shape::DeserializationError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
 use crate::revlog::RevlogError;
+use crate::revlog::changelog::ChangelogErrorKind;
 use crate::segmented_bytes::ErrorKind as SegmentedBytesErrorKind;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
@@ -404,6 +405,52 @@ impl fmt::Display for HgError {
                         "{backtrace}cannot bulk read a revlog that is being \
                          written to"
                     )
+                }
+                RevlogError::CorruptedChangelog { kind, backtrace } => {
+                    backtrace.fmt(f)?;
+                    match kind {
+                        ChangelogErrorKind::TimestampNotUtf8(error) => {
+                            write!(f, "timestamp is not valid UTF-8: {error}")
+                        }
+                        ChangelogErrorKind::InvalidTimestamp(error) => {
+                            write!(f, "failed to parse timestamp: {error}")
+                        }
+                        ChangelogErrorKind::TimestampOutOfRange(timestamp) => {
+                            write!(
+                                f,
+                                "float timestamp out of valid range: \
+                                {timestamp}"
+                            )
+                        }
+                        ChangelogErrorKind::MissingTimezone => {
+                            write!(f, "missing timezone")
+                        }
+                        ChangelogErrorKind::TimezoneNotUtf8(error) => {
+                            write!(f, "timezone is not valid UTF-8: {error}")
+                        }
+                        ChangelogErrorKind::InvalidTimezone(error) => {
+                            write!(f, "timezone is not an integer: {error}")
+                        }
+                        ChangelogErrorKind::TimezoneOutOfBounds(_) => {
+                            write!(f, "timezone offset out of bounds")
+                        }
+                        ChangelogErrorKind::EmptyExtraKey => {
+                            write!(f, "empty key in changeset extras")
+                        }
+                        ChangelogErrorKind::InvalidExtraKey(key) => {
+                            write!(
+                                f,
+                                "invalid key in changeset extras: {}",
+                                String::from_utf8_lossy(key)
+                            )
+                        }
+                        ChangelogErrorKind::MissingExtraValue(key) => {
+                            write!(
+                                f,
+                                "missing value for changeset extra: {key}"
+                            )
+                        }
+                    }
                 }
                 RevlogError::BadDeltaBase { base, rev, backtrace } => {
                     write!(f, "{backtrace}bad base {base} <- {rev}")

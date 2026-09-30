@@ -297,12 +297,12 @@ impl ChangelogRevisionData {
     }
 
     /// Parsed timestamp.
-    pub fn timestamp(&self) -> Result<DateTime<FixedOffset>, HgError> {
+    pub fn timestamp(&self) -> Result<DateTime<FixedOffset>, RevlogError> {
         parse_timestamp(self.rev, self.timestamp_line())
     }
 
     /// Optional commit extras.
-    pub fn extra(&self) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
+    pub fn extra(&self) -> Result<BTreeMap<String, Vec<u8>>, RevlogError> {
         parse_timestamp_line_extra(self.timestamp_line())
     }
 
@@ -381,7 +381,7 @@ fn debug_bytes(bytes: &[u8]) -> String {
 fn parse_timestamp(
     rev: Revision,
     timestamp_line: &[u8],
-) -> Result<DateTime<FixedOffset>, HgError> {
+) -> Result<DateTime<FixedOffset>, RevlogError> {
     let mut parts = timestamp_line.splitn(3, |c| *c == b' ');
 
     let timestamp_bytes = parts.next().ok_or_else(|| {
@@ -391,38 +391,30 @@ fn parse_timestamp(
             backtrace: HgBacktrace::capture(),
         }
     })?;
-    let timestamp_str = str::from_utf8(timestamp_bytes).map_err(|e| {
-        HgError::corrupted(format!("timestamp is not valid UTF-8: {e}"))
-    })?;
-    let timestamp_utc = timestamp_str
+    let timestamp_str = str::from_utf8(timestamp_bytes)
+        .map_err(|e| corrupted(ChangelogErrorKind::TimestampNotUtf8(e)))?;
+    let timestamp_utc = match timestamp_str
         .parse()
-        .map_err(|e| {
-            HgError::corrupted(format!("failed to parse timestamp: {e}"))
-        })
-        .and_then(|secs| {
-            DateTime::from_timestamp(secs, 0).ok_or_else(|| {
-                HgError::corrupted(format!(
-                    "integer timestamp out of valid range: {secs}"
-                ))
-            })
-        })
+        .ok()
+        .and_then(|secs| DateTime::from_timestamp(secs, 0))
+    {
+        Some(timestamp) => timestamp,
         // Attempt to parse the timestamp as a float if we can't parse
         // it as an int. It doesn't seem like float timestamps are actually
         // used in practice, but the Python code supports them.
-        .or_else(|_| parse_float_timestamp(timestamp_str))?;
+        None => parse_float_timestamp(timestamp_str)?,
+    };
 
-    let timezone_bytes =
-        parts.next().ok_or_else(|| HgError::corrupted("missing timezone"))?;
+    let timezone_bytes = parts
+        .next()
+        .ok_or_else(|| corrupted(ChangelogErrorKind::MissingTimezone))?;
     let timezone_secs: i32 = str::from_utf8(timezone_bytes)
-        .map_err(|e| {
-            HgError::corrupted(format!("timezone is not valid UTF-8: {e}"))
-        })?
+        .map_err(|e| corrupted(ChangelogErrorKind::TimezoneNotUtf8(e)))?
         .parse()
-        .map_err(|e| {
-            HgError::corrupted(format!("timezone is not an integer: {e}"))
-        })?;
-    let timezone = FixedOffset::west_opt(timezone_secs)
-        .ok_or_else(|| HgError::corrupted("timezone offset out of bounds"))?;
+        .map_err(|e| corrupted(ChangelogErrorKind::InvalidTimezone(e)))?;
+    let timezone = FixedOffset::west_opt(timezone_secs).ok_or_else(|| {
+        corrupted(ChangelogErrorKind::TimezoneOutOfBounds(timezone_secs))
+    })?;
 
     Ok(timestamp_utc.with_timezone(&timezone))
 }
@@ -431,10 +423,10 @@ fn parse_timestamp(
 /// convert the result into a `chrono::NaiveDateTime`.
 fn parse_float_timestamp(
     timestamp_str: &str,
-) -> Result<DateTime<Utc>, HgError> {
-    let timestamp = timestamp_str.parse::<f64>().map_err(|e| {
-        HgError::corrupted(format!("failed to parse timestamp: {e}"))
-    })?;
+) -> Result<DateTime<Utc>, RevlogError> {
+    let timestamp = timestamp_str
+        .parse::<f64>()
+        .map_err(|e| corrupted(ChangelogErrorKind::InvalidTimestamp(e)))?;
 
     // To construct a `NaiveDateTime` we'll need to convert the float
     // into signed integer seconds and unsigned integer nanoseconds.
@@ -460,10 +452,38 @@ fn parse_float_timestamp(
     let nsecs = (subsecs * 1_000_000_000.0) as u32;
 
     DateTime::from_timestamp(secs, nsecs).ok_or_else(|| {
-        HgError::corrupted(format!(
-            "float timestamp out of valid range: {timestamp}"
-        ))
+        corrupted(ChangelogErrorKind::TimestampOutOfRange(timestamp))
     })
+}
+
+/// Shorthand for creating an error about a corrupted changelog entry
+fn corrupted(kind: ChangelogErrorKind) -> RevlogError {
+    RevlogError::CorruptedChangelog { kind, backtrace: HgBacktrace::capture() }
+}
+
+/// The different ways the contents of a changelog entry can be invalid
+#[derive(Debug, PartialEq)]
+pub enum ChangelogErrorKind {
+    /// The timestamp is not valid UTF-8
+    TimestampNotUtf8(std::str::Utf8Error),
+    /// The timestamp is neither an integer nor a float
+    InvalidTimestamp(std::num::ParseFloatError),
+    /// The timestamp cannot be represented as a date
+    TimestampOutOfRange(f64),
+    /// There is no timezone after the timestamp
+    MissingTimezone,
+    /// The timezone is not valid UTF-8
+    TimezoneNotUtf8(std::str::Utf8Error),
+    /// The timezone is not an integer
+    InvalidTimezone(std::num::ParseIntError),
+    /// The timezone is further than a day away from UTC, in seconds
+    TimezoneOutOfBounds(i32),
+    /// One of the keys of the extras is empty
+    EmptyExtraKey,
+    /// One of the keys of the extras has characters that are not allowed
+    InvalidExtraKey(Vec<u8>),
+    /// The given key of the extras has no associated value
+    MissingExtraValue(String),
 }
 
 /// Decode changeset extra fields.
@@ -471,17 +491,19 @@ fn parse_float_timestamp(
 /// Extras are null-delimited key-value pairs where the key consists of ASCII
 /// alphanumeric characters plus hyphens and underscores, and the value can
 /// contain arbitrary bytes.
-fn decode_extra(extra: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
+fn decode_extra(
+    extra: &[u8],
+) -> Result<BTreeMap<String, Vec<u8>>, RevlogError> {
     extra
         .split(|c| *c == b'\0')
         .map(|pair| {
             let pair = unescape_extra(pair);
             let mut iter = pair.splitn(2, |c| *c == b':');
 
-            let key_bytes =
-                iter.next().filter(|k| !k.is_empty()).ok_or_else(|| {
-                    HgError::corrupted("empty key in changeset extras")
-                })?;
+            let key_bytes = iter
+                .next()
+                .filter(|k| !k.is_empty())
+                .ok_or_else(|| corrupted(ChangelogErrorKind::EmptyExtraKey))?;
 
             let key = str::from_utf8(key_bytes)
                 .ok()
@@ -491,17 +513,14 @@ fn decode_extra(extra: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
                     })
                 })
                 .ok_or_else(|| {
-                    let key = String::from_utf8_lossy(key_bytes);
-                    HgError::corrupted(format!(
-                        "invalid key in changeset extras: {key}",
+                    corrupted(ChangelogErrorKind::InvalidExtraKey(
+                        key_bytes.to_vec(),
                     ))
                 })?
                 .to_string();
 
             let value = iter.next().map(Into::into).ok_or_else(|| {
-                HgError::corrupted(format!(
-                    "missing value for changeset extra: {key}"
-                ))
+                corrupted(ChangelogErrorKind::MissingExtraValue(key.clone()))
             })?;
 
             Ok((key, value))
@@ -512,7 +531,7 @@ fn decode_extra(extra: &[u8]) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
 /// Parse the extra fields from a changeset's timestamp line.
 fn parse_timestamp_line_extra(
     timestamp_line: &[u8],
-) -> Result<BTreeMap<String, Vec<u8>>, HgError> {
+) -> Result<BTreeMap<String, Vec<u8>>, RevlogError> {
     Ok(timestamp_line
         .splitn(3, |c| *c == b' ')
         .nth(2)
