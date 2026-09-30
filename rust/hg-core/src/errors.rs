@@ -11,6 +11,7 @@ use format_bytes::DisplayBytes;
 
 use crate::config::ConfigError;
 use crate::config::ConfigParseError;
+use crate::config::ConfigParseErrorKind;
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
 use crate::dirstate::on_disk::DirstateV2ParseError;
@@ -282,11 +283,7 @@ impl fmt::Display for HgError {
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
             HgError::Config(config_error) => match &**config_error {
-                ConfigError::Parse(ConfigParseError {
-                    origin,
-                    line,
-                    message,
-                }) => {
+                ConfigError::Parse(ConfigParseError { origin, line, kind }) => {
                     // TODO: make `ConfigOrigin` not bytes-only
                     let mut origin_bytes = vec![];
                     origin
@@ -301,7 +298,27 @@ impl fmt::Display for HgError {
                         write!(f, ":{line}")?;
                     }
                     f.write_str(": ")?;
-                    f.write_str(&String::from_utf8_lossy(message))
+                    match kind {
+                        ConfigParseErrorKind::CannotInclude {
+                            filename,
+                            error,
+                        } => write!(
+                            f,
+                            "cannot include {} ({})",
+                            String::from_utf8_lossy(filename),
+                            error
+                        ),
+                        ConfigParseErrorKind::UnexpectedLeadingWhitespace(
+                            line,
+                        ) => write!(
+                            f,
+                            "unexpected leading whitespace: {}",
+                            String::from_utf8_lossy(line)
+                        ),
+                        ConfigParseErrorKind::InvalidLine(line) => {
+                            f.write_str(&String::from_utf8_lossy(line))
+                        }
+                    }
                 }
             },
             HgError::Path(error) => {

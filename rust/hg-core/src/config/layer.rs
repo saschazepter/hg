@@ -12,7 +12,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use format_bytes::DisplayBytes;
-use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 use indexmap::IndexMap;
 use lazy_static::lazy_static;
@@ -196,11 +195,10 @@ impl ConfigLayer {
                             return Err(ConfigParseError {
                                 origin: ConfigOrigin::File(src.to_owned()),
                                 line,
-                                message: format_bytes!(
-                                    b"cannot include {} ({})",
-                                    filename_bytes,
-                                    format_bytes::Utf8(error)
-                                ),
+                                kind: ConfigParseErrorKind::CannotInclude {
+                                    filename: filename_bytes.into_owned(),
+                                    error,
+                                },
                             }
                             .into());
                         }
@@ -233,15 +231,17 @@ impl ConfigLayer {
                     map.shift_remove(&m[1]);
                 }
             } else {
-                let message = if bytes.starts_with(b" ") {
-                    format_bytes!(b"unexpected leading whitespace: {}", bytes)
+                let kind = if bytes.starts_with(b" ") {
+                    ConfigParseErrorKind::UnexpectedLeadingWhitespace(
+                        bytes.to_owned(),
+                    )
                 } else {
-                    bytes.to_owned()
+                    ConfigParseErrorKind::InvalidLine(bytes.to_owned())
                 };
                 return Err(ConfigParseError {
                     origin: ConfigOrigin::File(src.to_owned()),
                     line,
-                    message,
+                    kind,
                 }
                 .into());
             }
@@ -335,11 +335,23 @@ impl DisplayBytes for ConfigOrigin {
     }
 }
 
+/// The different ways parsing a config file can fail
+#[derive(Debug)]
+pub enum ConfigParseErrorKind {
+    /// The file in this `%include` directive exists but cannot be read
+    CannotInclude { filename: Vec<u8>, error: std::io::Error },
+    /// This line starts with whitespace, but is not a continuation
+    UnexpectedLeadingWhitespace(Vec<u8>),
+    /// This line is not valid
+    InvalidLine(Vec<u8>),
+}
+
+/// A config file that failed to parse
 #[derive(Debug)]
 pub struct ConfigParseError {
     pub origin: ConfigOrigin,
     pub line: Option<usize>,
-    pub message: Vec<u8>,
+    pub kind: ConfigParseErrorKind,
 }
 
 impl From<ConfigParseError> for HgError {

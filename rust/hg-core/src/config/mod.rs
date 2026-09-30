@@ -24,6 +24,7 @@ use format_bytes::write_bytes;
 pub use layer::ConfigError;
 pub use layer::ConfigOrigin;
 pub use layer::ConfigParseError;
+pub use layer::ConfigParseErrorKind;
 use lazy_static::lazy_static;
 pub use plain_info::PlainInfo;
 

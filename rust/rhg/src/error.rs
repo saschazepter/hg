@@ -3,6 +3,7 @@ use std::convert::From;
 use format_bytes::format_bytes;
 use hg::config::ConfigError;
 use hg::config::ConfigParseError;
+use hg::config::ConfigParseErrorKind;
 use hg::config::ConfigValueParseError;
 use hg::dirstate::DirstateError;
 use hg::dirstate::status::StatusError;
@@ -220,11 +221,24 @@ impl From<ConfigError> for CommandError {
 
 impl From<ConfigParseError> for CommandError {
     fn from(error: ConfigParseError) -> Self {
-        let ConfigParseError { origin, line, message } = error;
+        let ConfigParseError { origin, line, kind } = error;
         let line_message = if let Some(line_number) = line {
             format_bytes!(b":{}", line_number.to_string().into_bytes())
         } else {
             Vec::new()
+        };
+        let message = match kind {
+            ConfigParseErrorKind::CannotInclude { filename, error } => {
+                format_bytes!(
+                    b"cannot include {} ({})",
+                    filename,
+                    format_bytes::Utf8(error)
+                )
+            }
+            ConfigParseErrorKind::UnexpectedLeadingWhitespace(line) => {
+                format_bytes!(b"unexpected leading whitespace: {}", line)
+            }
+            ConfigParseErrorKind::InvalidLine(line) => line,
         };
         CommandError::abort_with_exit_code_bytes(
             format_bytes!(
