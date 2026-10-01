@@ -11,7 +11,6 @@ use hg::narrow::shape::ShardName;
 use hg::narrow::shape::ShardTreeNode;
 use hg::narrow::shape::StoreShards;
 use hg::utils::hg_path::HgPathBuf;
-use hg::utils::strings::SliceExt;
 use pyo3::Bound;
 use pyo3::PyResult;
 use pyo3::Python;
@@ -118,8 +117,8 @@ impl PyStoreShards {
         Ok(PyList::new(py, sharded_iter)?.unbind())
     }
 
-    /// Return a [`PyList`] of all hexadecimal shard fingerprints for this
-    /// shape, or `None` if it does not exist.
+    /// Return a [`PyList`] of all sets of shard fingerprints for this shape,
+    /// or `None` if it does not exist.
     ///
     /// See [`StoreShards::shard_fingerprints_for_shape`].
     pub fn shard_fingerprints_for_shape(
@@ -136,9 +135,7 @@ impl PyStoreShards {
             .map(|group| {
                 PySet::new(
                     py,
-                    group
-                        .into_iter()
-                        .map(|fingerprint| fingerprint.to_hex_bytes()),
+                    group.into_iter().map(|fingerprint| fingerprint.to_vec()),
                 )
             })
             .collect();
