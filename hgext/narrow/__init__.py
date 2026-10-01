@@ -280,6 +280,11 @@ configuration as the one defining the store's shards. Mercurial only checks
 that its values are valid. Changing ``read-write-access`` is neither a
 reshaping nor a resharding.
 
+The ``read-write-access`` of every shard can be listed by shard id (as found
+in sharded bundles) with::
+
+  $ hg admin::narrow-server --store-shards -Tjson
+
 Updating the profiles config
 ............................
 

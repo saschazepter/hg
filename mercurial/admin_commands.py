@@ -160,6 +160,12 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
         ),
         (
             b'',
+            b'store-shards',
+            None,
+            _(b'list the access of every shard, by shard id'),
+        ),
+        (
+            b'',
             b'shape-update',
             None,
             _(b"update the server-shape file for this repo"),
@@ -227,6 +233,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         "shape_narrow_patterns",
         "shape_files",
         "shape_files_hidden",
+        "store_shards",
         "shape_update",
         "shape_clear_previous",
     )
@@ -285,6 +292,19 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                     **shape.fingerprint()
                 ).to_text()
                 fm.write(b"fingerprint name", b"%s %s\n", fingerprint, name)
+            return
+        elif subcommand == "store_shards":
+            shards = store_shards.list_shards()
+            for shard_id, read_write_access in shards:
+                fm.startitem()
+                fm.write(b"shard_id", b"%s", shard_id)
+                fm.condwrite(
+                    bool(read_write_access),
+                    b"read_write_access",
+                    b" read-write-access=%s",
+                    fm.formatlist(read_write_access, name=b"value", sep=b","),
+                )
+                fm.plain(b"\n")
             return
         elif subcommand == "shape_patterns":
             # TODO formatter?

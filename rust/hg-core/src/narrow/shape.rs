@@ -477,6 +477,19 @@ impl StoreShards {
         Shape::new(shard_names, self, &shards)
     }
 
+    /// Return the standalone fingerprint (aka shard-id) of every shard, along
+    /// with its `read-write-access`, sorted by shard-id.
+    pub fn list_shards(&self) -> Vec<(Fingerprint, &[String])> {
+        self.shards
+            .values()
+            .filter_map(|shard| {
+                let shard_id = ShardShape::new(self, shard)?.fingerprint();
+                Some((shard_id, shard.read_write_access.as_slice()))
+            })
+            .sorted_by_key(|(shard_id, _)| *shard_id.digest())
+            .collect()
+    }
+
     /// Return enough information about each shard in the store to generate
     /// sharded bundles. See the public methods on [`ShardShape`].
     pub fn sharded_bundle_info(&self) -> Vec<ShardShape> {
