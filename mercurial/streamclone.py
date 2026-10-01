@@ -82,13 +82,13 @@ DEFAULT_MEMORY_TARGET = {
 }
 
 
-def _is_hex_fp(inst, attr, value: bytes):
+def _is_raw_fp(inst, attr, value: bytes):
     """simple attrs validator to validate the fingerprint format
 
     For now, fingerprint are expect to be in the "text" form, using hexadecimal
     encoding. This will change soon™.
     """
-    assert (value is None) or (len(value) == 64)
+    assert (value is None) or (len(value) == 32)
 
 
 @attr.s(slots=True)
@@ -101,9 +101,9 @@ class NarrowInfo:
     fingerprint = attr.ib(
         type=Optional[bytes],
         default=None,
-        validator=_is_hex_fp,
+        validator=_is_raw_fp,
     )
-    """Hexadecimal fingerprint for a shard, corresponding to self.matcher"""
+    """Binary fingerprint for a shape or shard, corresponding to self.matcher"""
 
     bundle_group_id = attr.ib(type=Optional[bytes], default=None)
     """Unique identifier shared between all sharded bundles generated together.

@@ -1736,7 +1736,7 @@ def write_new_stream_bundle(
         if shape_obj is None:
             raise error.InputError(b"unknown shape: '%s'" % shape)
         matcher = shape_obj.matcher()
-        fingerprint = shape_py.shpfp2txt(shape_obj.fingerprint())
+        fingerprint = shape_obj.fingerprint()
 
     caps: Capabilities = {b"stream": [version]}
     if opts.get(bundlecaches.BUNDLESPEC_OBSOLESCENCE, False):
@@ -1787,14 +1787,13 @@ def write_repo_sharded_stream_bundles(
                 matcher,
                 match_top_level_entries,
             ) = info
-            hex_fingerprint = shape_py.shdfp2txt(fingerprint)
             filename = b"hg-sharded-%s-%s.hg" % (
                 bundle_group_id,
-                hex_fingerprint,
+                shape_py.shdfp2txt(fingerprint),
             )
             narrow_info = streamclone.NarrowInfo(
                 matcher=matcher,
-                fingerprint=hex_fingerprint,
+                fingerprint=fingerprint,
                 bundle_group_id=bundle_group_id,
                 match_top_level_entries=match_top_level_entries,
             )
@@ -2042,7 +2041,7 @@ def addpartbundlestream2(
             # XXX should be the binary 32 bits form, not the 64 hex one
             part.addparam(
                 b'shard-id',
-                narrow_info.fingerprint,
+                shape_py.shdfp2txt(narrow_info.fingerprint),
                 mandatory=True,
             )
             if narrow_info.match_top_level_entries:
@@ -2056,7 +2055,7 @@ def addpartbundlestream2(
             # XXX should be the binary 32 bits form, not the 64 hex one,
             part.addparam(
                 b'store-fingerprint',
-                narrow_info.fingerprint,
+                shape_py.shpfp2txt(narrow_info.fingerprint),
                 mandatory=False,
             )
     elif version == b"v3-exp":
