@@ -626,7 +626,11 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
         debug_info=None,
         delta_base_reuse_policy=None,
     ):
-        self.callback = prog.increment
+        def on_rev(store, rev):
+            prog.increment()
+            if addrevisioncb is not None:
+                addrevisioncb(store, rev)
+
         # no need to check for empty manifest group here:
         # if the result of the merge of 1 and 2 is the same in 3 and 4,
         # no new manifest will be created and the manifest group will
@@ -638,12 +642,11 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             deltas,
             revmap,
             trp,
-            addrevisioncb=addrevisioncb,
+            addrevisioncb=on_rev,
             debug_info=debug_info,
             delta_base_reuse_policy=delta_base_reuse_policy,
         )
         prog.complete()
-        self.callback = None
 
     def apply(
         self,
@@ -740,8 +743,6 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
             def ondupchangelog(cl, rev):
                 if rev < clstart:
                     duprevs.append(rev)  # pytype: disable=attribute-error
-                assert efilesset is not None  # help pytype
-                efilesset.update(cl.changelogrevision(rev).files)
 
             def onchangelog(cl, rev):
                 ctx = cl.changelogrevision(rev)
@@ -784,12 +785,10 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
 
             # pull off the manifest group
             repo.ui.status(_(b"adding manifests\n"))
-            # We know that we'll never have more manifests than we had
-            # changesets, duplicates included.
+            # We know that we'll never have more new manifests than we had
+            # new changesets.
             progress = repo.ui.makeprogress(
-                _(b'manifests'),
-                unit=_(b'chunks'),
-                total=changesets + len(duprevs),
+                _(b'manifests'), unit=_(b'chunks'), total=changesets
             )
             on_manifest_rev = None
             if sidedata_helpers:
@@ -2891,7 +2890,6 @@ def _addchangegroupfiles(
         files += 1
         f = chunkdata[b"filename"]
         repo.ui.debug(b"adding %s revisions\n" % f)
-        progress.increment()
         fl = repo.file(f, writable=True)
         o = len(fl)
         try:
@@ -2918,6 +2916,8 @@ def _addchangegroupfiles(
         except error.CensoredBaseError as e:
             raise error.Abort(_(b"received delta base is censored: %s") % e)
         revisions += len(fl) - o
+        if len(fl) > o:
+            progress.increment()
         if f in needfiles:
             needs = needfiles[f]
             for new in range(o, len(fl)):
