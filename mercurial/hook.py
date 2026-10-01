@@ -12,7 +12,7 @@ import errno
 import os
 import sys
 
-from typing import Any
+from typing import Any, Callable, Union
 
 from .i18n import _
 from .interfaces.types import (
@@ -31,6 +31,9 @@ from .utils import (
     resourceutil,
     stringutil,
 )
+
+HookCmdT = Union[bytes, Callable[..., Any]]
+"""A hook command. This is either a name in a Python module or a callable."""
 
 
 def pythonhook(ui, repo, htype, hname, funcname, args, throw):
@@ -265,14 +268,52 @@ def redirect(state):
     _redirect = state
 
 
+def _hooks_for(ui: UiT, htype: bytes) -> list[tuple[bytes, HookCmdT]]:
+    """return the (hook-id, cmd) pairs to run for 'htype'"""
+    if not ui.callhooks:
+        return []
+    return [
+        (hname, cmd)
+        for hname, cmd in _allhooks(ui)
+        if hname.split(b'.')[0] == htype and cmd
+    ]
+
+
 def hashook(ui: UiT, htype: bytes) -> bool:
     """return True if a hook is configured for 'htype'"""
-    if not ui.callhooks:
-        return False
-    for hname, cmd in _allhooks(ui):
-        if hname.split(b'.')[0] == htype and cmd:
-            return True
-    return False
+    return bool(_hooks_for(ui, htype))
+
+
+def _run_prepared(
+    ui: UiT,
+    repo: RepoT | None,
+    htype: bytes,
+    hooks: list[tuple[bytes, HookCmdT]],
+    throw: bool,
+    args: dict[str, Any],
+) -> Any:
+    res = runhooks(ui, repo, htype, hooks, throw=throw, **args)
+    r = False
+    for hname, cmd in hooks:
+        r = res[hname][0] or r
+    return r
+
+
+def prepare(
+    ui: UiT,
+    repo: RepoT | None,
+    htype: bytes,
+    throw: bool = False,
+) -> Callable[..., Any] | None:
+    """return a function running the 'htype' hooks, or None if there are none"""
+    hooks = _hooks_for(ui, htype)
+    if not hooks:
+        return None
+
+    def run(**args):
+        return _run_prepared(ui, repo, htype, hooks, throw, args)
+
+    return run
 
 
 def hook(
@@ -284,17 +325,7 @@ def hook(
 ) -> Any:
     if not ui.callhooks:
         return False
-
-    hooks = []
-    for hname, cmd in _allhooks(ui):
-        if hname.split(b'.')[0] == htype and cmd:
-            hooks.append((hname, cmd))
-
-    res = runhooks(ui, repo, htype, hooks, throw=throw, **args)
-    r = False
-    for hname, cmd in hooks:
-        r = res[hname][0] or r
-    return r
+    return _run_prepared(ui, repo, htype, _hooks_for(ui, htype), throw, args)
 
 
 @contextlib.contextmanager
