@@ -99,7 +99,7 @@ Test with the default shape
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default" outfile-shape-default.hg
 
   $ hg debugbundle outfile-shape-default.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-961e3d6d14621106b59a576aa6d8907d3f4734ea3f04c01d0bdff031b5572b19} (mandatory: True) (glob)
+  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-a3b2e41b54f4a21de99700ae576c0f6b59b493a6f3dead7d8e9a8ef4b0779542} (mandatory: True) (glob)
 
 Add a full non-fingerprinted streaming clone for reference and fallback testing
   $ hg -R source bundle -a --type="none-v2;stream=v2" outfile-shape-full.hg
@@ -113,12 +113,12 @@ Test with a known shape
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobar" outfile-shape-foobar.hg
 
   $ hg debugbundle outfile-shape-foobar.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 10, requirements: *, store-fingerprint: shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726} (mandatory: True) (glob)
+  stream2 -- {bytecount: *, filecount: 10, requirements: *, store-fingerprint: shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1} (mandatory: True) (glob)
 
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobaz" outfile-shape-foobaz.hg
 
   $ hg debugbundle outfile-shape-foobaz.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e} (mandatory: True) (glob)
+  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1} (mandatory: True) (glob)
 
 Test cloning
 ============
@@ -136,10 +136,10 @@ Prepare inline bundles
 
   $ bundlespec="$(hg debugbundle --spec outfile-shape-foobar.hg)"
   $ echo $bundlespec
-  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
+  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
   $ bundlespec2="$(hg debugbundle --spec outfile-shape-foobaz.hg)"
   $ echo $bundlespec2
-  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
+  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1 (glob)
 
   $ bundlespecfull="$(hg debugbundle --spec outfile-shape-full.hg)"
   $ echo $bundlespecfull
@@ -162,8 +162,8 @@ Define the special set of files included in all shapes.
 
 The raw manifest looks OK
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --raw
-  peer-bundle-cache://outfile-shape-foobar.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
-  peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e (glob)
+  peer-bundle-cache://outfile-shape-foobar.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
+  peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1 (glob)
 
 Passing in no includes or excludes shows that all entries are filtered out due to their fingerprints
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --debug | grep 'store-shape'
@@ -176,7 +176,7 @@ Passing a pattern that matches nothing filters all entries
 Passing a matching pattern works
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles
     URL: peer-bundle-cache://outfile-shape-foobar.hg
-      BUNDLESPEC: none-v2;STREAM=v2;REQUIREMENTS=*;STORE-FINGERPRINT=shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 (glob)
+      BUNDLESPEC: none-v2;STREAM=v2;REQUIREMENTS=*;STORE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
       COMPRESSION: none
       VERSION: v2
 
@@ -235,7 +235,7 @@ First with a Python client
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped --narrow $hgfiles --include=dir2 | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
   $ hg admin::narrow-client -R clone-shaped --store-fingerprint
-  shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726
+  shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1
   $ rm -rf clone-shaped
 
 Then with the Rust client
@@ -250,7 +250,7 @@ Then with the Rust client
 We make sure that the client has the same fingerprint than the streamclone
 
   $ hg admin::narrow-client --store-fingerprint
-  shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726
+  shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1
 
 We make sure that the client has the expected narrowspec
 
@@ -284,7 +284,7 @@ First with a pure Python client
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped2 --narrow $hgfiles --include=dir2 --include=excluded | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
   $ hg -R clone-shaped2 admin::narrow-client --store-fingerprint
-  shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e
+  shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
   $ rm -rf clone-shaped2
 
 Then with the Rust client
@@ -301,7 +301,7 @@ Then with the Rust client
 The client has the same fingerprint than the streamclone
 
   $ hg admin::narrow-client --store-fingerprint
-  shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e
+  shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
 
 The client has the expected narrowspec
 
@@ -373,7 +373,7 @@ Restart the normal server
 The client has the same fingerprint than the streamclone
 
   $ hg admin::narrow-client --store-fingerprint
-  shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e
+  shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
 
 The client has the expected narrowspec
 
@@ -410,32 +410,32 @@ Bundle generation
 -----------------
 
   $ rm source/.hg/bundle-cache/*
-  $ shard_fingerprint_hg_files=shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd
-  $ shard_fingerprint_base=shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b
-  $ shard_fingerprint_excluded1=shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834
-  $ shard_fingerprint_excluded2=shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9
-  $ shard_fingerprint_foobar=shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb
+  $ shard_fingerprint_hg_files=shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d
+  $ shard_fingerprint_base=shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09
+  $ shard_fingerprint_excluded1=shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013
+  $ shard_fingerprint_excluded2=shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac
+  $ shard_fingerprint_foobar=shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95
 
   $ hg -R source debug::sharded-stream-bundles
   Generating sharded bundles
   Generated 5 streaming bundles
-  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
-  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
-  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
-  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
-  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg
+  $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
 
   $ find source/.hg/bundle-cache -type f | sort | xargs -L1 hg debugbundle | grep -E 'shard-id: shard00-[0-9a-f]{64}'
-  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 4, requirements: *, shard-id: shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9} (mandatory: True) (glob)
-  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 2, requirements: *, shard-id: shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb} (mandatory: True) (glob)
-  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 2, requirements: *, shard-id: shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834} (mandatory: True) (glob)
-  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 4, requirements: *, shard-id: shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b} (mandatory: True) (glob)
-  stream2 -- {bundle-group-id: 1335303a, bundle-group-top-level: 1, bytecount: *, filecount: 8, requirements: *, shard-id: shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bundle-group-top-level: 1, bytecount: *, filecount: 8, requirements: *, shard-id: shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 4, requirements: *, shard-id: shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 2, requirements: *, shard-id: shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 4, requirements: *, shard-id: shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09} (mandatory: True) (glob)
+  stream2 -- {bundle-group-id: 1335303a, bytecount: *, filecount: 2, requirements: *, shard-id: shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013} (mandatory: True) (glob)
 
 Sharded bundles have sharding params in uppercase, indicating they are mandatory
 
-  $ hg debugbundle --spec $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
-  none-v2;STREAM=v2;REQUIREMENTS*;SHARD-ID=shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd;BUNDLE-GROUP-ID=1335303a;BUNDLE-GROUP-TOP-LEVEL=1 (glob)
+  $ hg debugbundle --spec $TESTTMP/source/.hg/bundle-cache/hg-sharded-1335303a-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
+  none-v2;STREAM=v2;REQUIREMENTS*;SHARD-ID=shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d;BUNDLE-GROUP-ID=1335303a;BUNDLE-GROUP-TOP-LEVEL=1 (glob)
 
   $ rm $TESTTMP/source/.hg/bundle-cache/*
 
@@ -444,19 +444,19 @@ Test json output
   $ hg -R source debug::sharded-stream-bundles -Tjson
   [
    {
-    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg"
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg"
    },
    {
-    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg"
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg"
    },
    {
-    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg"
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg"
    },
    {
-    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg"
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg"
    },
    {
-    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg"
+    "path": "$TESTTMP/source/.hg/bundle-cache/hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg"
    }
   ]
 
@@ -481,22 +481,22 @@ Try a full stream clone
 
   $ hg clone ssh://user@dummy/source target --store-shape full --stream | grep 'applying'
   applying 5 clone bundles
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
   finished applying clone bundle [1/5]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg
   finished applying clone bundle [2/5]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg
   finished applying clone bundle [3/5]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg
   finished applying clone bundle [4/5]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
   finished applying clone bundle [5/5]
   finished applying 5 clone bundles
   $ hg -R source admin::narrow-server --shape-fingerprint | grep " full"
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
   $ hg -R target admin::narrow-client --store-fingerprint
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545
   $ hg -R target verify
   checking changesets
   checking manifests
@@ -510,16 +510,16 @@ Try a partial clone of a single user-defined shard
 
   $ hg clone ssh://user@dummy/source partial-foobar --noupdate --store-shape foobar --stream --debug | grep "applying"
   applying 2 clone bundles
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
   applying stream bundle
   finished applying clone bundle [1/2]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
   applying stream bundle
   finished applying clone bundle [2/2]
   finished applying 2 clone bundles
 
   $ hg -R partial-foobar admin::narrow-client --store-fingerprint
-  shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726
+  shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1
 
 The log is consistent
   $ cd partial-foobar
@@ -576,19 +576,19 @@ Try a partial clone of a user-defined shard with dependencies
 
   $ hg clone ssh://user@dummy/source partial-foobaz --noupdate --store-shape foobaz --stream --debug | grep "applying"
   applying 3 clone bundles
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
   applying stream bundle
   finished applying clone bundle [1/3]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg
   applying stream bundle
   finished applying clone bundle [2/3]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
   applying stream bundle
   finished applying clone bundle [3/3]
   finished applying 3 clone bundles
 
   $ hg -R partial-foobaz admin::narrow-client --store-fingerprint
-  shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e
+  shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
 
 The log is consistent
   $ cd partial-foobaz
@@ -664,10 +664,10 @@ Affects a shape that needs it
   $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --store-shape full --stream --debug | grep "shard"
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg because bundle group 05a21d65 is missing some required shards
   $ rm unsuccessful-full -rf
 
 But not one that doesn't need this missing shard
@@ -688,11 +688,11 @@ One shard with the wrong bundle group id should disqualify the group from matchi
   $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --store-shape full --stream --debug | grep "shard"
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg because bundle group badbadbad is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg because bundle group badbadbad is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg because bundle group 05a21d65 is missing some required shards
   $ rm unsuccessful-full -rf
 
 Two generations of complete sets is not an issue, we should pick the first one
@@ -702,11 +702,11 @@ Two generations of complete sets is not an issue, we should pick the first one
   $ sed 's/05a21d65/43c37dde/g' source/.hg/clonebundles.old > source/.hg/clonebundles.manifest
   $ cat source/.hg/clonebundles.old >> source/.hg/clonebundles.manifest
   $ hg clone ssh://user@dummy/source successful-full --noupdate --store-shape full --stream --debug | grep "clone bundle from"
-  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-43c37dde-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
   $ rm successful-full -rf
 
 Two incomplete generations are not considered a full match
@@ -721,11 +721,11 @@ Two incomplete generations are not considered a full match
   $ hg clone ssh://user@dummy/source unsuccessful-full --noupdate --store-shape full --stream --debug | grep "filtering"
   no compatible clone bundles available on server; falling back to regular clone
   (you may want to report this to the server operator)
-  filtering peer-bundle-cache://hg-sharded-05a21d65-43c37dde-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg because bundle group 43c37dde is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-43c37dde-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg because bundle group 43c37dde is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg because bundle group 05a21d65 is missing some required shards
-  filtering peer-bundle-cache://hg-sharded-05a21d65-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-43c37dde-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg because bundle group 43c37dde is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-43c37dde-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg because bundle group 43c37dde is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg because bundle group 05a21d65 is missing some required shards
+  filtering peer-bundle-cache://hg-sharded-05a21d65-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg because bundle group 05a21d65 is missing some required shards
   $ rm unsuccessful-full -rf
 
 A complete old generation + incomplete new generation must match the old one
@@ -733,11 +733,11 @@ A complete old generation + incomplete new generation must match the old one
   $ sed 's/05a21d65/43c37dde/g' source/.hg/clonebundles.old | head -n 2 > source/.hg/clonebundles.manifest
   $ cat source/.hg/clonebundles.old >> source/.hg/clonebundles.manifest
   $ hg clone ssh://user@dummy/source successful-full --noupdate --store-shape full --stream --debug | grep "clone bundle from"
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
 
 Apply order
 -----------
@@ -747,11 +747,11 @@ Top-level bundle listed last in the manifest is still applied first
   $ grep -v top-level source/.hg/clonebundles.old > source/.hg/clonebundles.manifest
   $ grep top-level source/.hg/clonebundles.old >> source/.hg/clonebundles.manifest
   $ hg clone ssh://user@dummy/source reordered-full --noupdate --store-shape full --stream --debug | grep "clone bundle from"
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f35f89d0a4283ea9aef76ed630345e34a52e7b1ad1dd1336ce114c8eda7eb68b.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-ce1d82aa4fc03d836efe2c255ced2b91762debbc01860ac178992f98d9ee8834.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-bd08538c46bf568cd64b94df3285cf179a1bf09e991a7e52872b8d9538487dcb.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-d06fa3771f127f68848e190578a7ab93ac42fbdc6f1ccc16812c139bf8a82013.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
   $ rm reordered-full -rf
 
 Entry filtering
@@ -782,7 +782,7 @@ store-fingerprint
 
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug | grep -E 'filtering|URL:'
   filtering peer-bundle-cache://no-shape.hg because it does not use store-shape
-  filtering peer-bundle-cache://shape-other.hg because its store-shape is not the requested one; shape00-bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e not in (shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726)
+  filtering peer-bundle-cache://shape-other.hg because its store-shape is not the requested one; shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1 not in (shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1)
   filtering peer-bundle-cache://shard-top.hg because no shards were requested
   filtering peer-bundle-cache://shard-other.hg because no shards were requested
     URL: peer-bundle-cache://shape-dir2.hg
@@ -806,10 +806,10 @@ one we requested cannot match.
   > EOF
 
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug | grep -E 'fingerprint|filtering|URL:'
-  parameter store-fingerprint should be a shape fingerprint ('shape00-zzfeb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726')
-  parameter store-fingerprint should be a shape fingerprint ('shard00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726')
-  parameter store-fingerprint should be a shape fingerprint ('shape-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726')
-  filtering peer-bundle-cache://shape-dir2-other-version.hg because its store-shape is not the requested one; shape99-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726 not in (shape00-feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726)
+  parameter store-fingerprint should be a shape fingerprint ('shape00-zz662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
+  parameter store-fingerprint should be a shape fingerprint ('shard00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
+  parameter store-fingerprint should be a shape fingerprint ('shape-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
+  filtering peer-bundle-cache://shape-dir2-other-version.hg because its store-shape is not the requested one; shape99-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 not in (shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1)
     URL: peer-bundle-cache://shape-dir2.hg
 
 Resharding before new bundles exist
@@ -837,9 +837,9 @@ Cloning "excluded-shape" works
   $ hg clone ssh://user@dummy/source before-reshard --noupdate \
   >   --store-shape excluded-shape --stream | grep 'applying'
   applying 2 clone bundles
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
   finished applying clone bundle [1/2]
-  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-905afc01e8a7a31fa7748c515d2dc664ab143b85a2550082a4287e601f12c6a9.hg
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-234f14f2311c98e650fb5da950cd96ee24a8b6ccad12f74950f11fa0da1bdcac.hg
   finished applying clone bundle [2/2]
   finished applying 2 clone bundles
   $ rm -rf before-reshard
@@ -848,7 +848,7 @@ Split "excluded2" by adding a shard nested inside it, and add that shard to
 "excluded-shape" so it keeps covering the same files and this is a pure resharding
 
   $ hg -R source admin::narrow-server --shape-fingerprints | grep excluded-shape
-  shape00-f04b9a8178c25fe101ac0301e259658913993344c2291189c249e81001508249 excluded-shape
+  shape00-ad94b60172f9f42f582e5464968508918fbd0a630a2b5c13db1a5508cec181be excluded-shape
   $ cat $TESTTMP/source-shapes > $TESTTMP/source-shapes-split
   $ cat << EOF >> $TESTTMP/source-shapes-split
   > [[shards]]
@@ -864,7 +864,7 @@ Split "excluded2" by adding a shard nested inside it, and add that shard to
 The shape still covers the same files, so its fingerprint is unchanged
 
   $ hg -R source admin::narrow-server --shape-fingerprints | grep excluded-shape
-  shape00-f04b9a8178c25fe101ac0301e259658913993344c2291189c249e81001508249 excluded-shape
+  shape00-ad94b60172f9f42f582e5464968508918fbd0a630a2b5c13db1a5508cec181be excluded-shape
 
 "excluded-shape" can still be cloned because the previous config with the old
 shards was saved and its shards set was used

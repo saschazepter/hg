@@ -40,8 +40,8 @@ Test the command
   empty narrowspec given
   [255]
   $ cat narrowspec | hg debug::narrow-fingerprint
-  shape00-851381269360802254c87a7a6d5b1c45f6b6e7bc62df68a1fb205536b210250a
+  shape00-418205b43a896cb47131afe42632fefa1749826d3d2420125ea96403f1cb8fa9
   $ cat narrowspec-same | hg debug::narrow-fingerprint
-  shape00-851381269360802254c87a7a6d5b1c45f6b6e7bc62df68a1fb205536b210250a
+  shape00-418205b43a896cb47131afe42632fefa1749826d3d2420125ea96403f1cb8fa9
   $ cat narrowspec-different | hg debug::narrow-fingerprint
-  shape00-854abbee97d1548a264c537d37381b90436ccedc56d6f92586d3ae1e7cc4d04b
+  shape00-7fb93baea025185c47c2a460552b057db0057ea13f2cda69274758aa2b1d4125

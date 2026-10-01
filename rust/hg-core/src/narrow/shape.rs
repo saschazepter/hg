@@ -1021,9 +1021,13 @@ impl ShardTreeNode {
 
     /// Get the fingerprint for this node. It will return a different hash for
     /// a semantically different node, allowing for a quick comparison.
+    ///
+    /// The digest of a version 0 fingerprint is the SHA-256 of the patterns
+    /// block (see [`Self::serialize_patterns`]).
     pub fn fingerprint(&self) -> Fingerprint {
         let mut hasher = Sha256::new();
-        self.serialize(&mut hasher).expect("writing to a hasher never fails");
+        self.serialize_patterns(&mut hasher)
+            .expect("writing to a hasher never fails");
         Fingerprint {
             kind: FingerprintKind::Shape,
             version: FINGERPRINT_VERSION,
@@ -1514,6 +1518,15 @@ mod tests {
         };
         assert_eq!(includes, paths(&["foo", "foo-x"]));
         assert_eq!(excludes, paths(&["", "foo/bar"]));
+
+        // The fingerprint is the hash of the block
+        assert_eq!(
+            tree.fingerprint().to_string(),
+            concat!(
+                "shape00-",
+                "c1e75c57728686409c683838de48531c7705eeca5e8bb8d14fe8f9f7cbd0888b"
+            )
+        );
 
         // No paths at all is valid
         let empty = ShardTreeNode::deserialize_patterns(b"\x00\x00\x00\x00");

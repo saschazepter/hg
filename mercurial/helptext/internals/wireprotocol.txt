@@ -1178,9 +1178,15 @@ Pattern block:
 
 The serialized pattern for this store shape
 
-* u32:   number of pattern
-* [u16]: array of pattern size, highest order bytes denote inclusion
+* u32:   number of patterns
+* [u16]: array of pattern sizes, highest order bit denotes inclusion
 * bytes: the patterns concatenated
+
+Patterns are sorted according to their zero-path (replacing ``/`` with a null
+byte and surrounding by null bytes) such that a directory is directly followed
+by its contents.
+
+The digest of a fingerprint of version 0 is the SHA-256 of this block.
 
 stream_out
 ----------

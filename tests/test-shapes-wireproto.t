@@ -143,7 +143,7 @@ bogus fingerprint.
   creating ssh peer from handshake results
   sending store_shape command
   abort: fingerprint mismatch for shape 'default'
-  (server: [shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5], client: shape00-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+  (server: [shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512], client: shape00-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
   [255]
 
 Test valid cases
@@ -161,12 +161,12 @@ Test valid cases
   sending store_shape command
   response: (
     [
-      ShapeFingerprint(version=0, digest=b';&\x91\xb2)9\xf5\xb9\x8e\xf0\xf4L\xa9l[Zo\xa2+\x11s\xb4\xf5\xff\xf7\x04G\x89\xe2\xb9\xdd\xe6')
+      ShapeFingerprint(version=0, digest=b'9\x8b)@\xefLx\xce\xa5(\t\xbeK\xcda\x0bo\x1c\xf3\x90\x88p\xa3&L\x02N\xa8\xf0\xbb\x97\xd6')
     ],
     [
       set([
-        ShardFingerprint(version=0, digest=b"y3\xc8\x96\x9f\x86'.\x8b\xf2\x9d5T\xb2\x93r\xdcj\x9cune\x18G%`x\xc3[\xb6\xa08"),
-        ShardFingerprint(version=0, digest=b'\xf9\xa5C:\x9b\xe0\xb9\xf9\xd8\xe51\xc5\xa6\x83\x0e<\xd8t\x99$\x88\x15\x03o\xe19\xb5\xf4A\xcd\xdf\xcd')
+        ShardFingerprint(version=0, digest=b'\x19g\xbf\xea\x8ed \x11\x11\x0bw\x17\xd5\xa6\x8a\xcd\xcaF\xee=\xb5\xede\x92\x86\x01\x02=\x0c`\xcb\x1d'),
+        ShardFingerprint(version=0, digest=b'\xc4\x91\xfc\x7fG\x80\xd4\x90\xa8\x15l8\x88\xe5\x91\x10\x1a\xccq\xf3\x0fj\x04\x81\xa2\xe1\xb4K^i\xcc\xb6')
       ])
     ],
     (
@@ -185,12 +185,12 @@ Test valid cases
   sending store_shape command
   response: (
     [
-      ShapeFingerprint(version=0, digest=b'\xa5\x1bl]\xbf\xb88!Zd\xa9r\xc8\xc2\x97#;\xe7s\x1e\x12\xf5f\xde\xe5g\xfd\x17\xef\x0c\xd5\xc5')
+      ShapeFingerprint(version=0, digest=b'\xb0\xd3N\xda\x1d\xf9\x8b\x87\x1c|\xcbrT\xb6\x11\x87\xa6\xa7\xea\xb6\x1b\xc3D\xe9\x8c.Pz\xb6^\x15\x12')
     ],
     [
       set([
-        ShardFingerprint(version=0, digest=b'k\xeb;\x11b\x86I\xcb\xaaD\x8b\x96\x9f\x17@\r\xb3\x1c\xb3B4\xbb\xbf~\x86B_}5_\xb9q'),
-        ShardFingerprint(version=0, digest=b'\xf9\xa5C:\x9b\xe0\xb9\xf9\xd8\xe51\xc5\xa6\x83\x0e<\xd8t\x99$\x88\x15\x03o\xe19\xb5\xf4A\xcd\xdf\xcd')
+        ShardFingerprint(version=0, digest=b'\x19g\xbf\xea\x8ed \x11\x11\x0bw\x17\xd5\xa6\x8a\xcd\xcaF\xee=\xb5\xede\x92\x86\x01\x02=\x0c`\xcb\x1d'),
+        ShardFingerprint(version=0, digest=b"O\x0f(Id\xa6\xb4y\xf7\xa0\x06>\xb0\x1bz\xff\x91'\xd2|+\n\x87$\x89\x9f\xf33?\xbb\xa6g")
       ])
     ],
     (
@@ -350,7 +350,7 @@ Update the server shapes to change the fingerprint of this shape
   pulling from $TESTTMP/server
   searching for changes
   abort: fingerprint mismatch for shape 'default'
-  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [255]
 #else
   $ hg pull
@@ -358,7 +358,7 @@ Update the server shapes to change the fingerprint of this shape
   searching for changes
   remote: abort: fingerprint mismatch for shape 'default'
   abort: pull failed on remote
-  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [100]
 #endif
 
@@ -434,7 +434,7 @@ Update the server shapes to change the fingerprint of this shape
   pulling from $TESTTMP/server
   searching for changes
   abort: fingerprint mismatch for shape 'default'
-  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [255]
 #else
   $ hg pull
@@ -442,7 +442,7 @@ Update the server shapes to change the fingerprint of this shape
   searching for changes
   remote: abort: fingerprint mismatch for shape 'default'
   abort: pull failed on remote
-  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [100]
 #endif
 

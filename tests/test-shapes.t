@@ -45,27 +45,27 @@ Check that the fingerprints match between semantically identical shapes and
 that shards not declared as shapes (here "secret") is not listed
 
   $ hg admin::narrow-server --shape-fingerprints
-  shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5 default
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full-manual
-  shape00-3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6 other-secret
+  shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512 default
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full-manual
+  shape00-398b2940ef4c78cea52809be4bcd610b6f1cf3908870a3264c024ea8f0bb97d6 other-secret
 
   $ hg admin::narrow-server --shape-fingerprints -Tjson
   [
    {
-    "fingerprint": "shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5",
+    "fingerprint": "shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512",
     "name": "default"
    },
    {
-    "fingerprint": "shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea",
+    "fingerprint": "shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545",
     "name": "full"
    },
    {
-    "fingerprint": "shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea",
+    "fingerprint": "shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545",
     "name": "full-manual"
    },
    {
-    "fingerprint": "shape00-3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6",
+    "fingerprint": "shape00-398b2940ef4c78cea52809be4bcd610b6f1cf3908870a3264c024ea8f0bb97d6",
     "name": "other-secret"
    }
   ]
@@ -162,7 +162,7 @@ Test that the generated narrow patterns actually work
 One including the root
 
   $ hg admin::narrow-server --shape-fingerprints | grep default
-  shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5 default
+  shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512 default
   $ hg admin::narrow-server --shape-narrow-patterns default > ../shape.npt
   $ hg --config extensions.narrow= clone --narrow --narrowspec ../shape.npt . ../clone-test-1
   reading narrowspec from '$TESTTMP/server/../shape.npt'
@@ -170,12 +170,12 @@ One including the root
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg --config extensions.narrow= -R ../clone-test-1 admin::narrow-client --store-fingerprint
-  shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5
+  shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512
 
 One excluding the root
 
   $ hg admin::narrow-server --shape-fingerprints | grep other-secret
-  shape00-3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6 other-secret
+  shape00-398b2940ef4c78cea52809be4bcd610b6f1cf3908870a3264c024ea8f0bb97d6 other-secret
   $ hg admin::narrow-server --shape-narrow-patterns other-secret > ../shape.npt
   $ hg --config extensions.narrow= clone --narrow --narrowspec ../shape.npt . ../clone-test-2
   reading narrowspec from '$TESTTMP/server/../shape.npt'
@@ -183,7 +183,7 @@ One excluding the root
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg --config extensions.narrow= -R ../clone-test-2 admin::narrow-client --store-fingerprint
-  shape00-3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6
+  shape00-398b2940ef4c78cea52809be4bcd610b6f1cf3908870a3264c024ea8f0bb97d6
 
 
 Test listing files
@@ -355,8 +355,8 @@ Update from file, adding a new shape that depends on the existing shard
   requires = ["foo"]
   shape = true
   $ hg admin::narrow-server --shape-fingerprints
-  shape00-f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 from-file
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+  shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 from-file
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
 Fail if `-f` is a path that does not exist
 
@@ -393,8 +393,8 @@ Updating to invalid contents is not allowed
   [30]
 
   $ hg admin::narrow-server --shape-fingerprints
-  shape00-f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 from-file
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+  shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 from-file
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
 Test that an update either reshapes or reshards, not both
 ---------------------------------------------------------
@@ -430,8 +430,8 @@ Passing `--override-reshape-and-reshard-check` allows the update anyways
 
   $ hg admin::narrow-server --shape-update -f ../new-shapes --override-reshape-and-reshard-check
   $ hg admin::narrow-server --shape-fingerprints
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
-  shape00-b22832d6652898181f125f4425c0480e24779f1e4ea8e2d7462a43ff9f2e5f57 new-shape
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
+  shape00-915fb4fd005f64b11bef25cc281caf5b97e05db84a6a66bc6fb4b590233c6f3f new-shape
 
 Test that a shape keeps its fingerprint
 ---------------------------------------
@@ -475,7 +475,7 @@ Passing `--override-saved-configs-check` allows the update anyways
 
   $ hg admin::narrow-server --shape-update -f ../added-shape --override-saved-configs-check
   $ hg admin::narrow-server --shape-fingerprints | grep foo-shape
-  shape00-f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 foo-shape
+  shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 foo-shape
 
 Clear the config saved by the resharding above, so that the reshaping below is
 only exercising the fingerprint check
@@ -487,8 +487,8 @@ Passing `--override-fingerprint-change-check` allows the update anyways
 
   $ hg admin::narrow-server --shape-update -f ../new-shapes --override-fingerprint-change-check
   $ hg admin::narrow-server --shape-fingerprints
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
-  shape00-f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 new-shape
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
+  shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 new-shape
 
 Resharding saves previous configs
 ---------------------------------
@@ -596,7 +596,7 @@ The shapes lock is held for the whole update, so a second update fails
 Read-only commands emit a warning
   $ hg admin::narrow-server --shape-fingerprints
   warning: store shapes are currently being updated (lock held by *) (glob)
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
 Nothing was written, the first update still owns the file
 
@@ -628,5 +628,5 @@ The lock is released afterwards, so now another update can now go through
 
   $ hg admin::narrow-server --shape-update -f ../concurrent-update
   $ hg admin::narrow-server --shape-fingerprints
-  shape00-f182ace793f1c0e450c0067f66fe84b1ccec6fa61ffc0eb48f6fe311d2f7b071 concurrent
-  shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea full
+  shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 concurrent
+  shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full

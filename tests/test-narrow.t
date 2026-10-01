@@ -97,7 +97,7 @@ Test repo with local changes
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd narrow-local-changes
   $ hg admin::narrow-client --store-fingerprint
-  shape00-9fdf07af370dd7b5cb4400fcbc9200824f1689632f657d2d87f4b604bf6844b6
+  shape00-f58973794cca8b1a2e8f46364dbd2f24a3593d4d6a5d91a94c7221c833e3ca55
   $ echo local change >> d0/f
   $ hg ci -m 'local change to d0'
   $ hg co '.^'
@@ -117,7 +117,7 @@ Test repo with local changes
   [20]
 Check that nothing was removed by the failed attempts
   $ hg admin::narrow-client --store-fingerprint
-  shape00-9fdf07af370dd7b5cb4400fcbc9200824f1689632f657d2d87f4b604bf6844b6
+  shape00-f58973794cca8b1a2e8f46364dbd2f24a3593d4d6a5d91a94c7221c833e3ca55
   $ hg tracked
   I path:d0
   I path:d3
@@ -158,7 +158,7 @@ Force deletion of local changes
 
 Change that we've changed the tracked set
   $ hg admin::narrow-client --store-fingerprint
-  shape00-739a856516974fdd350764e6d5430eeb39380c5fd6103a727d9d624bb5fa7ba6
+  shape00-96ab52f4273dd4d1088b7ade36e5a378653031527fda10bc6fdd7bfc63875788
   $ hg log -T "{rev}: {desc} {outsidenarrow}\n"
   7: local change to d3 
   5: add d10/f outsidenarrow

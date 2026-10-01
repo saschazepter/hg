@@ -6,7 +6,6 @@ from __future__ import annotations
 import hashlib
 import itertools
 import re
-import struct
 import typing
 
 from .i18n import _
@@ -282,21 +281,17 @@ class ShardTreeNode:
 
     def fingerprint(self) -> ShapeFingerprint:
         """Get the fingerprint for this node. It will return a different hash
-        for a semantically different node, allowing for quick comparison."""
+        for a semantically different node, allowing for quick comparison.
+
+        The digest of a version 0 fingerprint is the SHA-256 of the patterns
+        block (see `serialize_patterns`).
+
+        >>> node = ShardTreeNode.from_patterns({b'foo', b'foo-x'}, {b'foo/bar'})
+        >>> node.fingerprint().to_text()
+        b'shape00-c1e75c57728686409c683838de48531c7705eeca5e8bb8d14fe8f9f7cbd0888b'
+        """
         includes, excludes = self.flat()
-
-        buf = [SERIALIZATION_SHAPE_MARKER]
-        sorted_paths = sorted(
-            itertools.chain(includes, excludes), key=lambda x: zero_path(x)
-        )
-
-        buf.append(struct.pack(b"<Q", len(sorted_paths)))
-
-        for path in sorted_paths:
-            prefix = PREFIX_INCLUDE if path in includes else PREFIX_EXCLUDE
-            buf.append(b"%s%s\n" % (prefix, path))
-
-        digest = hashlib.sha256(b"".join(buf)).digest()
+        digest = hashlib.sha256(serialize_patterns(includes, excludes)).digest()
         return ShapeFingerprint(FINGERPRINT_VERSION, digest)
 
 
