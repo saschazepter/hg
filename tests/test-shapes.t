@@ -25,20 +25,26 @@ Setup the server shapes config
   > version = 0
   > [[shards]]
   > name = "secrets"
-  > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "other-secret"
+  > name = "other-secret-files"
   > paths = ["foo/bar/other-secret"]
-  > shape = true
-  > [[shards]]
+  > 
+  > [[profiles]]
   > name = "default"
-  > requires = ["base"]
-  > shape = true
-  > [[shards]]
+  > includes = ["base"]
+  > public = true
+  > [[profiles]]
+  > name = "internal-secrets"  # Test a private shape
+  > includes = ["secrets", "other-secret"]
+  > [[profiles]]
   > name = "full-manual"
-  > requires = ["base", "secrets"]
-  > shape = true
+  > includes = ["base", "internal-secrets"]
+  > public = true
+  > [[profiles]]
+  > name = "other-secret"
+  > includes = ["other-secret-files"]
+  > public = true
   > EOF
 
 Check that the fingerprints match between semantically identical shapes and
@@ -355,10 +361,10 @@ Update from file, adding a new shape that depends on the existing shard
 
   $ cp .hg/store/server-shapes ../new-shapes
   $ cat >> ../new-shapes <<EOF
-  > [[shards]]
+  > [[profiles]]
   > name = "from-file"
-  > requires = ["foo"]
-  > shape = true
+  > includes = ["foo"]
+  > public = true
   > EOF
   $ hg admin::narrow-server --shape-update -f ../new-shapes
   $ cat .hg/store/server-shapes
@@ -369,10 +375,10 @@ Update from file, adding a new shape that depends on the existing shard
   [[shards]]
   name = "foo"
   paths = ["foo"]
-  [[shards]]
+  [[profiles]]
   name = "from-file"
-  requires = ["foo"]
-  shape = true
+  includes = ["foo"]
+  public = true
   $ hg admin::narrow-server --shape-fingerprints
   shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 from-file
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
@@ -393,10 +399,10 @@ Without `-f`, the editor is opened on the current contents
   [[shards]]
   name = "foo"
   paths = ["foo"]
-  [[shards]]
+  [[profiles]]
   name = "from-file"
-  requires = ["foo"]
-  shape = true
+  includes = ["foo"]
+  public = true
 
 Updating to invalid contents is not allowed
 
@@ -433,10 +439,10 @@ bundles need to be generated from the new shards before we are ready to add the 
   > [[shards]]
   > name = "dir1"
   > paths = ["dir1"]
-  > [[shards]]
+  > [[profiles]]
   > name = "new-shape"
-  > requires = ["dir1"]
-  > shape = true
+  > includes = ["dir1"]
+  > public = true
   > EOF
   $ hg admin::narrow-server --shape-update -f ../new-shapes
   abort: cannot reshape and reshard in the same update
@@ -465,10 +471,10 @@ Attempting to change `new-shape` fails because its fingerprint would change
   > [[shards]]
   > name = "dir1"
   > paths = ["dir1"]
-  > [[shards]]
+  > [[profiles]]
   > name = "new-shape"
-  > requires = ["foo"]
-  > shape = true
+  > includes = ["foo"]
+  > public = true
   > EOF
   $ hg admin::narrow-server --shape-update -f ../new-shapes
   abort: won't change the fingerprint of existing shapes: "new-shape"
@@ -479,10 +485,10 @@ Reshaping is refused while a previous config is still saved
 
   $ cp .hg/store/server-shapes ../added-shape
   $ cat >> ../added-shape <<EOF
-  > [[shards]]
+  > [[profiles]]
   > name = "foo-shape"
-  > requires = ["foo"]
-  > shape = true
+  > includes = ["foo"]
+  > public = true
   > EOF
   $ hg admin::narrow-server --shape-update -f ../added-shape
   abort: cannot reshape yet: 1 previous server-shapes still saved
@@ -517,10 +523,10 @@ Resharding saves previous configs
   > [[shards]]
   > name = "foo"
   > paths = ["foo"]
-  > [[shards]]
+  > [[profiles]]
   > name = "shape"
-  > requires = ["foo"]
-  > shape = true
+  > includes = ["foo"]
+  > public = true
   > EOF
   $ rm -f .hg/store/server-shapes-previous-*
 
@@ -534,10 +540,10 @@ Reshard by adding a new shard nested under `foo`
   > [[shards]]
   > name = "nested"
   > paths = ["foo/nested"]
-  > [[shards]]
+  > [[profiles]]
   > name = "shape"
-  > requires = ["foo", "nested"]
-  > shape = true
+  > includes = ["foo", "nested"]
+  > public = true
   > EOF
   $ hg admin::narrow-server --shape-update -f ../new-shapes
 
@@ -551,10 +557,10 @@ configs
   [[shards]]
   name = "foo"
   paths = ["foo"]
-  [[shards]]
+  [[profiles]]
   name = "shape"
-  requires = ["foo"]
-  shape = true
+  includes = ["foo"]
+  public = true
 
 Clearing drops the saved configs and empties the list
 
@@ -582,18 +588,18 @@ Test behavior of concurrent updates
 
   $ cp .hg/store/server-shapes ../new-shapes
   $ cat >> ../new-shapes <<EOF
-  > [[shards]]
+  > [[profiles]]
   > name = "new-shape"
-  > requires = ["foo"]
-  > shape = true
+  > includes = ["foo"]
+  > public = true
   > EOF
 
   $ cp .hg/store/server-shapes ../concurrent-update
   $ cat >> ../concurrent-update <<EOF
-  > [[shards]]
+  > [[profiles]]
   > name = "concurrent"
-  > requires = ["foo"]
-  > shape = true
+  > includes = ["foo"]
+  > public = true
   > EOF
 
 Start an update and hold it in the editor
@@ -638,10 +644,10 @@ Letting the first update finish applies it
   [[shards]]
   name = "foo"
   paths = ["foo"]
-  [[shards]]
+  [[profiles]]
   name = "new-shape"
-  requires = ["foo"]
-  shape = true
+  includes = ["foo"]
+  public = true
 
 The lock is released afterwards, so now another update can now go through
 

@@ -17,20 +17,9 @@ The narrow extension introduces a number of concepts that are detailed below.
 Shape (experimental)
 ....................
 
-A shape is used to define a set of paths to consider for clients of the narrow
-server. And it does so through the entire history, regardless the state of these
+The shape is the set of paths to consider for clients of the narrow server.
+It does so through the entire history, regardless the state of these
 files in the heads of the repository (deleted, for example).
-
-As of Mercurial 7.2, only a limited scope of all planned shape-related features
-have been implemented. Shapes are only directly interacted with by server
-administrators. They can be used to generate narrowspecs (used by clients) and
-to create narrow streaming clonebundles.
-
-This means that as of Mercurial 7.2, clients have no knowledge of shapes and
-must be given the set of narrow patterns by server administrators in order to
-use a streaming clonebundle for a given shape::
-
-    $ hg clone server --narrow --narrowspec NARROW_SPEC_FILE
 
 Fingerprint
 ...........
@@ -52,6 +41,14 @@ distinct objects, so the prefix makes it explicit which one a fingerprint
 identifies.
 
 We guarantee no stability of version ``00`` fingerprints.
+
+Profile
+.......
+
+A profile is a preset of a shape created by server administrators. It allows
+clients to select one or more of these profiles for their repo's shape. For
+example, one clone can have a shape combining two profiles, with the name for
+such a shape being `profile-1,profile-2`.
 
 Shards
 ......
@@ -102,15 +99,21 @@ It is important to note that adding a new shard (e.g. that includes `file1` and
 ``file2``) would remove its paths from any shard that previously contained them
 (in this case, only ``base``).
 
-Server-side, shards are used to define shapes, which are sets of shards. Each
-shape defines the shards it includes, hence excluding the contents of all other
-shards.
+Server-side, shards are used to define profiles, which are sets of shards. Each
+profile defines the shards it includes, hence excluding the contents of all
+other shards.
 
-To simplify the creation of shapes, we can compose shards together by defining
-explicit dependencies between shards. In our above example, we could define a
-``foo.full`` (that does not itself have to define any paths), but requires both
-``foo`` and ``foo.confidential``, giving us a shard with the full ``foo`` store
-subtree.
+In our above example, we could define a ``foo.full`` profile that includes both
+the ``foo`` and ``foo.confidential`` shards, giving us a profile with the full
+``foo`` store subtree. Note that shards and profiles share the same namespace,
+so this profile could not also be named ``foo``.
+
+To simplify the creation of profiles, a profile can include other profiles in
+addition to shards: another profile could include ``foo.full`` along with other
+shards or profiles.
+
+Only *public* profiles can be used on their own, private profiles are only
+building blocks for other profiles.
 
 Note that the set of paths in the current working copy may only be a subset of
 the the store. In our example, we can imagine that
@@ -127,6 +130,9 @@ In addition to the implicit ``base`` shard, there is also the implicit
 
 This shard will be automatically included in every ``Shape`` to make sure
 Mercurial has the data it needs to operate on each revision.
+
+Finally, there is the implicit public ``full`` profile, which includes every
+shard.
 
 Narrowspec (legacy)
 ...................
@@ -188,24 +194,34 @@ client breakage.
 The current (experimental!) format is the following::
 
   * ``version`` (required): its value must be ``0``
-  * ``shards`` (required): a list of <shardconfig>
+  * ``[[shards]]`` (required): a list of <shardconfig>
+  * ``[[profiles]]`` (optional): a list of <profileconfig>
   * <shardconfig>:
 
     * ``name`` (required): canonical name for this shard.
-    * ``paths`` (optional): A list of UTF8 paths that this shard concerns,
+    * ``paths`` (required): A list of UTF8 paths that this shard concerns,
         relative to the repo root.
-    * ``requires`` (optional): A list of the names of the shards that this
-        shard depends on.
-    * ``shape`` (optional): If ``true``, this as a user-accessible shape.
+
+  * <profileconfig>:
+
+    * ``name`` (required): canonical name for this profile.
+    * ``includes`` (required): A list of the names of the shards and profiles
+        that make up this profile.
+    * ``public`` (optional): If ``true``, this profile can be requested by
+        name in the UI and over the wire protocol. Otherwise, by default, it
+        can only be used within this config in the ``includes`` of other
+        profiles.
 
 Constraints::
 
-  * Shard names must be unique within the config
-  * Shard names must only contain bytes that are either lowercase alphanumeric
+  * Profiles and shards share the same namespace: a name must be unique within
+    the config
+  * Names must only contain bytes that are either lowercase alphanumeric
     ascii, dot or hyphen
-  * ``full``, ``base`` and ``.hg-files`` are reserved shard names
-  * Each <shardconfig> must define one of ``requires`` or ``paths``, or both
-  * Shard requirements cannot form a cycle
+  * ``full``, ``base`` and ``.hg-files`` are reserved names
+  * At least one shard must be defined
+  * ``paths`` and ``includes`` cannot be empty
+  * Profiles cannot form a cycle through their ``includes``
   * A given path cannot be in more than one shard
   * ``paths`` must be a list of UTF8 paths. Support for non-UTF8 paths will be
     added in an upcoming version, via an ``encoded_paths`` field
@@ -218,41 +234,47 @@ Example::
     version = 0
 
     [[shards]]
-    name = "foo"
+    name = "foo-files"
     paths = ["foo", "bar.txt", "baz/nested"]
-    shape = true
 
     [[shards]]
     name = "subproject1"
     paths = ["subproject1", "utils/only-this-dir"]
 
     [[shards]]
-    name = "backend"
+    name = "subproject2"
     paths = ["subproject2"]
-    requires = ["subproject1"]
-    shape = true
 
-    [[shards]]
+    [[profiles]]
+    name = "foo"
+    includes = ["foo-files"]
+    public = true
+
+    [[profiles]]
+    name = "backend"
+    includes = ["subproject1", "subproject2"]
+
+    [[profiles]]
     name = "full-stack"
-    requires = ["backend", "foo"]
-    shape = true
+    includes = ["backend", "foo"]
+    public = true
 
-Updating the shapes config
-..........................
+Updating the profiles config
+............................
 
 Use :hg:`admin::narrow-server --shape-update` to replace the config. The
 command refuses updates that violate any of the invariants described below.
 
 (1) Shape fingerprints should not change
 
-A shape should keep the same fingerprint for as long as there are clones using
-it. Clients pin themselves to the fingerprint of the shape they cloned, so
+A profile should keep the same fingerprint for as long as there are clones using
+it. Clients pin themselves to the fingerprint of the profile they cloned, so
 redefining one means every one of them has to re-sync at the same time.
-Instead of changing the shape directly, do the following::
+Instead of changing the profile directly, do the following::
 
-  1. Add the new view under a new shape name.
-  2. Move clients over to the new shape.
-  3. Once nobody is cloned at the old shape, remove it.
+  1. Add the new view under a new profile name.
+  2. Move clients over to the new profile.
+  3. Once nobody is cloned at the old profile, remove it.
 
 Passing ``--override-fingerprint-change-check`` skips this check. You should
 rarely want this: it is the update that forces every client cloned at that
@@ -262,23 +284,24 @@ shape to re-sync at once.
 
 An update must be only one of the following, never both at once::
 
-  * a *reshaping*: adding or removing a shape.
+  * a *reshaping*: adding or removing a public profile (making a profile public
+    or non-public counts as adding or removing it).
   * a *resharding*: changing how the store is partitioned. For example, a
     single shard with ``paths = ["foo"]`` partitions the store into "paths
     under foo/" and everything else. Adding another shard with any other path
     (whether or not it is under foo/) partitions it once more.
 
-Note that shards and shapes are not independent, so a resharding may have to
-touch the shapes as well to avoid changing fingerprints. A shard is judged by
+Note that shards and profiles are not independent, so a resharding may have to
+touch the profiles as well to avoid changing fingerprints. A shard is judged by
 the files it ends up owning, not by the ``paths`` it declares: adding a shard
 takes files away from whichever shard held them before, so a single edit can
 change several shards.
 
 As a result, most real changes take two updates. For example, to add a new shard
-and publish a shape for it::
+and publish a profile for it::
 
-  1. Add the shard and add its name to the ``requires`` of every shape that
-     already covered those paths. Those shapes then still cover the same files
+  1. Add the shard and add its name to the ``includes`` of every profile that
+     already covered those paths. Those profiles then still cover the same files
      and keep their fingerprint, so this is a pure resharding. The previous
      ``server-shapes`` files will be saved and used to serve existing sharded
      bundles.
@@ -286,13 +309,13 @@ and publish a shape for it::
   3. Clear the saved configs with
      :hg:`admin::narrow-server --shape-clear-previous`. They exist to keep old
      bundles usable and are no longer needed after step 2.
-  4. Add the shape that requires the new shard. No shard changes, so this is a
+  4. Add the profile that includes the new shard. No shard changes, so this is a
      pure reshaping. It is allowed because the previous configs have been
      cleared, indicating that new bundles are ready and being advertised.
-  5. Clients can begin using the new shape.
+  5. Clients can begin using the new profile.
 
 Passing ``--override-reshape-and-reshard-check`` applies the update regardless.
-You should rarely want this: a mixed update can publish a shape before the
+You should rarely want this: a mixed update can publish a profile before the
 necessary bundles are generated.
 
 (3) No reshaping while previous configs are saved
@@ -306,7 +329,7 @@ A server that does not serve sharded clone bundles has nothing to wait for and
 can clear the saved configs right away.
 
 Passing ``--override-saved-configs-check`` applies the update regardless. You
-should rarely want this if you are using sharded bundles: the shapes you change
+should rarely want this if you are using sharded bundles: the profile you change
 may have no matching bundles until the ones for the current config are
 generated and advertised.
 
@@ -328,23 +351,24 @@ You may generate the bundles with the following::
   $ bundleentry="peer-bundle-cache://bundle.hg BUNDLESPEC=$bundlespec"
   $ echo $bundleentry >> .hg/clonebundles.manifest
 
-Several shape names separated by commas, as in ``shape=my-shape,other-shape``,
-produce a bundle for their composite shape, which clients tracking these
-shapes together will use. Sharded bundles serve such clients as well, since
-the shards of a composite shape are those of its shapes.
+Several profile names separated by commas, as in
+``shape=my-profile,other-profile``, produce a bundle for their composite shape,
+which clients tracking these profiles together will use. Sharded bundles serve
+such clients as well, since the shards of a composite shape are those of its
+profiles.
 
-You can export the includes and exclude patterns for every shape and give
+You can export the includes and exclude patterns for every profile and give
 them manually to clients::
 
-  $ hg admin::narrow-server --shape-narrow-patterns my-shape
+  $ hg admin::narrow-server --shape-narrow-patterns my-profile
   [exclude]
   path:foo
   path:bar
 
-Comma-separated shape names designate their composite shape, which covers
+Comma-separated profile names designate their composite shape, which covers
 every file that any of them covers::
 
-  $ hg admin::narrow-server --shape-narrow-patterns my-shape,other-shape
+  $ hg admin::narrow-server --shape-narrow-patterns my-profile,other-profile
   [exclude]
   path:foo
 
@@ -358,12 +382,12 @@ Client
 
 Clients clone a shape by name::
 
-  $ hg clone --store-shape my-shape ssh://server/repo
+  $ hg clone --store-shape my-profile ssh://server/repo
 
 Comma-separated names clone their composite shape, which covers every file
 that any of them covers::
 
-  $ hg clone --store-shape my-shape,other-shape ssh://server/repo
+  $ hg clone --store-shape my-profile,other-profile ssh://server/repo
 
 TODO explain current client-side config and how it might evolve (storing the
 shape, fingerprint, etc.).

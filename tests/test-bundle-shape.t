@@ -76,17 +76,21 @@ Create shapes config
   > name = "excluded2"
   > paths = ["dir1/excluded"]
   > [[shards]]
-  > name = "foobar"
+  > name = "foobar-files"
   > paths = ["dir2"]
-  > shape = true
-  > [[shards]]
+  > 
+  > [[profiles]]
   > name = "default"
-  > requires = ["base"]
-  > shape = true
-  > [[shards]]
+  > includes = ["base"]
+  > public = true
+  > [[profiles]]
+  > name = "foobar"
+  > includes = ["foobar-files"]
+  > public = true
+  > [[profiles]]
   > name = "foobaz"
-  > shape = true
-  > requires = ["excluded1", "foobar"]
+  > public = true
+  > includes = ["excluded1", "foobar"]
   > EOF
   $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes --override-reshape-and-reshard-check
 
@@ -825,10 +829,10 @@ Add a shape with just the "excluded2" shard
 
   $ cat $TESTTMP/source-shapes > $TESTTMP/source-shapes-eshape
   $ cat << EOF >> $TESTTMP/source-shapes-eshape
-  > [[shards]]
+  > [[profiles]]
   > name = "excluded-shape"
-  > requires = ["excluded2"]
-  > shape = true
+  > includes = ["excluded2"]
+  > public = true
   > EOF
   $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-eshape
 
@@ -854,10 +858,10 @@ Split "excluded2" by adding a shard nested inside it, and add that shard to
   > [[shards]]
   > name = "nested"
   > paths = ["dir1/excluded/nested"]
-  > [[shards]]
+  > [[profiles]]
   > name = "excluded-shape"
-  > requires = ["excluded2", "nested"]
-  > shape = true
+  > includes = ["excluded2", "nested"]
+  > public = true
   > EOF
   $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-split
 
@@ -882,10 +886,10 @@ but a different fingerprint
   > [[shards]]
   > name = "nested"
   > paths = ["dir1/excluded/nested"]
-  > [[shards]]
+  > [[profiles]]
   > name = "excluded-shape"
-  > requires = ["nested"]
-  > shape = true
+  > includes = ["nested"]
+  > public = true
   > EOF
   $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-redefined \
   >   --override-fingerprint-change-check --override-saved-configs-check

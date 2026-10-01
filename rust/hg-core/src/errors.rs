@@ -589,10 +589,16 @@ impl fmt::Display for HgError {
                             "{backtrace}shard '{name}' defined multiple times"
                         )
                     }
-                    ShapeErrorKind::ShardMissingPathsAndRequires(name) => {
+                    ShapeErrorKind::ShardMissingPaths(name) => {
+                        format!("{backtrace}shard '{name}' needs `paths`")
+                    }
+                    ShapeErrorKind::ProfileMissingIncludes(name) => {
+                        format!("{backtrace}profile '{name}' needs `includes`")
+                    }
+                    ShapeErrorKind::NoShards => {
                         format!(
-                            "{backtrace}shard '{name}' needs one of \
-                            `paths` or `requires`"
+                            "{backtrace}`server-shapes` must include at least \
+                            one shard"
                         )
                     }
                     ShapeErrorKind::InvalidPath(err) => {

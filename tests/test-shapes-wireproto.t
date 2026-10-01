@@ -17,20 +17,26 @@ Setup the server shapes config
   > version = 0
   > [[shards]]
   > name = "secrets"
-  > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "other-secret"
+  > name = "other-secret-files"
   > paths = ["foo/bar/other-secret"]
-  > shape = true
-  > [[shards]]
+  > 
+  > [[profiles]]
   > name = "default"
-  > requires = ["base"]
-  > shape = true
-  > [[shards]]
+  > includes = ["base"]
+  > public = true
+  > [[profiles]]
+  > name = "internal-secrets"  # Test a private shape
+  > includes = ["secrets", "other-secret"]
+  > [[profiles]]
   > name = "full-manual"
-  > requires = ["base", "secrets"]
-  > shape = true
+  > includes = ["base", "internal-secrets"]
+  > public = true
+  > [[profiles]]
+  > name = "other-secret"
+  > includes = ["other-secret-files"]
+  > public = true
   > EOF
   $ hg admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
@@ -468,20 +474,23 @@ Update the server shapes to change the fingerprint of this shape
   > version = 0
   > [[shards]]
   > name = "secrets"
-  > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "other-secret"
+  > name = "other-secret-files"
   > paths = ["foo/bar/other-secret"]
-  > shape = true
-  > [[shards]]
+  > 
+  > [[profiles]]
   > name = "default"
-  > requires = ["base", "secrets"]
-  > shape = true
-  > [[shards]]
+  > includes = ["base", "secrets", "other-secret"]
+  > public = true
+  > [[profiles]]
   > name = "full-manual"
-  > requires = ["base", "secrets"]
-  > shape = true
+  > includes = ["base", "secrets", "other-secret"]
+  > public = true
+  > [[profiles]]
+  > name = "other-secret"
+  > includes = ["other-secret-files"]
+  > public = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
   cleared 0 saved server-shapes
@@ -511,9 +520,12 @@ Update the server shapes to remove the shape
   $ cat > $TESTTMP/new-shapes <<EOF
   > version = 0
   > [[shards]]
-  > name = "from-file"
+  > name = "dir1"
   > paths = ["dir1"]
-  > shape = true
+  > [[profiles]]
+  > name = "from-file"
+  > includes = ["dir1"]
+  > public = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
 
@@ -552,20 +564,23 @@ Update the server shapes to change the fingerprint of this shape
   > version = 0
   > [[shards]]
   > name = "secrets"
-  > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "other-secret"
+  > name = "other-secret-files"
   > paths = ["foo/bar/other-secret"]
-  > shape = true
-  > [[shards]]
+  > 
+  > [[profiles]]
   > name = "default"
-  > requires = ["base", "secrets"]
-  > shape = true
-  > [[shards]]
+  > includes = ["base", "secrets", "other-secret"]
+  > public = true
+  > [[profiles]]
   > name = "full-manual"
-  > requires = ["base", "secrets"]
-  > shape = true
+  > includes = ["base", "secrets", "other-secret"]
+  > public = true
+  > [[profiles]]
+  > name = "other-secret"
+  > includes = ["other-secret-files"]
+  > public = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
   cleared 1 saved server-shapes
@@ -595,9 +610,12 @@ Update the server shapes to remove the shape
   $ cat > $TESTTMP/new-shapes <<EOF
   > version = 0
   > [[shards]]
-  > name = "from-file"
+  > name = "dir1"
   > paths = ["dir1"]
-  > shape = true
+  > [[profiles]]
+  > name = "from-file"
+  > includes = ["dir1"]
+  > public = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
 

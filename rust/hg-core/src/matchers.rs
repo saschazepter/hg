@@ -2703,14 +2703,14 @@ mod tests {
         [[shards]]
         name = "abc"
         paths = ["a/b/c"]
-        [[shards]]
+        [[profiles]]
         name = "test"
-        requires = ["a", "abc"]
-        shape = true
-        [[shards]]
+        includes = ["a", "abc"]
+        public = true
+        [[profiles]]
         name = "default"
-        requires = ["base"]
-        shape = true
+        includes = ["base"]
+        public = true
         "#;
 
         let store_shards =

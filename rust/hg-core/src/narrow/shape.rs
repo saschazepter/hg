@@ -65,8 +65,12 @@ pub enum ErrorKind {
     PathInMultipleShards(HgPathBuf),
     /// Two (or more) shards share the same name
     DuplicateShard(ShardName),
-    /// This shard was defined without `paths` and `requires`
-    ShardMissingPathsAndRequires(String),
+    /// This shard was defined without `paths`
+    ShardMissingPaths(String),
+    /// This profile was defined without `includes`
+    ProfileMissingIncludes(String),
+    /// The config does not define any shard
+    NoShards,
     /// An invalid file pattern was given
     PatternError(PatternError),
     /// The config contains an invalid path, with this error
@@ -266,33 +270,47 @@ impl StoreShards {
 
     #[tracing::instrument(level = "debug", skip_all)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, HgError> {
-        let config = toml::from_slice(data).map_err(|e| -> Error {
-            // We've failed to parse this to the expected structure,
-            // it could be for many different reasons.
-            // Give a better error message if it's only because it's a
-            // different version that also turns out to be incompatible
-            // with this deserialization.
-            // It's a little fragile, but it's better than nothing.
-            let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
-                .expect("valid regex");
-            if let Some(captures) = re.captures(data)
-                && let Some(version) = captures.get(1)
-            {
-                let version = String::from_utf8_lossy(version.as_bytes())
-                    .parse::<usize>()
-                    .expect("parsing an integer from a regex");
-                return ErrorKind::UnknownVersion(version).into();
-            }
-            ErrorKind::ParseError(e).into()
-        })?;
+        let config: ShapesConfig =
+            toml::from_slice(data).map_err(|e| -> Error {
+                // We've failed to parse this to the expected structure,
+                // it could be for many different reasons.
+                // Give a better error message if it's only because it's a
+                // different version that also turns out to be incompatible
+                // with this deserialization.
+                // It's a little fragile, but it's better than nothing.
+                let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
+                    .expect("valid regex");
+                if let Some(captures) = re.captures(data)
+                    && let Some(version) = captures.get(1)
+                {
+                    let version = String::from_utf8_lossy(version.as_bytes())
+                        .parse::<usize>()
+                        .expect("parsing an integer from a regex");
+                    return ErrorKind::UnknownVersion(version).into();
+                }
+                ErrorKind::ParseError(e).into()
+            })?;
+        // A config without shards makes no sense, but having no config at all
+        // (see `from_repo_config`) is fine.
+        // TODO consider relaxing this constraint. If a config includes no
+        // shards, we could simply have the two default shards (hg-files
+        // and base shard).
+        if config.shards.is_empty() {
+            return Err(Error::from(ErrorKind::NoShards))?;
+        }
         Ok(Self::from_config(config)?)
     }
 
     pub(crate) fn from_config(config: ShapesConfig) -> Result<Self, Error> {
-        let ShapesConfig { version, mut shards } = config;
+        let ShapesConfig { version, shards, profiles: shapes } = config;
         if version != 0 {
             return Err(ErrorKind::UnknownVersion(version as usize))?;
         }
+        let mut shards: Vec<ShardConfig> = shards
+            .into_iter()
+            .map(ShardConfig::try_from)
+            .chain(shapes.into_iter().map(ShardConfig::try_from))
+            .collect::<Result<_, _>>()?;
         let shards_len_before = shards.len();
         shards.push(ShardConfig {
             name: "base".to_string(),
@@ -351,10 +369,6 @@ impl StoreShards {
             && matches!(name.as_str(), "base" | "full" | HG_FILES_SHARD)
         {
             return Err(ErrorKind::ReservedName(name))?;
-        }
-
-        if paths.is_none() && requires.is_none() {
-            return Err(ErrorKind::ShardMissingPathsAndRequires(name))?;
         }
 
         let mut hg_paths = vec![];
@@ -678,33 +692,93 @@ impl Shape {
     }
 }
 
-/// Matches the os-disk config for a single shard inside the [`ShapesConfig`]
-#[derive(Debug, Serialize, Deserialize)]
+/// The internal config for a single shard, built from a [`ShardsEntry`] or
+/// a [`ProfilesEntry`] of the [`ShapesConfig`]
+#[derive(Debug)]
 struct ShardConfig {
     /// Canonical name for this shard. Used both in UI and protocol
     name: String,
-    #[serde(default)]
     /// Whether this shard is also a user-accessible shape
     shape: bool,
     /// The paths that this shard concerns. Can only be none if this shard
     /// has [`Self::requires`]
     paths: Option<Vec<String>>,
-
-    // TODO encoded paths for non-utf8 paths
-    // encoded_paths: Option<Vec<String>>,
     /// Names of the shards that this shard depends on, to build a hierarchy
     requires: Option<Vec<String>>,
 }
 
+impl TryFrom<ShardsEntry> for ShardConfig {
+    type Error = Error;
+
+    fn try_from(entry: ShardsEntry) -> Result<Self, Error> {
+        if entry.paths.is_empty() {
+            return Err(ErrorKind::ShardMissingPaths(entry.name))?;
+        }
+        Ok(Self {
+            name: entry.name,
+            shape: false,
+            paths: Some(entry.paths),
+            requires: None,
+        })
+    }
+}
+
+impl TryFrom<ProfilesEntry> for ShardConfig {
+    type Error = Error;
+
+    fn try_from(entry: ProfilesEntry) -> Result<Self, Error> {
+        if entry.includes.is_empty() {
+            return Err(ErrorKind::ProfileMissingIncludes(entry.name))?;
+        }
+        Ok(Self {
+            name: entry.name,
+            shape: entry.public,
+            paths: None,
+            requires: Some(entry.includes),
+        })
+    }
+}
+
+/// Matches the on-disk config for a single `[[shards]]` entry inside the
+/// [`ShapesConfig`]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ShardsEntry {
+    /// Canonical name for this shard. Used both in UI and protocol
+    name: String,
+    /// The paths that this shard concerns
+    paths: Vec<String>,
+    // TODO encoded paths for non-utf8 paths
+    // encoded_paths: Option<Vec<String>>,
+}
+
+/// Matches the on-disk config for a single `[[profiles]]` entry inside the
+/// [`ShapesConfig`]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProfilesEntry {
+    /// Canonical name for this profile. Used both in UI and protocol
+    name: String,
+    /// Names of the shards and profiles that make up this profile
+    includes: Vec<String>,
+    /// Whether this profile is user-accessible, as opposed to only being
+    /// usable in the `includes` of other profiles
+    #[serde(default)]
+    public: bool,
+}
+
 /// Matches the on-disk format for admins to define their repo's shards and
-/// shapes
+/// profiles
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct ShapesConfig {
     // XXX should there be a `[meta]` section?
     /// The version of this config. For now only version `0` exists.
     version: u32,
-    /// The shards and shapes defined by the repo's admins.
-    shards: Vec<ShardConfig>,
+    /// The shards defined by the repo's admins.
+    shards: Vec<ShardsEntry>,
+    /// The profiles defined by the repo's admins.
+    #[serde(default)]
+    profiles: Vec<ProfilesEntry>,
 }
 
 /// A temporary structure useful to create a [`ShardTreeNode`], since it
@@ -1311,58 +1385,58 @@ mod tests {
             name = "nested-files"
             paths = ["some/super/nested/file"]
 
-            [[shards]]
+            [[profiles]]
             name = "foo"
-            requires = ["foo-files", "foo-deps"]
-            shape = true
+            includes = ["foo-files", "foo-deps"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "foo-deps"
-            requires = ["baz", "base"]
+            includes = ["baz", "base"]
 
-            [[shards]]
+            [[profiles]]
             name = "stone"
-            requires = ["stone-files"]
-            shape = true
+            includes = ["stone-files"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "borden"
-            requires = ["borden-files", "stone"]
-            shape = true
+            includes = ["borden-files", "stone"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "mummy"
-            requires = ["mummy-files"]
-            shape = true
+            includes = ["mummy-files"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "chamber"
-            requires = ["chamber-files", "stone"]
-            shape = true
+            includes = ["chamber-files", "stone"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "bar"
-            requires = ["bar-files"]
-            shape = true
+            includes = ["bar-files"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "bazik"
-            requires = ["bazik-files", "bar"]
-            shape = true
+            includes = ["bazik-files", "bar"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "nested"
-            requires = ["nested-files"]
-            shape = true
+            includes = ["nested-files"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "baron"
-            requires = ["baron-parts"]
-            shape = true
+            includes = ["baron-parts"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "baron-parts"
-            requires = ["bar", "baziku"]
+            includes = ["bar", "baziku"]
         "#;
 
         // Make sure we can load this config
@@ -2292,10 +2366,19 @@ mod tests {
                 version=0
                 [[shards]]
                 name="too-little"
+                paths=[]
             "#,
-                ErrorKind::ShardMissingPathsAndRequires(
-                    "too-little".to_string(),
-                ),
+                ErrorKind::ShardMissingPaths("too-little".to_string()),
+            ),
+            (
+                r#"
+                version=0
+                shards=[]
+                [[profiles]]
+                name="too-little"
+                includes=[]
+            "#,
+                ErrorKind::ProfileMissingIncludes("too-little".to_string()),
             ),
             (
                 r#"
@@ -2345,9 +2428,10 @@ mod tests {
             (
                 r#"
                 version=0
-                [[shards]]
+                shards=[]
+                [[profiles]]
                 name="recursive"
-                requires=["recursive"]
+                includes=["recursive"]
             "#,
                 ErrorKind::CycleInShards(vec![
                     ShardName::new("recursive".to_string()).unwrap(),
@@ -2357,18 +2441,19 @@ mod tests {
             (
                 r#"
                 version=0
-                [[shards]]
+                shards=[]
+                [[profiles]]
                 name="cyclic1"
-                requires=["cyclic2"]
-                [[shards]]
+                includes=["cyclic2"]
+                [[profiles]]
                 name="cyclic2"
-                requires=["cyclic3"]
-                [[shards]]
+                includes=["cyclic3"]
+                [[profiles]]
                 name="cyclic3"
-                requires=["cyclic4"]
-                [[shards]]
+                includes=["cyclic4"]
+                [[profiles]]
                 name="cyclic4"
-                requires=["cyclic1"]
+                includes=["cyclic1"]
             "#,
                 ErrorKind::CycleInShards(vec![
                     ShardName::new("cyclic1".to_string()).unwrap(),
@@ -2396,10 +2481,10 @@ mod tests {
         name = "foo"
         paths = ["foo"]
 
-        [[shards]]
+        [[profiles]]
         name = "default"
-        requires = ["base"]
-        shape = true
+        includes = ["base"]
+        public = true
     "#;
 
     fn changed(
@@ -2435,10 +2520,10 @@ mod tests {
         let reformatted = r#"
             version = 0
             # this is the default shape
-            [[shards]]
+            [[profiles]]
             name = "default"
-            shape = true
-            requires = ["base"]
+            includes = ["base"]
+            public = true
             [[shards]]
             name = "foo"
             paths = ["foo"]
@@ -2454,10 +2539,10 @@ mod tests {
             name = "foo-files"
             paths = ["foo", "bar"]
 
-            [[shards]]
+            [[profiles]]
             name = "foo"
-            requires = ["foo-files"]
-            shape = true
+            includes = ["foo-files"]
+            public = true
         "#;
         let new = r#"
             version = 0
@@ -2466,10 +2551,10 @@ mod tests {
             name = "foo-files"
             paths = ["bar", "foo"]
 
-            [[shards]]
+            [[profiles]]
             name = "foo"
-            requires = ["foo-files"]
-            shape = true
+            includes = ["foo-files"]
+            public = true
         "#;
         assert_eq!(changed_shapes(old, new), NO_CHANGE);
         assert_eq!(changed_shards(old, new), NO_CHANGE);
@@ -2484,17 +2569,37 @@ mod tests {
             name = "foo"
             paths = ["foo"]
 
-            [[shards]]
+            [[profiles]]
             name = "default"
-            requires = ["base"]
-            shape = true
+            includes = ["base"]
+            public = true
 
-            [[shards]]
+            [[profiles]]
             name = "everything"
-            requires = ["foo", "default"]
-            shape = true
+            includes = ["foo", "default"]
+            public = true
         "#;
         assert_eq!(changed_shapes(SIMPLE_CONFIG, new), vec!["everything"]);
+        assert_eq!(changed_shards(SIMPLE_CONFIG, new), NO_CHANGE);
+
+        // A non-public shape is not user-accessible, so not a change
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+
+            [[profiles]]
+            name = "default"
+            includes = ["base"]
+            public = true
+
+            [[profiles]]
+            name = "everything"
+            includes = ["foo", "default"]
+        "#;
+        assert_eq!(changed_shapes(SIMPLE_CONFIG, new), NO_CHANGE);
         assert_eq!(changed_shards(SIMPLE_CONFIG, new), NO_CHANGE);
     }
 
@@ -2512,10 +2617,10 @@ mod tests {
             name = "bar"
             paths = ["bar"]
 
-            [[shards]]
+            [[profiles]]
             name = "default"
-            requires = ["base"]
-            shape = true
+            includes = ["base"]
+            public = true
         "#;
         assert_eq!(changed_shapes(SIMPLE_CONFIG, new), vec!["default"]);
         // `base` owned the files under `bar` until now
@@ -2533,10 +2638,10 @@ mod tests {
             name = "bar"
             paths = ["bar"]
 
-            [[shards]]
+            [[profiles]]
             name = "default"
-            requires = ["base", "bar"]
-            shape = true
+            includes = ["base", "bar"]
+            public = true
         "#;
         assert_eq!(changed_shapes(SIMPLE_CONFIG, new), NO_CHANGE);
         assert_eq!(changed_shards(SIMPLE_CONFIG, new), vec!["bar", "base"]);
@@ -2544,18 +2649,39 @@ mod tests {
 
     #[test]
     fn test_removing_shard() {
+        // A config needs at least one shard, so keep `bar` around
+        let old = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+
+            [[shards]]
+            name = "bar"
+            paths = ["bar"]
+
+            [[profiles]]
+            name = "default"
+            includes = ["base"]
+            public = true
+        "#;
         // Removing a shard can also affect shapes
         let new = r#"
             version = 0
 
             [[shards]]
+            name = "bar"
+            paths = ["bar"]
+
+            [[profiles]]
             name = "default"
-            requires = ["base"]
-            shape = true
+            includes = ["base"]
+            public = true
         "#;
-        assert_eq!(changed_shapes(SIMPLE_CONFIG, new), vec!["default"]);
+        assert_eq!(changed_shapes(old, new), vec!["default"]);
         // `base` picks up the files that `foo` owned
-        assert_eq!(changed_shards(SIMPLE_CONFIG, new), vec!["base", "foo"]);
+        assert_eq!(changed_shards(old, new), vec!["base", "foo"]);
 
         // We must first remove the shape, and only then can we remove the shard
         let remove_shape = r#"
@@ -2564,22 +2690,44 @@ mod tests {
             [[shards]]
             name = "foo"
             paths = ["foo"]
+
+            [[shards]]
+            name = "bar"
+            paths = ["bar"]
         "#;
-        assert_eq!(
-            changed_shapes(SIMPLE_CONFIG, remove_shape),
-            vec!["default"]
-        );
-        assert_eq!(changed_shards(SIMPLE_CONFIG, remove_shape), NO_CHANGE);
+        assert_eq!(changed_shapes(old, remove_shape), vec!["default"]);
+        assert_eq!(changed_shards(old, remove_shape), NO_CHANGE);
 
         let remove_shard = r#"
             version = 0
-            shards = []
+
+            [[shards]]
+            name = "bar"
+            paths = ["bar"]
         "#;
         assert_eq!(changed_shapes(remove_shape, remove_shard), NO_CHANGE);
         assert_eq!(
             changed_shards(remove_shape, remove_shard),
             vec!["base", "foo"]
         );
+    }
+
+    #[test]
+    fn test_no_shards() {
+        let config = r#"
+            version = 0
+            shards = []
+
+            [[profiles]]
+            name = "default"
+            includes = ["base"]
+            public = true
+        "#;
+        let err = StoreShards::from_bytes(config.as_bytes()).unwrap_err();
+        let HgError::Shape(err) = err else {
+            panic!("unexpected error {:?}", err);
+        };
+        assert_eq!(*err.kind, ErrorKind::NoShards);
     }
 
     #[test]
