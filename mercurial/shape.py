@@ -431,6 +431,9 @@ def b2u(data: bytes) -> int:
 
 PATTERN_INCLUDED_FLAG = 1 << 15
 
+_PATTERNS_COUNT_SIZE = 4
+_PATTERN_SIZE_SIZE = 2
+
 
 def serialize_patterns(
     includes: typing.Iterable[bytes], excludes: typing.Iterable[bytes]
@@ -457,24 +460,38 @@ def serialize_patterns(
     >>> serialize_patterns(set(), set())
     b'\x00\x00\x00\x00'
     """
+    includes = set(includes)
+    excludes = set(excludes)
+    if includes & excludes:
+        raise error.ProgrammingError(b"duplicated paths in patterns")
     patterns = [(p, True) for p in includes]
     patterns.extend((p, False) for p in excludes)
-    assert len(patterns) == len(
-        set(includes) | set(excludes)
-    )  # sanity check duplicates
 
     patterns.sort(key=lambda x: zero_path(x[0]))
 
-    pieces = [u2b(len(patterns), 4)]
+    pieces = [u2b(len(patterns), _PATTERNS_COUNT_SIZE)]
     for pat, included in patterns:
         size = len(pat)
-        assert size < PATTERN_INCLUDED_FLAG
+        if size >= PATTERN_INCLUDED_FLAG:
+            raise error.Abort(_(b"path is too long: %d bytes") % size)
         if included:
             size |= PATTERN_INCLUDED_FLAG
-        pieces.append(u2b(size, 2))
+        pieces.append(u2b(size, _PATTERN_SIZE_SIZE))
     for pat, _included in patterns:
         pieces.append(pat)
     return b''.join(pieces)
+
+
+def _check_patterns_length(data: bytes, expected: int, exact: bool = False):
+    """Abort if the patterns block `data` is shorter than `expected` bytes,
+    or of any other size if `exact` is set"""
+    invalid = len(data) != expected if exact else len(data) < expected
+    if invalid:
+        msg = _(
+            b"error deserializing shape: invalid length "
+            b"(expected %d, got %d)"
+        )
+        raise error.Abort(msg % (expected, len(data)))
 
 
 def _deserialize_patterns(data: bytes) -> tuple[set[bytes], set[bytes]]:
@@ -489,31 +506,56 @@ def _deserialize_patterns(data: bytes) -> tuple[set[bytes], set[bytes]]:
     ([b'foo', b'foo-x'], [b'', b'foo/bar'])
     >>> _deserialize_patterns(b'\x00\x00\x00\x00')
     (set(), set())
+    >>> def check(data):
+    ...     try:
+    ...         _deserialize_patterns(data)
+    ...     except error.Abort as e:
+    ...         print(e.message.decode())
+    >>> check(b'\x00\x00\x01')
+    error deserializing shape: invalid length (expected 4, got 3)
+    >>> check(b'\x00\x00\x00\x02\x80\x03')
+    error deserializing shape: invalid length (expected 8, got 6)
+    >>> check(b'\x00\x00\x00\x01\x80\x03fo')
+    error deserializing shape: invalid length (expected 9, got 8)
+    >>> check(b'\x00\x00\x00\x01\x80\x03fooo')
+    error deserializing shape: invalid length (expected 9, got 10)
+    >>> check(b'\x00\x00\x00\x00f')
+    error deserializing shape: invalid length (expected 4, got 5)
+    >>> check(b'\x00\x00\x00\x01\x00\x02/f')
+    error deserializing shape: invalid path '/f'
     """
-    # XXX error handling needs to exists at some point
-    assert len(data) >= 4  # XXX should be a proper error
-    count = b2u(data[:4])
-    cursor = 4
-    if count == 0:
-        return (set(), set())
+    # Validate everything we can from the fixed-size information first
+    _check_patterns_length(data, _PATTERNS_COUNT_SIZE)
+    count = b2u(data[:_PATTERNS_COUNT_SIZE])
+    paths_start = _PATTERNS_COUNT_SIZE + count * _PATTERN_SIZE_SIZE
+    _check_patterns_length(data, paths_start)
+
     sizes = []
-    for __ in range(count):
-        sizes.append(b2u(data[cursor : cursor + 2]))
-        cursor += 2
+    for cursor in range(_PATTERNS_COUNT_SIZE, paths_start, _PATTERN_SIZE_SIZE):
+        raw = b2u(data[cursor : cursor + _PATTERN_SIZE_SIZE])
+        included = bool(raw & PATTERN_INCLUDED_FLAG)
+        sizes.append((raw & ~PATTERN_INCLUDED_FLAG, included))
+    paths_size = sum(size for size, _included in sizes)
+    _check_patterns_length(data, paths_start + paths_size, exact=True)
+
     includes = set()
     excludes = set()
-    for s in sizes:
-        if s & PATTERN_INCLUDED_FLAG:
-            pats = includes
+    cursor = paths_start
+    for size, included in sizes:
+        path = data[cursor : cursor + size]
+        cursor += size
+        if (
+            b'\0' in path
+            or b'//' in path
+            or path.startswith(b'/')
+            or path.endswith(b'/')
+        ):
+            msg = _(b"error deserializing shape: invalid path '%s'")
+            raise error.Abort(msg % path)
+        if included:
+            includes.add(path)
         else:
-            pats = excludes
-        s &= ~PATTERN_INCLUDED_FLAG
-        pats.add(data[cursor : cursor + s])
-        cursor += s
-    assert cursor == len(data), (
-        cursor,
-        len(data),
-    )  # XXX should be a proper error
+            excludes.add(path)
     return (includes, excludes)
 
 
