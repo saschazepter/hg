@@ -102,7 +102,7 @@ impl PyStoreShards {
     }
 
     /// Return a [`PyList`] whose items are, for each shard in the store:
-    ///   - Its standalone (hex) fingerprint, meaning without its dependencies
+    ///   - Its standalone fingerprint, meaning without its dependencies
     ///   - Its matcher
     ///   - A boolean, that is `true` if this is the top-level shard, meaning
     ///     that it concerns Mercurial special files, i.e. the `.hg-files` shard
@@ -110,7 +110,7 @@ impl PyStoreShards {
         let sharded = self.inner.sharded_bundle_info();
         let sharded_iter = sharded.into_iter().map(|standalone_shard| {
             (
-                standalone_shard.fingerprint().to_hex_bytes(),
+                standalone_shard.fingerprint().to_vec(),
                 PyMatcher::new(Box::new(standalone_shard.matcher())),
                 standalone_shard.top_level,
             )

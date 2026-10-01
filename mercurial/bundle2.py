@@ -1783,10 +1783,11 @@ def write_repo_sharded_stream_bundles(
         file_paths = []
         for info in store_shards.sharded_bundle_info():
             (
-                hex_fingerprint,
+                fingerprint,
                 matcher,
                 match_top_level_entries,
             ) = info
+            hex_fingerprint = shape_py.shdfp2txt(fingerprint)
             filename = b"hg-sharded-%s-%s.hg" % (
                 bundle_group_id,
                 hex_fingerprint,
