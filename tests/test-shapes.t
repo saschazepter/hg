@@ -24,20 +24,20 @@ Setup the server shapes config
   $ cat > .hg/store/server-shapes <<EOF
   > version = 0
   > [[shards]]
-  > name = "default"
-  > requires = ["base"]
-  > shape = true
-  > [[shards]]
   > name = "secrets"
   > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "full-manual"
-  > requires = ["base", "secrets"]
-  > shape = true
-  > [[shards]]
   > name = "other-secret"
   > paths = ["foo/bar/other-secret"]
+  > shape = true
+  > [[shards]]
+  > name = "default"
+  > requires = ["base"]
+  > shape = true
+  > [[shards]]
+  > name = "full-manual"
+  > requires = ["base", "secrets"]
   > shape = true
   > EOF
 

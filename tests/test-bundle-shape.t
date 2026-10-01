@@ -70,10 +70,6 @@ Create shapes config
   $ cat << EOF >> $TESTTMP/source-shapes
   > version = 0
   > [[shards]]
-  > name = "default"
-  > requires = ["base"]
-  > shape = true
-  > [[shards]]
   > name = "excluded1"
   > paths = ["excluded"]
   > [[shards]]
@@ -82,6 +78,10 @@ Create shapes config
   > [[shards]]
   > name = "foobar"
   > paths = ["dir2"]
+  > shape = true
+  > [[shards]]
+  > name = "default"
+  > requires = ["base"]
   > shape = true
   > [[shards]]
   > name = "foobaz"

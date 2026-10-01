@@ -1319,13 +1319,13 @@ mod tests {
             paths = ["bar/baz/ik/u"]
 
             [[shards]]
-            name = "baron"
-            requires = ["bar", "baziku"]
+            name = "nested"
+            paths = ["some/super/nested/file"]
             shape = true
 
             [[shards]]
-            name = "nested"
-            paths = ["some/super/nested/file"]
+            name = "baron"
+            requires = ["bar", "baziku"]
             shape = true
         "#;
 

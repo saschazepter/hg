@@ -16,20 +16,20 @@ Setup the server shapes config
   $ cat > $TESTTMP/starting-shapes <<EOF
   > version = 0
   > [[shards]]
-  > name = "default"
-  > requires = ["base"]
-  > shape = true
-  > [[shards]]
   > name = "secrets"
   > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "full-manual"
-  > requires = ["base", "secrets"]
-  > shape = true
-  > [[shards]]
   > name = "other-secret"
   > paths = ["foo/bar/other-secret"]
+  > shape = true
+  > [[shards]]
+  > name = "default"
+  > requires = ["base"]
+  > shape = true
+  > [[shards]]
+  > name = "full-manual"
+  > requires = ["base", "secrets"]
   > shape = true
   > EOF
   $ hg admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
@@ -467,20 +467,20 @@ Update the server shapes to change the fingerprint of this shape
   $ cat > $TESTTMP/new-shapes <<EOF
   > version = 0
   > [[shards]]
-  > name = "default"
-  > requires = ["base", "secrets"]
-  > shape = true
-  > [[shards]]
   > name = "secrets"
   > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "full-manual"
+  > name = "other-secret"
+  > paths = ["foo/bar/other-secret"]
+  > shape = true
+  > [[shards]]
+  > name = "default"
   > requires = ["base", "secrets"]
   > shape = true
   > [[shards]]
-  > name = "other-secret"
-  > paths = ["foo/bar/other-secret"]
+  > name = "full-manual"
+  > requires = ["base", "secrets"]
   > shape = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
@@ -551,20 +551,20 @@ Update the server shapes to change the fingerprint of this shape
   $ cat > $TESTTMP/new-shapes <<EOF
   > version = 0
   > [[shards]]
-  > name = "default"
-  > requires = ["base", "secrets"]
-  > shape = true
-  > [[shards]]
   > name = "secrets"
   > requires = ["other-secret"]
   > paths = ["secret"]
   > [[shards]]
-  > name = "full-manual"
+  > name = "other-secret"
+  > paths = ["foo/bar/other-secret"]
+  > shape = true
+  > [[shards]]
+  > name = "default"
   > requires = ["base", "secrets"]
   > shape = true
   > [[shards]]
-  > name = "other-secret"
-  > paths = ["foo/bar/other-secret"]
+  > name = "full-manual"
+  > requires = ["base", "secrets"]
   > shape = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
