@@ -1260,15 +1260,12 @@ mod tests {
             version = 0
 
             [[shards]]
-            name = "foo"
+            name = "foo-files"
             paths = ["foo"]
-            requires = ["baz", "base"]
-            shape = true
 
             [[shards]]
-            name = "stone"
+            name = "stone-files"
             paths = ["stone"]
-            shape = true
 
             [[shards]]
             name = "lizard"
@@ -1279,54 +1276,93 @@ mod tests {
             paths = ["stone/liz/zie"]
 
             [[shards]]
-            name = "borden"
+            name = "borden-files"
             paths = ["stone/liz/zie/bor/den"]
-            requires = ["stone"]
-            shape = true
 
             [[shards]]
-            name = "mummy"
+            name = "mummy-files"
             paths = ["stone/mummy"]
-            shape = true
 
             [[shards]]
-            name = "chamber"
+            name = "chamber-files"
             paths = ["stone/mummy/chamber"]
-            requires = ["stone"]
-            shape = true
 
             [[shards]]
             name = "inner"
             paths = ["stone/mummy/chamber/inner"]
 
             [[shards]]
-            name = "bar"
+            name = "bar-files"
             paths = ["bar"]
-            shape = true
 
             [[shards]]
             name = "baz"
             paths = ["bar/baz"]
 
             [[shards]]
-            name = "bazik"
+            name = "bazik-files"
             paths = ["bar/baz/ik"]
-            requires = ["bar"]
-            shape = true
 
             [[shards]]
             name = "baziku"
             paths = ["bar/baz/ik/u"]
 
             [[shards]]
-            name = "nested"
+            name = "nested-files"
             paths = ["some/super/nested/file"]
+
+            [[shards]]
+            name = "foo"
+            requires = ["foo-files", "foo-deps"]
+            shape = true
+
+            [[shards]]
+            name = "foo-deps"
+            requires = ["baz", "base"]
+
+            [[shards]]
+            name = "stone"
+            requires = ["stone-files"]
+            shape = true
+
+            [[shards]]
+            name = "borden"
+            requires = ["borden-files", "stone"]
+            shape = true
+
+            [[shards]]
+            name = "mummy"
+            requires = ["mummy-files"]
+            shape = true
+
+            [[shards]]
+            name = "chamber"
+            requires = ["chamber-files", "stone"]
+            shape = true
+
+            [[shards]]
+            name = "bar"
+            requires = ["bar-files"]
+            shape = true
+
+            [[shards]]
+            name = "bazik"
+            requires = ["bazik-files", "bar"]
+            shape = true
+
+            [[shards]]
+            name = "nested"
+            requires = ["nested-files"]
             shape = true
 
             [[shards]]
             name = "baron"
-            requires = ["bar", "baziku"]
+            requires = ["baron-parts"]
             shape = true
+
+            [[shards]]
+            name = "baron-parts"
+            requires = ["bar", "baziku"]
         "#;
 
         // Make sure we can load this config
@@ -1342,21 +1378,31 @@ mod tests {
         let all_shard_names = vec![
             ".hg-files",
             "bar",
+            "bar-files",
             "baron",
+            "baron-parts",
             "base",
             "baz",
             "bazik",
+            "bazik-files",
             "baziku",
             "borden",
+            "borden-files",
             "chamber",
+            "chamber-files",
             "foo",
+            "foo-deps",
+            "foo-files",
             "full",
             "inner",
             "lizard",
             "lizzie",
             "mummy",
+            "mummy-files",
             "nested",
+            "nested-files",
             "stone",
+            "stone-files",
         ];
         // Shards are as expected, along with the implicit shards
         assert_eq!(
@@ -1383,6 +1429,11 @@ mod tests {
                 .map(|shape| shape.names().iter().join(","))
                 .collect::<Vec<_>>(),
         );
+        // These are only usable through the shapes that include them
+        for name in ["foo-deps", "baron-parts"] {
+            let err = store_shards.shape(&[name]).unwrap_err();
+            assert_eq!(*err.kind, ErrorKind::UnknownShape(name.to_string()));
+        }
         (store_shards, all_shape_names)
     }
 
@@ -1640,11 +1691,20 @@ mod tests {
             assert_eq!(expected, dependencies, "for shard {}", shard_name);
         }
 
-        assert_dependencies(&store_shards, "bar", vec![".hg-files"]);
+        assert_dependencies(
+            &store_shards,
+            "bar",
+            vec![".hg-files", "bar-files"],
+        );
         assert_dependencies(
             &store_shards,
             "foo",
-            vec![".hg-files", "base", "baz"],
+            vec![".hg-files", "base", "baz", "foo-deps", "foo-files"],
+        );
+        assert_dependencies(
+            &store_shards,
+            "baron",
+            vec![".hg-files", "bar", "bar-files", "baron-parts", "baziku"],
         );
         assert_dependencies(
             &store_shards,
@@ -1652,20 +1712,30 @@ mod tests {
             vec![
                 ".hg-files",
                 "bar",
+                "bar-files",
                 "baron",
+                "baron-parts",
                 "base",
                 "baz",
                 "bazik",
+                "bazik-files",
                 "baziku",
                 "borden",
+                "borden-files",
                 "chamber",
+                "chamber-files",
                 "foo",
+                "foo-deps",
+                "foo-files",
                 "inner",
                 "lizard",
                 "lizzie",
                 "mummy",
+                "mummy-files",
                 "nested",
+                "nested-files",
                 "stone",
+                "stone-files",
             ],
         );
     }
@@ -2381,16 +2451,24 @@ mod tests {
             version = 0
 
             [[shards]]
-            name = "foo"
+            name = "foo-files"
             paths = ["foo", "bar"]
+
+            [[shards]]
+            name = "foo"
+            requires = ["foo-files"]
             shape = true
         "#;
         let new = r#"
             version = 0
 
             [[shards]]
-            name = "foo"
+            name = "foo-files"
             paths = ["bar", "foo"]
+
+            [[shards]]
+            name = "foo"
+            requires = ["foo-files"]
             shape = true
         "#;
         assert_eq!(changed_shapes(old, new), NO_CHANGE);
