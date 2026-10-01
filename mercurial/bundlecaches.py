@@ -665,6 +665,14 @@ def filterclonebundleentries(
         store_fingerprints = [
             shapemod.shpfp2txt(fp) for fp in store_fingerprints
         ]
+    if shards_sets is not None:
+        # same logic as for `store_fingerprints`
+        # The filtering logic operate on the bundle spec and the bundle spec
+        # use the textual form, so let's translate the raw value to textual for
+        # this function.
+        shards_sets = [
+            {shapemod.shdfp2txt(fp) for fp in s} for s in shards_sets
+        ]
 
     newentries: list[EntryT] = []
     # gather the set of shards available for each group.

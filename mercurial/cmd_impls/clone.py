@@ -28,7 +28,6 @@ from .. import (
     phases,
     requirements,
     scmutil,
-    shape as shapemod,
     streamclone,
     ui as uimod,
     util,
@@ -468,11 +467,7 @@ def clone(
                 pullop_args = {}
                 if shape is not None:
                     pullop_args[b"store_fingerprints"] = fingerprints
-                    # TODO: use raw value for pullop.shards_sets
-                    pullop_args[b"shards_sets"] = [
-                        {shapemod.shdfp2txt(fp) for fp in s}
-                        for s in shards_sets
-                    ]
+                    pullop_args[b"shards_sets"] = shards_sets
                 with local.ui.configoverride(overrides, b'clone'):
                     exchange.pull(
                         local,
