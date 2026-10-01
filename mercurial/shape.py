@@ -401,8 +401,6 @@ def _decode_fingerprints(data: bytes) -> list[bytes]:
 def _encode_shards_sets(shards_sets: list[set[bytes]]) -> bytes:
     """encode a "shards_sets" block use by `store_shape` wireprotocol command"""
     pieces = [u2b(len(shards_sets), 1)]
-    # use binary over the wire eventually
-    shards_sets = [{shdfp2txt(shard_id) for shard_id in s} for s in shards_sets]
     for s in shards_sets:
         assert len(s) >= 1
         lengths = set(len(shard_id) for shard_id in s)
@@ -435,8 +433,6 @@ def _decode_shards_sets(data: bytes) -> list[set[bytes]]:
         for __ in range(count):
             one_set.add(data[cursor : cursor + id_size])
             cursor += id_size
-        # use binary over the wire eventually
-        one_set = {txt2shdfp(fp) for fp in one_set}
         shards_sets.append(one_set)
     assert cursor == len(data)
     return shards_sets
