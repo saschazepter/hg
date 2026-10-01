@@ -601,6 +601,12 @@ impl fmt::Display for HgError {
                             one shard"
                         )
                     }
+                    ShapeErrorKind::UnknownInclude { profile, include } => {
+                        format!(
+                            "{backtrace}profile '{profile}' includes unknown \
+                            name '{include}'"
+                        )
+                    }
                     ShapeErrorKind::InvalidReadWriteAccess { shard, value } => {
                         format!(
                             "{backtrace}invalid read-write-access value \

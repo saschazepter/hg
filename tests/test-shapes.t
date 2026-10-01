@@ -17,6 +17,19 @@ Check that server shapes config errors display correctly
   config error: shard name 'base' is reserved
   [30]
 
+  $ cat > .hg/store/server-shapes <<EOF
+  > version = 0
+  > [[shards]]
+  > name = "foo"
+  > paths = ["foo"]
+  > [[profiles]]
+  > name = "typo"
+  > includes = ["fooo"]
+  > EOF
+  $ hg admin::narrow-server --shape-fingerprints
+  config error: profile 'typo' includes unknown name 'fooo'
+  [30]
+
 Normal cases
 ------------
 

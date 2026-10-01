@@ -71,6 +71,13 @@ pub enum ErrorKind {
     ProfileMissingIncludes(String),
     /// The config does not define any shard
     NoShards,
+    /// This include corresponds to no known profile or shard name
+    UnknownInclude {
+        /// The profile with the unknown include
+        profile: ShardName,
+        /// The unknown name
+        include: ShardName,
+    },
     /// This shard has an invalid `read-write-access` value
     InvalidReadWriteAccess {
         /// The shard with the invalid value
@@ -362,6 +369,21 @@ impl StoreShards {
                 &mut validated_shards,
             )
         })?;
+        // This is a second pass over all shards. If it ever becomes a
+        // performance problem, we could collect the include names into a set
+        // while building `validated_shards` and compare at the end instead.
+        for shard in validated_shards.values().sorted() {
+            if let Some(include) = shard
+                .requires
+                .iter()
+                .find(|name| !validated_shards.contains_key(*name))
+            {
+                return Err(ErrorKind::UnknownInclude {
+                    profile: shard.name.to_owned(),
+                    include: include.to_owned(),
+                })?;
+            }
+        }
 
         let slf = Self { shards: validated_shards, path_to_shard };
         // Make sure we can generate all shapes and catch the last errors
@@ -2482,6 +2504,19 @@ mod tests {
                     }
                     .into(),
                 ),
+            ),
+            (
+                r#"
+                version=0
+                shards=[]
+                [[profiles]]
+                name="private"
+                includes=["base", "unknown"]
+            "#,
+                ErrorKind::UnknownInclude {
+                    profile: ShardName::new("private".to_string()).unwrap(),
+                    include: ShardName::new("unknown".to_string()).unwrap(),
+                },
             ),
             (
                 r#"
