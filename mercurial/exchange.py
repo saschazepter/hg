@@ -3043,7 +3043,7 @@ def _maybeapplyclonebundle(pullop: pulloperation):
             pullop.includepats,
             pullop.excludepats,
         )
-        store_fingerprints = [shape_py.shpfp2txt(fp)]
+        store_fingerprints = [fp]
     else:
         store_fingerprints = None
 

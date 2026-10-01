@@ -467,10 +467,7 @@ def clone(
                 overrides = {(b'ui', b'quietbookmarkmove'): True}
                 pullop_args = {}
                 if shape is not None:
-                    # TODO: use raw value for pullop.store_fingerprints
-                    pullop_args[b"store_fingerprints"] = [
-                        shapemod.shpfp2txt(fp) for fp in fingerprints
-                    ]
+                    pullop_args[b"store_fingerprints"] = fingerprints
                     # TODO: use raw value for pullop.shards_sets
                     pullop_args[b"shards_sets"] = [
                         {shapemod.shdfp2txt(fp) for fp in s}

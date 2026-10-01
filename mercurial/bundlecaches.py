@@ -28,6 +28,7 @@ if typing.TYPE_CHECKING:
 from . import (
     error,
     requirements as requirementsmod,
+    shape as shapemod,
     sslutil,
     url as urlmod,
     util,
@@ -657,6 +658,13 @@ def filterclonebundleentries(
     There is no guarantee we'll be able to apply all returned entries because
     the metadata we use to filter on may be missing or wrong.
     """
+    if store_fingerprints is not None:
+        # The filtering logic operate on the bundle spec and the bundle spec
+        # use the textual form, so let's translate the raw value to textual for
+        # this function.
+        store_fingerprints = [
+            shapemod.shpfp2txt(fp) for fp in store_fingerprints
+        ]
 
     newentries: list[EntryT] = []
     # gather the set of shards available for each group.
