@@ -44,6 +44,7 @@ from .interfaces.types import (
 from .thirdparty import attr
 from . import (
     error,
+    hook,
     match as matchmod,
     mdiff,
     phases,
@@ -956,11 +957,12 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
 
                     repo.hook(b"changegroup", **pycompat.strkwargs(hookargs))
 
-                    for rev in added:
-                        args = hookargs.copy()
-                        args[b'node'] = hex(cl.node(rev))
-                        del args[b'node_last']
-                        repo.hook(b"incoming", **pycompat.strkwargs(args))
+                    if hook.hashook(repo.ui, b"incoming"):
+                        for rev in added:
+                            args = hookargs.copy()
+                            args[b'node'] = hex(cl.node(rev))
+                            del args[b'node_last']
+                            repo.hook(b"incoming", **pycompat.strkwargs(args))
 
                     repo.ui.log(
                         b"incoming",
