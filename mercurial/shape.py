@@ -379,8 +379,6 @@ def _deserialize_v1(data: bytes) -> tuple[set[bytes], set[bytes]]:
 
 def _encode_fingerprints(fingerprints: list[bytes]) -> bytes:
     """encode a "fingerprints" block use by `store_shape` wireprotocol command"""
-    # use binary over the wire eventually
-    fingerprints = [shpfp2txt(f) for f in fingerprints]
     pieces = [u2b(len(fingerprints), 1)]
     pieces.extend(u2b(len(fp), 1) for fp in fingerprints)
     pieces.extend(fingerprints)
@@ -397,8 +395,6 @@ def _decode_fingerprints(data: bytes) -> list[bytes]:
         fp_size = b2u(data[idx : idx + 1])
         fingerprints.append(data[cursor : cursor + fp_size])
         cursor += fp_size
-    # use binary over the wire eventually
-    fingerprints = [txt2shpfp(fp) for fp in fingerprints]
     return fingerprints
 
 
