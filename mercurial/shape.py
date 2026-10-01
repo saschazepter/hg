@@ -432,14 +432,31 @@ def b2u(data: bytes) -> int:
 PATTERN_INCLUDED_FLAG = 1 << 15
 
 
-def _serialize_v1(shape) -> bytes:
-    """The shape patterns serialized in "v1" format
+def serialize_patterns(
+    includes: typing.Iterable[bytes], excludes: typing.Iterable[bytes]
+) -> bytes:
+    r"""Serialize includes and excludes into a "patterns block"
 
-    This method is likely temporary, as the logic will be implemented in Rust
-    soon enough.
+    The binary format is the following (all integers are big-endian):
+
+        `<COUNT>[<SIZE>...][<PATH>...]`
+
+    With:
+    - `<COUNT>`, the number of paths as a 32 bits integer
+    - `[X...]` is syntax for "for each path, X"
+    - `<SIZE>`, the size in bytes of i-th path as a 16 bits integer. Its
+      highest bit is set if the path is included, and unset if it is
+      excluded (see `PATTERN_INCLUDED_FLAG`)
+    - `<PATH>`, the raw bytes of the i-th path, rooted at the empty path
+
+    Paths are sorted by `zero_path`, so a directory is directly followed by
+    its contents.
+
+    >>> serialize_patterns({b'foo', b'foo-x'}, {b'', b'foo/bar'})
+    b'\x00\x00\x00\x04\x00\x00\x80\x03\x00\x07\x80\x05foofoo/barfoo-x'
+    >>> serialize_patterns(set(), set())
+    b'\x00\x00\x00\x00'
     """
-    includes, excludes = shape.patterns()
-
     patterns = [(p, True) for p in includes]
     patterns.extend((p, False) for p in excludes)
     assert len(patterns) == len(
@@ -460,8 +477,19 @@ def _serialize_v1(shape) -> bytes:
     return b''.join(pieces)
 
 
-def _deserialize_v1(data: bytes) -> tuple[set[bytes], set[bytes]]:
-    """get patterns from a "v1" serialized block"""
+def _deserialize_patterns(data: bytes) -> tuple[set[bytes], set[bytes]]:
+    r"""Return the includes and excludes from a "patterns block"
+
+    See `serialize_patterns` for details about the format.
+
+    >>> block = (b'\x00\x00\x00\x04\x00\x00\x80\x03\x00\x07\x80\x05'
+    ...          b'foofoo/barfoo-x')
+    >>> includes, excludes = _deserialize_patterns(block)
+    >>> sorted(includes), sorted(excludes)
+    ([b'foo', b'foo-x'], [b'', b'foo/bar'])
+    >>> _deserialize_patterns(b'\x00\x00\x00\x00')
+    (set(), set())
+    """
     # XXX error handling needs to exists at some point
     assert len(data) >= 4  # XXX should be a proper error
     count = b2u(data[:4])
@@ -563,7 +591,7 @@ def wire_store_shape_encode(
     return (
         _encode_fingerprints([fingerprint]),
         _encode_shards_sets(shards_sets),
-        _serialize_v1(shape),
+        serialize_patterns(*shape.patterns()),
     )
 
 
@@ -582,7 +610,7 @@ def wire_store_shape_decode(
     return (
         _decode_fingerprints(fingerprints_block),
         _decode_shards_sets(shards_sets_block),
-        _deserialize_v1(patterns_block),
+        _deserialize_patterns(patterns_block),
     )
 
 
