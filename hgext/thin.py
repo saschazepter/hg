@@ -8,6 +8,7 @@ from __future__ import annotations
 import contextlib
 import hashlib
 import time
+import typing
 import weakref
 
 from mercurial.interfaces.types import (
@@ -349,7 +350,9 @@ class ThinRepo:
         won't call this unless they have registered a custom hook or are
         replacing code that is expected to call a hook.
         """
-        return hookmod.hook(self.ui, self, name, throw, **args)
+        # TODO: define an interface for the common subset of IRepo and ThinRepo
+        repo = typing.cast(RepoT, self)
+        return hookmod.hook(self.ui, repo, name, throw, **args)
 
     @contextlib.contextmanager
     def lock(self):

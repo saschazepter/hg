@@ -12,7 +12,13 @@ import errno
 import os
 import sys
 
+from typing import Any
+
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+    UiT,
+)
 from . import (
     demandimport,
     encoding,
@@ -259,7 +265,7 @@ def redirect(state):
     _redirect = state
 
 
-def hashook(ui, htype):
+def hashook(ui: UiT, htype: bytes) -> bool:
     """return True if a hook is configured for 'htype'"""
     if not ui.callhooks:
         return False
@@ -269,7 +275,13 @@ def hashook(ui, htype):
     return False
 
 
-def hook(ui, repo, htype, throw=False, **args):
+def hook(
+    ui: UiT,
+    repo: RepoT | None,
+    htype: bytes,
+    throw: bool = False,
+    **args: Any,
+) -> Any:
     if not ui.callhooks:
         return False
 
