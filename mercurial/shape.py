@@ -397,6 +397,8 @@ def _decode_fingerprints(data: bytes) -> list[bytes]:
         fp_size = b2u(data[idx : idx + 1])
         fingerprints.append(data[cursor : cursor + fp_size])
         cursor += fp_size
+    # use binary over the wire eventually
+    fingerprints = [txt2shpfp(fp) for fp in fingerprints]
     return fingerprints
 
 
@@ -437,6 +439,8 @@ def _decode_shards_sets(data: bytes) -> list[set[bytes]]:
         for __ in range(count):
             one_set.add(data[cursor : cursor + id_size])
             cursor += id_size
+        # use binary over the wire eventually
+        one_set = {txt2shdfp(fp) for fp in one_set}
         shards_sets.append(one_set)
     assert cursor == len(data)
     return shards_sets

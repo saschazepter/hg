@@ -116,12 +116,12 @@ Test valid cases
   sending store_shape command
   response: (
     [
-      b'3b2691b22939f5b98ef0f44ca96c5b5a6fa22b1173b4f5fff7044789e2b9dde6'
+      b';&\x91\xb2)9\xf5\xb9\x8e\xf0\xf4L\xa9l[Zo\xa2+\x11s\xb4\xf5\xff\xf7\x04G\x89\xe2\xb9\xdd\xe6'
     ],
     [
       set([
-        b'7933c8969f86272e8bf29d3554b29372dc6a9c756e651847256078c35bb6a038',
-        b'f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd'
+        b'y3\xc8\x96\x9f\x86\'.\x8b\xf2\x9d5T\xb2\x93r\xdcj\x9cune\x18G%`x\xc3[\xb6\xa08',
+        b'\xf9\xa5C:\x9b\xe0\xb9\xf9\xd8\xe51\xc5\xa6\x83\x0e<\xd8t\x99$\x88\x15\x03o\xe19\xb5\xf4A\xcd\xdf\xcd'
       ])
     ],
     (
@@ -140,12 +140,12 @@ Test valid cases
   sending store_shape command
   response: (
     [
-      b'a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5'
+      b'\xa5\x1bl]\xbf\xb88!Zd\xa9r\xc8\xc2\x97#;\xe7s\x1e\x12\xf5f\xde\xe5g\xfd\x17\xef\x0c\xd5\xc5'
     ],
     [
       set([
-        b'6beb3b11628649cbaa448b969f17400db31cb34234bbbf7e86425f7d355fb971',
-        b'f9a5433a9be0b9f9d8e531c5a6830e3cd87499248815036fe139b5f441cddfcd'
+        b'k\xeb;\x11b\x86I\xcb\xaaD\x8b\x96\x9f\x17@\r\xb3\x1c\xb3B4\xbb\xbf~\x86B_}5_\xb9q',
+        b'\xf9\xa5C:\x9b\xe0\xb9\xf9\xd8\xe51\xc5\xa6\x83\x0e<\xd8t\x99$\x88\x15\x03o\xe19\xb5\xf4A\xcd\xdf\xcd'
       ])
     ],
     (

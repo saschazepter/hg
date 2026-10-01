@@ -432,8 +432,6 @@ class wirepeer(
             if computed_fingerprint is None:
                 msg = _(b"couldn't compute the fingerprint for server patterns")
                 self._abort(error.ResponseError(msg, data))
-            # remove me when we exchange binary fingerprint over the wire
-            computed_fingerprint = shape_py.shpfp2txt(computed_fingerprint)
 
             if computed_fingerprint not in fingerprints:
                 # Sanity check
@@ -443,7 +441,11 @@ class wirepeer(
                 )
                 # XXX that message needs better formatting, but waiting for
                 # versionned fingerprint would make this easier to handle.
-                msg %= (name, fingerprints, computed_fingerprint)
+                msg %= (
+                    name,
+                    b', '.join(shape_py.shpfp2txt(fp) for fp in fingerprints),
+                    shape_py.shpfp2txt(computed_fingerprint),
+                )
                 self._abort(error.Abort(msg))
 
             return fingerprints, shard_sets, patterns
