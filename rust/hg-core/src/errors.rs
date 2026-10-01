@@ -618,9 +618,6 @@ impl fmt::Display for HgError {
                         let mut msg =
                             format!("{backtrace}error deserializing shape: ");
                         match deserialization_error {
-                            DeserializationError::InvalidMarker => {
-                                write!(msg, "missing marker")?;
-                            }
                             DeserializationError::InvalidLength {
                                 expected,
                                 got,
@@ -632,22 +629,9 @@ impl fmt::Display for HgError {
                                     expected, got
                                 )?;
                             }
-                            DeserializationError::InvalidPrefix { prefix } => {
-                                write!(msg, "invalid prefix {:?}", prefix)?;
-                            }
                             DeserializationError::InvalidPath { path } => {
                                 let path = String::from_utf8_lossy(path);
                                 write!(msg, "invalid path '{}'", path)?;
-                            }
-                            DeserializationError::TooManyPaths {
-                                expected,
-                                got,
-                            } => {
-                                write!(
-                                    msg,
-                                    "too much data (expected: {}, got {})",
-                                    expected, got
-                                )?;
                             }
                         }
                         msg

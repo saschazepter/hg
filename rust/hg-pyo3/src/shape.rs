@@ -226,13 +226,6 @@ pub fn get_store_shards_from_bytes(
     Ok(PyStoreShards { inner })
 }
 
-#[pyfunction]
-fn deserialize(py: Python, serialized: &[u8]) -> PyResult<PyNarrowPatterns> {
-    let (includes, excludes) =
-        ShardTreeNode::deserialize(serialized).into_pyerr(py)?;
-    Ok(patterns_to_python(py, includes, excludes))
-}
-
 /// The includes and excludes of a "patterns block", as Python sets, see
 /// [`ShardTreeNode::deserialize_patterns`]
 #[pyfunction]
@@ -301,7 +294,6 @@ pub fn init_module<'py>(
     m.add_function(wrap_pyfunction!(get_store_shards, &m)?)?;
     m.add_function(wrap_pyfunction!(get_store_shards_from_bytes, &m)?)?;
     m.add_function(wrap_pyfunction!(fingerprint_for_patterns, &m)?)?;
-    m.add_function(wrap_pyfunction!(deserialize, &m)?)?;
     m.add_function(wrap_pyfunction!(deserialize_patterns, &m)?)?;
 
     Ok(m)

@@ -31,7 +31,6 @@ use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::hg_path::ZeroPath;
 use crate::utils::u32_u;
-use crate::utils::u64_u;
 
 lazy_static! {
     /// Only lower case ASCII alpha num, `-` and `.`
@@ -82,8 +81,6 @@ pub enum ErrorKind {
 /// All error cases specific to shape deserialization
 #[derive(Debug, PartialEq)]
 pub enum DeserializationError {
-    /// Missing/incorrect magic marker
-    InvalidMarker,
     /// Length of the data does not match the header
     InvalidLength {
         /// Size in bytes, according to the header. This is a lower bound if
@@ -92,22 +89,10 @@ pub enum DeserializationError {
         /// The actual size in bytes
         got: usize,
     },
-    /// Missing/Invalid path prefix
-    InvalidPrefix {
-        /// The raw prefix bytes
-        prefix: Vec<u8>,
-    },
     /// A path that cannot be a path in the repository
     InvalidPath {
         /// The raw path bytes
         path: Vec<u8>,
-    },
-    /// More paths found in the data than expected
-    TooManyPaths {
-        /// The expected number of paths
-        expected: u64,
-        /// How many paths we found
-        got: usize,
     },
 }
 
@@ -830,13 +815,6 @@ impl std::fmt::Display for Fingerprint {
 /// Flag set on the serialized size of a path if this path is included
 const PATTERN_INCLUDED_FLAG: u16 = 1 << 15;
 
-/// Magic marker to help identify the format easily
-const SERIALIZATION_MARKER: &[u8; 9] = b"shape-v1\n";
-/// Serialization prefix for included paths
-const PREFIX_INCLUDE: &[u8] = b"inc/";
-/// Serialization prefix for excluded paths
-const PREFIX_EXCLUDE: &[u8] = b"exc/";
-
 /// A node within a tree of narrow patterns.
 ///
 /// It is used to create a normalized representation of potentially nested
@@ -1178,105 +1156,6 @@ impl ShardTreeNode {
 
         Ok((includes, excludes))
     }
-
-    /// Serialize this node with the following binary format:
-    ///
-    /// `<HEADER>\n<NUM>\n[<MARKER>/<PATH>\n...]`
-    ///
-    /// With:
-    ///   - `<HEADER>` being the literal ascii bytes `shape-v1` to help identify
-    ///     the format easily, and as a sanity check
-    ///   - `<NUM>` is the number of paths as a little-endian 64bits integer
-    ///   - `[X...]` is syntax for "for each element, do X"
-    ///   - `<MARKER>` is either the literal ascii bytes `inc` or `exc`,
-    ///     depending on whether this path is included or excluded
-    ///   - `<PATH>` is the raw bytes of each path, rooted at the empty path
-    pub fn serialize(&self, mut buf: impl Write) -> Result<(), std::io::Error> {
-        let (includes, excludes) = self.flat();
-
-        buf.write_all(SERIALIZATION_MARKER)?;
-        let sorted_paths = includes
-            .into_iter()
-            .map(|i| (i, true))
-            .chain(excludes.into_iter().map(|i| (i, false)))
-            // sort by zero path so we get the children next to the parents
-            .sorted_by(|a, b| a.0.cmp(&b.0));
-
-        let number_of_paths: u64 =
-            sorted_paths.len().try_into().expect("too many paths");
-        buf.write_all(&number_of_paths.to_le_bytes())?;
-        for (path, included) in sorted_paths {
-            buf.write_all(if included {
-                PREFIX_INCLUDE
-            } else {
-                PREFIX_EXCLUDE
-            })?;
-            buf.write_all(path.as_bytes())?;
-            buf.write_all(b"\n")?;
-        }
-
-        Ok(())
-    }
-
-    /// Returns the includes and exclude paths, by doing the reverse operation
-    /// of [`Self::serialize`]
-    pub fn deserialize(
-        serialized: &[u8],
-    ) -> Result<(Vec<HgPathBuf>, Vec<HgPathBuf>), Error> {
-        let Some(rest) = serialized.strip_prefix(SERIALIZATION_MARKER) else {
-            return Err(DeserializationError::InvalidMarker)?;
-        };
-
-        let Some((int_bytes, rest)) = rest.split_first_chunk::<8>() else {
-            return Err(DeserializationError::InvalidLength {
-                expected: SERIALIZATION_MARKER.len() + 8,
-                got: serialized.len(),
-            })?;
-        };
-        let len = u64::from_le_bytes(*int_bytes);
-
-        let mut includes = vec![];
-        let mut excludes = vec![];
-
-        for (idx, line) in rest.split(|b| *b == b'\n').enumerate() {
-            if idx >= u64_u(len) {
-                // There must be an empty line
-                if idx == u64_u(len) && line.is_empty() {
-                    // Don't break, let it fail if it loops more than expected
-                    continue;
-                } else {
-                    return Err(DeserializationError::TooManyPaths {
-                        expected: len,
-                        got: rest.split(|b| *b == b'\n').count(),
-                    })?;
-                }
-            }
-            let Some((prefix, path)) = line.split_at_checked(4) else {
-                return Err(DeserializationError::InvalidPrefix {
-                    prefix: line.to_vec(),
-                })?;
-            };
-            let hg_path = HgPathBuf::from_bytes(path);
-            hg_path
-                .check_state()
-                .map_err(|e| ErrorKind::InvalidPath(e.into()))?;
-            match prefix {
-                PREFIX_INCLUDE => {
-                    includes.push(hg_path);
-                }
-                PREFIX_EXCLUDE => {
-                    excludes.push(hg_path);
-                }
-                prefix => {
-                    return Err(DeserializationError::InvalidPrefix {
-                        prefix: prefix.to_vec(),
-                    })?;
-                }
-            }
-        }
-
-        Ok((includes, excludes))
-    }
 }
 
 /// Returns the deepest node in `root` whose path is a prefix of
@@ -1479,16 +1358,10 @@ mod tests {
             let internal_shape =
                 Shape::new(name.to_owned(), &store_shards, &[shard]).unwrap();
             let patterns = internal_shape.patterns();
-            internal_shape.tree.serialize(&mut serialized).unwrap();
+            internal_shape.tree.serialize_patterns(&mut serialized).unwrap();
             let patterns_from_serialized =
-                ShardTreeNode::deserialize(&serialized).unwrap();
+                ShardTreeNode::deserialize_patterns(&serialized).unwrap();
             assert_eq!(patterns, patterns_from_serialized);
-
-            let mut block = vec![];
-            internal_shape.tree.serialize_patterns(&mut block).unwrap();
-            let patterns_from_block =
-                ShardTreeNode::deserialize_patterns(&block).unwrap();
-            assert_eq!(patterns, patterns_from_block);
         }
     }
 
