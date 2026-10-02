@@ -2598,16 +2598,17 @@ class localrepository(_localrepo_base_classes):
                 repo = reporef()
                 assert repo is not None  # help pytype
 
-                if hook.hashook(repo.ui, b'txnclose-bookmark'):
+                bookmark_hook = hook.prepare(
+                    repo.ui,
+                    repo,
+                    b'txnclose-bookmark',
+                )
+                if bookmark_hook is not None:
                     bmchanges = sorted(tr3.changes[b'bookmarks'].items())
                     for name, (old, new) in bmchanges:
                         args = tr3.hookargs.copy()
                         args.update(bookmarks.preparehookargs(name, old, new))
-                        repo.hook(
-                            b'txnclose-bookmark',
-                            throw=False,
-                            **pycompat.strkwargs(args),
-                        )
+                        bookmark_hook(**pycompat.strkwargs(args))
 
                 if hook.hashook(repo.ui, b'txnclose-phase'):
                     cl = repo.unfiltered().changelog
