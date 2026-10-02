@@ -413,7 +413,9 @@ def store_shape(repo, proto, name, args):
         msg = _(b"could not compute shard fingerprints for shape %s") % name
         raise error.Abort(msg)
     previous = shape_py.previous_shards_sets(
-        repo, shape_name, shape.fingerprint()
+        repo,
+        shape_name,
+        shape.fingerprint(),
     )
     for group in previous:
         if group not in groups:
