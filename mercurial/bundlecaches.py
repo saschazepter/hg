@@ -687,9 +687,10 @@ def filterclonebundleentries(
             continue
 
         entry_store_fp = entry.bundlespec_param(BUNDLESPEC_STORE_FINGERPRINT)
+        shard_id = entry.bundlespec_param(BUNDLESPEC_SHARD_ID)
         # bundle with shard id need to be filtered later, when we know which
         # group id have the complete set of shards we needs.
-        has_shard_id = entry.bundlespec_param(BUNDLESPEC_SHARD_ID) is not None
+        has_shard_id = shard_id is not None
         if store_fingerprints is None:
             if has_shard_id:
                 # XXX strictly speaking, we could use sharded bundle for a full
@@ -821,8 +822,6 @@ def filterclonebundleentries(
                 url = entry.attrs.get(b'URL', b'(unknown url)')
                 repo.ui.debug(NO_GRP_MSG % url)
                 continue
-            # XXX need proper error handling at some point
-            shard_id = entry.bundlespec_param(BUNDLESPEC_SHARD_ID)
             shards_groups[group_id].add(shard_id)
         elif entry.bundlespec_param(BUNDLESPEC_BUNDLE_GROUP_ID) is not None:
             assert False
