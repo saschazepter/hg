@@ -16,7 +16,7 @@ from . import (
     error,
     match as matchmod,
     policy,
-    shape,
+    shape as shapemod,
     sparse,
     txnutil,
     util,
@@ -172,9 +172,14 @@ def match(root, include=None, exclude=None, warn=None):
         # the nevermatcher.
         return matchmod.never()
 
-    shape_matcher = shape.shard_tree_matcher(root, include, exclude, warn=warn)
-    if shape_matcher is not None:
-        return shape_matcher
+    matcher = shapemod.shard_tree_matcher(
+        root,
+        include,
+        exclude,
+        warn=warn,
+    )
+    if matcher is not None:
+        return matcher
     # Fall back to the old way of matching
     # TODO warn users?
     return matchmod.match(
