@@ -9,6 +9,10 @@ import struct
 import typing
 
 from .i18n import _
+from .node import (
+    bin,
+    hex,
+)
 from .thirdparty import attr
 from . import (
     error,
@@ -23,6 +27,18 @@ if typing.TYPE_CHECKING:
     from .interfaces.types import RepoT
 
 rustmod = policy.importrust("shape")
+
+
+def shpfp2txt(fingerprint: bytes) -> bytes:
+    """serialize a raw shape fingerprint in its textual form"""
+    assert len(fingerprint) == 32
+    return hex(fingerprint)
+
+
+def txt2shpfp(text: bytes) -> bytes:
+    """serialize a textual shape fingerprint in its raw form"""
+    assert len(text) == 64
+    return bin(text)
 
 
 # File listing filenames of the saved `server-shapes` configs.
