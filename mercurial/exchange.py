@@ -46,7 +46,7 @@ from . import (
     pushkey,
     pycompat,
     scmutil,
-    shape as shapemod,
+    shape as shape_py,
     streamclone,
     url as urlmod,
     util,
@@ -67,6 +67,8 @@ from .interfaces import (
 
 if policy.has_rust():
     shapemod = policy.importrust("shape")
+else:
+    shapemod = shape_py
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -2545,9 +2547,12 @@ def getbundlechunks(
     usebundle2 = bundle2requested(bundlecaps)
 
     if store_shape_with_fingerprint is not None:
-        shape, fingerprint = store_shape_with_fingerprint.split(b':')
+        shape, txt_fingerprint = store_shape_with_fingerprint.split(b':')
+        fingerprint = shape_py.txt2shpfp(txt_fingerprint)
         (includes, excludes) = narrowspec.patterns_for_shape(
-            repo=repo, name=shape, fingerprint=fingerprint
+            repo=repo,
+            name=shape,
+            fingerprint=fingerprint,
         )
         kwargs[b"includepats"] = includes
         kwargs[b"excludepats"] = excludes

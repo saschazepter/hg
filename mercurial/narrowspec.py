@@ -308,7 +308,7 @@ def patterns_for_shape(
     if shape is None:
         raise error.Abort(b"shape not found on remote: '%s'" % name)
     if fingerprint is not None:
-        server_fingerprint = shape.fingerprint()
+        server_fingerprint = shapemod.txt2shpfp(shape.fingerprint())
         if fingerprint != server_fingerprint:
             # XXX Abort message are not expected to contains new line
             # XXX So we should clean this up at some point.
@@ -319,7 +319,11 @@ def patterns_for_shape(
                 b"fingerprint mismatch for shape '%s'\n"
                 b"  server: '%s'\n  client: '%s'"
             )
-            msg = msg % (name, server_fingerprint, fingerprint)
+            msg = msg % (
+                name,
+                shapemod.shpfp2txt(server_fingerprint),
+                shapemod.shpfp2txt(fingerprint),
+            )
             raise error.Abort(msg)
     includes, excludes = shape.patterns()
     legacy_includes, legacy_excludes = to_legacy_patterns(includes, excludes)
