@@ -1167,11 +1167,19 @@ class bundlepart(i_exch.IBundlePart):
         # size
         parsizes = []
         for key, value in manpar:
-            parsizes.append(len(key))
-            parsizes.append(len(value))
+            l_key = len(key)
+            assert l_key < 255, (key, value)
+            parsizes.append(l_key)
+            l_value = len(value)
+            assert l_value < 255, (key, value)
+            parsizes.append(l_value)
         for key, value in advpar:
-            parsizes.append(len(key))
-            parsizes.append(len(value))
+            l_key = len(key)
+            assert l_key < 255, (key, value)
+            parsizes.append(l_key)
+            l_value = len(value)
+            assert l_value < 255, (key, value)
+            parsizes.append(l_value)
         paramsizes = _pack(_makefpartparamsizes(len(parsizes) // 2), *parsizes)
         header.append(paramsizes)
         # key, value
