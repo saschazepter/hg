@@ -82,6 +82,15 @@ DEFAULT_MEMORY_TARGET = {
 }
 
 
+def _is_hex_fp(inst, attr, value: bytes):
+    """simple attrs validator to validate the fingerprint format
+
+    For now, fingerprint are expect to be in the "text" form, using hexadecimal
+    encoding. This will change soon™.
+    """
+    assert (value is None) or (len(value) == 64)
+
+
 @attr.s(slots=True)
 class NarrowInfo:
     """Groups information about narrow-related things"""
@@ -89,7 +98,11 @@ class NarrowInfo:
     matcher = attr.ib(type=Optional[MatcherT], default=None)
     """Matches files for this narrow view of the store"""
 
-    fingerprint = attr.ib(type=Optional[bytes], default=None)
+    fingerprint = attr.ib(
+        type=Optional[bytes],
+        default=None,
+        validator=_is_hex_fp,
+    )
     """Hexadecimal fingerprint for a shard, corresponding to self.matcher"""
 
     bundle_group_id = attr.ib(type=Optional[bytes], default=None)
