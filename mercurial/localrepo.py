@@ -2610,7 +2610,8 @@ class localrepository(_localrepo_base_classes):
                         args.update(bookmarks.preparehookargs(name, old, new))
                         bookmark_hook(**pycompat.strkwargs(args))
 
-                if hook.hashook(repo.ui, b'txnclose-phase'):
+                phase_hook = hook.prepare(repo.ui, repo, b'txnclose-phase')
+                if phase_hook is not None:
                     cl = repo.unfiltered().changelog
                     phasemv = sorted(
                         tr3.changes[b'phases'], key=lambda r: r[0][0]
@@ -2620,11 +2621,7 @@ class localrepository(_localrepo_base_classes):
                             args = tr3.hookargs.copy()
                             node = hex(cl.node(rev))
                             args.update(phases.preparehookargs(node, old, new))
-                            repo.hook(
-                                b'txnclose-phase',
-                                throw=False,
-                                **pycompat.strkwargs(args),
-                            )
+                            phase_hook(**pycompat.strkwargs(args))
 
                 repo.hook(
                     b'txnclose', throw=False, **pycompat.strkwargs(hookargs)
