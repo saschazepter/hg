@@ -476,9 +476,14 @@ def _debugbundle2(ui, gen, all=None, **opts):
         if parttypes and part.type not in parttypes:
             continue
         msg = b'%s -- %s (mandatory: %r)\n'
-        ui.writenoi18n(
-            msg % (part.type, _quasirepr(part.params), part.mandatory)
-        )
+        params = part.params
+        if part.type == b'stream2':
+            params = params.copy()
+
+            if b"shard-id" in params:
+                txt = shape_mod.shdfp2txt(params[b'shard-id'])
+                params[b'shard-id'] = txt
+        ui.writenoi18n(msg % (part.type, _quasirepr(params), part.mandatory))
         if part.type == b'changegroup':
             version = part.params.get(b'version', b'01')
             cg = changegroup.getunbundler(version, part, b'UN')

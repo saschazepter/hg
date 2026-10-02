@@ -132,7 +132,7 @@ STREAM
 
 SHARD-ID
     Mandatory. Include the identifier of the store shard that a sharded
-    bundle covers.
+    bundle covers, in hexadecimal.
 
 BUNDLE-GROUP-ID
     Mandatory. Include the identifier of the group of sharded bundles that

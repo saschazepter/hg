@@ -2038,10 +2038,9 @@ def addpartbundlestream2(
                 narrow_info.bundle_group_id,
                 mandatory=True,
             )
-            # XXX should be the binary 32 bits form, not the 64 hex one
             part.addparam(
                 b'shard-id',
-                shape_py.shdfp2txt(narrow_info.fingerprint),
+                narrow_info.fingerprint,
                 mandatory=True,
             )
             if narrow_info.match_top_level_entries:
