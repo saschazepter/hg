@@ -2051,10 +2051,9 @@ def addpartbundlestream2(
                 )
         elif narrow_info.fingerprint is not None:
             # XXX should be called store-shape-fingerprint
-            # XXX should be the binary 32 bits form, not the 64 hex one,
             part.addparam(
                 b'store-fingerprint',
-                shape_py.shpfp2txt(narrow_info.fingerprint),
+                narrow_info.fingerprint,
                 mandatory=False,
             )
     elif version == b"v3-exp":

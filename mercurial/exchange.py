@@ -204,6 +204,8 @@ def _inferbundlespec(ui, fh):
                     if value is not None:
                         if param == b"shard-id":
                             value = shape_py.shdfp2txt(value)
+                        elif param == b"store-fingerprint":
+                            value = shape_py.shpfp2txt(value)
                         params = b"%s;%s=%s" % (params, param, value)
                 return b'none-v2;%s=v2;%s' % (
                     bundlecaches.BUNDLESPEC_STREAM,

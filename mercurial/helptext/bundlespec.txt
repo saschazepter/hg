@@ -125,7 +125,7 @@ REQUIREMENTS
 
 STORE-FINGERPRINT
     Mandatory. Include the fingerprint of the subset of the repository store a
-    streaming bundle covers.
+    streaming bundle covers, in hexadecimal.
 
 STREAM
     Mandatory. Produce a streaming bundle in the given stream format.
