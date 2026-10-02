@@ -187,8 +187,22 @@ def param_bool(key, value):
     return b
 
 
+_hex_regex = re.compile(b'^(?:[0-9a-f]{2})+$')
+
+
+def param_hex(key, value) -> bytes:
+    """Check that this parameter is valid hex bytes"""
+    if not _hex_regex.match(value):
+        msg = _(b"parameter %s should be hexadecimal ('%s')")
+        msg %= (key, value)
+        raise error.InvalidBundleSpecification(msg)
+    return value
+
+
 # mapping of known parameter name need their value processed
 bundle_spec_param_processing = {
+    BUNDLESPEC_SHARD_ID: param_hex,
+    BUNDLESPEC_STORE_FINGERPRINT: param_hex,
     BUNDLESPEC_OBSOLESCENCE: param_bool,
     BUNDLESPEC_OBSOLESCENCE_MANDATORY: param_bool,
     BUNDLESPEC_PHASES: param_bool,
