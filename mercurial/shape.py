@@ -179,7 +179,7 @@ class ShardTreeNode:
             prefix = PREFIX_INCLUDE if path in includes else PREFIX_EXCLUDE
             buf.append(b"%s%s\n" % (prefix, path))
 
-        return pycompat.sysbytes(hashlib.sha256(b"".join(buf)).hexdigest())
+        return hashlib.sha256(b"".join(buf)).digest()
 
 
 # Magic marker to help identify the format easily
@@ -359,6 +359,8 @@ def _deserialize_v1(data: bytes) -> tuple[set[bytes], set[bytes]]:
 
 def _encode_fingerprints(fingerprints: list[bytes]) -> bytes:
     """encode a "fingerprints" block use by `store_shape` wireprotocol command"""
+    # use binary over the wire eventually
+    fingerprints = [shpfp2txt(f) for f in fingerprints]
     pieces = [u2b(len(fingerprints), 1)]
     pieces.extend(u2b(len(fp), 1) for fp in fingerprints)
     pieces.extend(fingerprints)

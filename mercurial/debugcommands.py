@@ -3272,7 +3272,7 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
             if fingerprint is None:
                 store_fingerprints = None
             else:
-                store_fingerprints = [fingerprint]
+                store_fingerprints = [shape_mod.shpfp2txt(fingerprint)]
             entries = bundlecaches.filterclonebundleentries(
                 target,
                 entries,

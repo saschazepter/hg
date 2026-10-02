@@ -40,9 +40,9 @@ impl PyShape {
         self.inner.name().to_string()
     }
 
-    /// The fingerprint of this shape as hexadecimal bytes
+    /// The fingerprint of this shape, in binary form
     pub fn fingerprint(&self) -> Vec<u8> {
-        self.inner.store_fingerprint().to_hex_bytes()
+        self.inner.store_fingerprint().to_vec()
     }
 
     /// A matcher for the files that this shape covers
@@ -249,7 +249,7 @@ fn fingerprint_for_patterns(
     };
     // Any error means we can't get a fingerprint for these patterns
     let maybe_node = ShardTreeNode::from_patterns(&includes, &excludes).ok();
-    Ok(maybe_node.map(|node| node.fingerprint().to_hex_bytes()))
+    Ok(maybe_node.map(|node| node.fingerprint().to_vec()))
 }
 
 pub fn init_module<'py>(

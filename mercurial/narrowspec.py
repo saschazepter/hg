@@ -308,7 +308,7 @@ def patterns_for_shape(
     if shape is None:
         raise error.Abort(b"shape not found on remote: '%s'" % name)
     if fingerprint is not None:
-        server_fingerprint = shapemod.txt2shpfp(shape.fingerprint())
+        server_fingerprint = shape.fingerprint()
         if fingerprint != server_fingerprint:
             # XXX Abort message are not expected to contains new line
             # XXX So we should clean this up at some point.

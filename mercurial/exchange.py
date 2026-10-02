@@ -1984,7 +1984,10 @@ def _pullbundle2(pullop: pulloperation):
                     _(b"cannot compute fingerprint for local narrow patterns")
                 )
             # `shape` was checked to be valid UTF-8
-            shape_with_fingerprint = b"%s:%s" % (shape.encode(), fingerprint)
+            shape_with_fingerprint = b"%s:%s" % (
+                shape.encode(),
+                shape_py.shpfp2txt(fingerprint),
+            )
             kwargs[b'store_shape_with_fingerprint'] = shape_with_fingerprint
         else:
             # XXX This will be removed alongside legacy narrowspec
@@ -3040,7 +3043,7 @@ def _maybeapplyclonebundle(pullop: pulloperation):
             pullop.includepats,
             pullop.excludepats,
         )
-        store_fingerprints = [fp]
+        store_fingerprints = [shape_py.shpfp2txt(fp)]
     else:
         store_fingerprints = None
 

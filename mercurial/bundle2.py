@@ -173,6 +173,7 @@ from . import (
     policy,
     pycompat,
     scmutil,
+    shape as shape_py,
     streamclone,
     tables,
     tags,
@@ -1735,7 +1736,7 @@ def write_new_stream_bundle(
         if shape_obj is None:
             raise error.InputError(b"unknown shape: '%s'" % shape)
         matcher = shape_obj.matcher()
-        fingerprint = shape_obj.fingerprint()
+        fingerprint = shape_py.shpfp2txt(shape_obj.fingerprint())
 
     caps: Capabilities = {b"stream": [version]}
     if opts.get(bundlecaches.BUNDLESPEC_OBSOLESCENCE, False):

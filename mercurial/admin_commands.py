@@ -117,7 +117,7 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
     if opts.get("store_fingerprint"):
         includes, excludes = repo.narrowpats
         fingerprint = shapemod.fingerprint_for_patterns(includes, excludes)
-        ui.writenoi18n(b"%s\n" % fingerprint)
+        ui.writenoi18n(b"%s\n" % shape_py.shpfp2txt(fingerprint))
     else:
         raise error.Abort(_(b"need at least one flag"))
 
@@ -283,9 +283,8 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             for shape in all_shapes:
                 fm.startitem()
                 name = shape.name().encode()
-                fm.write(
-                    b"fingerprint name", b"%s %s\n", shape.fingerprint(), name
-                )
+                fingerprint = shape_py.shpfp2txt(shape.fingerprint())
+                fm.write(b"fingerprint name", b"%s %s\n", fingerprint, name)
             return
         elif subcommand == "shape_patterns":
             # TODO formatter?
