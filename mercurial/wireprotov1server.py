@@ -288,14 +288,14 @@ def get_cached_bundle_inline(repo, proto, path):
     """
     Server command to send a clonebundle to the client
     """
-    if hook.hashook(repo.ui, b'pretransmit-inline-clone-bundle'):
-        hook.hook(
-            repo.ui,
-            repo,
-            b'pretransmit-inline-clone-bundle',
-            throw=True,
-            clonebundlepath=path,
-        )
+    pretransmit = hook.prepare(
+        repo.ui,
+        repo,
+        b'pretransmit-inline-clone-bundle',
+        throw=True,
+    )
+    if pretransmit is not None:
+        pretransmit(clonebundlepath=path)
 
     bundle_root = repo.ui.config(b'server', b'peer-bundle-cache-root')
     bundle_root_dir = repo.vfs.join(bundle_root)
