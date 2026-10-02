@@ -499,6 +499,14 @@ class hgbuildext(build_ext):
 
         return build_ext.finalize_options(self)
 
+    def run(self):
+        # setuptools-rust installs everything in the scripts build dir, even
+        # if it was from a previous build. Let's clear the dir here first.
+        scripts_dir = self.get_finalized_command('build_scripts').build_dir
+        if os.path.isdir(scripts_dir):
+            shutil.rmtree(scripts_dir)
+        return build_ext.run(self)
+
     def build_extensions(self):
         ruststandalones = [
             e for e in self.extensions if isinstance(e, RustStandaloneExtension)
