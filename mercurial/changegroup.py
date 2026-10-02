@@ -957,12 +957,13 @@ class cg1unpacker(i_cg.IChangeGroupUnpacker):
 
                     repo.hook(b"changegroup", **pycompat.strkwargs(hookargs))
 
-                    if hook.hashook(repo.ui, b"incoming"):
+                    incoming_hook = hook.prepare(repo.ui, repo, b"incoming")
+                    if incoming_hook is not None:
                         for rev in added:
                             args = hookargs.copy()
                             args[b'node'] = hex(cl.node(rev))
                             del args[b'node_last']
-                            repo.hook(b"incoming", **pycompat.strkwargs(args))
+                            incoming_hook(**pycompat.strkwargs(args))
 
                     repo.ui.log(
                         b"incoming",
