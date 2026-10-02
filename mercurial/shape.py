@@ -41,6 +41,26 @@ def txt2shpfp(text: bytes) -> bytes:
     return bin(text)
 
 
+def shdfp2txt(fingerprint: bytes) -> bytes:
+    """serialize a raw shard fingerprint in its textual form
+
+    exists independently from shpfp2txt as Shape and shard are different object
+    and might evolve differently in the future.
+    """
+    assert len(fingerprint) == 32
+    return hex(fingerprint)
+
+
+def txt2shdfp(text: bytes) -> bytes:
+    """serialize a textual shard fingerprint in its raw form
+
+    exists independently from txt2shpfp as Shape and shard are different object
+    and might evolve differently in the future.
+    """
+    assert len(text) == 64
+    return bin(text)
+
+
 # File listing filenames of the saved `server-shapes` configs.
 PREVIOUS_SHAPES_LIST = b'server-shapes-previous-list'
 
