@@ -2506,17 +2506,19 @@ class localrepository(_localrepo_base_classes):
                 scmutil.enforcesinglehead(
                     repo, tr2, desc, accountclosed, filtername
                 )
-            if hook.hashook(repo.ui, b'pretxnclose-bookmark'):
+            bookmark_hook = hook.prepare(
+                repo.ui,
+                repo,
+                b'pretxnclose-bookmark',
+                throw=True,
+            )
+            if bookmark_hook is not None:
                 for name, (old, new) in sorted(
                     tr2.changes[b'bookmarks'].items()
                 ):
                     args = tr2.hookargs.copy()
                     args.update(bookmarks.preparehookargs(name, old, new))
-                    repo.hook(
-                        b'pretxnclose-bookmark',
-                        throw=True,
-                        **pycompat.strkwargs(args),
-                    )
+                    bookmark_hook(**pycompat.strkwargs(args))
             if hook.hashook(repo.ui, b'pretxnclose-phase'):
                 cl = repo.unfiltered().changelog
                 for revs, (old, new) in tr2.changes[b'phases']:
