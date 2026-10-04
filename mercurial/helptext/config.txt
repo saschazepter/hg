@@ -1495,7 +1495,7 @@ The following options control default behavior for all hosts.
     Defines the cryptographic ciphers to use for connections.
 
     Value must be a valid OpenSSL Cipher List Format as documented at
-    https://www.openssl.org/docs/manmaster/apps/ciphers.html#CIPHER-LIST-FORMAT.
+    https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format.
 
     This setting is for advanced users only. Setting to incorrect values
     can significantly lower connection security or decrease performance.

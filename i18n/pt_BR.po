@@ -25982,11 +25982,11 @@ msgstr ""
 
 msgid ""
 "    Value must be a valid OpenSSL Cipher List Format as documented at\n"
-"    https://www.openssl.org/docs/manmaster/apps/ciphers.html#CIPHER-LIST-FORMAT."
+"    https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format."
 msgstr ""
 "    O valor deve estar no formato de lista de cifras do OpenSSL,\n"
 "    conforme documentado em\n"
-"    https://www.openssl.org/docs/manmaster/apps/ciphers.html#CIPHER-LIST-FORMAT."
+"    https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format."
 
 msgid ""
 "    This setting is for advanced users only. Setting to incorrect values\n"
