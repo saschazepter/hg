@@ -708,8 +708,8 @@ bail:
 #ifdef SETPROCNAME_USE_ARGVREWRITE
 
 /* Find the start of argv buffer (argv[0]) and its size */
-static void getarg0size(char **argstart, size_t *argsize) {
 #ifdef __APPLE__
+static void getarg0size(char **argstart, size_t *argsize) {
 	/* osx: crt_externs keeps a copy of argc, argv */
 	int argc = *_NSGetArgc();
 	char **argv = *_NSGetArgv();
@@ -727,7 +727,9 @@ static void getarg0size(char **argstart, size_t *argsize) {
 		argvsize = argvend - argvstart;
 	*argstart = argvstart;
 	*argsize = argvsize;
+}
 #else
+static void getarg0size(char **argstart, size_t *argsize) {
 	/* On Linux >= 3.5, fields 48 and 49 of `/proc/self/stat` are pointers
 	 * to the start and end of the argument values respectively.
 	 *
@@ -809,8 +811,8 @@ static void getarg0size(char **argstart, size_t *argsize) {
 		*argstart = (char*)start;
 		*argsize = end - start;
 	}
-#endif
 }
+#endif /* __APPLE__ */
 
 #endif /* def SETPROCNAME_USE_ARGVREWRITE */
 
