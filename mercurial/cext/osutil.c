@@ -729,28 +729,34 @@ static void getarg0size(char **argstart, size_t *argsize) {
 	*argsize = argvsize;
 }
 #else
-static void getarg0size(char **argstart, size_t *argsize) {
+/* Fields of /proc/self/stat that we use. */
+struct self_stat {
+	unsigned long arg_start;
+	unsigned long arg_end;
+};
+
+/* Read /proc/self/stat into `st`. Returns true on success. */
+static bool read_self_stat(struct self_stat *st)
+{
 	char buf[4096];
-	FILE *fp;
-	unsigned long start = 0, end = 0;
-	fp = fopen("/proc/self/stat", "r");
+	FILE *fp = fopen("/proc/self/stat", "r");
 	if (!fp) {
-		return;
+		return false;
 	}
 	if (!fgets(buf, sizeof(buf), fp)) {
 		fclose(fp);
-		return;
+		return false;
 	}
 	fclose(fp);
 	size_t len = strlen(buf);
 	/* `fgets` should have read up to the trailing newline. */
 	if (len > 0 && buf[len-1] != '\n') {
-		return;
+		return false;
 	}
 	/* Skip past the `comm` field (enclosed in parens). */
 	char *s = strrchr(buf, ')');
 	if (!s) {
-		return;
+		return false;
 	}
 	s++;
 	/* See `man 5 proc`, section "Files and directories", file /proc/[pid]/stat.
@@ -804,12 +810,17 @@ static void getarg0size(char **argstart, size_t *argsize) {
 			" %*lu"  /* 47. start_brk */
 			" %lu"   /* 48. arg_start */
 			" %lu",  /* 49. arg_end */
-			&start,
-			&end);
+			&st->arg_start,
+			&st->arg_end);
 	/* sscanf was successful if it parsed all fields (2). */
-	if (n == 2) {
-		*argstart = (char*)start;
-		*argsize = end - start;
+	return n == 2;
+}
+
+static void getarg0size(char **argstart, size_t *argsize) {
+	struct self_stat st;
+	if (read_self_stat(&st)) {
+		*argstart = (char *)st.arg_start;
+		*argsize = st.arg_end - st.arg_start;
 	}
 }
 #endif /* __APPLE__ */
