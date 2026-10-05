@@ -28,19 +28,23 @@ if typing.TYPE_CHECKING:
     # config hold tuple of (value, source, config_level)
     _ItemT = tuple[bytes, bytes, int]
 
+    _SectionT = util.cowsortdict[bytes, _ItemT]
+    _DataT = dict[bytes, _SectionT]
+
     # backup for missing value is (section, key)
     # backup for existing value is (section, key, *_ItemT)
     _BackupT = tuple[bytes, bytes] | tuple[bytes, bytes, bytes, bytes, int]
 
 
 class config:
-    def __init__(self, data=None):
-        self._current_source_level = 0
-        self._data = {}
-        self._unset = []
+    def __init__(self, data: config | None = None):
+        self._current_source_level: int = 0
+        self._data: _DataT = {}
+        self._unset: list[tuple[bytes, bytes]] = []
         if data:
-            for k in data._data:
-                self._data[k] = data[k].copy()
+            for k, base in data._data.items():
+                v: _SectionT = base.copy()
+                self._data[k] = v
             self._current_source_level = data._current_source_level + 1
 
     def new_source(self) -> None:
