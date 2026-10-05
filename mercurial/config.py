@@ -28,6 +28,10 @@ if typing.TYPE_CHECKING:
     # config hold tuple of (value, source, config_level)
     _ItemT = tuple[bytes, bytes, int]
 
+    # backup for missing value is (section, key)
+    # backup for existing value is (section, key, *_ItemT)
+    _BackupT = tuple[bytes, bytes] | tuple[bytes, bytes, bytes, bytes, int]
+
 
 class config:
     def __init__(self, data=None):
@@ -96,7 +100,7 @@ class config:
             return default
         return result[0]
 
-    def backup(self, section, key):
+    def backup(self, section: bytes, key: bytes) -> _BackupT:
         """return a tuple allowing restore to reinstall a previous value
 
         The main reason we need it is because it handles the "no data" case.
@@ -159,7 +163,7 @@ class config:
         assert len(new_item) == size
         self._data[section][key] = new_item
 
-    def restore(self, data):
+    def restore(self, data: _BackupT) -> None:
         """restore data returned by self.backup"""
         if len(data) != 2:
             # restore old data
@@ -169,7 +173,10 @@ class config:
             self._data[section][key] = item
         else:
             # no data before, remove everything
-            section, item = data
+            #
+            # (the range usage ([:2]) helps pytype and `restore` is not used
+            # often enough for the performance impact to matter.)
+            section, item = data[:2]
             if section in self._data:
                 self._data[section].pop(item, None)
 
