@@ -24,6 +24,10 @@ if typing.TYPE_CHECKING:
         CfgSectionsT,
     )
 
+if typing.TYPE_CHECKING:
+    # config hold tuple of (value, source, config_level)
+    _ItemT = tuple[bytes, bytes, int]
+
 
 class config:
     def __init__(self, data=None):
@@ -50,7 +54,7 @@ class config:
     def hasitem(self, section: bytes, item: bytes) -> bool:
         return item in self._data.get(section, {})
 
-    def __getitem__(self, section):
+    def __getitem__(self, section: bytes) -> dict[bytes, _ItemT]:
         return self._data.get(section, {})
 
     def __iter__(self) -> typing.Iterator[bytes]:
@@ -78,7 +82,7 @@ class config:
                 self._data[s][k] = (value, source, level)
         self._current_source_level = max_level
 
-    def _get(self, section, item):
+    def _get(self, section: bytes, item: bytes) -> _ItemT | None:
         return self._data.get(section, {}).get(item)
 
     def get(
