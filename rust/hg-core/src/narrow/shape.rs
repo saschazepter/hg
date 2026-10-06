@@ -225,7 +225,7 @@ impl ShardShape {
 
     /// Returns a fingerprint for this shard only, without its dependencies
     pub fn fingerprint(&self) -> Fingerprint {
-        self.fake_shape.store_fingerprint()
+        self.fake_shape.store_fingerprint().as_shard()
     }
 }
 
@@ -719,6 +719,15 @@ impl TempShardTreeNode {
     }
 }
 
+/// What is identified by a given [`Fingerprint`]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FingerprintKind {
+    /// A [`Shape`]
+    Shape,
+    /// A standalone [`Shard`], see [`ShardShape`]
+    Shard,
+}
+
 /// Identifies a given set of files in the store. Two semantically equivalent
 /// shapes (or shards) have the same fingerprint.
 ///
@@ -729,6 +738,8 @@ impl TempShardTreeNode {
 ///     things
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Fingerprint {
+    /// What this fingerprint identifies
+    kind: FingerprintKind,
     /// The hash of the normalized shape
     digest: [u8; Self::DIGEST_SIZE],
 }
@@ -739,6 +750,11 @@ impl Fingerprint {
     /// Size in bytes of the binary representation
     pub const BINARY_SIZE: usize = Self::DIGEST_SIZE;
 
+    /// What this fingerprint identifies
+    pub fn kind(&self) -> FingerprintKind {
+        self.kind
+    }
+
     /// The binary representation
     pub fn to_bytes(&self) -> [u8; Self::BINARY_SIZE] {
         self.digest
@@ -747,6 +763,14 @@ impl Fingerprint {
     /// The text representation, as bytes: the hexadecimal digest
     pub fn to_text_bytes(&self) -> Vec<u8> {
         self.to_string().into_bytes()
+    }
+
+    /// The same fingerprint, identifying a standalone shard.
+    ///
+    /// A standalone shard is fingerprinted as the shape made of its own paths
+    /// (see [`ShardShape`]).
+    pub(crate) fn as_shard(self) -> Self {
+        Self { kind: FingerprintKind::Shard, ..self }
     }
 }
 
@@ -953,7 +977,10 @@ impl ShardTreeNode {
     pub fn fingerprint(&self) -> Fingerprint {
         let mut hasher = Sha256::new();
         self.serialize(&mut hasher).expect("writing to a hasher never fails");
-        Fingerprint { digest: hasher.finalize().into() }
+        Fingerprint {
+            kind: FingerprintKind::Shape,
+            digest: hasher.finalize().into(),
+        }
     }
 
     /// Return the node normalized as two flat sets of includes and excludes
@@ -1282,19 +1309,26 @@ mod tests {
 
     #[test]
     fn test_fingerprint_representations() {
+        const TEXT: &str =
+            "ab00000000000000000000000000000000000000000000000000000000000001";
+
         let mut digest = [0; Fingerprint::DIGEST_SIZE];
         digest[0] = 0xab;
         digest[31] = 0x01;
-        let fingerprint = Fingerprint { digest };
+        let fingerprint = Fingerprint { kind: FingerprintKind::Shape, digest };
+        assert_eq!(fingerprint.kind(), FingerprintKind::Shape);
         assert_eq!(fingerprint.to_bytes(), digest);
-        assert_eq!(
-            fingerprint.to_string(),
-            "ab00000000000000000000000000000000000000000000000000000000000001"
-        );
-        assert_eq!(
-            fingerprint.to_text_bytes(),
-            b"ab00000000000000000000000000000000000000000000000000000000000001"
-        );
+        assert_eq!(fingerprint.to_string(), TEXT);
+        assert_eq!(fingerprint.to_text_bytes(), TEXT.as_bytes());
+
+        // Same digest, different kind: same bytes, not the same fingerprint
+        let shard_fingerprint = fingerprint.as_shard();
+        assert_eq!(shard_fingerprint.kind(), FingerprintKind::Shard);
+        assert_eq!(shard_fingerprint.to_bytes(), digest);
+        assert_ne!(shard_fingerprint, fingerprint);
+
+        let tree = ShardTreeNode::from_patterns(&[], &[]).unwrap();
+        assert_eq!(tree.fingerprint().kind(), FingerprintKind::Shape);
     }
 
     #[test]
