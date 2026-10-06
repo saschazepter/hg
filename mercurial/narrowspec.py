@@ -310,21 +310,13 @@ def patterns_for_shape(
     if fingerprint is not None:
         server_fingerprint = shape.fingerprint()
         if fingerprint != server_fingerprint:
-            # XXX Abort message are not expected to contains new line
-            # XXX So we should clean this up at some point.
-            # XXX
-            # XXX We could raise a richer exception that can be caught higher
-            # XXX in the stack to explicitly display details before aborting.
-            msg = (
-                b"fingerprint mismatch for shape '%s'\n"
-                b"  server: '%s'\n  client: '%s'"
-            )
-            msg = msg % (
-                name,
+            msg = _(b"fingerprint mismatch for shape '%s'") % name
+            hint = _(b"server: %s, client: %s")
+            hint %= (
                 shapemod.shpfp2txt(server_fingerprint),
                 shapemod.shpfp2txt(fingerprint),
             )
-            raise error.Abort(msg)
+            raise error.Abort(msg, hint=hint)
     includes, excludes = shape.patterns()
     legacy_includes, legacy_excludes = to_legacy_patterns(includes, excludes)
 
