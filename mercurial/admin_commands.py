@@ -35,7 +35,7 @@ if typing.TYPE_CHECKING:
 
 
 if policy.has_rust():
-    pure_shapemod = shapemod
+    shape_py = shapemod
     shapemod = policy.importrust("shape")
 
 if typing.TYPE_CHECKING:
@@ -293,7 +293,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             exclude_tuples = zip(excludes, itertools.repeat(False))
             paths = sorted(
                 itertools.chain(include_tuples, exclude_tuples),
-                key=lambda t: pure_shapemod.zero_path(t[0]),
+                key=lambda t: shape_py.zero_path(t[0]),
             )
             for path, included in paths:
                 fm.startitem()
@@ -414,7 +414,7 @@ def _shape_clear_previous(ui: UiT, repo: RepoT) -> int:
     Always returns exit code 0; failures raise instead of returning.
     """
     with repo.store_shapes_lock(wait=False), repo.lock():
-        cleared = pure_shapemod.clear_previous_configs(repo)
+        cleared = shape_py.clear_previous_configs(repo)
     ui.status(_(b"cleared %d saved server-shapes\n") % len(cleared))
     return 0
 
@@ -445,7 +445,7 @@ def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
             )
         # Make sure contents are valid
         new_store_shards = shapemod.get_store_shards_from_bytes(shapes)
-        saved_configs = pure_shapemod.previous_configs(repo)
+        saved_configs = shape_py.previous_configs(repo)
         _validate_shape_update(
             old_store_shards,
             new_store_shards,
@@ -467,7 +467,7 @@ def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
             # resharding affects which bundles are generated.
             changed_shards = old_store_shards.changed_shards(new_store_shards)
             if old_file_contents and changed_shards:
-                pure_shapemod.save_previous_config(repo, old_file_contents)
+                shape_py.save_previous_config(repo, old_file_contents)
             repo.svfs.write(shapemod.SHAPES_FILE, shapes, atomictemp=True)
 
     return 0
