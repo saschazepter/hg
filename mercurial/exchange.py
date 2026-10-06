@@ -2555,7 +2555,11 @@ def getbundlechunks(
 
     if store_shape_with_fingerprint is not None:
         shape, txt_fingerprint = store_shape_with_fingerprint.split(b':')
-        fingerprint = shape_py.txt2shpfp(txt_fingerprint)
+        try:
+            fingerprint = shape_py.txt2shpfp(txt_fingerprint)
+        except ValueError:
+            msg = _(b"invalid store shape fingerprint: '%s'")
+            raise error.Abort(msg % txt_fingerprint)
         (includes, excludes) = narrowspec.patterns_for_shape(
             repo=repo,
             name=shape,
