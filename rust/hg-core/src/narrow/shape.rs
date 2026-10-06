@@ -224,7 +224,7 @@ impl ShardShape {
     }
 
     /// Returns a fingerprint for this shard only, without its dependencies
-    pub fn fingerprint(&self) -> [u8; 32] {
+    pub fn fingerprint(&self) -> Fingerprint {
         self.fake_shape.store_fingerprint()
     }
 }
@@ -434,7 +434,7 @@ impl StoreShards {
     pub fn shard_fingerprints_for_shape(
         &self,
         name: &str,
-    ) -> Result<Option<Vec<FastHashSet<[u8; 32]>>>, Error> {
+    ) -> Result<Option<Vec<FastHashSet<Fingerprint>>>, Error> {
         let shard_name = ShardName::new(name.to_string())?;
         let Some(shard) = self.shards.get(&shard_name) else {
             return Ok(None);
@@ -518,7 +518,7 @@ impl StoreShards {
     /// Returns map from shape name to its fingerprint.
     fn shape_fingerprints(
         &self,
-    ) -> Result<FastHashMap<ShardName, [u8; 32]>, Error> {
+    ) -> Result<FastHashMap<ShardName, Fingerprint>, Error> {
         Ok(self
             .all_shapes()?
             .into_iter()
@@ -553,7 +553,7 @@ impl StoreShards {
     /// This is not the same thing as the shard's `paths`; a shard nested inside
     /// another one carves its paths out of the outer shard, so adding or
     /// removing one shard changes the files owned by another.
-    fn shard_fingerprints(&self) -> FastHashMap<[u8; 32], ShardName> {
+    fn shard_fingerprints(&self) -> FastHashMap<Fingerprint, ShardName> {
         self.shards
             .iter()
             .filter_map(|(name, shard)| {
@@ -614,7 +614,7 @@ impl Shape {
         ShapeMatcher::new(self.to_owned())
     }
 
-    pub fn store_fingerprint(&self) -> [u8; 32] {
+    pub fn store_fingerprint(&self) -> Fingerprint {
         self.tree.fingerprint()
     }
 
@@ -716,6 +716,46 @@ impl TempShardTreeNode {
                 .map(|child| child.read().finish())
                 .collect(),
         }
+    }
+}
+
+/// Identifies a given set of files in the store. Two semantically equivalent
+/// shapes (or shards) have the same fingerprint.
+///
+/// There are two representations:
+///   - The binary one (see [`Self::to_bytes`]), used for storage, exchange and
+///     any internal manipulation
+///   - The text one (see [`Self::to_text_bytes`]), only used for user-facing
+///     things
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Fingerprint {
+    /// The hash of the normalized shape
+    digest: [u8; Self::DIGEST_SIZE],
+}
+
+impl Fingerprint {
+    /// Size in bytes of the digest
+    pub const DIGEST_SIZE: usize = 32;
+    /// Size in bytes of the binary representation
+    pub const BINARY_SIZE: usize = Self::DIGEST_SIZE;
+
+    /// The binary representation
+    pub fn to_bytes(&self) -> [u8; Self::BINARY_SIZE] {
+        self.digest
+    }
+
+    /// The text representation, as bytes: the hexadecimal digest
+    pub fn to_text_bytes(&self) -> Vec<u8> {
+        self.to_string().into_bytes()
+    }
+}
+
+impl std::fmt::Display for Fingerprint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in self.digest {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
     }
 }
 
@@ -910,10 +950,10 @@ impl ShardTreeNode {
 
     /// Get the fingerprint for this node. It will return a different hash for
     /// a semantically different node, allowing for a quick comparison.
-    pub fn fingerprint(&self) -> [u8; 32] {
+    pub fn fingerprint(&self) -> Fingerprint {
         let mut hasher = Sha256::new();
         self.serialize(&mut hasher).expect("writing to a hasher never fails");
-        hasher.finalize().into()
+        Fingerprint { digest: hasher.finalize().into() }
     }
 
     /// Return the node normalized as two flat sets of includes and excludes
@@ -1238,6 +1278,23 @@ mod tests {
                 ShardTreeNode::deserialize(&serialized).unwrap();
             assert_eq!(patterns, patterns_from_serialized);
         }
+    }
+
+    #[test]
+    fn test_fingerprint_representations() {
+        let mut digest = [0; Fingerprint::DIGEST_SIZE];
+        digest[0] = 0xab;
+        digest[31] = 0x01;
+        let fingerprint = Fingerprint { digest };
+        assert_eq!(fingerprint.to_bytes(), digest);
+        assert_eq!(
+            fingerprint.to_string(),
+            "ab00000000000000000000000000000000000000000000000000000000000001"
+        );
+        assert_eq!(
+            fingerprint.to_text_bytes(),
+            b"ab00000000000000000000000000000000000000000000000000000000000001"
+        );
     }
 
     #[test]

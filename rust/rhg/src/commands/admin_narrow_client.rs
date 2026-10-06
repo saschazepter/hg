@@ -1,7 +1,6 @@
 use clap::Arg;
 use hg::narrow::shape::ShardTreeNode;
 use hg::narrow::store_patterns;
-use hg::utils::strings::SliceExt;
 use hg::warnings::HgWarningContext;
 
 use crate::error::CommandError;
@@ -55,7 +54,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     );
 
     let mut stdout = invocation.ui.stdout_buffer();
-    stdout.write_all(&tree.fingerprint().to_hex_bytes())?;
+    stdout.write_all(&tree.fingerprint().to_text_bytes())?;
     stdout.write_all(b"\n")?;
     stdout.flush()?;
 
