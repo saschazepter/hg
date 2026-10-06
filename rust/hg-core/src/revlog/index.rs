@@ -378,41 +378,32 @@ impl Index {
         let uses_filelog_meta = header.format_flags().uses_filelog_meta();
         let uses_delta_info = header.format_flags().uses_delta_info();
 
-        if header.format_flags().is_inline() {
+        let is_inline = header.format_flags().is_inline();
+        let offsets = if is_inline {
             let (offset, offsets) = inline_scan(&bytes);
-
-            if offset == bytes.len() {
-                Ok(Self {
-                    header,
-                    bytes: IndexData::new(bytes),
-                    offsets: RwLock::new(Some(offsets)),
-                    uses_generaldelta,
-                    uses_filelog_meta,
-                    uses_delta_info,
-                    is_inline: true,
-                    bundle_repo_start: None,
-                    head_revs: RwLock::new((vec![], FastHashSet::default())),
-                })
-            } else {
-                Err(RevlogError::InvalidInlineRevlogLength {
+            if offset != bytes.len() {
+                return Err(RevlogError::InvalidInlineRevlogLength {
                     backtrace: HgBacktrace::capture(),
                     expected: offset,
                     got: bytes.len(),
-                })
+                });
             }
+            Some(offsets)
         } else {
-            Ok(Self {
-                header,
-                bytes: IndexData::new(bytes),
-                offsets: RwLock::new(None),
-                uses_generaldelta,
-                uses_filelog_meta,
-                uses_delta_info,
-                is_inline: false,
-                bundle_repo_start: None,
-                head_revs: RwLock::new((vec![], FastHashSet::default())),
-            })
-        }
+            None
+        };
+
+        Ok(Self {
+            header,
+            bytes: IndexData::new(bytes),
+            offsets: RwLock::new(offsets),
+            uses_generaldelta,
+            uses_filelog_meta,
+            uses_delta_info,
+            is_inline,
+            bundle_repo_start: None,
+            head_revs: RwLock::new((vec![], FastHashSet::default())),
+        })
     }
 
     pub fn uses_generaldelta(&self) -> bool {
