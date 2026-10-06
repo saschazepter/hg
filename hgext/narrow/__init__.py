@@ -201,6 +201,9 @@ The current (experimental!) format is the following::
     * ``name`` (required): canonical name for this shard.
     * ``paths`` (required): A list of UTF8 paths that this shard concerns,
         relative to the repo root.
+    * ``read-write-access`` (optional): A list of opaque identifiers for who
+        can read and write this shard. **Not enforced by Mercurial**, see
+        below.
 
   * <profileconfig>:
 
@@ -220,6 +223,7 @@ Constraints::
     ascii, dot or hyphen
   * ``full``, ``base`` and ``.hg-files`` are reserved names
   * At least one shard must be defined
+  * ``read-write-access`` values follow the same rules as names
   * ``paths`` and ``includes`` cannot be empty
   * Profiles cannot form a cycle through their ``includes``
   * A given path cannot be in more than one shard
@@ -240,6 +244,7 @@ Example::
     [[shards]]
     name = "subproject1"
     paths = ["subproject1", "utils/only-this-dir"]
+    read-write-access = ["backend-team", "release.managers"]
 
     [[shards]]
     name = "subproject2"
@@ -258,6 +263,22 @@ Example::
     name = "full-stack"
     includes = ["backend", "foo"]
     public = true
+
+Access control
+..............
+
+**WARNING**: Mercurial does *not* enforce ``read-write-access`` at the moment.
+Any client that can access the repository can read the contents of every
+shard, and any client that can push to it can write to every shard,
+regardless of what it says. Enforcing it is planned for a future version of
+Mercurial.
+
+For now, ``read-write-access`` is only defined on shards to help external
+systems (e.g. a hosting platform, or a proxy in front of the server) that
+implement their own access control, so that they can use the same
+configuration as the one defining the store's shards. Mercurial only checks
+that its values are valid. Changing ``read-write-access`` is neither a
+reshaping nor a resharding.
 
 Updating the profiles config
 ............................

@@ -71,6 +71,13 @@ pub enum ErrorKind {
     ProfileMissingIncludes(String),
     /// The config does not define any shard
     NoShards,
+    /// This shard has an invalid `read-write-access` value
+    InvalidReadWriteAccess {
+        /// The shard with the invalid value
+        shard: ShardName,
+        /// The invalid value
+        value: String,
+    },
     /// An invalid file pattern was given
     PatternError(PatternError),
     /// The config contains an invalid path, with this error
@@ -197,6 +204,9 @@ pub struct Shard {
     requires: Vec<ShardName>,
     /// Whether this shard can be used within or as a [`Shape`]
     shape: bool,
+    /// Opaque identifiers of who may read and write this shard. Not enforced
+    /// by Mercurial (yet), only meant for external systems.
+    read_write_access: Vec<String>,
 }
 
 /// Represent the "anonymous" Shape made of a single Shard.
@@ -317,6 +327,7 @@ impl StoreShards {
             paths: Some(vec!["".to_string()]),
             shape: false,
             requires: None,
+            read_write_access: vec![],
         });
         shards.push(ShardConfig {
             name: "full".to_string(),
@@ -329,6 +340,7 @@ impl StoreShards {
                     .sorted()
                     .collect(),
             ),
+            read_write_access: vec![],
         });
         // This shard is included in all other shards. Having a shape that
         // doesn't include those special files seems like an anti-feature.
@@ -337,6 +349,7 @@ impl StoreShards {
             paths: Some(HG_FILES_SHARD_PATHS.clone()),
             shape: false,
             requires: None,
+            read_write_access: vec![],
         });
         let reserved_range = shards_len_before..shards.len();
         let mut path_to_shard = FastHashMap::default();
@@ -364,7 +377,8 @@ impl StoreShards {
         path_to_shard: &mut FastHashMap<HgPathBuf, Shard>,
         shards: &mut FastHashMap<ShardName, Shard>,
     ) -> Result<(), Error> {
-        let ShardConfig { name, shape, paths, requires } = shard_config;
+        let ShardConfig { name, shape, paths, requires, read_write_access } =
+            shard_config;
         if user_provided
             && matches!(name.as_str(), "base" | "full" | HG_FILES_SHARD)
         {
@@ -403,11 +417,20 @@ impl StoreShards {
         requires_names.sort();
 
         let name = ShardName::new(name)?;
+        for value in &read_write_access {
+            if ShardName::new(value.to_owned()).is_err() {
+                return Err(ErrorKind::InvalidReadWriteAccess {
+                    shard: name,
+                    value: value.to_owned(),
+                })?;
+            }
+        }
         let shard = Shard {
             name: name.to_owned(),
             paths: hg_paths.to_owned(),
             requires: requires_names,
             shape,
+            read_write_access: read_write_access.into_iter().sorted().collect(),
         };
         for path in hg_paths {
             if path_to_shard.insert(path.to_owned(), shard.to_owned()).is_some()
@@ -705,6 +728,9 @@ struct ShardConfig {
     paths: Option<Vec<String>>,
     /// Names of the shards that this shard depends on, to build a hierarchy
     requires: Option<Vec<String>>,
+    /// Opaque identifiers of who may read and write this shard, for external
+    /// systems
+    read_write_access: Vec<String>,
 }
 
 impl TryFrom<ShardsEntry> for ShardConfig {
@@ -719,6 +745,7 @@ impl TryFrom<ShardsEntry> for ShardConfig {
             shape: false,
             paths: Some(entry.paths),
             requires: None,
+            read_write_access: entry.read_write_access,
         })
     }
 }
@@ -735,6 +762,7 @@ impl TryFrom<ProfilesEntry> for ShardConfig {
             shape: entry.public,
             paths: None,
             requires: Some(entry.includes),
+            read_write_access: vec![],
         })
     }
 }
@@ -748,6 +776,10 @@ struct ShardsEntry {
     name: String,
     /// The paths that this shard concerns
     paths: Vec<String>,
+    /// Opaque identifiers of who may read and write this shard, for external
+    /// systems. Mercurial does not enforce them (yet).
+    #[serde(default, rename = "read-write-access")]
+    read_write_access: Vec<String>,
     // TODO encoded paths for non-utf8 paths
     // encoded_paths: Option<Vec<String>>,
 }
@@ -2386,6 +2418,19 @@ mod tests {
                 [[shards]]
                 name = "myshard"
                 paths = ["secret"]
+                read-write-access = ["ok", "not ok"]
+            "#,
+                ErrorKind::InvalidReadWriteAccess {
+                    shard: ShardName::new("myshard".to_string()).unwrap(),
+                    value: "not ok".to_string(),
+                },
+            ),
+            (
+                r#"
+                version=0
+                [[shards]]
+                name = "myshard"
+                paths = ["secret"]
                 [[shards]]
                 name = "myshard2"
                 paths = ["secret"]
@@ -2755,6 +2800,35 @@ mod tests {
             paths = ["baz"]
         "#;
         assert_eq!(changed_shards(old, new), vec!["base", "foo"]);
+    }
+
+    #[test]
+    fn test_read_write_access() {
+        let old = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+            read-write-access = ["release.managers", "foo-team"]
+        "#;
+        let store_shards = StoreShards::from_bytes(old.as_bytes()).unwrap();
+        let foo = ShardName::new("foo".to_string()).unwrap();
+        assert_eq!(
+            store_shards.shards[&foo].read_write_access,
+            vec!["foo-team", "release.managers"]
+        );
+
+        // Changing who can write a shard does not change the shard itself
+        let new = r#"
+            version = 0
+
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+        "#;
+        assert_eq!(changed_shards(old, new), NO_CHANGE);
+        assert_eq!(changed_shapes(old, new), NO_CHANGE);
     }
 
     #[test]

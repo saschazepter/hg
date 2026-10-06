@@ -29,6 +29,7 @@ Setup the server shapes config
   > [[shards]]
   > name = "other-secret-files"
   > paths = ["foo/bar/other-secret"]
+  > read-write-access = ["security", "foo-team"]
   > 
   > [[profiles]]
   > name = "default"

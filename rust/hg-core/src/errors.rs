@@ -601,6 +601,14 @@ impl fmt::Display for HgError {
                             one shard"
                         )
                     }
+                    ShapeErrorKind::InvalidReadWriteAccess { shard, value } => {
+                        format!(
+                            "{backtrace}invalid read-write-access value \
+                            '{value}' for shard '{shard}': only lowercase \
+                            alphanumeric, hyphen or dot are accepted, with at \
+                            least one alphanumeric character"
+                        )
+                    }
                     ShapeErrorKind::InvalidPath(err) => {
                         let prefix =
                             Some("`server-shapes` contains an invalid path: ");
