@@ -29,15 +29,21 @@ if typing.TYPE_CHECKING:
 rustmod = policy.importrust("shape")
 
 
+# Size in bytes of the digest of a fingerprint
+FINGERPRINT_DIGEST_SIZE = 32
+# Size in bytes of the raw form of a fingerprint
+FINGERPRINT_RAW_SIZE = FINGERPRINT_DIGEST_SIZE
+
+
 def shpfp2txt(fingerprint: bytes) -> bytes:
     """serialize a raw shape fingerprint in its textual form"""
-    assert len(fingerprint) == 32
+    assert len(fingerprint) == FINGERPRINT_RAW_SIZE
     return hex(fingerprint)
 
 
 def txt2shpfp(text: bytes) -> bytes:
     """serialize a textual shape fingerprint in its raw form"""
-    assert len(text) == 64
+    assert len(text) == 2 * FINGERPRINT_RAW_SIZE
     return bin(text)
 
 
@@ -47,7 +53,7 @@ def shdfp2txt(fingerprint: bytes) -> bytes:
     exists independently from shpfp2txt as Shape and shard are different object
     and might evolve differently in the future.
     """
-    assert len(fingerprint) == 32
+    assert len(fingerprint) == FINGERPRINT_RAW_SIZE
     return hex(fingerprint)
 
 
@@ -57,7 +63,7 @@ def txt2shdfp(text: bytes) -> bytes:
     exists independently from txt2shpfp as Shape and shard are different object
     and might evolve differently in the future.
     """
-    assert len(text) == 64
+    assert len(text) == 2 * FINGERPRINT_RAW_SIZE
     return bin(text)
 
 

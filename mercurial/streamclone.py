@@ -43,6 +43,7 @@ from . import (
     pycompat,
     requirements as requirementsmod,
     scmutil,
+    shape as shapemod,
     store,
     transaction,
     util,
@@ -88,7 +89,7 @@ def _is_raw_fp(inst, attr, value: bytes):
     For now, fingerprint are expect to be in the "text" form, using hexadecimal
     encoding. This will change soon™.
     """
-    assert (value is None) or (len(value) == 32)
+    assert (value is None) or (len(value) == shapemod.FINGERPRINT_RAW_SIZE)
 
 
 @attr.s(slots=True)
