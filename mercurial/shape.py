@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import itertools
+import re
 import struct
 import typing
 
@@ -33,6 +34,8 @@ rustmod = policy.importrust("shape")
 FINGERPRINT_DIGEST_SIZE = 32
 # Size in bytes of the raw form of a fingerprint
 FINGERPRINT_RAW_SIZE = FINGERPRINT_DIGEST_SIZE
+# Validator regex for a text representation of a store fingerprint
+_FINGERPRINT_TEXT_RE = re.compile(br'[0-9a-f]{%d}' % (2 * FINGERPRINT_RAW_SIZE))
 
 
 def shpfp2txt(fingerprint: bytes) -> bytes:
@@ -42,9 +45,23 @@ def shpfp2txt(fingerprint: bytes) -> bytes:
 
 
 def txt2shpfp(text: bytes) -> bytes:
-    """serialize a textual shape fingerprint in its raw form"""
-    assert len(text) == 2 * FINGERPRINT_RAW_SIZE
-    return bin(text)
+    r"""serialize a textual shape fingerprint in its raw form
+
+    Raises `ValueError` if `text` is not the textual form of a shape
+    fingerprint.
+
+    >>> txt2shpfp(b'ab' * 32) == b'\xab' * 32
+    True
+    >>> for invalid in [b'', b'abc', b'ab' * 31, b'ab' * 33, b'zz' * 32,
+    ...                 b'AB' * 32, b'ab' * 32 + b' ']:
+    ...     try:
+    ...         txt2shpfp(invalid)
+    ...     except ValueError:
+    ...         pass
+    ...     else:
+    ...         raise AssertionError(invalid)
+    """
+    return _fingerprint_from_text(b'shape', text)
 
 
 def shdfp2txt(fingerprint: bytes) -> bytes:
@@ -58,13 +75,32 @@ def shdfp2txt(fingerprint: bytes) -> bytes:
 
 
 def txt2shdfp(text: bytes) -> bytes:
-    """serialize a textual shard fingerprint in its raw form
+    r"""serialize a textual shard fingerprint in its raw form
 
     exists independently from txt2shpfp as Shape and shard are different object
     and might evolve differently in the future.
+
+    Raises `ValueError` if `text` is not the textual form of a shard
+    fingerprint.
+
+    >>> txt2shdfp(b'ab' * 32) == b'\xab' * 32
+    True
+    >>> txt2shdfp(b'abc')
+    Traceback (most recent call last):
+        ...
+    ValueError: not a shard fingerprint: b'abc'
     """
-    assert len(text) == 2 * FINGERPRINT_RAW_SIZE
-    return bin(text)
+    return _fingerprint_from_text(b'shard', text)
+
+
+def _fingerprint_from_text(kind: bytes, text: bytes) -> bytes:
+    """The raw form of a textual fingerprint
+
+    Raises `ValueError` if `text` is not the textual form of a fingerprint of
+    the given `kind`."""
+    if _FINGERPRINT_TEXT_RE.fullmatch(text) is not None:
+        return bin(text)
+    raise ValueError("not a %s fingerprint: %r" % (kind.decode(), text))
 
 
 # File listing filenames of the saved `server-shapes` configs.

@@ -163,6 +163,7 @@ expected_mods_tested = {
     ('mercurial.revlogutils.rewrite', '{}'),
     ('mercurial.revset', '{}'),
     ('mercurial.revsetlang', '{}'),
+    ('mercurial.shape', '{}'),
     ('mercurial.simplemerge', '{}'),
     ('mercurial.smartset', '{}'),
     ('mercurial.stabletailgraph.stabletailsort', '{}'),
