@@ -379,16 +379,7 @@ impl Index {
         let uses_delta_info = header.format_flags().uses_delta_info();
 
         if header.format_flags().is_inline() {
-            let mut offset: usize = 0;
-            let mut offsets = Vec::new();
-
-            while offset + INDEX_ENTRY_SIZE <= bytes.len() {
-                offsets.push(offset);
-                let end = offset + INDEX_ENTRY_SIZE;
-                let entry = IndexEntry { bytes: &bytes[offset..end] };
-
-                offset += INDEX_ENTRY_SIZE + entry.compressed_len() as usize;
-            }
+            let (offset, offsets) = inline_scan(&bytes);
 
             if offset == bytes.len() {
                 Ok(Self {
