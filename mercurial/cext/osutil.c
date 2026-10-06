@@ -758,7 +758,7 @@ static void getarg0size(char **argstart, size_t *argsize) {
 	}
 	s++;
 	/* Format specifiers for each field are listed in `man 5 proc`. */
-	if (sscanf(s,
+	int n = sscanf(s,
 			" %*c"   /*  3. state */
 			" %*d"   /*  4. ppid */
 			" %*d"   /*  5. pgrp */
@@ -807,7 +807,9 @@ static void getarg0size(char **argstart, size_t *argsize) {
 			" %lu"   /* 48. arg_start */
 			" %lu",  /* 49. arg_end */
 			&start,
-			&end) == 2) {
+			&end);
+	/* sscanf was successful if it parsed all fields (2). */
+	if (n == 2) {
 		*argstart = (char*)start;
 		*argsize = end - start;
 	}
