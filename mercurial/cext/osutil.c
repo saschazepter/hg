@@ -730,10 +730,6 @@ static void getarg0size(char **argstart, size_t *argsize) {
 }
 #else
 static void getarg0size(char **argstart, size_t *argsize) {
-	/* On Linux >= 3.5, fields 48 and 49 of `/proc/self/stat` are pointers
-	 * to the start and end of the argument values respectively.
-	 *
-	 * (See `man 5 proc` for details.) */
 	char buf[4096];
 	FILE *fp;
 	unsigned long start = 0, end = 0;
@@ -757,7 +753,9 @@ static void getarg0size(char **argstart, size_t *argsize) {
 		return;
 	}
 	s++;
-	/* Format specifiers for each field are listed in `man 5 proc`. */
+	/* See `man 5 proc`, section "Files and directories", file /proc/[pid]/stat.
+	 * These field numbers and their format specifiers come directly from there.
+	 * Fields 48 and 49 need Linux >= 3.5 (released in 2012). */
 	int n = sscanf(s,
 			" %*c"   /*  3. state */
 			" %*d"   /*  4. ppid */
