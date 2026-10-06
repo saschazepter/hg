@@ -731,8 +731,17 @@ static void getarg0size(char **argstart, size_t *argsize) {
 #else
 /* Fields of /proc/self/stat that we use. */
 struct self_stat {
+	long num_threads;
+	unsigned long start_code;
+	unsigned long end_code;
+	unsigned long start_stack;
+	unsigned long start_data;
+	unsigned long end_data;
+	unsigned long start_brk;
 	unsigned long arg_start;
 	unsigned long arg_end;
+	unsigned long env_start;
+	unsigned long env_end;
 };
 
 /* Read /proc/self/stat into `st`. Returns true on success. */
@@ -761,7 +770,7 @@ static bool read_self_stat(struct self_stat *st)
 	s++;
 	/* See `man 5 proc`, section "Files and directories", file /proc/[pid]/stat.
 	 * These field numbers and their format specifiers come directly from there.
-	 * Fields 48 and 49 need Linux >= 3.5 (released in 2012). */
+	 * Fields 48 to 51 need Linux >= 3.5 (released in 2012). */
 	int n = sscanf(s,
 			" %*c"   /*  3. state */
 			" %*d"   /*  4. ppid */
@@ -780,15 +789,15 @@ static bool read_self_stat(struct self_stat *st)
 			" %*ld"  /* 17. cstime */
 			" %*ld"  /* 18. priority */
 			" %*ld"  /* 19. nice */
-			" %*ld"  /* 20. num_threads */
+			" %ld"   /* 20. num_threads */
 			" %*ld"  /* 21. itrealvalue */
 			" %*llu" /* 22. starttime */
 			" %*lu"  /* 23. vsize */
 			" %*ld"  /* 24. rss */
 			" %*lu"  /* 25. rsslim */
-			" %*lu"  /* 26. startcode */
-			" %*lu"  /* 27. endcode */
-			" %*lu"  /* 28. startstack */
+			" %lu"   /* 26. startcode */
+			" %lu"   /* 27. endcode */
+			" %lu"   /* 28. startstack */
 			" %*lu"  /* 29. kstkesp */
 			" %*lu"  /* 30. kstkeip */
 			" %*lu"  /* 31. signal */
@@ -805,15 +814,26 @@ static bool read_self_stat(struct self_stat *st)
 			" %*llu" /* 42. delayacct_blkio_ticks */
 			" %*lu"  /* 43. guest_time */
 			" %*ld"  /* 44. cguest_time */
-			" %*lu"  /* 45. start_data */
-			" %*lu"  /* 46. end_data */
-			" %*lu"  /* 47. start_brk */
+			" %lu"   /* 45. start_data */
+			" %lu"   /* 46. end_data */
+			" %lu"   /* 47. start_brk */
 			" %lu"   /* 48. arg_start */
-			" %lu",  /* 49. arg_end */
+			" %lu"   /* 49. arg_end */
+			" %lu"   /* 50. env_start */
+			" %lu",  /* 51. env_end */
+			&st->num_threads,
+			&st->start_code,
+			&st->end_code,
+			&st->start_stack,
+			&st->start_data,
+			&st->end_data,
+			&st->start_brk,
 			&st->arg_start,
-			&st->arg_end);
-	/* sscanf was successful if it parsed all fields (2). */
-	return n == 2;
+			&st->arg_end,
+			&st->env_start,
+			&st->env_end);
+	/* sscanf was successful if it parsed all fields (11). */
+	return n == 11;
 }
 
 static void getarg0size(char **argstart, size_t *argsize) {
