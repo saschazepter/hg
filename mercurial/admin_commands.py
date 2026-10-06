@@ -34,8 +34,9 @@ if typing.TYPE_CHECKING:
     )
 
 
+shape_py = shapemod
+
 if policy.has_rust():
-    shape_py = shapemod
     shapemod = policy.importrust("shape")
 
 if typing.TYPE_CHECKING:
