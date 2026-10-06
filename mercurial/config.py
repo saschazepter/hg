@@ -64,11 +64,17 @@ class config:
             next_level = data._current_source_level + SOURCE_LEVEL_STEP
             self._current_source_level = next_level
 
-    def new_source(self) -> None:
+    def new_source(self, source: bytes | None = None) -> None:
         """increment the source counter
 
-        This is used to define source priority when reading"""
+        This is used to define source priority when reading
+
+        A `source` that provides no value of its own can be given, to
+        record it anyway.
+        """
         self._current_source_level += SOURCE_LEVEL_STEP
+        if source is not None:
+            self._register_source(source)
 
     def _register_source(self, source: bytes) -> None:
         """record that `source` was seen at the current source level

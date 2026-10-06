@@ -367,10 +367,11 @@ class ui:
                 if k in self.environ:
                     self._exportableenviron[k] = self.environ[k]
 
-    def _new_source(self) -> None:
+    def _new_source(self, source: bytes | None = None) -> None:
+        # the overlay is not a configuration file
         self._ocfg.new_source()
-        self._tcfg.new_source()
-        self._ucfg.new_source()
+        self._tcfg.new_source(source)
+        self._ucfg.new_source(source)
 
     @classmethod
     @util.rust_tracing_span("ui.load")
@@ -534,6 +535,9 @@ class ui:
             fp = open(filename, 'rb')
         except OSError:
             if not sections:  # ignore unless we were looking for something
+                # missing, but it still has its place in the priority
+                # order, like an empty file would.
+                self._new_source(filename)
                 return
             raise
 
