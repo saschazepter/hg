@@ -762,7 +762,7 @@ static void getarg0size(char **argstart, size_t *argsize) {
 			" %*d"   /*  5. pgrp */
 			" %*d"   /*  6. session */
 			" %*d"   /*  7. tty_nr */
-			" %*d"   /*  8. tpdig */
+			" %*d"   /*  8. tpgid */
 			" %*u"   /*  9. flags */
 			" %*lu"  /* 10. minflt */
 			" %*lu"  /* 11. cminflt */
