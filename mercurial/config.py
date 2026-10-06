@@ -41,10 +41,19 @@ class config:
         self._current_source_level: int = 0
         self._data: _DataT = {}
         self._unset: list[tuple[bytes, bytes]] = []
+        # levels of every source we ever saw, see `_register_source`
+        #
+        # Hold a set of levels, because a source with include will spawn
+        # multiple levels.
+        self._source_levels: dict[bytes, set[int]] = {}
         if data:
             for k, base in data._data.items():
                 v: _SectionT = base.copy()
                 self._data[k] = v
+            self._source_levels = {
+                source: set(levels)
+                for source, levels in data._source_levels.items()
+            }
             self._current_source_level = data._current_source_level + 1
 
     def new_source(self) -> None:
@@ -52,6 +61,106 @@ class config:
 
         This is used to define source priority when reading"""
         self._current_source_level += 1
+
+    def _register_source(self, source: bytes) -> None:
+        """record that `source` was seen at the current source level
+
+        Every source is recorded, including the ones that provided no value
+        at all (an empty configuration file for example), so that the
+        priority of a source is known without having to find an item coming
+        from it.
+
+        >>> cfg = config()
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'file-a',
+        ...     b'[one]\\n'
+        ...     b'key = a\\n',
+        ... )
+        >>> cfg.new_source()
+        >>> cfg.parse(b'empty-file', b'')
+        >>> cfg.new_source()
+        >>> cfg.set(b'ui', b'editor', b'vi', b'$EDITOR')
+        >>> for src, lvls in sorted(cfg._source_levels.items()):
+        ...     print(src, lvls)
+        b'$EDITOR' {3}
+        b'empty-file' {2}
+        b'file-a' {1}
+
+
+        Reading a source again records the new level too:
+
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'file-a',
+        ...     b'[two]\\n'
+        ...     b'key = b\\n',
+        ... )
+        >>> sorted(cfg._source_levels[b'file-a'])
+        [1, 4]
+
+
+        Reading a source spans several levels when it includes another one,
+        the included source sitting in between:
+
+        (the actual include logic is dealt with by `read`, not `parse`, but
+        `read` access the read file systen, so we have to simulate it. redoing
+        some of the work. This is "okay" as this test make sure "duplicated"
+        source are recorded multiple time.)
+
+        >>> cfg = config()
+        >>> def include(path, remap=None, sections=None):
+        ...     cfg.new_source()
+        ...     cfg.parse(
+        ...         path,
+        ...         b'[one]\\n'
+        ...         b'key = from-include\\n',
+        ...     )
+        ...     cfg.new_source()
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'file-a',
+        ...     b'%include file-b\\n'
+        ...     b'[one]\\n'
+        ...     b'key = a\\n',
+        ...     include=include,
+        ... )
+        >>> sorted(cfg._source_levels[b'file-a'])
+        [1, 3]
+        >>> sorted(cfg._source_levels[b'file-b'])
+        [2]
+
+        Each include is accounted for, so a source including two others
+        spans four levels, two of them its own:
+
+        >>> cfg = config()
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'file-a',
+        ...     b'%include file-b\\n'
+        ...     b'[one]\\n'
+        ...     b'key = a\\n'
+        ...     b'%include file-c\\n',
+        ...     include=include,
+        ... )
+        >>> sorted(cfg._source_levels[b'file-a'])
+        [1, 3, 5]
+        >>> sorted(cfg._source_levels[b'file-b'])
+        [2]
+        >>> sorted(cfg._source_levels[b'file-c'])
+        [4]
+
+
+        Values set without a source are not recorded:
+
+        >>> cfg.set(b'one', b'key', b'c')
+        >>> sorted(cfg._source_levels)
+        [b'file-a', b'file-b', b'file-c']
+        """
+        if not source:
+            return
+        levels = self._source_levels.setdefault(source, set())
+        levels.add(self._current_source_level)
 
     def copy(self) -> config:
         return config(self)
@@ -71,12 +180,14 @@ class config:
     def update(self, src: config) -> None:
         current_level = self._current_source_level
         current_level += 1
-        max_level = self._current_source_level
         for s, n in src._unset:
             ds = self._data.get(s, None)
             if ds is not None and n in ds:
                 self._data[s] = ds.preparewrite()
                 del self._data[s][n]
+        # import the value from `src`, all config level are shifted by
+        # `current_level` to ensure the imported value overwrite the
+        # pre-existing one.
         for s in src:
             ds = self._data.get(s, None)
             if ds:
@@ -86,9 +197,15 @@ class config:
             for k, v in src._data[s].items():
                 value, source, level = v
                 level += current_level
-                max_level = max(level, current_level)
                 self._data[s][k] = (value, source, level)
-        self._current_source_level = max_level
+        # now that the value are imported, we need to also import the
+        # `source_levels` value. Shifted in the same way.
+        for source_name, source_levels in src._source_levels.items():
+            shifted = {level + current_level for level in source_levels}
+            self._source_levels.setdefault(source_name, set()).update(shifted)
+        # now adjust the next level to be above everything we just imported.
+        next_level = current_level + src._current_source_level + 1
+        self._current_source_level = next_level
 
     def _get(self, section: bytes, item: bytes) -> _ItemT | None:
         return self._data.get(section, {}).get(item)
@@ -152,6 +269,7 @@ class config:
         assert not isinstance(
             value, str
         ), b'config values may not be unicode strings on Python 3'
+        self._register_source(source)
         self._set_item(section, item, value, source)
 
     def _set_item(
@@ -218,6 +336,8 @@ class config:
         line = 0
         cont = False
 
+        self._register_source(src)
+
         if remap:
             section = remap.get(section, section)
 
@@ -234,7 +354,7 @@ class config:
                     if sections and section not in sections:
                         continue
                     v = self.get(section, item) + b"\n" + m.group(1)
-                    self.set(section, item, v, b"%s:%d" % (src, line))
+                    self._set_item(section, item, v, b"%s:%d" % (src, line))
                     continue
                 item = None
                 cont = False
@@ -251,6 +371,9 @@ class config:
                             % (expanded, encoding.strtolocal(inst.strerror)),
                             b"%s:%d" % (src, line),
                         )
+                # the include consumed levels of its own, the rest of `src`
+                # belongs to a new one.
+                self._register_source(src)
                 continue
             if emptyre.match(l):
                 continue
@@ -268,7 +391,12 @@ class config:
                 cont = True
                 if sections and section not in sections:
                     continue
-                self.set(section, item, m.group(2), b"%s:%d" % (src, line))
+                self._set_item(
+                    section,
+                    item,
+                    m.group(2),
+                    b"%s:%d" % (src, line),
+                )
                 continue
             m = unsetre.match(l)
             if m:
