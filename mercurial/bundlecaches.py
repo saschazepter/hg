@@ -187,13 +187,23 @@ def param_bool(key, value):
     return b
 
 
-_hex_regex = re.compile(b'^(?:[0-9a-f]{2})+$')
+def param_store_fingerprint(key, value) -> bytes:
+    """Check that this parameter is a shape fingerprint in text form"""
+    try:
+        shapemod.txt2shpfp(value)
+    except ValueError:
+        msg = _(b"parameter %s should be a shape fingerprint ('%s')")
+        msg %= (key, value)
+        raise error.InvalidBundleSpecification(msg)
+    return value
 
 
-def param_hex(key, value) -> bytes:
-    """Check that this parameter is valid hex bytes"""
-    if not _hex_regex.match(value):
-        msg = _(b"parameter %s should be hexadecimal ('%s')")
+def param_shard_id(key, value) -> bytes:
+    """Check that this parameter is a shard fingerprint in text form"""
+    try:
+        shapemod.txt2shdfp(value)
+    except ValueError:
+        msg = _(b"parameter %s should be a shard fingerprint ('%s')")
         msg %= (key, value)
         raise error.InvalidBundleSpecification(msg)
     return value
@@ -201,8 +211,8 @@ def param_hex(key, value) -> bytes:
 
 # mapping of known parameter name need their value processed
 bundle_spec_param_processing = {
-    BUNDLESPEC_SHARD_ID: param_hex,
-    BUNDLESPEC_STORE_FINGERPRINT: param_hex,
+    BUNDLESPEC_SHARD_ID: param_shard_id,
+    BUNDLESPEC_STORE_FINGERPRINT: param_store_fingerprint,
     BUNDLESPEC_OBSOLESCENCE: param_bool,
     BUNDLESPEC_OBSOLESCENCE_MANDATORY: param_bool,
     BUNDLESPEC_PHASES: param_bool,

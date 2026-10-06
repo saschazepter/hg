@@ -764,8 +764,8 @@ Manifest contains a full bundle, store-fingerprint bundles, and sharded bundles.
   > peer-bundle-cache://no-shape.hg BUNDLESPEC=$bundlespecfull
   > peer-bundle-cache://shape-dir2.hg BUNDLESPEC=$bundlespec
   > peer-bundle-cache://shape-other.hg BUNDLESPEC=$bundlespec2
-  > peer-bundle-cache://shard-top.hg BUNDLESPEC=$bundlespecfull;SHARD-ID=1111;BUNDLE-GROUP-ID=abcd;BUNDLE-GROUP-TOP-LEVEL=1
-  > peer-bundle-cache://shard-other.hg BUNDLESPEC=$bundlespecfull;SHARD-ID=2222;BUNDLE-GROUP-ID=abcd
+  > peer-bundle-cache://shard-top.hg BUNDLESPEC=$bundlespecfull;SHARD-ID=1111111111111111111111111111111111111111111111111111111111111111;BUNDLE-GROUP-ID=abcd;BUNDLE-GROUP-TOP-LEVEL=1
+  > peer-bundle-cache://shard-other.hg BUNDLESPEC=$bundlespecfull;SHARD-ID=2222222222222222222222222222222222222222222222222222222222222222;BUNDLE-GROUP-ID=abcd
   > EOF
 
 If the client did not request a store shape, filter out all but the full bundle
@@ -785,6 +785,19 @@ store-fingerprint
   filtering peer-bundle-cache://shape-other.hg because its store-shape is not the requested one; bda77439a4ee183aaa533e68680cdbc2fae13fb0c0e20210a598fe8889ef640e not in (feb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726)
   filtering peer-bundle-cache://shard-top.hg because no shards were requested
   filtering peer-bundle-cache://shard-other.hg because no shards were requested
+    URL: peer-bundle-cache://shape-dir2.hg
+
+Malformed fingerprints are invalid and dropped when parsing the manifest
+
+  $ echo "$bundlespec" > bundlespec.txt
+  $ bundlespec_malformed=`sed 's/STORE-FINGERPRINT=/STORE-FINGERPRINT=zz/' bundlespec.txt`
+  $ cat > source/.hg/clonebundles.manifest << EOF
+  > peer-bundle-cache://shape-dir2-malformed.hg BUNDLESPEC=$bundlespec_malformed
+  > peer-bundle-cache://shape-dir2.hg BUNDLESPEC=$bundlespec
+  > EOF
+
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug | grep -E 'fingerprint|filtering|URL:'
+  parameter store-fingerprint should be a shape fingerprint ('zzfeb09be59c639f9f80726b5cd0204cf05cda6ea875fa7fd7c1dea98f9a28e726')
     URL: peer-bundle-cache://shape-dir2.hg
 
 Resharding before new bundles exist

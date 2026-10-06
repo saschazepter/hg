@@ -698,11 +698,11 @@ understand how to handle fingerprinted bundles.
 
   $ cat > server/.hg/clonebundles.manifest << EOF
   > http://full.entry BUNDLESPEC=none-v2
-  > http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=1234
+  > http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=1234123412341234123412341234123412341234123412341234123412341234
   > EOF
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
   http://full.entry BUNDLESPEC=none-v2
-  http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=1234
+  http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=1234123412341234123412341234123412341234123412341234123412341234
 
 Clients before 7.2 do not pass the arg and are not offered `store_fingerprint`
 bundles.

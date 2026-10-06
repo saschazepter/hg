@@ -113,6 +113,18 @@ The fingerprint sent alongside a shape must be well formed
   response: <mercurial.changegroup.cg1unpacker object at 0x*> (glob)
   remote: abort: invalid store shape fingerprint: 'garbage'
 
+Hex, but too short is also caught
+
+  $ hg debugwireproto --localssh << EOF
+  > command getbundle
+  >     source pull
+  >     store_shape_with_fingerprint default:abab
+  > EOF
+  creating ssh peer from handshake results
+  sending getbundle command
+  response: <mercurial.changegroup.cg1unpacker object at 0x*> (glob)
+  remote: abort: invalid store shape fingerprint: 'abab'
+
 The client checks that it computes the same fingerprint as the server for the
 patterns it receives. Simulate a divergence by making the client compute a
 bogus fingerprint.
