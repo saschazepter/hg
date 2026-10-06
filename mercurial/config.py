@@ -35,28 +35,28 @@ class config:
                 self._data[k] = data[k].copy()
             self._current_source_level = data._current_source_level + 1
 
-    def new_source(self):
+    def new_source(self) -> None:
         """increment the source counter
 
         This is used to define source priority when reading"""
         self._current_source_level += 1
 
-    def copy(self):
+    def copy(self) -> config:
         return config(self)
 
-    def __contains__(self, section):
+    def __contains__(self, section: bytes) -> bool:
         return section in self._data
 
-    def hasitem(self, section, item):
+    def hasitem(self, section: bytes, item: bytes) -> bool:
         return item in self._data.get(section, {})
 
     def __getitem__(self, section):
         return self._data.get(section, {})
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator[bytes]:
         yield from self.sections()
 
-    def update(self, src):
+    def update(self, src: config) -> None:
         current_level = self._current_source_level
         current_level += 1
         max_level = self._current_source_level
@@ -81,7 +81,12 @@ class config:
     def _get(self, section, item):
         return self._data.get(section, {}).get(item)
 
-    def get(self, section, item, default=None):
+    def get(
+        self,
+        section: bytes,
+        item: bytes,
+        default: bytes | None = None,
+    ) -> bytes | None:
         result = self._get(section, item)
         if result is None:
             return default
@@ -99,26 +104,32 @@ class config:
         else:
             return (section, key) + item
 
-    def source(self, section, item):
+    def source(self, section: bytes, item: bytes) -> bytes:
         result = self._get(section, item)
         if result is None:
             return b""
         return result[1]
 
-    def level(self, section, item):
+    def level(self, section: bytes, item: bytes) -> int | None:
         result = self._get(section, item)
         if result is None:
             return None
         return result[2]
 
-    def sections(self):
+    def sections(self) -> list[bytes]:
         return sorted(self._data.keys())
 
     def items(self, section: bytes) -> list[tuple[bytes, bytes]]:
         items = self._data.get(section, {}).items()
         return [(k, v[0]) for (k, v) in items]
 
-    def set(self, section, item, value, source=b""):
+    def set(
+        self,
+        section: bytes,
+        item: bytes,
+        value: bytes,
+        source: bytes = b"",
+    ) -> None:
         assert not isinstance(
             section, str
         ), b'config section may not be unicode strings on Python 3'
@@ -134,7 +145,7 @@ class config:
             self._data[section] = self._data[section].preparewrite()
         self._data[section][item] = (value, source, self._current_source_level)
 
-    def alter(self, section, key, new_value):
+    def alter(self, section: bytes, key: bytes, new_value: bytes) -> None:
         """alter a value without altering its source or level
 
         This method is meant to be used by `ui.fixconfig` only."""
