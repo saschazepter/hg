@@ -33,7 +33,8 @@ use crate::utils::hg_path::ZeroPath;
 use crate::utils::u32_u;
 
 lazy_static! {
-    /// Only lower case ASCII alpha num, `-` and `.`
+    /// Only lower case ASCII alpha num, `-` and `.`.
+    /// Mirrored by `_validate_shape_name` in `mercurial/shape.py`.
     static ref SHARD_NAME_REGEX: Regex =
         Regex::new(r"^[-\.[[:lower:]][[:digit:]]]+$").unwrap();
 

@@ -157,6 +157,68 @@ class ShardFingerprint(Fingerprint, ShardFingerprintT):
     TEXT_PREFIX = b'shard'
 
 
+# Same rules as `ShardName::new` in `rust/hg-core/src/narrow/shape.rs`, so
+# that a pure Python client rejects what the server would.
+_SHAPE_NAME_RE = re.compile(rb'^[-.a-z0-9]+$')
+
+
+def _validate_shape_name(name: bytes) -> None:
+    """raise `InputError` if `name` cannot be the name of a shape
+
+    >>> _validate_shape_name(b'default')
+    >>> _validate_shape_name(b'')
+    Traceback (most recent call last):
+    ...
+    InputError: shard names must not be empty
+    >>> _validate_shape_name(b'-.')
+    Traceback (most recent call last):
+    ...
+    InputError: invalid shard name '-.': missing lowercase alphanumeric character
+    >>> _validate_shape_name(b'Babar')
+    Traceback (most recent call last):
+    ...
+    InputError: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+    """
+    if not name:
+        raise error.InputError(_(b"shard names must not be empty"))
+    if name.strip(b'.-') == b'':
+        msg = _(
+            b"invalid shard name '%s': missing lowercase alphanumeric character"
+        )
+        raise error.InputError(msg % name)
+    if not _SHAPE_NAME_RE.match(name):
+        msg = _(
+            b"invalid shard name '%s': "
+            b"only lowercase alphanumeric, hyphen or dot are accepted"
+        )
+        raise error.InputError(msg % name)
+
+
+def parse_shape_names(spec: bytes) -> list[bytes]:
+    """parse the `xx,yy,zz` form of a shape into its names
+
+    The names are validated, sorted and deduplicated: a composite shape is the
+    same whatever the order of its names.
+
+    >>> parse_shape_names(b'default')
+    [b'default']
+    >>> parse_shape_names(b'celeste,babar,celeste')
+    [b'babar', b'celeste']
+    >>> parse_shape_names(b'babar,,celeste')
+    Traceback (most recent call last):
+    ...
+    InputError: shard names must not be empty
+    >>> parse_shape_names(b'babar,Celeste')
+    Traceback (most recent call last):
+    ...
+    InputError: invalid shard name 'Celeste': only lowercase alphanumeric, hyphen or dot are accepted
+    """
+    names = spec.split(b',')
+    for name in names:
+        _validate_shape_name(name)
+    return sorted(set(names))
+
+
 # File listing filenames of the saved `server-shapes` configs.
 PREVIOUS_SHAPES_LIST = b'server-shapes-previous-list'
 
