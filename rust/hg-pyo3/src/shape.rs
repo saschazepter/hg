@@ -117,7 +117,8 @@ impl PyStoreShards {
     /// Return the shape of name `name`, raise `KeyError` with the unknown name
     /// (as bytes) if it doesn't exist
     pub fn shape(&self, py: Python, name: &str) -> PyResult<PyShape> {
-        match self.inner.shape(name) {
+        let names = vec![name];
+        match self.inner.shape(&names) {
             Ok(inner) => Ok(PyShape { inner }),
             Err(err) => {
                 if let ShapeErrorKind::UnknownShape(unknown) = &*err.kind {
