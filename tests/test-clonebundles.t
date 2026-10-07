@@ -710,6 +710,21 @@ bundles.
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw --legacy-client
   http://full.entry BUNDLESPEC=none-v2
 
+An entry with a fingerprint the server cannot parse is still a partial bundle,
+so it is not offered to them either. Newer clients drop it themselves.
+
+  $ cat >> server/.hg/clonebundles.manifest << EOF
+  > http://malformed.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=1234
+  > EOF
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw --legacy-client
+  http://full.entry BUNDLESPEC=none-v2
+  http://malformed.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=1234 (known-bad-output !)
+  $ hg debug::clonebundle-manifest http://localhost:$HGPORT --debug | grep -E 'fingerprint|filtering|URL:'
+  parameter store-fingerprint should be a shape fingerprint ('1234')
+  filtering http://partial.entry because it uses a store-shape
+    URL: http://full.entry
+
+
 Testing preferences configuration
 ---------------------------------
 

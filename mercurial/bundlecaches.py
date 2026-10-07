@@ -532,6 +532,33 @@ def _downgrade_bundlespec(spec: bytes) -> bytes | None:
     return head + sep + b';'.join(params)
 
 
+def manifest_line_has_param(line: bytes, name: bytes) -> bool:
+    """Whether the BUNDLESPEC of a manifest line has the given parameter,
+    whatever its case, separator or value, without validating the bundlespec.
+
+    >>> has = manifest_line_has_param
+    >>> has(b'http://a BUNDLESPEC=none-v2;store-fingerprint=zz', b'store-fingerprint')
+    True
+    >>> has(b'http://a BUNDLESPEC=none-v2;STORE-FINGERPRINT%3Dzz', b'store-fingerprint')
+    True
+    >>> has(b'http://a BUNDLESPEC=none-v2;stream=v2 x=store-fingerprint', b'store-fingerprint')
+    False
+    >>> has(b'http://a BUNDLESPEC=none-v2', b'store-fingerprint')
+    False
+    >>> has(b'http://a', b'store-fingerprint')
+    False
+    """
+    for field in line.split()[1:]:
+        key, _eq, value = field.partition(b'=')
+        if urlreq.unquote(key) != b'BUNDLESPEC':
+            continue
+        _head, _sep, paramstr = value.partition(b';')
+        for param in paramstr.split(b';'):
+            if urlreq.unquote(_partition_param(param)[0]).lower() == name:
+                return True
+    return False
+
+
 def downgrade_manifest_lines(lines: list[bytes]) -> list[bytes]:
     """Rewrite manifest lines for a client unaware of mandatory parameters.
 
