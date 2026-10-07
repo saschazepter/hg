@@ -283,7 +283,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             all_shapes = store_shards.all_shapes()
             for shape in all_shapes:
                 fm.startitem()
-                name = shape.name().encode()
+                name = b",".join(n.encode() for n in shape.names())
                 fingerprint = shape_py.ShapeFingerprint(
                     **shape.fingerprint()
                 ).to_text()

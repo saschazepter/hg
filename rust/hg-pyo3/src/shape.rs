@@ -35,9 +35,10 @@ pub struct PyShape {
 
 #[pymethods]
 impl PyShape {
-    /// The name of this shape as a UTF-8 string
-    pub fn name(&self) -> String {
-        self.inner.name().to_string()
+    /// The names of the shapes of this composite shape (or its own name), as
+    /// UTF-8 strings
+    pub fn names(&self) -> Vec<String> {
+        self.inner.names().iter().map(|name| name.to_string()).collect()
     }
 
     /// The fingerprint of this shape, see [`PyFingerprint`]

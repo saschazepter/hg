@@ -210,7 +210,7 @@ impl ShardShape {
         let tree = tree.expect("shards should already have been be validated");
 
         Some(Self {
-            fake_shape: Shape { name: shard.name.to_owned(), tree },
+            fake_shape: Shape { names: vec![shard.name.to_owned()], tree },
             top_level: shard.name.0.as_str() == HG_FILES_SHARD,
         })
     }
@@ -396,7 +396,9 @@ impl StoreShards {
             self.shards.iter().filter(|(_, shard)| shard.shape).collect();
         all.sort();
         all.into_iter()
-            .map(|(name, shard)| Shape::new(name.to_owned(), self, &[shard]))
+            .map(|(name, shard)| {
+                Shape::new(vec![name.to_owned()], self, &[shard])
+            })
             .collect()
     }
 
@@ -406,7 +408,7 @@ impl StoreShards {
         if let Some(shard) = self.shards.get(&shard_name)
             && shard.shape
         {
-            let shape = Shape::new(shard_name, self, &[shard])?;
+            let shape = Shape::new(vec![shard_name], self, &[shard])?;
             return Ok(Some(shape));
         }
         Ok(None)
@@ -519,7 +521,14 @@ impl StoreShards {
         Ok(self
             .all_shapes()?
             .into_iter()
-            .map(|shape| (shape.name().to_owned(), shape.store_fingerprint()))
+            .flat_map(|shape| {
+                let fingerprint = shape.store_fingerprint();
+                shape
+                    .names()
+                    .iter()
+                    .map(move |name| (name.to_owned(), fingerprint))
+                    .collect::<Vec<_>>()
+            })
             .collect())
     }
 
@@ -587,13 +596,14 @@ fn changed_names<V: Hash + Eq>(
 /// This is a user-facing concept.
 #[derive(Debug, Clone)]
 pub struct Shape {
-    name: ShardName,
+    /// Several names if this is a composite shape
+    names: Vec<ShardName>,
     pub(crate) tree: ShardTreeNode,
 }
 
 impl Shape {
     pub fn new(
-        name: ShardName,
+        names: Vec<ShardName>,
         store_shards: &StoreShards,
         shards: &[&Shard],
     ) -> Result<Self, Error> {
@@ -603,7 +613,7 @@ impl Shape {
             expanded_shards.extend(store_shards.dependencies(shard)?.values())
         }
         let tree = ShardTreeNode::from_shards(store_shards, &expanded_shards)?;
-        Ok(Self { name, tree })
+        Ok(Self { names, tree })
     }
 
     /// Returns a [`Matcher`] that expresses the constraints of this shape
@@ -628,8 +638,9 @@ impl Shape {
         self.tree.flat()
     }
 
-    pub fn name(&self) -> &ShardName {
-        &self.name
+    /// The names of the shapes of this composite shape, or its own name
+    pub fn names(&self) -> &[ShardName] {
+        &self.names
     }
 
     pub fn from_patterns(
@@ -638,7 +649,7 @@ impl Shape {
     ) -> Result<Self, Error> {
         let tree = ShardTreeNode::from_patterns(includes, excludes)?;
         let name = ShardName::new("hg-internal".into()).expect("valid name");
-        Ok(Self { name, tree })
+        Ok(Self { names: vec![name], tree })
     }
 }
 
@@ -1344,7 +1355,7 @@ mod tests {
                 .all_shapes()
                 .unwrap()
                 .into_iter()
-                .map(|shape| shape.name().to_string())
+                .map(|shape| shape.names().iter().join(","))
                 .collect::<Vec<_>>(),
         );
         (store_shards, all_shape_names)
@@ -1356,7 +1367,8 @@ mod tests {
         for (name, shard) in store_shards.shards.iter() {
             let mut serialized = vec![];
             let internal_shape =
-                Shape::new(name.to_owned(), &store_shards, &[shard]).unwrap();
+                Shape::new(vec![name.to_owned()], &store_shards, &[shard])
+                    .unwrap();
             let patterns = internal_shape.patterns();
             internal_shape.tree.serialize_patterns(&mut serialized).unwrap();
             let patterns_from_serialized =
@@ -1807,7 +1819,7 @@ mod tests {
             .map(|name| {
                 let shape = store_shards.shape(name).unwrap().unwrap();
                 let matcher = shape.matcher();
-                (shape.name().to_string(), matcher)
+                (shape.names().iter().join(","), matcher)
             })
             .collect();
         for (file, expected_shapes) in files_to_shape {
