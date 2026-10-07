@@ -319,14 +319,17 @@ def get_cached_bundle_inline(repo, proto, path):
     return wireprototypes.streamres(gen=stream, prefer_uncompressed=True)
 
 
-def _filter_storefp_lines(repo: RepoT, lines: list[bytes]) -> list[bytes]:
-    """Drop the manifest entries that have the `store-fingerprint` arg,
-    meaning they only cover part of the store."""
+def _filter_storefp_lines(lines: list[bytes]) -> list[bytes]:
+    """Drop the manifest entries that have the `store-fingerprint` param,
+    meaning they only cover part of the store.
+
+    The parameter is looked for in the raw bundlespec: a value this server
+    cannot parse still marks a partial bundle, and a spec this server does not
+    support may still suit the client."""
     modified_manifest = []
     for line in lines:
-        parsed = bundlecaches.parse_clonebundle_manifest_line(repo, line)
-        if parsed is not None and parsed.bundlespec_param(
-            bundlecaches.BUNDLESPEC_STORE_FINGERPRINT
+        if bundlecaches.manifest_line_has_param(
+            line, bundlecaches.BUNDLESPEC_STORE_FINGERPRINT
         ):
             continue
         modified_manifest.append(line)
@@ -349,7 +352,7 @@ def clonebundles(repo, proto):
         if line.startswith(bundlecaches.CLONEBUNDLESCHEME):
             continue
         modified_manifest.append(line)
-    modified_manifest = _filter_storefp_lines(repo, modified_manifest)
+    modified_manifest = _filter_storefp_lines(modified_manifest)
     modified_manifest = bundlecaches.downgrade_manifest_lines(modified_manifest)
     modified_manifest.append(b'')
     return wireprototypes.bytesresponse(b'\n'.join(modified_manifest))
@@ -379,7 +382,7 @@ def clonebundles_2(repo, proto, args):
     manifest_lines = bundle_cache_util.get_manifest_lines(repo)
     if args.get(b'mandatory_params') != b'1':
         if args.get(b'store_fingerprint') != b'1':
-            manifest_lines = _filter_storefp_lines(repo, manifest_lines)
+            manifest_lines = _filter_storefp_lines(manifest_lines)
         manifest_lines = bundlecaches.downgrade_manifest_lines(manifest_lines)
     return wireprototypes.bytesresponse(b''.join(manifest_lines))
 
