@@ -451,7 +451,7 @@ def clone(
                             tr.addfilegenerator(
                                 b"store-shape",
                                 (narrowspec.SHAPE_FILENAME,),
-                                lambda f: narrowspec.write_shape(f, shape),
+                                lambda f: narrowspec.write_shape(f, [shape]),
                                 location=b'store',
                             )
 

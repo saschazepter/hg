@@ -1687,8 +1687,8 @@ class localrepository(_localrepo_base_classes):
         )
 
     @storecache(narrowspec.SHAPE_FILENAME)
-    def store_shape(self) -> str | None:
-        """Name of the shape that this repository was cloned with, or `None`."""
+    def store_shape(self) -> list[str] | None:
+        """Names of the shape that this repository was cloned with, or `None`."""
         if not self.is_narrow:
             return None
 

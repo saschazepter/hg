@@ -376,7 +376,7 @@ def _narrow(
                     tr.addfilegenerator(
                         b"store-shape",
                         (narrowspec.SHAPE_FILENAME,),
-                        lambda f: narrowspec.write_shape(f, shape),
+                        lambda f: narrowspec.write_shape(f, [shape]),
                         location=b'store',
                     )
 
@@ -497,7 +497,7 @@ def _widen(
                 tr.addfilegenerator(
                     b"narrow-shape",
                     (narrowspec.SHAPE_FILENAME,),
-                    lambda f: narrowspec.write_shape(f, shape),
+                    lambda f: narrowspec.write_shape(f, [shape]),
                     location=b'store',
                 )
 

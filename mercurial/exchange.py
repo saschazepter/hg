@@ -1987,8 +1987,8 @@ def _pullbundle2(pullop: pulloperation):
                 raise error.Abort(
                     _(b"cannot compute fingerprint for local narrow patterns")
                 )
-            # `shape` was checked to be valid UTF-8
-            names = [shape.encode()]
+            # the names were checked to be valid UTF-8
+            names = [name.encode() for name in shape]
             shape_with_fingerprint = b"%s:%s" % (
                 b",".join(names),
                 fingerprint.to_text(),

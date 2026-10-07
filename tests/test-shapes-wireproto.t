@@ -292,6 +292,9 @@ Check that we track the correct paths
   I path:.
   X path:foo/bar/other-secret
   X path:secret
+  $ cat .hg/store/store-shape
+  0
+  default
   $ hg files
   dir1/file1
   file1

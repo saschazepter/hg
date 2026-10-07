@@ -222,8 +222,8 @@ def load(repo):
     return parseconfig(repo.ui, spec)
 
 
-def load_store_shape(repo: RepoT) -> str | None:
-    """Returns the current store shape name for `repo`.
+def load_store_shape(repo: RepoT) -> list[str] | None:
+    """Returns the names of the current store shape for `repo`.
 
     Used by the repo to load its own store shape."""
     shape = None
@@ -254,8 +254,9 @@ def _decode_shape(name: bytes) -> str:
         raise error.Abort(msg)
 
 
-def parse_shape(contents: bytes) -> str:
-    """Parse the contents of the file `SHAPE_FILENAME` to return the shape name.
+def parse_shape(contents: bytes) -> list[str]:
+    """Parse the contents of the file `SHAPE_FILENAME` to return the names of
+    the shape.
 
     See the format in `write_shape`"""
     lines = contents.splitlines()
@@ -272,21 +273,23 @@ def parse_shape(contents: bytes) -> str:
         msg = _(b"too many lines in store-hape: expected 2, got %d")
         raise error.CorruptedFormat(msg % len(lines))
     shape = _decode_shape(lines[1])
-    return shape
+    return shape.split(',')
 
 
-def write_shape(file: BinaryIO, name):
+def write_shape(file: BinaryIO, names: list[bytes]):
     """Write version 0 of the contents of `SHAPE_FILENAME`.
 
     V0 format is experimental and subject to change.
     It is line-delimited:
         - The literal ascii byte "0", as a version number
-        - The bytes of the shape name, which must be UTF8.
+        - The bytes of the shape name, which must be UTF8. The names of a
+          composite shape are comma-separated.
         - A single empty line to make it simpler to display
 
     A later version will include the shape's patterns and will replace the
     narrowspec.
     """
+    name = b','.join(names)
     _decode_shape(name)  # validate the name
     file.write(b"0\n%s\n" % name)
 
