@@ -436,17 +436,13 @@ class wirepeer(
             if computed_fingerprint not in fingerprints:
                 # Sanity check
                 # Should only happen if we change how fingerprints are computed
-                msg = _(
-                    b"fingerprint differ for shape '%s': received %r, not %s"
-                )
-                # XXX that message needs better formatting, but waiting for
-                # versionned fingerprint would make this easier to handle.
-                msg %= (
-                    name,
+                msg = _(b"fingerprint mismatch for shape '%s'") % name
+                hint = _(b"server: [%s], client: %s")
+                hint %= (
                     b', '.join(shape_py.shpfp2txt(fp) for fp in fingerprints),
                     shape_py.shpfp2txt(computed_fingerprint),
                 )
-                self._abort(error.Abort(msg))
+                self._abort(error.Abort(msg, hint=hint))
 
             return fingerprints, shard_sets, patterns
 

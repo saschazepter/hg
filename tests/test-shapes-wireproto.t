@@ -101,6 +101,27 @@ Test error cases
   abort: shape not found on remote: 'secrets'
   [10]
 
+The client checks that it computes the same fingerprint as the server for the
+patterns it receives. Simulate a divergence by making the client compute a
+bogus fingerprint.
+
+  $ cat > $TESTTMP/bogus-fingerprint.py << EOF
+  > from mercurial import wireprotov1peer
+  > def bogus(includes, excludes):
+  >     return b'\xff' * 32
+  > wireprotov1peer.shapemod.fingerprint_for_patterns = bogus
+  > EOF
+
+  $ hg debugwireproto --localssh --config extensions.bogus=$TESTTMP/bogus-fingerprint.py << EOF
+  > command store_shape
+  >     name default
+  > EOF
+  creating ssh peer from handshake results
+  sending store_shape command
+  abort: fingerprint mismatch for shape 'default'
+  (server: [a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5], client: ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+  [255]
+
 Test valid cases
 ----------------
 
