@@ -703,4 +703,38 @@ Widening and narrowing at the same time succeeds
   $ hg cat file1
   [1]
 
+Names of a composite shape are checked before anything is sent
+--------------------------------------------------------------
+
+  $ hg tracked --store-shape default,Babar
+  abort: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+  [10]
+
+A composite shape tracks the union
+----------------------------------
+
+  $ hg tracked --store-shape default,other-secret
+  comparing with ssh://user@dummy/server
+  searching for changes
+  looking for local changes to affected paths
+  deleting data/foo/bar/other-secret/secret-file.i
+  deleting data/foo/bar/other-secret/secret-file2.i
+  deleting unwanted files from working copy
+  adding changesets
+  adding manifests
+  adding file changes
+  added 0 changesets with 10 changes to 8 files
+
+  $ hg tracked
+  I path:.
+  X path:secret
+  $ cat .hg/store/store-shape
+  0
+  default,other-secret
+  $ hg cat foo/bar/other-secret/secret-file
+  new secret contents
+  $ hg cat file1
+  file1 contents
+  new contents
+
 #endif

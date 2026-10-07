@@ -39,6 +39,7 @@ from mercurial import (
     repoview,
     requirements,
     scmutil,
+    shape as shape_py,
     sparse,
     util,
     wireprototypes,
@@ -245,7 +246,7 @@ def _narrow(
     newexcludes,
     force,
     backup,
-    shape,
+    shape: list[bytes] | None,
 ):
     oldmatch = narrowspec.match(
         repo.root,
@@ -376,7 +377,7 @@ def _narrow(
                     tr.addfilegenerator(
                         b"store-shape",
                         (narrowspec.SHAPE_FILENAME,),
-                        lambda f: narrowspec.write_shape(f, [shape]),
+                        lambda f: narrowspec.write_shape(f, shape),
                         location=b'store',
                     )
 
@@ -392,7 +393,7 @@ def _widen(
     oldexcludes,
     newincludes,
     newexcludes,
-    shape,
+    shape: list[bytes] | None,
 ):
     # for now we assume that if a server has ellipses enabled, we will be
     # exchanging ellipses nodes. In future we should add ellipses as a client
@@ -497,7 +498,7 @@ def _widen(
                 tr.addfilegenerator(
                     b"narrow-shape",
                     (narrowspec.SHAPE_FILENAME,),
-                    lambda f: narrowspec.write_shape(f, [shape]),
+                    lambda f: narrowspec.write_shape(f, shape),
                     location=b'store',
                 )
 
@@ -706,6 +707,8 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
     shape = opts.get('store_shape')
     if shape == b"":
         shape = None
+    if shape is not None:
+        shape = shape_py.parse_shape_names(shape)
 
     update_working_copy = opts['update_working_copy']
     only_show = not (
@@ -773,7 +776,7 @@ def _tracked_remote_path(
     repo,
     opts,
     remote,
-    shape,
+    shape: list[bytes] | None,
     addedincludes,
     removedincludes,
     addedexcludes,
@@ -786,7 +789,7 @@ def _tracked_remote_path(
 
     if shape is not None:
         with remote.commandexecutor() as e:
-            command = e.callcommand(b'store_shape', {b'names': [shape]})
+            command = e.callcommand(b'store_shape', {b'names': shape})
             (
                 fingerprints,
                 shards_sets,
