@@ -328,6 +328,11 @@ You may generate the bundles with the following::
   $ bundleentry="peer-bundle-cache://bundle.hg BUNDLESPEC=$bundlespec"
   $ echo $bundleentry >> .hg/clonebundles.manifest
 
+Several shape names separated by commas, as in ``shape=my-shape,other-shape``,
+produce a bundle for their composite shape, which clients tracking these
+shapes together will use. Sharded bundles serve such clients as well, since
+the shards of a composite shape are those of its shapes.
+
 You can export the includes and exclude patterns for every shape and give
 them manually to clients::
 

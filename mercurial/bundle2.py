@@ -1733,7 +1733,9 @@ def write_new_stream_bundle(
             raise error.ProgrammingError("shapes are a Rust-only feature")
         store_shards = shape_mod.get_store_shards(repo.root)
         try:
-            shape_obj = store_shards.shape([shape.decode()])
+            shape_obj = store_shards.shape(
+                [name.decode() for name in shape.split(b',')]
+            )
         except KeyError as e:
             raise error.InputError(b"unknown shape: '%s'" % e.args[0])
         matcher = shape_obj.matcher()

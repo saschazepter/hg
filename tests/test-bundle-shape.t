@@ -892,3 +892,72 @@ but a different fingerprint
   $ hg clone ssh://user@dummy/source redefined --noupdate --store-shape excluded-shape --stream --debug 2>&1 | grep 'clone bundles'
   no compatible clone bundles available on server; falling back to regular clone
   $ rm -rf redefined
+
+Bundles for a composite shape
+=============================
+
+Comma-separated names in the `shape` of a bundlespec produce a bundle for their
+composite shape, which carries the fingerprint that clients tracking these
+shapes together compute.
+
+Unknown and empty names are reported
+------------------------------------
+
+  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default,zz" composite.hg
+  abort: unknown shape: 'zz'
+  [10]
+
+  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default,,foobar" composite.hg
+  config error: shard names must not be empty
+  [30]
+
+The bundle carries the fingerprint of the composite shape
+---------------------------------------------------------
+
+  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobar,default" composite.hg
+
+  $ hg debugbundle composite.hg | grep -o 'store-fingerprint: shape00-[0-9a-f]*'
+  store-fingerprint: shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
+  $ hg -R source admin::narrow-server --shape-patterns default,foobar
+  inc:/
+  exc:/dir1/excluded
+  exc:/excluded
+
+Clients cloning the composite shape use that bundle
+---------------------------------------------------
+
+  $ bundlespec_composite="$(hg debugbundle --spec composite.hg)"
+  $ mv composite.hg source/.hg/bundle-cache/
+  $ echo "peer-bundle-cache://composite.hg BUNDLESPEC=$bundlespec_composite" > source/.hg/clonebundles.manifest
+
+  $ hg clone ssh://user@dummy/source composite --noupdate --store-shape default,foobar | grep "bundle from"
+  applying clone bundle from peer-bundle-cache://composite.hg
+
+  $ hg -R composite admin::narrow-client --store-fingerprint
+  shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
+  $ hg -R composite tracked
+  I path:.
+  X path:dir1/excluded
+  X path:excluded
+  $ rm -rf composite
+
+The sharded bundles serve the composite shape too
+-------------------------------------------------
+
+Clients get the shards of both shapes.
+
+  $ cp source/.hg/clonebundles.old source/.hg/clonebundles.manifest
+
+  $ hg clone ssh://user@dummy/source composite --noupdate --store-shape default,foobar --stream | grep 'applying'
+  applying 3 clone bundles
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d.hg
+  finished applying clone bundle [1/3]
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-7617c9764651da6165bd219c8281fb0629cf178ef515295f31185da8f091fc09.hg
+  finished applying clone bundle [2/3]
+  applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
+  finished applying clone bundle [3/3]
+  finished applying 3 clone bundles
+
+  $ hg -R composite admin::narrow-client --store-fingerprint
+  shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
+  $ rm -rf composite
