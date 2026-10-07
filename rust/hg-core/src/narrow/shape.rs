@@ -451,24 +451,22 @@ impl StoreShards {
             .collect()
     }
 
-    /// Return the fingerprint of every standalone shard in this shape to match
+    /// Return the fingerprint of every standalone shard in `shape` to match
     /// against sharded bundles.
     /// A client cloning a particular shape will need to know which shards make
     /// up that shape to select the right set of bundles (one per shard).
-    ///
-    /// Returns [`ErrorKind::UnknownShape`] if no shard of that name is marked
-    /// as a shape.
     pub fn shard_fingerprints_for_shape(
         &self,
-        name: &str,
+        shape: &Shape,
     ) -> Result<Vec<FastHashSet<Fingerprint>>, Error> {
-        let shard_name = ShardName::new(name.to_string())?;
-        let shard = match self.shards.get(&shard_name) {
-            Some(shard) if shard.shape => shard,
-            _ => return Err(ErrorKind::UnknownShape(name.to_string()))?,
-        };
-        let mut dependent_shards = self.dependencies(shard)?;
-        dependent_shards.insert(&shard_name, shard);
+        let mut dependent_shards = FastHashMap::default();
+        for name in shape.names() {
+            let Some(shard) = self.shards.get(name) else {
+                return Err(ErrorKind::UnknownShape(name.to_string()))?;
+            };
+            dependent_shards.extend(self.dependencies(shard)?);
+            dependent_shards.insert(name, shard);
+        }
         let fingerprints = dependent_shards
             .into_iter()
             .filter_map(|(_name, shard)| ShardShape::new(self, shard))
@@ -1513,10 +1511,6 @@ mod tests {
         assert_eq!(*err.kind, ErrorKind::UnknownShape("zz".to_string()));
         let err = store_shards.shape(&["baz"]).unwrap_err();
         assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
-        let err = store_shards.shard_fingerprints_for_shape("zz").unwrap_err();
-        assert_eq!(*err.kind, ErrorKind::UnknownShape("zz".to_string()));
-        let err = store_shards.shard_fingerprints_for_shape("baz").unwrap_err();
-        assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
     }
 
     #[test]
@@ -1558,6 +1552,30 @@ mod tests {
         assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
         let err = store_shards.shape(&[]).unwrap_err();
         assert_eq!(*err.kind, ErrorKind::NoShapeNames);
+    }
+
+    #[test]
+    fn test_shard_fingerprints_for_shapes() {
+        let (store_shards, _) = valid_store_shards();
+        let sets = |names: &[&str]| {
+            let shape = store_shards.shape(names).unwrap();
+            store_shards.shard_fingerprints_for_shape(&shape).unwrap()
+        };
+        // Several names give the union of their shards
+        let baron = sets(&["baron"]);
+        let mummy = sets(&["mummy"]);
+        let both = sets(&["baron", "mummy"]);
+        assert_eq!(both.len(), 1);
+        let expected: FastHashSet<_> =
+            baron[0].union(&mummy[0]).cloned().collect();
+        assert_eq!(both[0], expected);
+        assert!(both[0].len() > baron[0].len());
+        // A shape that is not from the store is reported
+        let outsider = Shape::from_patterns(&[], &[]).unwrap();
+        let err =
+            store_shards.shard_fingerprints_for_shape(&outsider).unwrap_err();
+        let expected = ErrorKind::UnknownShape("hg-internal".to_string());
+        assert_eq!(*err.kind, expected);
     }
 
     #[test]

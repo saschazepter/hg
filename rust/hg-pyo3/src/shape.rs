@@ -159,16 +159,9 @@ impl PyStoreShards {
         py: Python,
         name: &str,
     ) -> PyResult<Py<PyList>> {
-        let groups = match self.inner.shard_fingerprints_for_shape(name) {
-            Ok(groups) => groups,
-            Err(err) => {
-                if let ShapeErrorKind::UnknownShape(unknown) = &*err.kind {
-                    let unknown = unknown.as_bytes().to_vec();
-                    return Err(PyKeyError::new_err(unknown));
-                }
-                return Err(err).into_pyerr(py);
-            }
-        };
+        let shape = self.shape(py, name)?.inner;
+        let groups =
+            self.inner.shard_fingerprints_for_shape(&shape).into_pyerr(py)?;
         let sets: Result<Vec<_>, _> = groups
             .into_iter()
             .map(|group| {
