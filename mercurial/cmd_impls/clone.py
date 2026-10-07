@@ -84,7 +84,7 @@ def clone(
     storeincludepats=None,
     storeexcludepats=None,
     depth=None,
-    shape: bytes | None = None,
+    shape: list[bytes] | None = None,
 ):
     """Make a copy of an existing repository.
 
@@ -135,7 +135,7 @@ def clone(
     defined but ``storeexcludepats`` is, ``storeincludepats`` is assumed to be
     ``path:.``. If both are empty sets, no files will be cloned.
 
-    shape: name for a narrow store shape, expected to exist on the narrow server
+    shape: names for a narrow store shape, expected to exist on the narrow server
     from which we are cloning. Mutually exclusive with ``storeincludepats`` or
     ``storeexcludepats``, and slated to replace those options entirely in a
     future version.
@@ -203,7 +203,7 @@ def clone(
 
         if shape is not None:
             with srcpeer.commandexecutor() as e:
-                command = e.callcommand(b'store_shape', {b'names': [shape]})
+                command = e.callcommand(b'store_shape', {b'names': shape})
                 (
                     fingerprints,
                     shards_sets,
@@ -451,7 +451,7 @@ def clone(
                             tr.addfilegenerator(
                                 b"store-shape",
                                 (narrowspec.SHAPE_FILENAME,),
-                                lambda f: narrowspec.write_shape(f, [shape]),
+                                lambda f: narrowspec.write_shape(f, shape),
                                 location=b'store',
                             )
 

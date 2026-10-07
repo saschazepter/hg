@@ -59,6 +59,7 @@ from . import (
     rewriteutil,
     scmutil,
     server,
+    shape as shapemod,
     shelve as shelvemod,
     state as statemod,
     tables,
@@ -1837,6 +1838,8 @@ def clone(ui, source, dest=None, **opts):
     )
 
     shape = opts.get('store_shape') or None
+    if shape is not None:
+        shape = shapemod.parse_shape_names(shape)
 
     # --include/--exclude can come from narrow or sparse.
     includepats, excludepats = None, None

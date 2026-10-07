@@ -351,6 +351,15 @@ matches the fingerprint from the patterns with that of the server clonebundles::
 Client
 ......
 
+Clients clone a shape by name::
+
+  $ hg clone --store-shape my-shape ssh://server/repo
+
+Comma-separated names clone their composite shape, which covers every file
+that any of them covers::
+
+  $ hg clone --store-shape my-shape,other-shape ssh://server/repo
+
 TODO explain current client-side config and how it might evolve (storing the
 shape, fingerprint, etc.).
 """

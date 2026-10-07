@@ -315,6 +315,54 @@ Check that a file inside the shape is available
   $ hg cat file1
   file1 contents
 
+Test narrow clone with a composite shape
+========================================
+
+Comma-separated names in `--store-shape` clone their composite shape.
+
+  $ cd $TESTTMP
+
+An unknown name is reported by itself
+-------------------------------------
+
+  $ $POLICY hg clone $remote_url composite-clone $remote_cmd --store-shape default,unknown-shape
+  abort: shape not found on remote: 'unknown-shape'
+  [10]
+
+Names are checked before anything is sent
+-----------------------------------------
+
+  $ $POLICY hg clone $remote_url composite-clone $remote_cmd --store-shape default,Babar
+  abort: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+  [10]
+
+The composite shape covers every file either shape covers
+---------------------------------------------------------
+
+  $ $POLICY hg clone $remote_url composite-clone $remote_cmd --store-shape other-secret,default --quiet
+
+  $ hg -R composite-clone tracked
+  I path:.
+  X path:secret
+  $ hg -R composite-clone files | grep other-secret
+  composite-clone/foo/bar/other-secret/secret-file
+  composite-clone/foo/bar/other-secret/secret-file2
+
+Both names are recorded and kept when pulling
+---------------------------------------------
+
+  $ cat composite-clone/.hg/store/store-shape
+  0
+  default,other-secret
+  $ hg -R composite-clone admin::narrow-client --store-fingerprint
+  shape00-0ca851ef7cda7fb1824264b20ff00f51c61755bb91ee12f5f90c56386b3f99f4
+
+  $ hg -R composite-clone pull
+  pulling from $TESTTMP/server (local !)
+  pulling from ssh://user@dummy/server (no-local !)
+  searching for changes
+  no changes found
+
 Test `getbundle` with a composite shape
 =======================================
 
