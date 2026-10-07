@@ -116,6 +116,25 @@ Check that we generate the correct narrow patterns for every shape
    }
   ]
 
+Comma-separated names designate their composite shape
+-----------------------------------------------------
+
+  $ hg admin::narrow-server --shape-patterns other-secret,default
+  inc:/
+  exc:/secret
+
+  $ hg admin::narrow-server --shape-patterns default,zz
+  abort: shape 'zz' not found
+  [255]
+
+  $ hg admin::narrow-server --shape-patterns default,Babar
+  abort: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+  [10]
+
+  $ hg admin::narrow-server --shape-patterns default,
+  abort: shard names must not be empty
+  [10]
+
 Test the legacy narrow patterns option
 
   $ hg admin::narrow-server --shape-narrow-patterns default

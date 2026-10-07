@@ -336,6 +336,13 @@ them manually to clients::
   path:foo
   path:bar
 
+Comma-separated shape names designate their composite shape, which covers
+every file that any of them covers::
+
+  $ hg admin::narrow-server --shape-narrow-patterns my-shape,other-shape
+  [exclude]
+  path:foo
+
 Clients can then use said patterns when doing a narrow stream clone, which
 matches the fingerprint from the patterns with that of the server clonebundles::
 

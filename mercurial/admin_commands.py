@@ -267,13 +267,9 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         "shape_files_hidden",
     )
     if subcommand in shape_commands:
-        name = opts[subcommand]
-        if b"," in name:
-            raise error.Abort(
-                _(b"composed shapespec is not implemented (yet)"),
-            )
+        names = shape_py.parse_shape_names(opts[subcommand])
         try:
-            shape = store_shards.shape([name.decode()])
+            shape = store_shards.shape([name.decode() for name in names])
         except KeyError as e:
             raise error.Abort(_(b"shape '%s' not found") % e.args[0])
 
