@@ -283,7 +283,9 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             for shape in all_shapes:
                 fm.startitem()
                 name = shape.name().encode()
-                fingerprint = shape_py.shpfp2txt(shape.fingerprint())
+                fingerprint = shape_py.ShapeFingerprint(
+                    shape.fingerprint()
+                ).to_text()
                 fm.write(b"fingerprint name", b"%s %s\n", fingerprint, name)
             return
         elif subcommand == "shape_patterns":
