@@ -246,9 +246,9 @@ be controlled by the ``clone-bundles.trigger.below-bundled-ratio`` option
     trigger.below-bundled-ratio = 0.95
     trigger.revs = 1000
 
-This logic can be manually triggered using the `admin::clone-bundles-refresh`
-command, or automatically on each repository change if
-`clone-bundles.auto-generate.on-change` is set to `yes`::
+This logic can be manually triggered using the
+:hg:`admin::clone-bundles-refresh` command, or automatically on each repository
+change if ``clone-bundles.auto-generate.on-change`` is set to `yes`::
 
     [clone-bundles]
     auto-generate.on-change = yes
@@ -261,7 +261,7 @@ The simplest way to serve the generated bundle is through the Mercurial
 protocol. However it is not the most efficient as request will still be served
 by that main server. It is useful in case where authentication is complexe or
 when an efficient mirror system is already in use anyway. See the `inline
-clonebundles` section above for details about inline clonebundles
+clonebundles` section above for details about inline clonebundles.
 
 To automatically serve generated bundle through inline clonebundle, simply set
 the following option::
@@ -300,7 +300,7 @@ Old bundles cleanup:
 When new bundles are generated, the older ones are no longer necessary and can
 be removed from storage. This is done through the `clone-bundles.delete-command`
 configuration. The command is given the url of the artifact to delete through
-the `$HGCB_BUNDLE_URL` environment variable.
+the `$HGCB_BUNDLE_URL` environment variable::
 
   [clone-bundles]
   delete-command=sftp rm sftp://bundles.host/clone-bundles/$HGCB_BUNDLE_BASENAME
