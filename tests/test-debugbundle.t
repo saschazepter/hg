@@ -82,4 +82,18 @@ Verbose output:
       b80de5d138758541c5f05265ad144ab9fa86d1db 0000000000000000000000000000000000000000 0000000000000000000000000000000000000000 991a3460af53952d10ec8a295d3d2cc2e5fa9690 0000000000000000000000000000000000000000 0
   cache:rev-branch-cache -- {} (mandatory: False)
 
+Changegroup 04 can carry full texts instead of deltas:
+
+  $ hg bundle --all bundle-cg4.hg --type 'none-v2;cg.version=04'
+  3 changesets found
+  $ hg debugbundle --all bundle-cg4.hg 2> stderr
+  Stream params: {}
+  changegroup -- {nbchanges: 3, version: 04} (mandatory: True)
+      format: id, p1, p2, cset, delta base, len(delta)
+  
+      changelog
+  [1]
+  $ tail -1 stderr
+  TypeError: object of type 'NoneType' has no len()
+
   $ cd ..
