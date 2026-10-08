@@ -9,6 +9,19 @@
 """log repository events to a blackbox for debugging
 
 Logs event information to .hg/blackbox.log to help debug and diagnose problems.
+
+The recent log entries can be viewed with the :hg:`blackbox` command. Each log
+entry includes the date, time, and the user performing the action.
+
+::
+
+  $ hg blackbox
+  2013-02-13 15:06:11.000 durham> pull -u
+  2013-02-13 15:06:14.000 durham> 17 incoming changes - new heads: 7daed3c67aaa
+  2013-02-13 15:06:14.000 durham> pull exited 0 after 3.28 seconds
+  2013-02-13 15:30:36.000 durham> log -l 1 --stat
+  2013-02-13 15:30:37.000 durham> log -l 1 --stat exited 0 after 0.75 seconds
+
 The events that get logged can be configured via the ``blackbox.track`` and
 ``blackbox.ignore`` config keys.
 
@@ -23,9 +36,15 @@ Examples::
   # record the source of log messages
   logsource = True
 
+  # log only user commands
   [blackbox]
-  track = command, commandfinish, commandexception, exthook, pythonhook
+  track = command, commandfinish, commandexception
 
+  # log only hooks
+  [blackbox]
+  track = exthook, pythonhook
+
+  # log only incoming revisions
   [blackbox]
   track = incoming
 
@@ -40,6 +59,11 @@ Examples::
   # datetime.datetime.strftime)
   date-format = %Y-%m-%d @ %H:%M:%S.%f
 
+Logging Custom Events
+---------------------
+
+It's possible to log custom events to the blackbox from another extension or
+from elsewhere in Mercurial by calling ``ui.log``.
 """
 
 from __future__ import annotations
