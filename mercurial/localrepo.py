@@ -60,6 +60,7 @@ from . import (
     revset,
     revsetlang,
     scmutil,
+    shape as shape_py,
     sparse,
     store as storemod,
     subrepoutil,
@@ -485,8 +486,9 @@ class localpeer(peer.Peer, repository.ipeercommands):
             excludes,
         )
         # Checking the fingerprint is useless: we're the same implementation
+        fingerprint = shape_py.ShapeFingerprint(shape.fingerprint())
         return (
-            [shape.fingerprint()],
+            [fingerprint],
             [],
             (legacy_includes, legacy_excludes),
         )

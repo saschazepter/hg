@@ -1561,8 +1561,8 @@ class pulloperation(i_exc.IPullOperation):
         remotebookmarks=None,
         streamclonerequested=None,
         depth=None,
-        store_fingerprints: list[bytes] | None = None,
-        shards_sets: list[set[bytes]] | None = None,
+        store_fingerprints: list[shape_py.ShapeFingerprint] | None = None,
+        shards_sets: list[set[shape_py.ShardFingerprint]] | None = None,
     ):
         # repo we pull into
         self.repo: RepoT = repo
@@ -1599,13 +1599,17 @@ class pulloperation(i_exc.IPullOperation):
         # The list valid fingerprints to use for a narrow bundle
         #
         # A value of `None` means we are doing a full bundle, not a narrow one.
-        self.store_fingerprints: list[bytes] | None = store_fingerprints
+        self.store_fingerprints: list[
+            shape_py.ShapeFingerprint
+        ] | None = store_fingerprints
         # A list of set of shard-ids that identify a group of sharded bundle
         # valid for this pull.
         #
         # Multiple set can be provided to help with the transitionnal state
         # during resharding.
-        self.shards_sets: list[set[bytes]] | None = shards_sets
+        self.shards_sets: list[
+            set[shape_py.ShardFingerprint]
+        ] | None = shards_sets
 
     @util.propertycache
     def includepats(self):
@@ -1986,7 +1990,7 @@ def _pullbundle2(pullop: pulloperation):
             # `shape` was checked to be valid UTF-8
             shape_with_fingerprint = b"%s:%s" % (
                 shape.encode(),
-                shape_py.shpfp2txt(fingerprint),
+                fingerprint.to_text(),
             )
             kwargs[b'store_shape_with_fingerprint'] = shape_with_fingerprint
         else:

@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import abc
 import hashlib
 import itertools
 import re
@@ -27,6 +26,13 @@ from . import (
 if typing.TYPE_CHECKING:
     import attr
     from .interfaces.types import RepoT
+    from .interfaces.repository import (
+        FingerprintT,
+        ShapeFingerprintT,
+        ShardFingerprintT,
+    )
+else:
+    FingerprintT = ShapeFingerprintT = ShardFingerprintT = object
 
 rustmod = policy.importrust("shape")
 
@@ -45,7 +51,7 @@ def _check_digest(inst, attr, value: bytes):
 
 
 @attr.s(frozen=True, slots=True)
-class Fingerprint(abc.ABC):
+class Fingerprint(FingerprintT):
     """Identifies a given set of files in the store. Two semantically
     equivalent shapes (or shards) have the same fingerprint.
 
@@ -103,12 +109,12 @@ class Fingerprint(abc.ABC):
         raise ValueError(msg % (cls.TARGET, text))
 
 
-class ShapeFingerprint(Fingerprint):
+class ShapeFingerprint(Fingerprint, ShapeFingerprintT):
     TARGET = "shape"
     """used for error and debug"""
 
 
-class ShardFingerprint(Fingerprint):
+class ShardFingerprint(Fingerprint, ShardFingerprintT):
     TARGET = "shard"
     """used for error and debug"""
 
@@ -261,7 +267,7 @@ class ShardTreeNode:
             exc_paths.update(exc)
         return frozenset(inc_paths), frozenset(exc_paths)
 
-    def fingerprint(self) -> bytes:
+    def fingerprint(self) -> ShapeFingerprint:
         """Get the fingerprint for this node. It will return a different hash
         for a semantically different node, allowing for quick comparison."""
         includes, excludes = self.flat()
@@ -277,7 +283,8 @@ class ShardTreeNode:
             prefix = PREFIX_INCLUDE if path in includes else PREFIX_EXCLUDE
             buf.append(b"%s%s\n" % (prefix, path))
 
-        return hashlib.sha256(b"".join(buf)).digest()
+        digest = hashlib.sha256(b"".join(buf)).digest()
+        return ShapeFingerprint(digest)
 
 
 # Magic marker to help identify the format easily
@@ -349,18 +356,21 @@ def zero_path(path: bytes) -> bytes:
 
 def fingerprint_for_patterns(
     include_pats: set[bytes], exclude_pats: set[bytes]
-) -> bytes | None:
+) -> ShapeFingerprint | None:
     """The fingerprint of these patterns, `None` if it cannot be computed
 
     Uses the Rust implementation if available."""
     if rustmod is None:
         return py_fingerprint_for_patterns(include_pats, exclude_pats)
-    return rustmod.fingerprint_for_patterns(include_pats, exclude_pats)
+    fp = rustmod.fingerprint_for_patterns(include_pats, exclude_pats)
+    if fp is None:
+        return None
+    return ShapeFingerprint(fp)
 
 
 def py_fingerprint_for_patterns(
     include_pats: set[bytes], exclude_pats: set[bytes]
-) -> bytes:
+) -> ShapeFingerprint:
     include_pats = {p.removeprefix(b"path:") for p in include_pats}
     exclude_pats = {p.removeprefix(b"path:") for p in exclude_pats}
 
@@ -466,15 +476,15 @@ def _deserialize_v1(data: bytes) -> tuple[set[bytes], set[bytes]]:
     return (includes, excludes)
 
 
-def _encode_fingerprints(fingerprints: list[bytes]) -> bytes:
+def _encode_fingerprints(fingerprints: list[ShapeFingerprint]) -> bytes:
     """encode a "fingerprints" block use by `store_shape` wireprotocol command"""
     pieces = [u2b(len(fingerprints), 1)]
-    pieces.extend(u2b(len(fp), 1) for fp in fingerprints)
-    pieces.extend(fingerprints)
+    pieces.extend(u2b(len(fp.to_bytes()), 1) for fp in fingerprints)
+    pieces.extend(fp.to_bytes() for fp in fingerprints)
     return b''.join(pieces)
 
 
-def _decode_fingerprints(data: bytes) -> list[bytes]:
+def _decode_fingerprints(data: bytes) -> list[ShapeFingerprint]:
     """decode a "fingerprints" block use by `store_shape` wireprotocol command"""
     # XXX error handling needs to exists at some point
     count = b2u(data[:1])
@@ -482,27 +492,28 @@ def _decode_fingerprints(data: bytes) -> list[bytes]:
     fingerprints = []
     for idx in range(1, count + 1):
         fp_size = b2u(data[idx : idx + 1])
-        fingerprints.append(data[cursor : cursor + fp_size])
+        raw = data[cursor : cursor + fp_size]
+        fingerprints.append(ShapeFingerprint.from_bytes(raw))
         cursor += fp_size
     return fingerprints
 
 
-def _encode_shards_sets(shards_sets: list[set[bytes]]) -> bytes:
+def _encode_shards_sets(shards_sets: list[set[ShardFingerprint]]) -> bytes:
     """encode a "shards_sets" block use by `store_shape` wireprotocol command"""
     pieces = [u2b(len(shards_sets), 1)]
     for s in shards_sets:
         assert len(s) >= 1
-        lengths = set(len(shard_id) for shard_id in s)
+        lengths = set(len(shard_id.to_bytes()) for shard_id in s)
         assert len(lengths) == 1
         length = lengths.pop()
         pieces.append(u2b(length, 1))
         pieces.append(u2b(len(s), 2))
     for s in shards_sets:
-        pieces.extend(sorted(s))
+        pieces.extend(sorted(shard_id.to_bytes() for shard_id in s))
     return b''.join(pieces)
 
 
-def _decode_shards_sets(data: bytes) -> list[set[bytes]]:
+def _decode_shards_sets(data: bytes) -> list[set[ShardFingerprint]]:
     """decode a "shards_sets" block use by `store_shape` wireprotocol command"""
     # XXX error handling needs to exists at some point
     sets_count = b2u(data[:1])
@@ -520,7 +531,8 @@ def _decode_shards_sets(data: bytes) -> list[set[bytes]]:
     for id_size, count in sets_info:
         one_set = set()
         for __ in range(count):
-            one_set.add(data[cursor : cursor + id_size])
+            raw = data[cursor : cursor + id_size]
+            one_set.add(ShardFingerprint.from_bytes(raw))
             cursor += id_size
         shards_sets.append(one_set)
     assert cursor == len(data)
@@ -530,12 +542,13 @@ def _decode_shards_sets(data: bytes) -> list[set[bytes]]:
 # XXX having this in the Python module and not in the Rust module is
 # "unexpected" and should be fixed" sooner than later.
 def wire_store_shape_encode(
-    shards_sets: list[set[bytes]],
+    shards_sets: list[set[ShardFingerprint]],
     shape,
 ) -> tuple[bytes, bytes, bytes]:
     """encode the three blocks used by `store_shape` wireprotocol command"""
+    fingerprint = ShapeFingerprint(shape.fingerprint())
     return (
-        _encode_fingerprints([shape.fingerprint()]),
+        _encode_fingerprints([fingerprint]),
         _encode_shards_sets(shards_sets),
         _serialize_v1(shape),
     )
@@ -547,7 +560,11 @@ def wire_store_shape_decode(
     fingerprints_block: bytes,
     shards_sets_block: bytes,
     patterns_block: bytes,
-) -> tuple[list[bytes], list[set[bytes]], tuple[set[bytes], set[bytes]]]:
+) -> tuple[
+    list[ShapeFingerprint],
+    list[set[ShardFingerprint]],
+    tuple[set[bytes], set[bytes]],
+]:
     """decode the three blocks used by `store_shape` wireprotocol command"""
     return (
         _decode_fingerprints(fingerprints_block),
@@ -570,9 +587,16 @@ def read_previous_configs(repo: RepoT) -> list[tuple[bytes, bytes]]:
     return configs
 
 
+def shard_fingerprints_sets(shards_sets) -> list[set[ShardFingerprint]]:
+    """Wrap the sets of shard fingerprints returned by the Rust bindings"""
+    return [{ShardFingerprint(fp) for fp in s} for s in shards_sets]
+
+
 def previous_shards_sets(
-    repo: RepoT, name: str, fingerprint: bytes
-) -> list[set[bytes]]:
+    repo: RepoT,
+    name: str,
+    fingerprint: ShapeFingerprint,
+) -> list[set[ShardFingerprint]]:
     """Shard fingerprint sets from previous versions of the `server-shapes` config.
 
     During the period of time between an admin resharding the store and the new sharded
@@ -588,9 +612,11 @@ def previous_shards_sets(
         previous_shape = previous.shape(name)
         if previous_shape is None:
             continue
-        if previous_shape.fingerprint() != fingerprint:
+        previous_fp = previous_shape.fingerprint()
+        if ShapeFingerprint(previous_fp) != fingerprint:
             continue
-        sets.extend(previous.shard_fingerprints_for_shape(name) or [])
+        previous_sets = previous.shard_fingerprints_for_shape(name) or []
+        sets.extend(shard_fingerprints_sets(previous_sets))
     return sets
 
 

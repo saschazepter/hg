@@ -426,6 +426,7 @@ class wirepeer(
             if computed_fingerprint is None:
                 msg = _(b"couldn't compute the fingerprint for server patterns")
                 self._abort(error.ResponseError(msg, data))
+            assert computed_fingerprint is not None  # helps pytype
 
             if computed_fingerprint not in fingerprints:
                 # Sanity check
@@ -433,8 +434,8 @@ class wirepeer(
                 msg = _(b"fingerprint mismatch for shape '%s'") % name
                 hint = _(b"server: [%s], client: %s")
                 hint %= (
-                    b', '.join(shape_py.shpfp2txt(fp) for fp in fingerprints),
-                    shape_py.shpfp2txt(computed_fingerprint),
+                    b', '.join(fp.to_text() for fp in fingerprints),
+                    computed_fingerprint.to_text(),
                 )
                 self._abort(error.Abort(msg, hint=hint))
 

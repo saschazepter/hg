@@ -697,8 +697,8 @@ def filterclonebundleentries(
     entries: list[EntryT],
     streamclonerequested=False,
     pullbundles=False,
-    store_fingerprints: list[bytes] | None = None,
-    shards_sets: list[set[bytes]] | None = None,
+    store_fingerprints: list[shapemod.ShapeFingerprint] | None = None,
+    shards_sets: list[set[shapemod.ShardFingerprint]] | None = None,
 ) -> list[EntryT]:
     """Remove incompatible clone bundle manifest entries.
 
@@ -711,19 +711,15 @@ def filterclonebundleentries(
     """
     if store_fingerprints is not None:
         # The filtering logic operate on the bundle spec and the bundle spec
-        # use the textual form, so let's translate the raw value to textual for
+        # use the textual form, so let's translate the value to textual for
         # this function.
-        store_fingerprints = [
-            shapemod.shpfp2txt(fp) for fp in store_fingerprints
-        ]
+        store_fingerprints = [fp.to_text() for fp in store_fingerprints]
     if shards_sets is not None:
         # same logic as for `store_fingerprints`
         # The filtering logic operate on the bundle spec and the bundle spec
-        # use the textual form, so let's translate the raw value to textual for
+        # use the textual form, so let's translate the value to textual for
         # this function.
-        shards_sets = [
-            {shapemod.shdfp2txt(fp) for fp in s} for s in shards_sets
-        ]
+        shards_sets = [{fp.to_text() for fp in s} for s in shards_sets]
 
     newentries: list[EntryT] = []
     # gather the set of shards available for each group.

@@ -185,13 +185,56 @@ RequirementT = bytes
 RequirementSetT = set[RequirementT]
 """The collection of requirements for a repository."""
 
+
+class FingerprintT(abc.ABC):
+    TARGET: bytes
+    """used for error and debug"""
+
+    digest: bytes
+    """The hash of the normalized shape"""
+
+    @abc.abstractmethod
+    def to_bytes(self) -> bytes:
+        """The binary form of this fingerprint: its digest"""
+
+    @classmethod
+    @abc.abstractmethod
+    def from_bytes(cls, data: bytes) -> typing.Self:
+        """Parse the binary form of a fingerprint of the given `kind`"""
+
+    @abc.abstractmethod
+    def to_text(self) -> bytes:
+        """The textual form of this fingerprint: its hexadecimal digest"""
+
+    @classmethod
+    @abc.abstractmethod
+    def from_text(cls, text: bytes) -> typing.Self:
+        r"""Parse the textual form of a fingerprint
+
+        Raises `ValueError` if `text` is not the textual form of such a
+        fingerprint.
+        """
+
+
+class ShapeFingerprintT(FingerprintT):
+    pass
+
+
+class ShardFingerprintT(FingerprintT):
+    pass
+
+
 StoreShapeLegacyPatternsT = tuple[set[bytes], set[bytes]]
 """Tuple of legacy includes and excludes for a given store shape"""
 StoreShapePatternsT = tuple[
-    list[bytes], list[set[bytes]], tuple[set[bytes], set[bytes]]
+    list[ShapeFingerprintT],
+    list[set[ShardFingerprintT]],
+    tuple[set[bytes], set[bytes]],
 ]
 """Tuple of (legacy) includes and excludes for a given store shape, along
-with a list of all sets of shard fingerprints that make up this shape"""
+with a list of all sets of shard fingerprints that make up this shape
+
+Fingerprints are `mercurial.shape.Fingerprint` objects."""
 
 
 class _ipeerconnection(Protocol):
