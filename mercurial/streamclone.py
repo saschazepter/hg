@@ -83,15 +83,6 @@ DEFAULT_MEMORY_TARGET = {
 }
 
 
-def _is_raw_fp(inst, attr, value: bytes):
-    """simple attrs validator to validate the fingerprint format
-
-    For now, fingerprint are expect to be in the "text" form, using hexadecimal
-    encoding. This will change soon™.
-    """
-    assert (value is None) or (len(value) == shapemod.FINGERPRINT_RAW_SIZE)
-
-
 @attr.s(slots=True)
 class NarrowInfo:
     """Groups information about narrow-related things"""
@@ -100,11 +91,10 @@ class NarrowInfo:
     """Matches files for this narrow view of the store"""
 
     fingerprint = attr.ib(
-        type=Optional[bytes],
+        type=Optional[shapemod.ShapeFingerprint],
         default=None,
-        validator=_is_raw_fp,
     )
-    """Binary fingerprint for a shape or shard, corresponding to self.matcher"""
+    """Fingerprint for a shape or shard, corresponding to self.matcher"""
 
     bundle_group_id = attr.ib(type=Optional[bytes], default=None)
     """Unique identifier shared between all sharded bundles generated together.

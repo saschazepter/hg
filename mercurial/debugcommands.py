@@ -479,13 +479,13 @@ def _debugbundle2(ui, gen, all=None, **opts):
         params = part.params
         if part.type == b'stream2':
             params = params.copy()
-
             if b"shard-id" in params:
-                txt = shape_mod.shdfp2txt(params[b'shard-id'])
-                params[b'shard-id'] = txt
+                fp = shape_mod.ShardFingerprint.from_bytes(params[b'shard-id'])
+                params[b'shard-id'] = fp.to_text()
             elif b"store-fingerprint" in params:
-                txt = shape_mod.shpfp2txt(params[b'store-fingerprint'])
-                params[b'store-fingerprint'] = txt
+                store_fp = params[b'store-fingerprint']
+                fp = shape_mod.ShardFingerprint.from_bytes(store_fp)
+                params[b'store-fingerprint'] = fp.to_text()
         ui.writenoi18n(msg % (part.type, _quasirepr(params), part.mandatory))
         if part.type == b'changegroup':
             version = part.params.get(b'version', b'01')
