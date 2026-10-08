@@ -1953,7 +1953,7 @@ The following sub-options can be defined:
     in the future. If you think you need this option, you should make sure you
     are also talking to the Mercurial developer community to get confirmation.
 
-  See `hg help config.storage.revlog.reuse-external-delta-parent` for a similar
+  See :hg:`help config.storage.revlog.reuse-external-delta-parent` for a similar
   global option. That option defines the behavior of `default`.
 
 The following special named paths exist:

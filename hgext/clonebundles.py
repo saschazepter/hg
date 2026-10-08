@@ -235,7 +235,7 @@ different variant will be defined by the "bundle-spec" they use::
     [clone-bundles]
     auto-generate.formats= zstd-v2, gzip-v2
 
-See `hg help bundlespec` for details about available options.
+See :hg:`help bundlespec` for details about available options.
 
 By default, new bundles are generated when 5% of the repository contents or at
 least 1000 revisions are not contained in the cached bundles. This option can
@@ -1082,7 +1082,7 @@ def cmd_admin_clone_bundles_refresh(
 def cmd_admin_clone_bundles_clear(ui, repo: AutoBundlesRepoT):
     """remove existing clone bundle caches
 
-    See `hg help admin::clone-bundles-refresh` for details on how to regenerate
+    See :hg:`help admin::clone-bundles-refresh` for details on how to regenerate
     them.
 
     This command will only affect bundles currently available, it will not
