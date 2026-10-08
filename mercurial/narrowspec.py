@@ -294,7 +294,7 @@ def write_shape(file: BinaryIO, name):
 def patterns_for_shape(
     repo: RepoT,
     name: bytes,
-    fingerprint: bytes | None,
+    fingerprint: shapemod.Fingerprint | None,
 ) -> StoreShapeLegacyPatternsT:
     """Return the (legacy) include and exclude patterns for this shape.
 
@@ -308,14 +308,11 @@ def patterns_for_shape(
     if shape is None:
         raise error.Abort(b"shape not found on remote: '%s'" % name)
     if fingerprint is not None:
-        server_fingerprint = shape.fingerprint()
+        server_fingerprint = shapemod.ShapeFingerprint(shape.fingerprint())
         if fingerprint != server_fingerprint:
             msg = _(b"fingerprint mismatch for shape '%s'") % name
             hint = _(b"server: %s, client: %s")
-            hint %= (
-                shapemod.shpfp2txt(server_fingerprint),
-                shapemod.shpfp2txt(fingerprint),
-            )
+            hint %= (server_fingerprint.to_text(), fingerprint.to_text())
             raise error.Abort(msg, hint=hint)
     includes, excludes = shape.patterns()
     legacy_includes, legacy_excludes = to_legacy_patterns(includes, excludes)

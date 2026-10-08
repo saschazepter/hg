@@ -2552,7 +2552,7 @@ def getbundlechunks(
     if store_shape_with_fingerprint is not None:
         shape, txt_fingerprint = store_shape_with_fingerprint.split(b':')
         try:
-            fingerprint = shape_py.txt2shpfp(txt_fingerprint)
+            fingerprint = shape_py.ShapeFingerprint.from_text(txt_fingerprint)
         except ValueError:
             msg = _(b"invalid store shape fingerprint: '%s'")
             raise error.Abort(msg % txt_fingerprint)
