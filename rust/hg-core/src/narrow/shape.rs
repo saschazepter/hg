@@ -732,8 +732,8 @@ pub enum FingerprintKind {
 /// shapes (or shards) have the same fingerprint.
 ///
 /// There are two representations:
-///   - The binary one (see [`Self::to_bytes`]), used for storage, exchange and
-///     any internal manipulation
+///   - The digest (see [`Self::digest`]), used for storage, exchange and any
+///     internal manipulation
 ///   - The text one (see [`Self::to_text_bytes`]), only used for user-facing
 ///     things
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -747,17 +747,15 @@ pub struct Fingerprint {
 impl Fingerprint {
     /// Size in bytes of the digest
     pub const DIGEST_SIZE: usize = 32;
-    /// Size in bytes of the binary representation
-    pub const BINARY_SIZE: usize = Self::DIGEST_SIZE;
 
     /// What this fingerprint identifies
     pub fn kind(&self) -> FingerprintKind {
         self.kind
     }
 
-    /// The binary representation
-    pub fn to_bytes(&self) -> [u8; Self::BINARY_SIZE] {
-        self.digest
+    /// The hash of the normalized shape
+    pub fn digest(&self) -> &[u8; Self::DIGEST_SIZE] {
+        &self.digest
     }
 
     /// The text representation, as bytes: the hexadecimal digest
@@ -1317,14 +1315,14 @@ mod tests {
         digest[31] = 0x01;
         let fingerprint = Fingerprint { kind: FingerprintKind::Shape, digest };
         assert_eq!(fingerprint.kind(), FingerprintKind::Shape);
-        assert_eq!(fingerprint.to_bytes(), digest);
+        assert_eq!(fingerprint.digest(), &digest);
         assert_eq!(fingerprint.to_string(), TEXT);
         assert_eq!(fingerprint.to_text_bytes(), TEXT.as_bytes());
 
-        // Same digest, different kind: same bytes, not the same fingerprint
+        // Same digest, different kind: not the same fingerprint
         let shard_fingerprint = fingerprint.as_shard();
         assert_eq!(shard_fingerprint.kind(), FingerprintKind::Shard);
-        assert_eq!(shard_fingerprint.to_bytes(), digest);
+        assert_eq!(shard_fingerprint.digest(), &digest);
         assert_ne!(shard_fingerprint, fingerprint);
 
         let tree = ShardTreeNode::from_patterns(&[], &[]).unwrap();

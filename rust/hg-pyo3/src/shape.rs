@@ -39,9 +39,9 @@ impl PyShape {
         self.inner.name().to_string()
     }
 
-    /// The fingerprint of this shape, in binary form
+    /// The digest of the fingerprint of this shape
     pub fn fingerprint(&self) -> Vec<u8> {
-        self.inner.store_fingerprint().to_bytes().to_vec()
+        self.inner.store_fingerprint().digest().to_vec()
     }
 
     /// A matcher for the files that this shape covers
@@ -109,7 +109,7 @@ impl PyStoreShards {
         let sharded = self.inner.sharded_bundle_info();
         let sharded_iter = sharded.into_iter().map(|standalone_shard| {
             (
-                standalone_shard.fingerprint().to_bytes().to_vec(),
+                standalone_shard.fingerprint().digest().to_vec(),
                 PyMatcher::new(Box::new(standalone_shard.matcher())),
                 standalone_shard.top_level,
             )
@@ -137,7 +137,7 @@ impl PyStoreShards {
                     py,
                     group
                         .into_iter()
-                        .map(|fingerprint| fingerprint.to_bytes().to_vec()),
+                        .map(|fingerprint| fingerprint.digest().to_vec()),
                 )
             })
             .collect();
@@ -248,7 +248,7 @@ fn fingerprint_for_patterns(
     };
     // Any error means we can't get a fingerprint for these patterns
     let maybe_node = ShardTreeNode::from_patterns(&includes, &excludes).ok();
-    Ok(maybe_node.map(|node| node.fingerprint().to_bytes().to_vec()))
+    Ok(maybe_node.map(|node| node.fingerprint().digest().to_vec()))
 }
 
 pub fn init_module<'py>(
