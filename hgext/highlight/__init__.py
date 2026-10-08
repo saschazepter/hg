@@ -11,7 +11,7 @@
 """syntax highlighting for hgweb (requires Pygments)
 
 It depends on the Pygments syntax highlighting library:
-http://pygments.org/
+https://pygments.org/
 
 There are the following configuration options::
 
