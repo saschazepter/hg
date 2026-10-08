@@ -24,6 +24,8 @@ There are the following configuration options::
 be identified by their filename. When this is not enabled (the default),
 Pygments will try very hard to identify the file type from content and any
 match (even matches with a low confidence score) will be used.
+
+See :hg:`help filesets` for more information about filesets.
 """
 
 from __future__ import annotations
