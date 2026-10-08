@@ -1313,9 +1313,9 @@ Disabled extensions:
   overwritten by command line flags like "--intro" and "--desc":
   
     [patchbomb]
-    intro=auto   # include introduction message if more than 1 patch (default)
-    intro=never  # never include an introduction message
-    intro=always # always include an introduction message
+    intro = auto   # include introduction message if more than 1 patch (default)
+    intro = never  # never include an introduction message
+    intro = always # always include an introduction message
   
   You can specify a template for flags to be added in subject prefixes. Flags
   specified by "--flag" option are exported as "{flags}" keyword:

@@ -136,9 +136,9 @@ Help text for fix.
   formatting fixes to modified lines in C++ code:
   
     [fix]
-    clang-format:command=clang-format --assume-filename={rootpath}
-    clang-format:linerange=--lines={first}:{last}
-    clang-format:pattern=set:**.cpp or **.hpp
+    clang-format:command = clang-format --assume-filename={rootpath}
+    clang-format:linerange = --lines={first}:{last}
+    clang-format:pattern = set:**.cpp or **.hpp
   
   The :command suboption forms the first part of the shell command that will be
   used to fix a file. The content of the file is passed on standard input, and

@@ -233,7 +233,7 @@ The extension can generate multiple variants of the clone bundle. Each
 different variant will be defined by the "bundle-spec" they use::
 
     [clone-bundles]
-    auto-generate.formats= zstd-v2, gzip-v2
+    auto-generate.formats = zstd-v2, gzip-v2
 
 See :hg:`help bundlespec` for details about available options.
 
@@ -243,16 +243,16 @@ be controlled by the ``clone-bundles.trigger.below-bundled-ratio`` option
 (default 0.95) and the ``clone-bundles.trigger.revs`` option (default 1000)::
 
     [clone-bundles]
-    trigger.below-bundled-ratio=0.95
-    trigger.revs=1000
+    trigger.below-bundled-ratio = 0.95
+    trigger.revs = 1000
 
 This logic can be manually triggered using the `admin::clone-bundles-refresh`
 command, or automatically on each repository change if
 `clone-bundles.auto-generate.on-change` is set to `yes`::
 
     [clone-bundles]
-    auto-generate.on-change=yes
-    auto-generate.formats= zstd-v2, gzip-v2
+    auto-generate.on-change = yes
+    auto-generate.formats = zstd-v2, gzip-v2
 
 Automatic Inline serving
 ........................
@@ -266,7 +266,7 @@ clonebundles` section above for details about inline clonebundles
 To automatically serve generated bundle through inline clonebundle, simply set
 the following option::
 
-    auto-generate.serve-inline=yes
+    auto-generate.serve-inline = yes
 
 Enabling this option disable the managed upload and serving explained below.
 
