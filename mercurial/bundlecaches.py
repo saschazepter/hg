@@ -190,7 +190,7 @@ def param_bool(key, value):
 def param_store_fingerprint(key, value) -> bytes:
     """Check that this parameter is a shape fingerprint in text form"""
     try:
-        shapemod.txt2shpfp(value)
+        shapemod.ShapeFingerprint.from_text(value)
     except ValueError:
         msg = _(b"parameter %s should be a shape fingerprint ('%s')")
         msg %= (key, value)
@@ -201,7 +201,7 @@ def param_store_fingerprint(key, value) -> bytes:
 def param_shard_id(key, value) -> bytes:
     """Check that this parameter is a shard fingerprint in text form"""
     try:
-        shapemod.txt2shdfp(value)
+        shapemod.ShardFingerprint.from_text(value)
     except ValueError:
         msg = _(b"parameter %s should be a shard fingerprint ('%s')")
         msg %= (key, value)
