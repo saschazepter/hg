@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import abc
 import hashlib
 import itertools
 import re
@@ -36,6 +37,37 @@ FINGERPRINT_DIGEST_SIZE = 32
 FINGERPRINT_RAW_SIZE = FINGERPRINT_DIGEST_SIZE
 # Validator regex for a text representation of a store fingerprint
 _FINGERPRINT_TEXT_RE = re.compile(br'[0-9a-f]{%d}' % (2 * FINGERPRINT_RAW_SIZE))
+
+
+def _check_digest(inst, attr, value: bytes):
+    if len(value) != FINGERPRINT_DIGEST_SIZE:
+        raise ValueError("invalid fingerprint digest: %r" % value)
+
+
+@attr.s(frozen=True, slots=True)
+class Fingerprint(abc.ABC):
+    """Identifies a given set of files in the store. Two semantically
+    equivalent shapes (or shards) have the same fingerprint."""
+
+    digest = attr.ib(type=bytes, validator=_check_digest)
+    """The hash of the normalized shape"""
+
+    def to_bytes(self) -> bytes:
+        """The binary form of this fingerprint: its digest"""
+        return self.digest
+
+    @classmethod
+    def from_bytes(cls, data: bytes) -> typing.Self:
+        """Parse the binary form of a fingerprint of the given `kind`"""
+        return cls(data)
+
+
+class ShapeFingerprint(Fingerprint):
+    pass
+
+
+class ShardFingerprint(Fingerprint):
+    pass
 
 
 def shpfp2txt(fingerprint: bytes) -> bytes:
