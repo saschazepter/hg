@@ -39,10 +39,10 @@ rustmod = policy.importrust("shape")
 
 # Size in bytes of the digest of a fingerprint
 FINGERPRINT_DIGEST_SIZE = 32
-# Size in bytes of the raw form of a fingerprint
-FINGERPRINT_RAW_SIZE = FINGERPRINT_DIGEST_SIZE
-# Validator regex for a text representation of a store fingerprint
-_FINGERPRINT_TEXT_RE = re.compile(br'[0-9a-f]{%d}' % (2 * FINGERPRINT_RAW_SIZE))
+# Validator regex for a text representation of a fingerprint
+_FINGERPRINT_TEXT_RE = re.compile(
+    br'[0-9a-f]{%d}' % (2 * FINGERPRINT_DIGEST_SIZE)
+)
 
 
 def _check_digest(inst, attr, value: bytes):
@@ -117,32 +117,6 @@ class ShapeFingerprint(Fingerprint, ShapeFingerprintT):
 class ShardFingerprint(Fingerprint, ShardFingerprintT):
     TARGET = "shard"
     """used for error and debug"""
-
-
-def shpfp2txt(fingerprint: bytes) -> bytes:
-    """serialize a raw shape fingerprint in its textual form"""
-    return ShapeFingerprint.from_bytes(fingerprint).to_text()
-
-
-def txt2shpfp(text: bytes) -> bytes:
-    """serialize a textual shape fingerprint in its raw form
-
-    Raises `ValueError` if `text` is not the textual form of a shape
-    fingerprint."""
-    return ShapeFingerprint.from_text(text).to_bytes()
-
-
-def shdfp2txt(fingerprint: bytes) -> bytes:
-    """serialize a raw shard fingerprint in its textual form"""
-    return ShardFingerprint.from_bytes(fingerprint).to_text()
-
-
-def txt2shdfp(text: bytes) -> bytes:
-    """serialize a textual shard fingerprint in its raw form
-
-    Raises `ValueError` if `text` is not the textual form of a shard
-    fingerprint."""
-    return ShardFingerprint.from_text(text).to_bytes()
 
 
 # File listing filenames of the saved `server-shapes` configs.
