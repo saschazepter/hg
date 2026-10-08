@@ -130,10 +130,10 @@ patterns it receives. Simulate a divergence by making the client compute a
 bogus fingerprint.
 
   $ cat > $TESTTMP/bogus-fingerprint.py << EOF
-  > from mercurial import wireprotov1peer
+  > from mercurial import shape
   > def bogus(includes, excludes):
   >     return b'\xff' * 32
-  > wireprotov1peer.shapemod.fingerprint_for_patterns = bogus
+  > shape.fingerprint_for_patterns = bogus
   > EOF
 
   $ hg debugwireproto --localssh --config extensions.bogus=$TESTTMP/bogus-fingerprint.py << EOF

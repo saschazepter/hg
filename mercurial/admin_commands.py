@@ -116,7 +116,7 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
 
     if opts.get("store_fingerprint"):
         includes, excludes = repo.narrowpats
-        fingerprint = shapemod.fingerprint_for_patterns(includes, excludes)
+        fingerprint = shape_py.fingerprint_for_patterns(includes, excludes)
         ui.writenoi18n(b"%s\n" % shape_py.shpfp2txt(fingerprint))
     else:
         raise error.Abort(_(b"need at least one flag"))

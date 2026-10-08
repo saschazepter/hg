@@ -3274,7 +3274,7 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
             excludes = set(opts.get("exclude"))
             fingerprint = None
             if includes or excludes:
-                fingerprint = shape_mod.fingerprint_for_patterns(
+                fingerprint = shape_mod.py_fingerprint_for_patterns(
                     includes, excludes
                 )
             if fingerprint is None:

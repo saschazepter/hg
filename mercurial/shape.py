@@ -314,6 +314,17 @@ def zero_path(path: bytes) -> bytes:
 def fingerprint_for_patterns(
     include_pats: set[bytes], exclude_pats: set[bytes]
 ) -> bytes | None:
+    """The fingerprint of these patterns, `None` if it cannot be computed
+
+    Uses the Rust implementation if available."""
+    if rustmod is None:
+        return py_fingerprint_for_patterns(include_pats, exclude_pats)
+    return rustmod.fingerprint_for_patterns(include_pats, exclude_pats)
+
+
+def py_fingerprint_for_patterns(
+    include_pats: set[bytes], exclude_pats: set[bytes]
+) -> bytes:
     include_pats = {p.removeprefix(b"path:") for p in include_pats}
     exclude_pats = {p.removeprefix(b"path:") for p in exclude_pats}
 

@@ -26,7 +26,6 @@ from . import (
     encoding,
     error,
     narrowspec,
-    policy,
     pushkey as pushkeymod,
     pycompat,
     shape as shape_py,
@@ -41,11 +40,6 @@ from .interfaces import (
     repository,
 )
 from .utils import hashutil
-
-if policy.has_rust():
-    shapemod = policy.importrust("shape")
-else:
-    shapemod = shape_py
 
 urlreq = util.urlreq
 
@@ -428,7 +422,7 @@ class wirepeer(
             patterns = narrowspec.to_legacy_patterns(*patterns)
 
             # Check the fingerprint
-            computed_fingerprint = shapemod.fingerprint_for_patterns(*patterns)
+            computed_fingerprint = shape_py.fingerprint_for_patterns(*patterns)
             if computed_fingerprint is None:
                 msg = _(b"couldn't compute the fingerprint for server patterns")
                 self._abort(error.ResponseError(msg, data))

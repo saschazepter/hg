@@ -42,7 +42,6 @@ from . import (
     obsolete,
     obsutil,
     phases,
-    policy,
     pushkey,
     pycompat,
     scmutil,
@@ -64,11 +63,6 @@ from .interfaces import (
     exchange as i_exc,
     repository,
 )
-
-if policy.has_rust():
-    shapemod = policy.importrust("shape")
-else:
-    shapemod = shape_py
 
 urlerr = util.urlerr
 urlreq = util.urlreq
@@ -1979,7 +1973,7 @@ def _pullbundle2(pullop: pulloperation):
         fingerprint = None
 
         if shape is not None:
-            fingerprint = shapemod.fingerprint_for_patterns(
+            fingerprint = shape_py.fingerprint_for_patterns(
                 pullop.includepats, pullop.excludepats
             )
             if fingerprint is None:
@@ -3047,7 +3041,7 @@ def _maybeapplyclonebundle(pullop: pulloperation):
     if pullop.store_fingerprints is not None:
         store_fingerprints = pullop.store_fingerprints
     elif pullop.includepats or pullop.excludepats:
-        fp = shapemod.fingerprint_for_patterns(
+        fp = shape_py.fingerprint_for_patterns(
             pullop.includepats,
             pullop.excludepats,
         )
