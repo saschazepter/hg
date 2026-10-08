@@ -258,8 +258,8 @@ def unamend(ui, repo, **opts):
 
     This command will roll back to the previous version of a changeset,
     leaving working directory in state in which it was before running
-    `hg amend` (e.g. files modified as part of an amend will be
-    marked as modified `hg status`)
+    :hg:`amend` (e.g. files modified as part of an amend will be
+    marked as modified in :hg:`status`)
     """
 
     unfi = repo.unfiltered()
