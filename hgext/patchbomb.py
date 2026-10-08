@@ -41,8 +41,8 @@ changesets as a patchbomb.
 You can also either configure the method option in the email section
 to be a sendmail compatible mailer or fill out the [smtp] section so
 that the patchbomb extension can automatically send patchbombs
-directly from the commandline. See the [email] and [smtp] sections in
-hgrc(5) for details.
+directly from the commandline. See :hg:`help config.email` and :hg:`help
+config.smtp` for details.
 
 By default, :hg:`email` will prompt for a ``To`` or ``CC`` header if
 you do not supply one via configuration or the command line.  You can
