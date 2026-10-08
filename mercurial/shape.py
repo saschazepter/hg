@@ -47,7 +47,12 @@ def _check_digest(inst, attr, value: bytes):
 @attr.s(frozen=True, slots=True)
 class Fingerprint(abc.ABC):
     """Identifies a given set of files in the store. Two semantically
-    equivalent shapes (or shards) have the same fingerprint."""
+    equivalent shapes (or shards) have the same fingerprint.
+
+    The text form (see `to_text`) is only used for user-facing things."""
+
+    TARGET: str
+    """used for error and debug"""
 
     digest = attr.ib(type=bytes, validator=_check_digest)
     """The hash of the normalized shape"""
@@ -61,78 +66,77 @@ class Fingerprint(abc.ABC):
         """Parse the binary form of a fingerprint of the given `kind`"""
         return cls(data)
 
+    def to_text(self) -> bytes:
+        r"""The textual form of this fingerprint: its hexadecimal digest
+
+        >>> ShapeFingerprint(b'\xab' * 32).to_text()
+        b'abababababababababababababababababababababababababababababababab'
+        """
+        return hex(self.digest)
+
+    @classmethod
+    def from_text(cls, text: bytes) -> typing.Self:
+        r"""Parse the textual form of a fingerprint
+
+        Raises `ValueError` if `text` is not the textual form of such a
+        fingerprint.
+
+        >>> fp = ShapeFingerprint.from_text(b'ab' * 32)
+        >>> fp == ShapeFingerprint(b'\xab' * 32)
+        True
+        >>> for invalid in [b'', b'abc', b'ab' * 31, b'ab' * 33, b'zz' * 32,
+        ...                 b'AB' * 32, b'ab' * 32 + b' ']:
+        ...     try:
+        ...         ShapeFingerprint.from_text(invalid)
+        ...     except ValueError:
+        ...         pass
+        ...     else:
+        ...         raise AssertionError(invalid)
+        >>> ShardFingerprint.from_text(b'abc')
+        Traceback (most recent call last):
+            ...
+        ValueError: not a shard fingerprint: b'abc'
+        """
+        if _FINGERPRINT_TEXT_RE.fullmatch(text) is not None:
+            return cls(bin(text))
+        msg = "not a %s fingerprint: %r"
+        raise ValueError(msg % (cls.TARGET, text))
+
 
 class ShapeFingerprint(Fingerprint):
-    pass
+    TARGET = "shape"
+    """used for error and debug"""
 
 
 class ShardFingerprint(Fingerprint):
-    pass
+    TARGET = "shard"
+    """used for error and debug"""
 
 
 def shpfp2txt(fingerprint: bytes) -> bytes:
     """serialize a raw shape fingerprint in its textual form"""
-    assert len(fingerprint) == FINGERPRINT_RAW_SIZE
-    return hex(fingerprint)
+    return ShapeFingerprint.from_bytes(fingerprint).to_text()
 
 
 def txt2shpfp(text: bytes) -> bytes:
-    r"""serialize a textual shape fingerprint in its raw form
+    """serialize a textual shape fingerprint in its raw form
 
     Raises `ValueError` if `text` is not the textual form of a shape
-    fingerprint.
-
-    >>> txt2shpfp(b'ab' * 32) == b'\xab' * 32
-    True
-    >>> for invalid in [b'', b'abc', b'ab' * 31, b'ab' * 33, b'zz' * 32,
-    ...                 b'AB' * 32, b'ab' * 32 + b' ']:
-    ...     try:
-    ...         txt2shpfp(invalid)
-    ...     except ValueError:
-    ...         pass
-    ...     else:
-    ...         raise AssertionError(invalid)
-    """
-    return _fingerprint_from_text(b'shape', text)
+    fingerprint."""
+    return ShapeFingerprint.from_text(text).to_bytes()
 
 
 def shdfp2txt(fingerprint: bytes) -> bytes:
-    """serialize a raw shard fingerprint in its textual form
-
-    exists independently from shpfp2txt as Shape and shard are different object
-    and might evolve differently in the future.
-    """
-    assert len(fingerprint) == FINGERPRINT_RAW_SIZE
-    return hex(fingerprint)
+    """serialize a raw shard fingerprint in its textual form"""
+    return ShardFingerprint.from_bytes(fingerprint).to_text()
 
 
 def txt2shdfp(text: bytes) -> bytes:
-    r"""serialize a textual shard fingerprint in its raw form
-
-    exists independently from txt2shpfp as Shape and shard are different object
-    and might evolve differently in the future.
+    """serialize a textual shard fingerprint in its raw form
 
     Raises `ValueError` if `text` is not the textual form of a shard
-    fingerprint.
-
-    >>> txt2shdfp(b'ab' * 32) == b'\xab' * 32
-    True
-    >>> txt2shdfp(b'abc')
-    Traceback (most recent call last):
-        ...
-    ValueError: not a shard fingerprint: b'abc'
-    """
-    return _fingerprint_from_text(b'shard', text)
-
-
-def _fingerprint_from_text(kind: bytes, text: bytes) -> bytes:
-    """The raw form of a textual fingerprint
-
-    Raises `ValueError` if `text` is not the textual form of a fingerprint of
-    the given `kind`."""
-    if _FINGERPRINT_TEXT_RE.fullmatch(text) is not None:
-        return bin(text)
-    raise ValueError("not a %s fingerprint: %r" % (kind.decode(), text))
+    fingerprint."""
+    return ShardFingerprint.from_text(text).to_bytes()
 
 
 # File listing filenames of the saved `server-shapes` configs.
