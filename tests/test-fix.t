@@ -239,7 +239,7 @@ Help text for fix.
       previously passed to the "postfixfile" hook.
   
   You can specify a list of directories to search the tool command in using the
-  'fix.extra-bin-paths' configuration.
+  "fix.extra-bin-paths" configuration.
   
   list of commands:
   

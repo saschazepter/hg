@@ -9,8 +9,8 @@
 """log repository events to a blackbox for debugging
 
 Logs event information to .hg/blackbox.log to help debug and diagnose problems.
-The events that get logged can be configured via the blackbox.track and
-blackbox.ignore config keys.
+The events that get logged can be configured via the ``blackbox.track`` and
+``blackbox.ignore`` config keys.
 
 Examples::
 

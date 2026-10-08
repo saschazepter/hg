@@ -38,8 +38,8 @@ override global ``[email]`` address settings.
 Then you can use the :hg:`email` command to mail a series of
 changesets as a patchbomb.
 
-You can also either configure the method option in the email section
-to be a sendmail compatible mailer or fill out the [smtp] section so
+You can also either configure the method option in the ``[email]`` section
+to be a sendmail compatible mailer or fill out the ``[smtp]`` section so
 that the patchbomb extension can automatically send patchbombs
 directly from the commandline. See :hg:`help config.email` and :hg:`help
 config.smtp` for details.

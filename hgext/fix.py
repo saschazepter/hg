@@ -122,7 +122,7 @@ perform other post-fixing work. The supported hooks are::
     previously passed to the "postfixfile" hook.
 
 You can specify a list of directories to search the tool command in using the
-`fix.extra-bin-paths` configuration.
+``fix.extra-bin-paths`` configuration.
 """
 
 from __future__ import annotations

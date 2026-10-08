@@ -239,8 +239,8 @@ See :hg:`help bundlespec` for details about available options.
 
 By default, new bundles are generated when 5% of the repository contents or at
 least 1000 revisions are not contained in the cached bundles. This option can
-be controlled by the `clone-bundles.trigger.below-bundled-ratio` option
-(default 0.95) and the `clone-bundles.trigger.revs` option (default 1000)::
+be controlled by the ``clone-bundles.trigger.below-bundled-ratio`` option
+(default 0.95) and the ``clone-bundles.trigger.revs`` option (default 1000)::
 
     [clone-bundles]
     trigger.below-bundled-ratio=0.95
@@ -277,8 +277,8 @@ This is the most efficient way to serve automatically generated clone bundles,
 but requires some setup.
 
 The generated bundles need to be made available to users through a "public" URL.
-This should be donne through `clone-bundles.upload-command` configuration. The
-value of this command should be a shell command. It will have access to the
+This should be done through ``clone-bundles.upload-command`` configuration.
+The value of this command should be a shell command. It will have access to the
 bundle file path through the `$HGCB_BUNDLE_PATH` variable. And the expected
 basename in the "public" URL is accessible at::
 
@@ -288,8 +288,8 @@ basename in the "public" URL is accessible at::
 
 If the file was already uploaded, the command must still succeed.
 
-After upload, the file should be available at an url defined by
-`clone-bundles.url-template`.
+After upload, the file should be available at a URL defined by
+``clone-bundles.url-template``::
 
   [clone-bundles]
   url-template=https://bundles.host/cache/clone-bundles/{basename}
