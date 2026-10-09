@@ -518,7 +518,7 @@ def journal(ui, repo, *args, **opts):
     The journal is used to see the previous commits that bookmarks and the
     working copy pointed to. By default the previous locations for the working
     copy.  Passing a bookmark name will show all the previous positions of
-    that bookmark. Use the --all switch to show previous locations for all
+    that bookmark. Use the ``--all`` switch to show previous locations for all
     bookmarks and the working copy; each line will then include the bookmark
     name, or '.' for the working copy, as well.
 
@@ -527,14 +527,14 @@ def journal(ui, repo, *args, **opts):
     use the prefix `literal:`.
 
     By default hg journal only shows the commit hash and the command that was
-    running at that time. -v/--verbose will show the prior hash, the user, and
-    the time at which it happened.
+    running at that time. ``-v``/``--verbose`` will show the prior hash, the
+    user, and the time at which it happened.
 
-    Use -c/--commits to output log information on each commit hash; at this
-    point you can use the usual `--patch`, `--git`, `--stat` and `--template`
-    switches to alter the log output for these.
+    Use ``-c``/``--commits`` to output log information on each commit hash; at
+    this point you can use the usual ``--patch``, ``--git``, ``--stat`` and
+    ``--template`` switches to alter the log output for these.
 
-    `hg journal -T json` can be used to produce machine readable output.
+    ``hg journal -T json`` can be used to produce machine readable output.
 
     """
     opts = pycompat.byteskwargs(opts)

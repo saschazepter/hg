@@ -86,14 +86,14 @@ Help text for fix.
   
   Runs any configured tools to fix the content of files. (See 'hg help -e fix'
   for details about configuring tools.) Only affects files with changes, unless
-  file arguments are provided. Only affects changed lines of files, unless the
-  --whole flag is used. Some tools may always affect the whole file regardless
-  of --whole.
+  file arguments are provided. Only affects changed lines of files, unless the "
+  --whole" flag is used. Some tools may always affect the whole file regardless
+  of "--whole".
   
-  If --working-dir is used, files with uncommitted changes in the working copy
-  will be fixed. Note that no backup are made.
+  If "--working-dir" is used, files with uncommitted changes in the working copy
+  will be fixed. Note that no backups are made.
   
-  If revisions are specified with --source, those revisions and their
+  If revisions are specified with "--source", those revisions and their
   descendants will be checked, and they may be replaced with new revisions that
   have fixed file content. By automatically including the descendants, no
   merging, rebasing, or evolution will be required. If an ancestor of the
@@ -102,8 +102,8 @@ Help text for fix.
   
   When determining what lines of each file to fix at each revision, the whole
   set of revisions being fixed is considered, so that fixes to earlier revisions
-  are not forgotten in later ones. The --base flag can be used to override this
-  default behavior, though it is not usually desirable to do so.
+  are not forgotten in later ones. The "--base" flag can be used to override
+  this default behavior, though it is not usually desirable to do so.
   
   (use 'hg help -e fix' to show help for the fix extension)
   

@@ -148,7 +148,7 @@ def uncommit(ui, repo, *pats, **opts):
     deleted in the changeset will be left unchanged, and so will remain
     modified in the working directory.
 
-    If no files are specified, the commit will be pruned, unless --keep is
+    If no files are specified, the commit will be pruned, unless ``--keep`` is
     given.
     """
     cmdutil.check_note_size(opts)

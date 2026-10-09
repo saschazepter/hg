@@ -1310,7 +1310,7 @@ Disabled extensions:
   
   You can control the default inclusion of an introduction message with the
   "patchbomb.intro" configuration option. The configuration is always
-  overwritten by command line flags like --intro and --desc:
+  overwritten by command line flags like "--intro" and "--desc":
   
     [patchbomb]
     intro=auto   # include introduction message if more than 1 patch (default)
@@ -1318,7 +1318,7 @@ Disabled extensions:
     intro=always # always include an introduction message
   
   You can specify a template for flags to be added in subject prefixes. Flags
-  specified by --flag option are exported as "{flags}" keyword:
+  specified by "--flag" option are exported as "{flags}" keyword:
   
     [patchbomb]
     flagtemplate = "{separate(' ',
