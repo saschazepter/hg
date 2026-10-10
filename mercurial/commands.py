@@ -7483,7 +7483,7 @@ def verify(ui, repo, **opts):
     the changelog, manifest, and tracked files, as well as the
     integrity of their crosslinks and indices.
 
-    Please see https://mercurial-scm.org/wiki/RepositoryCorruption
+    Please see https://mercurial-scm.org/repository-corruption
     for more information about recovery from corruption of the
     repository.
 

@@ -642,7 +642,7 @@ Test command without options
   the hashes and checksums of each entry in the changelog, manifest, and tracked
   files, as well as the integrity of their crosslinks and indices.
   
-  Please see https://mercurial-scm.org/wiki/RepositoryCorruption for more
+  Please see https://mercurial-scm.org/repository-corruption for more
   information about recovery from corruption of the repository.
   
   For an alternative UI with a lot more control over the verification process
