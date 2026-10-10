@@ -7,7 +7,7 @@
 """provide the amend command (EXPERIMENTAL)
 
 This extension provides an ``amend`` command that is similar to
-``commit --amend`` but does not prompt an editor.
+:hg:`commit --amend` but does not prompt an editor.
 """
 
 from __future__ import annotations
