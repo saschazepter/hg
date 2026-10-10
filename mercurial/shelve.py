@@ -7,18 +7,17 @@
 
 """save and restore changes to the working directory
 
-The "hg shelve" command saves changes made to the working directory
+The :hg:`shelve` command saves changes made to the working directory
 and reverts those changes, resetting the working directory to a clean
 state.
 
-Later on, the "hg unshelve" command restores the changes saved by "hg
-shelve". Changes can be restored even after updating to a different
+Later on, the :hg:`unshelve` command restores the changes saved by
+:hg:`shelve`. Changes can be restored even after updating to a different
 parent, in which case Mercurial's merge machinery will resolve any
 conflicts if necessary.
 
 You can have more than one shelved change outstanding at a time; each
-shelved change has a distinct name. For details, see the help for "hg
-shelve".
+shelved change has a distinct name. For details, see :hg:`help shelve`.
 """
 
 from __future__ import annotations

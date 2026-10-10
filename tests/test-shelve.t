@@ -45,22 +45,22 @@ shelve has a help message
   
   save and set aside changes from the working directory
   
-  Shelving takes files that "hg status" reports as not clean, saves the
+  Shelving takes files that 'hg status' reports as not clean, saves the
   modifications to a bundle (a shelved change), and reverts the files so that
   their state in the working directory becomes clean.
   
-  To restore these changes to the working directory, using "hg unshelve"; this
+  To restore these changes to the working directory, using 'hg unshelve'; this
   will work even if you switch to a different commit.
   
-  When no files are specified, "hg shelve" saves all not-clean files. If
+  When no files are specified, 'hg shelve' saves all not-clean files. If
   specific files or directories are named, only changes to those files are
   shelved.
   
-  In bare shelve (when no files are specified, without interactive, include and
-  exclude option), shelving remembers information if the working directory was
-  on newly created branch, in other words working directory was on different
-  branch than its first parent. In this situation unshelving restores branch
-  information to the working directory.
+  In bare shelve (when no files are specified, without "--interactive", "--
+  include" and "--exclude" option), shelving remembers information if the
+  working directory was on newly created branch, in other words working
+  directory was on different branch than its first parent. In this situation
+  unshelving restores branch information to the working directory.
   
   Each shelved change has a name that makes it easier to find later. The name of
   a shelved change defaults to being based on the active bookmark, or if there

@@ -6299,21 +6299,20 @@ def serve(ui, repo: RepoT | None, __dispatch__, **opts):
 def shelve(ui, repo, *pats, **opts):
     """save and set aside changes from the working directory
 
-    Shelving takes files that "hg status" reports as not clean, saves
+    Shelving takes files that :hg:`status` reports as not clean, saves
     the modifications to a bundle (a shelved change), and reverts the
     files so that their state in the working directory becomes clean.
 
-    To restore these changes to the working directory, using "hg
-    unshelve"; this will work even if you switch to a different
-    commit.
+    To restore these changes to the working directory, using :hg:`unshelve`;
+    this will work even if you switch to a different commit.
 
-    When no files are specified, "hg shelve" saves all not-clean
+    When no files are specified, :hg:`shelve` saves all not-clean
     files. If specific files or directories are named, only changes to
     those files are shelved.
 
-    In bare shelve (when no files are specified, without interactive,
-    include and exclude option), shelving remembers information if the
-    working directory was on newly created branch, in other words working
+    In bare shelve (when no files are specified, without ``--interactive``,
+    ``--include`` and ``--exclude`` option), shelving remembers information if
+    the working directory was on newly created branch, in other words working
     directory was on different branch than its first parent. In this
     situation unshelving restores branch information to the working directory.
 
@@ -7303,9 +7302,9 @@ def unshelve(ui, repo, *shelved, **opts):
     that causes a conflict. This reverts the unshelved changes, and
     leaves the bundle in place.)
 
-    If bare shelved change (without interactive, include and exclude
-    option) was done on newly created branch it would restore branch
-    information to the working directory.
+    If bare shelved change (without ``--interactive``, ``--include`` and
+    ``--exclude`` option) was done on newly created branch it would restore
+    branch information to the working directory.
 
     After a successful unshelve, the shelved changes are stored in a
     backup directory. Only the N most recent backups are kept. N
