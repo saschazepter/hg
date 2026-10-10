@@ -1565,7 +1565,7 @@ def bundle(ui, repo, fname, *dests, **opts):
     bzip2.
 
     The bundle file can then be transferred using conventional means
-    and applied to another repository with the unbundle or pull
+    and applied to another repository with the :hg:`unbundle` or :hg:`pull`
     command. This is useful when direct push and pull are not
     available or when exporting an entire repository is undesirable.
 
@@ -7488,7 +7488,7 @@ def verify(ui, repo, **opts):
     repository.
 
     For an alternative UI with a lot more control over the verification
-    process and better error reporting, try `hg help admin::verify`.
+    process and better error reporting, try :hg:`help admin::verify`.
 
     Returns 0 on success, 1 if errors are encountered.
     """
