@@ -19222,11 +19222,11 @@ msgstr ""
 "    integridade de seus índices e ligações cruzadas."
 
 msgid ""
-"    Please see https://mercurial-scm.org/wiki/RepositoryCorruption\n"
+"    Please see https://mercurial-scm.org/repository-corruption\n"
 "    for more information about recovery from corruption of the\n"
 "    repository."
 msgstr ""
-"    Por favor veja https://mercurial-scm.org/wiki/RepositoryCorruption\n"
+"    Por favor veja https://mercurial-scm.org/repository-corruption\n"
 "    para mais informações sobre recuperação de repositórios corrompidos."
 
 msgid "output version and copyright information"

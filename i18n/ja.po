@@ -18722,7 +18722,7 @@ msgstr ""
 "    検証されます。"
 
 msgid ""
-"    Please see https://mercurial-scm.org/wiki/RepositoryCorruption\n"
+"    Please see https://mercurial-scm.org/repository-corruption\n"
 "    for more information about recovery from corruption of the\n"
 "    repository."
 msgstr ""
