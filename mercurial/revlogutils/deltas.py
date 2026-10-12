@@ -1785,6 +1785,29 @@ class deltacomputer:
                 )
         return compressor
 
+    def _cached_delta_as_stored(self, cached: CachedDeltaT):
+        """reuse the compressed payload of a cached delta as it is
+
+        Returns a `(header, data, u_delta)` tuple usable as revlog chunk (with
+        `u_delta` None if the payload is compressed), or None if the payload
+        cannot be stored without recompression.
+        """
+        if not self.revlog.delta_config.lazy_compression:
+            return None
+        if cached.c_delta is None:
+            return None
+        comp = cached.compression
+        if comp == compression.REVLOG_COMP_NONE:
+            data = cached.c_delta
+            if not data or data.startswith(b'\0'):
+                header = b''
+            else:
+                header = b'u'
+            return header, data, data
+        elif comp in self.revlog.compatible_compressions:
+            return b'', cached.c_delta, None
+        return None
+
     def decompress_cached(
         self,
         cached: CachedDeltaT,
@@ -2011,21 +2034,10 @@ class deltacomputer:
                     # folding the incoming delta should only produce better
                     # chain, so the risk is probably slow.
                     optimize_by_folding = None
-                if (
-                    optimize_by_folding is None
-                    and revlog.delta_config.lazy_compression
-                    and revinfo.cachedelta.c_delta is not None
-                ):
-                    comp = revinfo.cachedelta.compression
-                    if comp == compression.REVLOG_COMP_NONE:
-                        delta = data = revinfo.cachedelta.c_delta
-                        if not data or data.startswith(b'\0'):
-                            header = b''
-                        else:
-                            header = b'u'
-                    elif comp in revlog.compatible_compressions:
-                        header = b''
-                        data = revinfo.cachedelta.c_delta
+                if optimize_by_folding is None:
+                    as_stored = self._cached_delta_as_stored(revinfo.cachedelta)
+                    if as_stored is not None:
+                        header, data, delta = as_stored
 
                 if data is None:
                     self.decompress_cached(revinfo.cachedelta)
