@@ -2333,6 +2333,7 @@ class deltacomputer:
                 delta = revinfo.cachedelta.u_delta
                 header, data = revlog.compress(delta)
                 deltalen = len(header) + len(data)
+                dbg_type = b"delta"
                 if gather_debug:
                     offset = revlog.end(len(revlog) - 1)
                     chainbase = revlog.chainbase(base)
@@ -2341,7 +2342,6 @@ class deltacomputer:
                     chainlen += 1
                     compresseddeltalen += deltalen
                     if base == p1r or base == p2r:
-                        dbg_type = b"delta"
                         snapshotdepth = None
                     elif not revlog.issnapshot(base):
                         snapshotdepth = None
@@ -2376,7 +2376,7 @@ class deltacomputer:
                     dbg['search_round_count'] = 0
                     dbg['using-cached-base'] = True
                     dbg['delta_try_count'] = 0
-                    dbg['type'] = b"full"
+                    dbg['type'] = dbg_type
                     if snapshotdepth is None:
                         dbg['snapshot-depth'] = -1
                     else:
