@@ -338,6 +338,8 @@ The in-memory update respects the config priorities.
   $ TEST_ALIAS_NAME="config-set-live-shadow" hg -R repo \
   >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
   >     config --set alias.config-set-live-shadow=foo-bar
+  warning: new value for 'alias.config-set-live-shadow' is shadowed by $TESTTMP/repo/.hg/hgrc:3 (glob)
+  (clean your manual config to use --set on 'alias.config-set-live-shadow')
   live value: foo
   live value in baseui: foo-bar
   $ hg config alias.config-set-live-shadow
@@ -390,6 +392,8 @@ file itself.
   $ TEST_ALIAS_NAME="config-set-test-M" hg \
   >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
   >     config --set alias.config-set-test-M=new-team-value
+  warning: new value for 'alias.config-set-test-M' is shadowed by $TESTTMP/team.rc:2 (glob)
+  (clean your manual config to use --set on 'alias.config-set-test-M')
   live value: team-value
   $ hg config alias.config-set-test-M
   team-value
@@ -457,3 +461,50 @@ does the same.
   $ hg paths config-set-shared
   $TESTTMP/celeste
   $ cd ..
+
+Warning when the value we set is not the one in use
+===================================================
+
+The value `--set` writes is not always the one `hg config` displays. A
+warning points at the definition that hides it, so the user understands
+why the value they set is not visible.
+
+Every kind of shadowing definition is reported for now, the next
+changesets tell them apart.
+
+shadowed by a value written by hand
+-----------------------------------
+
+  $ cat >> $USER_RC <<EOF
+  > [alias]
+  > config-set-test-hand = hand-written
+  > EOF
+  $ hg config --set alias.config-set-test-hand=from-set
+  warning: new value for 'alias.config-set-test-hand' is shadowed by $TESTTMP/*:6 (glob)
+  (clean your manual config to use --set on 'alias.config-set-test-hand')
+  $ hg config alias.config-set-test-hand
+  hand-written
+
+shadowed by an %include-d file
+------------------------------
+
+The user file includes it from further down, so it is read later. It is
+still the same configuration level, so the new value is useless.
+
+  $ hg config --set alias.config-set-test-M=user-value
+  warning: new value for 'alias.config-set-test-M' is shadowed by $TESTTMP/team.rc:2 (glob)
+  (clean your manual config to use --set on 'alias.config-set-test-M')
+  $ hg config alias.config-set-test-M
+  team-value
+
+several values set at once
+--------------------------
+
+Each one is reported separately.
+
+  $ hg config --set alias.config-set-test-L=plain \
+  >     --set alias.config-set-test-hand=from-set-too
+  warning: new value for 'alias.config-set-test-hand' is shadowed by $TESTTMP/*:6 (glob)
+  (clean your manual config to use --set on 'alias.config-set-test-hand')
+  $ hg config alias.config-set-test-L
+  plain

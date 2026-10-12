@@ -201,7 +201,7 @@ def set_config(
             root = repo.root
 
     for section, key, value in values:
-        ui.register_config_write(
+        shadowing = ui.register_config_write(
             section,
             key,
             value,
@@ -218,7 +218,27 @@ def set_config(
                 base_path,
                 root=root,
             )
+        _report_if_shadowed(ui, section, key, shadowing)
     return 0
+
+
+def _report_if_shadowed(
+    ui: uimod.ui,
+    section: bytes,
+    key: bytes,
+    shadowing: tuple[bytes, bytes, int] | None,
+) -> None:
+    """warn when the value we just wrote is not the one that will be used
+
+    This is a sub section of `set_config` extracted for readability.
+    """
+    if shadowing is None:
+        return
+    _s_value, s_source, _s_level = shadowing
+    msg = _(b"warning: new value for '%s.%s' is shadowed by %s\n")
+    ui.warn(msg % (section, key, s_source))
+    msg = _(b"(clean your manual config to use --set on '%s.%s')\n")
+    ui.warn(msg % (section, key))
 
 
 def _inject_managed_include(base_content: bytes, target: bytes) -> bytes:
