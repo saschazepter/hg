@@ -508,3 +508,17 @@ Each one is reported separately.
   (clean your manual config to use --set on 'alias.config-set-test-hand')
   $ hg config alias.config-set-test-L
   plain
+
+shadowed by the same value
+--------------------------
+
+We skip the warning in this case, the shadowing is only mentioned at
+debug level.
+
+  $ hg config --set alias.config-set-test-hand=hand-written
+  $ hg config alias.config-set-test-hand
+  hand-written
+  $ hg config --debug --set alias.config-set-test-hand=hand-written \
+  >    | grep shadowed
+  new value for 'alias.config-set-test-hand' is shadowed by $TESTTMP/*:6 (glob)
+

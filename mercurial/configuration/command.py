@@ -218,7 +218,7 @@ def set_config(
                 base_path,
                 root=root,
             )
-        _report_if_shadowed(ui, section, key, shadowing)
+        _report_if_shadowed(ui, section, key, value, shadowing)
     return 0
 
 
@@ -226,6 +226,7 @@ def _report_if_shadowed(
     ui: uimod.ui,
     section: bytes,
     key: bytes,
+    value: bytes,
     shadowing: tuple[bytes, bytes, int] | None,
 ) -> None:
     """warn when the value we just wrote is not the one that will be used
@@ -234,9 +235,15 @@ def _report_if_shadowed(
     """
     if shadowing is None:
         return
-    _s_value, s_source, _s_level = shadowing
-    msg = _(b"warning: new value for '%s.%s' is shadowed by %s\n")
-    ui.warn(msg % (section, key, s_source))
+    s_value, s_source, _s_level = shadowing
+    shadow_msg = _(b"new value for '%s.%s' is shadowed by %s\n")
+    shadow_msg %= (section, key, s_source)
+    if s_value == value:
+        # the user sees the value they asked for, so this is not worth a
+        # warning, just a mention for whoever debugs the configuration.
+        ui.debug(shadow_msg)
+        return
+    ui.warn(_(b"warning: %s") % shadow_msg)
     msg = _(b"(clean your manual config to use --set on '%s.%s')\n")
     ui.warn(msg % (section, key))
 
