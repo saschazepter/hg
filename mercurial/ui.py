@@ -43,6 +43,7 @@ from . import (
     color,
     config,
     configitems,
+    configuration as conf_mod,
     encoding,
     error,
     extensions,
@@ -725,7 +726,7 @@ class ui:
         managed_file: bytes,
         base_file: bytes,
         root=None,
-    ):
+    ) -> conf_mod.Shadowing | None:
         """insert a value freshly written to `managed_file` in the config
 
         `managed_file` is a machine managed file included from `base_file`,
@@ -747,24 +748,22 @@ class ui:
         this series.
 
         Return None when the value is the one in use, or the item that
-        shadows it, as a (value, source, level) tuple.
+        shadows it, as a Shadowing object.
 
         Items that plain mode ignores in configuration files are left out,
         and None is returned for them.
         """
         if self._plain_ignores(section, name):
             return None
-        shadowing = None
-        for cfg in (self._tcfg, self._ucfg):
-            cfg.insert_source_before(managed_file, base_file)
-            previous = cfg.set_at_source(section, name, value, managed_file)
-            if cfg is self._tcfg:
-                # the previous definition only shadows the new value if it
-                # is still the one in use.
-                if cfg.source(section, name) == managed_file:
-                    shadowing = None
-                else:
-                    shadowing = previous
+        self._tcfg.insert_source_before(managed_file, base_file)
+        self._ucfg.insert_source_before(managed_file, base_file)
+
+        # the trusted configuration is the one this process uses so we read the
+        # shadowing from there.
+        shadowing = self._tcfg.set_at_source(section, name, value, managed_file)
+        # and ignore the shadowing from the untrusted config
+        self._ucfg.set_at_source(section, name, value, managed_file)
+
         if root is None:
             root = os.path.expanduser(b'~')
         self.fixconfig(root=root, section=section)

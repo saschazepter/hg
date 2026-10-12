@@ -13,6 +13,7 @@ import typing
 
 from .i18n import _
 from . import (
+    configuration as conf_mod,
     encoding,
     error,
     util,
@@ -355,7 +356,7 @@ class config:
         item: bytes,
         value: bytes,
         source: bytes,
-    ) -> _ItemT | None:
+    ) -> conf_mod.Shadowing | None:
         """set a value as if it came from `source`
 
         Unlike `set`, the value is not installed at the current level but at
@@ -363,8 +364,8 @@ class config:
         precedence over it, as it would on the next configuration read. The
         value is not installed at all in that case.
 
-        Return None when the new value is the one in use, or the item that
-        shadows it, as a (value, source, level) tuple.
+        Return None when the new value is the one in use, or what shadows
+        it.
 
         >>> cfg = config()
         >>> cfg.new_source()
@@ -379,7 +380,7 @@ class config:
         Value at higher level shadow the insert of a lower one.
 
         >>> cfg.set_at_source(b'one', b'key', b'managed', b'user-rc-managed')
-        (b'from-user', b'user-rc:2', 10)
+        Shadowing(b'from-user', b'user-rc:2')
         >>> cfg.get(b'one', b'key')
         b'from-user'
 
@@ -409,6 +410,10 @@ class config:
         # this `set_at_source`, it will not be visible to `restore`.
         if existing is None or existing[2] <= level:
             self._set_item(section, item, value, source, level=level)
+            existing = None
+        else:
+            e_value, e_source, _e_level = existing
+            existing = conf_mod.Shadowing(e_value, e_source)
         return existing
 
     def _set_item(

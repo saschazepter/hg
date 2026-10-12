@@ -30,6 +30,7 @@ from . import (
     EDIT_LEVELS,
     LEVEL_SHARED,
     NO_REPO_EDIT_LEVELS,
+    Shadowing,
     rcutil,
 )
 
@@ -227,7 +228,7 @@ def _report_if_shadowed(
     section: bytes,
     key: bytes,
     value: bytes,
-    shadowing: tuple[bytes, bytes, int] | None,
+    shadowing: Shadowing | None,
 ) -> None:
     """warn when the value we just wrote is not the one that will be used
 
@@ -235,10 +236,9 @@ def _report_if_shadowed(
     """
     if shadowing is None or ui.quiet:
         return
-    s_value, s_source, _s_level = shadowing
     shadow_msg = _(b"new value for '%s.%s' is shadowed by %s\n")
-    shadow_msg %= (section, key, s_source)
-    if s_value == value:
+    shadow_msg %= (section, key, shadowing.source)
+    if shadowing.value == value:
         # the user sees the value they asked for, so this is not worth a
         # warning, just a mention for whoever debugs the configuration.
         ui.debug(shadow_msg)
