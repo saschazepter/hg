@@ -86,7 +86,7 @@ Changegroup 04 can carry full texts instead of deltas:
 
   $ hg bundle --all bundle-cg4.hg --type 'none-v2;cg.version=04'
   3 changesets found
-  $ hg debugbundle --all bundle-cg4.hg 2> stderr
+  $ hg debugbundle --all bundle-cg4.hg
   Stream params: {}
   changegroup -- {nbchanges: 3, version: 04} (mandatory: True)
       format: id, p1, p2, cset, delta base, len(delta)
@@ -101,6 +101,5 @@ Changegroup 04 can carry full texts instead of deltas:
       686dbf0aeca417636fa26a9121c681eabbb15a20 8515d4bfda768e04af4c13a69a72e28c7effbea7 0000000000000000000000000000000000000000 0e067c57feba1a5694ca4844f05588bb1bf82342 8515d4bfda768e04af4c13a69a72e28c7effbea7 55
       ae25a31b30b3490a981e7b96a3238cc69583fda1 686dbf0aeca417636fa26a9121c681eabbb15a20 0000000000000000000000000000000000000000 991a3460af53952d10ec8a295d3d2cc2e5fa9690 686dbf0aeca417636fa26a9121c681eabbb15a20 55
   cache:rev-branch-cache -- {} (mandatory: False)
-  $ tail -1 stderr
 
   $ cd ..
