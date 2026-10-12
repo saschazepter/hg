@@ -47,6 +47,8 @@ class SHADOW(enum.Enum):
     HIGHER_LEVEL = 'higher-level'
     # a value coming from the environment wins
     ENVIRONMENT = 'environment'
+    # a process local override wins, it goes away with the command
+    OVERRIDE = 'override'
 
     def __repr__(self) -> str:
         return 'SHADOW.%s' % self.name

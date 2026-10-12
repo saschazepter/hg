@@ -629,3 +629,18 @@ Just a debug message, as for a value shadowed by a configuration file.
   $ HGUSER=celeste hg config --debug --set ui.username=celeste \
   >    | grep shadowed
   new value for 'ui.username' is shadowed by $HGUSER
+
+shadower by a --config override
+----------------------------------
+
+The override only lives for that command, the value written is the one
+that will be used afterward, so the shadowing is only mentioned at debug
+level.
+
+  $ hg config --set alias.config-set-test-K=from-set \
+  >     --config alias.config-set-test-K=from-cli
+  $ hg config alias.config-set-test-K
+  from-set
+  $ hg config --debug --set alias.config-set-test-K=from-set \
+  >     --config alias.config-set-test-K=from-cli | grep shadowed
+  new value for 'alias.config-set-test-K' is shadowed by --config

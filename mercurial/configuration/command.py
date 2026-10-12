@@ -280,12 +280,18 @@ def _report_if_shadowed(
 
     A definition from a higher configuration level legitimately wins over
     what we just wrote, so it only gets a note pointing at the flag that
-    writes at that level.
+    writes at that level. A command line override only gets a mention at
+    debug level, it goes away with the command.
     """
     if shadowing is None or ui.quiet:
         return
     shadow_msg = _(b"new value for '%s.%s' is shadowed by %s\n")
     shadow_msg %= (section, key, shadowing.source)
+    if shadowing.status is SHADOW.OVERRIDE:
+        # the override goes away with the command, so this is not worth a
+        # warning, just a mention for whoever debugs the configuration.
+        ui.debug(shadow_msg)
+        return
     if shadowing.status is SHADOW.HIGHER_LEVEL:
         # softer than a warning, but still a message about the command we
         # just ran, so it goes to stderr like the others.

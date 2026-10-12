@@ -801,6 +801,14 @@ class ui:
                 b'$%s' % env_var,
                 conf_mod.SHADOW.ENVIRONMENT,
             )
+        # the overlay is applied on top of every file we read
+        overlay = self._ocfg.get(section, name)
+        if overlay is not None:
+            return conf_mod.Shadowing(
+                overlay,
+                self._ocfg.source(section, name),
+                conf_mod.SHADOW.OVERRIDE,
+            )
         # some configuration items come from the environment, through a
         # source of their own
         if (
