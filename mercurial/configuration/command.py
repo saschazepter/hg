@@ -180,6 +180,44 @@ def set_config(
         new_content = _inject_managed_include(base_content, managed_file)
         if new_content != base_content:
             vfs.write(base_file, new_content, atomictemp=True)
+
+    # reflect the new values in the configuration we already loaded, for
+    # whatever runs later in this process (hooks, extensions, …)
+    managed_path = os.path.normpath(vfs.join(managed_file))
+    base_path = os.path.normpath(vfs.join(base_file))
+    low_ui = None
+    root = os.path.expanduser(b'~')
+    if repo is not None:
+        assert repo.ui is ui
+        if level in NO_REPO_EDIT_LEVELS:
+            # the ui that ignores repository files also read that file
+            low_ui = repo.baseui
+        else:
+            # only the repository ui reads repository level files
+            #
+            # `repo.root` is right for LEVEL_SHARED too: the first read of the
+            # shared file, in `main_script.paths`, uses the share root, and
+            # relative paths keep the root of their first read.
+            root = repo.root
+
+    for section, key, value in values:
+        ui.register_config_write(
+            section,
+            key,
+            value,
+            managed_path,
+            base_path,
+            root=root,
+        )
+        if low_ui is not None:
+            low_ui.register_config_write(
+                section,
+                key,
+                value,
+                managed_path,
+                base_path,
+                root=root,
+            )
     return 0
 
 

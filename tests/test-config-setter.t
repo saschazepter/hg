@@ -272,3 +272,188 @@ down, so hand-written values keep overriding the managed ones:
   value-h
   $ hg config alias.config-set-hand-written
   value-hand
+
+Updating the config of the current process
+==========================================
+
+The configuration already loaded in memory is updated too, so in-process
+users running after the command (hooks, extensions, …) see the new value.
+
+(Note that there are a few know issues with such update, like tweak default not
+updating value, value transfered to the repository not being updated etc.)
+
+
+basic in-memory update
+----------------------
+
+  $ cat > $TESTTMP/showlive.py <<EOF
+  > import os
+  > def showlive(ui, repo, **kwargs):
+  >     if repo is None:
+  >         baseui = None
+  >     else:
+  >         ui = repo.ui
+  >         baseui = repo.baseui
+  >     alias_name = os.environ["TEST_ALIAS_NAME"].encode("ascii")
+  >     value = ui.config(b"alias", alias_name)
+  >     if value is None:
+  >        value = b"<unset>"
+  >     ui.write(b"live value: %s\n" % value)
+  >     if baseui is not None:
+  >         base_value = baseui.config(b"alias", alias_name)
+  >         if base_value is None:
+  >            base_value = b"<unset>"
+  >         ui.write(b"live value in baseui: %s\n" % base_value)
+  > EOF
+
+  $ TEST_ALIAS_NAME="config-set-live" hg -R repo \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --set alias.config-set-live=from-set
+  live value: from-set
+  live value in baseui: from-set
+
+the same key set several times
+------------------------------
+
+The last value wins, overwriting the in-memory value registered for the
+first one.
+
+  $ TEST_ALIAS_NAME="config-set-live" hg -R repo \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --set alias.config-set-live=twice-1 \
+  >            --set alias.config-set-live=twice-2
+  live value: twice-2
+  live value in baseui: twice-2
+
+Setting a shadowed value does not affect the memory value
+---------------------------------------------------------
+
+The in-memory update respects the config priorities.
+
+
+  $ cat >> repo/.hg/hgrc << EOF
+  > [alias]
+  > config-set-live-shadow = foo
+  > EOF
+  $ TEST_ALIAS_NAME="config-set-live-shadow" hg -R repo \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --set alias.config-set-live-shadow=foo-bar
+  live value: foo
+  live value in baseui: foo-bar
+  $ hg config alias.config-set-live-shadow
+  foo-bar
+  $ hg config alias.config-set-live-shadow -R repo
+  foo
+
+managed file created by the command
+-----------------------------------
+
+The managed file did not exist before the command, it gets the priority
+of the file that includes it.
+
+  $ hg init fresh
+  $ TEST_ALIAS_NAME="config-set-fresh" hg -R fresh \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --set alias.config-set-fresh=fresh-value
+  live value: fresh-value
+  live value in baseui: fresh-value
+
+value overriding the bundled default configuration
+--------------------------------------------------
+
+The bundled resources are read before any configuration file.
+
+  $ cat > $TESTTMP/showtool.py <<EOF
+  > def showtool(ui, repo, **kwargs):
+  >     value = repo.ui.config(b"merge-tools", b"kdiff3.args") or b"<unset>"
+  >     ui.write(b"live tool args: %s\n" % value)
+  > EOF
+  $ hg -R fresh config --local --set merge-tools.kdiff3.args=custom-args \
+  >     --config hooks.post-config=python:$TESTTMP/showtool.py:showtool
+  live tool args: custom-args
+  $ hg -R fresh config merge-tools.kdiff3.args
+  custom-args
+
+value shadowed by an %include-d file
+------------------------------------
+
+The user file includes another one, read at a higher priority than the
+file itself.
+
+  $ cat > $TESTTMP/team.rc <<EOF
+  > [alias]
+  > config-set-test-M = team-value
+  > EOF
+  $ cat >> $USER_RC <<EOF
+  > %include team.rc
+  > EOF
+  $ TEST_ALIAS_NAME="config-set-test-M" hg \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --set alias.config-set-test-M=new-team-value
+  live value: team-value
+  $ hg config alias.config-set-test-M
+  team-value
+
+  $ hg init fresh2
+  $ TEST_ALIAS_NAME="config-set-test-M" hg -R fresh2 \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --local --set alias.config-set-test-M=repo-value
+  live value: repo-value
+  live value in baseui: team-value
+  $ hg config alias.config-set-test-M
+  team-value
+  $ hg -R fresh2 config alias.config-set-test-M
+  repo-value
+
+value ignored by plain mode
+---------------------------
+
+Plain mode ignores some items of the configuration files, so the in-memory
+update ignores them too.
+
+  $ HGPLAIN=1 TEST_ALIAS_NAME="config-set-plain" hg -R repo \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --set alias.config-set-plain=plain-value
+  live value: <unset>
+  live value in baseui: <unset>
+
+  $ hg -R repo config alias.config-set-plain
+  plain-value
+
+value kept by plain mode
+------------------------
+
+  $ HGPLAIN=1 hg -R fresh \
+  >     --config hooks.post-config=python:$TESTTMP/showtool.py:showtool \
+  >     config --local --set merge-tools.kdiff3.args=plain-args
+  live tool args: plain-args
+
+value of a feature excepted from plain mode
+-------------------------------------------
+
+  $ HGPLAINEXCEPT=alias TEST_ALIAS_NAME="config-set-plain-except" hg -R repo \
+  >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
+  >     config --set alias.config-set-plain-except=except-value
+  live value: except-value
+  live value in baseui: except-value
+
+relative path in the shared configuration
+-----------------------------------------
+
+Relative paths of the shared configuration resolve against the root of the
+share, as the configuration is first read relative to it, the in-memory update
+does the same.
+
+  $ cat > $TESTTMP/showpath.py <<EOF
+  > def showpath(ui, repo, **kwargs):
+  >     for path in repo.ui.paths.get(b"config-set-shared", []):
+  >         ui.write(b"live path: %s\n" % path.rawloc)
+  > EOF
+  $ cd share
+  $ hg --config hooks.post-config=python:$TESTTMP/showpath.py:showpath \
+  >     config --shared --set paths.config-set-shared=../celeste
+  live path: $TESTTMP/celeste
+
+  $ hg paths config-set-shared
+  $TESTTMP/celeste
+  $ cd ..
