@@ -71,6 +71,44 @@ def envrcitems(env: dict[bytes, bytes] | None = None) -> list[ConfigItemT]:
     return result
 
 
+# configuration items an environment variable short circuits
+#
+# The code reading these items looks the variable up first, so no
+# configuration file can take precedence over it. A None item stands for
+# every item of the section.
+_env_overrides: dict[tuple[bytes, bytes | None], bytes] = {
+    (b'ui', b'username'): b'HGUSER',
+    (b'ui', b'editor'): b'HGEDITOR',
+    (b'ui', b'merge'): b'HGMERGE',
+    (b'merge-patterns', None): b'HGMERGE',
+}
+
+
+def overriding_env_var(section: bytes, item: bytes) -> bytes | None:
+    """environment variable taking precedence over `section.item`
+
+    A None item in `_env_overrides` covers a whole section. None when there
+    is no such variable, or when it holds no value.
+
+    The process environment is the one that matters here: the code reading
+    these items looks the variable up there too.
+    """
+    var = _env_overrides.get((section, item))
+    if var is None:
+        var = _env_overrides.get((section, None))
+    if var is None or not encoding.environ.get(var):
+        return None
+    return var
+
+
+def env_item_sources() -> set[bytes]:
+    """config sources standing for an environment variable
+
+    These are the sources of the items `envrcitems` provides.
+    """
+    return {source for _s, _n, _v, source in envrcitems()}
+
+
 def default_rc_resources() -> list[ResourceIDT]:
     """return rc resource IDs in defaultrc"""
     rsrcs = resourceutil.contents(b'mercurial.defaultrc')

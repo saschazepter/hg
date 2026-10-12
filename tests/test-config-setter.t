@@ -562,3 +562,70 @@ the level of the file including it, so the note can point at that level.
   repo-include
   $ hg config alias.config-set-test-P
   user-value
+
+shadowed by an environment variable
+-----------------------------------
+
+A few items are read from the environment first, without the
+configuration being consulted at all. The value is written, but useless
+as long as the variable is set.
+
+  $ HGMERGE=celeste-merge hg config --set 'merge-patterns.**.txt=babar-merge'
+  warning: new value for 'merge-patterns.**.txt' is shadowed by $HGMERGE
+  (unset $HGMERGE to use --set on 'merge-patterns.**.txt')
+  $ hg config 'merge-patterns.**.txt'
+  babar-merge
+
+The same applies to the other items such a variable short circuits:
+
+  $ HGUSER=celeste hg config --set ui.username=babar
+  warning: new value for 'ui.username' is shadowed by $HGUSER
+  (unset $HGUSER to use --set on 'ui.username')
+  $ HGEDITOR=celeste-editor hg config --set ui.editor=babar-editor
+  warning: new value for 'ui.editor' is shadowed by $HGEDITOR
+  (unset $HGEDITOR to use --set on 'ui.editor')
+  $ HGMERGE=celeste-merge hg config --set ui.merge=babar-merge
+  warning: new value for 'ui.merge' is shadowed by $HGMERGE
+  (unset $HGMERGE to use --set on 'ui.merge')
+
+The variable keeps winning over the value we wrote:
+
+  $ hg init env-repo
+  $ cd env-repo
+  $ echo zephir > a
+  $ HGUSER=celeste hg commit --addremove --message 'adding a' --quiet
+  $ hg log --template '{author}\n'
+  celeste
+  $ cd ..
+
+shadowed by an environment variable feeding the configuration
+-------------------------------------------------------------
+
+$PAGER and friends are read as a configuration component of their own, in
+between the global and the user level, so they only shadow a global
+value.
+
+HGTEST_EXTRA_SYSTEMRCPATH gives us a system level location we can write.
+
+  $ HGTEST_EXTRA_SYSTEMRCPATH=$TESTTMP/system; export HGTEST_EXTRA_SYSTEMRCPATH
+  $ PAGER=celeste-pager hg config --global --set pager.pager=babar-pager
+  warning: new value for 'pager.pager' is shadowed by $PAGER
+  (unset $PAGER to use --set on 'pager.pager')
+  $ cat $TESTTMP/system/hgrc-managed
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
+  [pager]
+  pager = babar-pager
+  $ PAGER=celeste-pager hg config pager.pager
+  celeste-pager
+  $ unset HGTEST_EXTRA_SYSTEMRCPATH
+
+shadowed by an environment variable with the same value
+-------------------------------------------------------
+
+Just a debug message, as for a value shadowed by a configuration file.
+
+  $ HGUSER=celeste hg config --set ui.username=celeste
+  $ HGUSER=celeste hg config --debug --set ui.username=celeste \
+  >    | grep shadowed
+  new value for 'ui.username' is shadowed by $HGUSER

@@ -45,6 +45,8 @@ class SHADOW(enum.Enum):
     SAME_LEVEL = 'same-level'
     # a definition from a higher configuration level wins, as it should
     HIGHER_LEVEL = 'higher-level'
+    # a value coming from the environment wins
+    ENVIRONMENT = 'environment'
 
     def __repr__(self) -> str:
         return 'SHADOW.%s' % self.name

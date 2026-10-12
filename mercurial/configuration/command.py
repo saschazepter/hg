@@ -295,15 +295,19 @@ def _report_if_shadowed(
             msg = _(b"(use %s to set '%s.%s' at that level)\n")
             ui.warn(msg % (flag, section, key))
         return
-    assert shadowing.status is SHADOW.SAME_LEVEL
     if shadowing.value == value:
         # the user sees the value they asked for, so this is not worth a
         # warning, just a mention for whoever debugs the configuration.
         ui.debug(shadow_msg)
         return
     ui.warn(_(b"warning: %s") % shadow_msg)
-    msg = _(b"(clean your manual config to use --set on '%s.%s')\n")
-    ui.warn(msg % (section, key))
+    if shadowing.status is SHADOW.ENVIRONMENT:
+        msg = _(b"(unset %s to use --set on '%s.%s')\n")
+        ui.warn(msg % (shadowing.source, section, key))
+    else:
+        assert shadowing.status is SHADOW.SAME_LEVEL
+        msg = _(b"(clean your manual config to use --set on '%s.%s')\n")
+        ui.warn(msg % (section, key))
 
 
 def _inject_managed_include(base_content: bytes, target: bytes) -> bytes:

@@ -789,6 +789,29 @@ class ui:
         if root is None:
             root = os.path.expanduser(b'~')
         self.fixconfig(root=root, section=section)
+
+        # the configuration object cannot know about these
+
+        # an environment variable the code reading that item looks up first,
+        # it wins whatever the configuration holds
+        env_var = rcutil.overriding_env_var(section, name)
+        if env_var is not None:
+            return conf_mod.Shadowing(
+                encoding.environ[env_var],
+                b'$%s' % env_var,
+                conf_mod.SHADOW.ENVIRONMENT,
+            )
+        # some configuration items come from the environment, through a
+        # source of their own
+        if (
+            shadowing is not None
+            and shadowing.source in rcutil.env_item_sources()
+        ):
+            return conf_mod.Shadowing(
+                shadowing.value,
+                shadowing.source,
+                conf_mod.SHADOW.ENVIRONMENT,
+            )
         return shadowing
 
     def _data(self, untrusted: bool) -> config.config:
