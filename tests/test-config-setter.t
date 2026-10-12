@@ -171,19 +171,19 @@ Existing hand-written content is preserved when the %include is injected:
 
   $ rm $USER_RC $USER_AUTO_RC
   $ cat > $USER_RC <<EOF
-  > [ui]
+  > [alias]
   > # a hand written comment
-  > username = Test User
+  > config-set-hand-written = value-hand
   > EOF
   $ hg config --set alias.config-set-test-D=value-d
   $ cat $USER_RC
   %include .hgrc-managed (no-windows !)
   %include mercurial-managed.ini (windows !)
-  [ui]
+  [alias]
   # a hand written comment
-  username = Test User
-  $ hg config ui.username
-  Test User
+  config-set-hand-written = value-hand
+  $ hg config alias.config-set-hand-written
+  value-hand
   $ hg config alias.config-set-test-D
   value-d
 
@@ -193,9 +193,9 @@ A later update still does not duplicate the include line:
   $ cat $USER_RC
   %include .hgrc-managed (no-windows !)
   %include mercurial-managed.ini (windows !)
-  [ui]
+  [alias]
   # a hand written comment
-  username = Test User
+  config-set-hand-written = value-hand
 
 Malformed values
 ================
@@ -258,17 +258,17 @@ The include line is moved back to the top if hand edits pushed it further
 down, so hand-written values keep overriding the managed ones:
 
   $ cat > $USER_RC <<EOF
-  > [ui]
-  > username = Test User
+  > [alias]
+  > config-set-hand-written = value-hand
   > %include $AUTO_BASENAME
   > EOF
   $ hg config --set alias.config-set-test-H=value-h
   $ cat $USER_RC
   %include .hgrc-managed (no-windows !)
   %include mercurial-managed.ini (windows !)
-  [ui]
-  username = Test User
+  [alias]
+  config-set-hand-written = value-hand
   $ hg config alias.config-set-test-H
   value-h
-  $ hg config ui.username
-  Test User
+  $ hg config alias.config-set-hand-written
+  value-hand
