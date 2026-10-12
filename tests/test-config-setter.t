@@ -522,3 +522,9 @@ debug level.
   >    | grep shadowed
   new value for 'alias.config-set-test-hand' is shadowed by $TESTTMP/*:6 (glob)
 
+no warning with --quiet
+-----------------------
+
+  $ hg config --quiet --set alias.config-set-test-hand=from-set-quiet
+  $ hg config alias.config-set-test-hand
+  hand-written

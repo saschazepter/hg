@@ -233,7 +233,7 @@ def _report_if_shadowed(
 
     This is a sub section of `set_config` extracted for readability.
     """
-    if shadowing is None:
+    if shadowing is None or ui.quiet:
         return
     s_value, s_source, _s_level = shadowing
     shadow_msg = _(b"new value for '%s.%s' is shadowed by %s\n")
