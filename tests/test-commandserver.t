@@ -1023,14 +1023,14 @@ cases.
   ... def abort(server):
   ...     readchannel(server)
   ...     runcommand(server, [b'commit',
-  ...                         b'--config', b'devel.debug.abort-transaction=abort-post-finalize',
+  ...                         b'--config', b'devel.debug.abort-transaction=post-finalize',
   ...                         b'-mfoo'])
   ...     runcommand(server, [b'log'])
   ...     runcommand(server, [b'verify', b'-q'])
-  *** runcommand commit --config devel.debug.abort-transaction=abort-post-finalize -mfoo
+  *** runcommand commit --config devel.debug.abort-transaction=post-finalize -mfoo
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
    [255]
   *** runcommand log
   *** runcommand verify -q
@@ -1068,14 +1068,14 @@ cases.
   ... def abort(server):
   ...     readchannel(server)
   ...     runcommand(server, [b'commit',
-  ...                         b'--config', b'devel.debug.abort-transaction=abort-post-finalize',
+  ...                         b'--config', b'devel.debug.abort-transaction=post-finalize',
   ...                         b'-mfoo', b'foo'])
   ...     runcommand(server, [b'log'])
   ...     runcommand(server, [b'verify', b'-q'])
-  *** runcommand commit --config devel.debug.abort-transaction=abort-post-finalize -mfoo foo
+  *** runcommand commit --config devel.debug.abort-transaction=post-finalize -mfoo foo
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
    [255]
   *** runcommand log
   0 bar (bar)

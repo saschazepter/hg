@@ -55,8 +55,11 @@ GEN_GROUP_PRE_FINALIZE = b'prefinalize'
 GEN_GROUP_POST_FINALIZE = b'postfinalize'
 
 # Values of the config devel.debug.abort-transaction.
-ABORT_POST_FINALIZE = b'abort-post-finalize'
-KILL_9_POST_FINALIZE = b'kill-9-post-finalize'
+ABORT_POST_FINALIZE = b'post-finalize'
+
+# Values of the config devel.debug.abort-transaction:method.
+ABORT_METHOD_ABORT = b'abort'
+ABORT_METHOD_SIGKILL = b'sigkill'
 
 
 def active(func: _C) -> _C:
@@ -283,6 +286,7 @@ class transaction(util.transactional, itxn.ITransaction):
         checkambigfiles=None,
         name=b'<unnamed>',
         debug_abort=b'',
+        debug_abort_method=ABORT_METHOD_ABORT,
     ):
         """Begin a new transaction
 
@@ -298,6 +302,9 @@ class transaction(util.transactional, itxn.ITransaction):
         for corresponded files.
 
         `debug_abort` is a value of the config devel.debug.abort-transaction.
+
+        `debug_abort_method` is a value of the config
+        devel.debug.abort-transaction:method.
         """
         self._count = 1
         self._usages = 1
@@ -326,6 +333,7 @@ class transaction(util.transactional, itxn.ITransaction):
 
         self._names = [name]
         self._debug_abort = debug_abort
+        self._debug_abort_method = debug_abort_method
 
         # A dict dedicated to precisely tracking the changes introduced in the
         # transaction.
@@ -779,10 +787,7 @@ class transaction(util.transactional, itxn.ITransaction):
             ):
                 self._generatefiles(group=GEN_GROUP_POST_FINALIZE)
 
-            if self._debug_abort == ABORT_POST_FINALIZE:
-                raise error.Abort(_(b"requested %s" % ABORT_POST_FINALIZE))
-            elif self._debug_abort == KILL_9_POST_FINALIZE:
-                procutil.kill_self()
+            self._maybe_debug_abort(ABORT_POST_FINALIZE)
 
         self._count -= 1
         if self._count != 0:
@@ -849,6 +854,18 @@ class transaction(util.transactional, itxn.ITransaction):
                 self._postclosecallback[cat](self)
             # Prevent double usage and help clear cycles.
             self._postclosecallback = None
+
+    def _maybe_debug_abort(self, location: bytes) -> None:
+        if self._debug_abort != location:
+            return
+        if self._debug_abort_method == ABORT_METHOD_ABORT:
+            raise error.Abort(_(b"requested abort at %s") % location)
+        elif self._debug_abort_method == ABORT_METHOD_SIGKILL:
+            procutil.kill_self()
+        else:
+            raise error.ProgrammingError(
+                b"unknown abort method: %s" % self._debug_abort_method
+            )
 
     @active
     def abort(self) -> None:

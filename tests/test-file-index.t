@@ -447,10 +447,10 @@ Manual rollback, new file
   .hg/store/fileindex-tree.* (glob)
 
 Abort transaction, same file
-  $ hg commit -qAm 1 --config devel.debug.abort-transaction=abort-post-finalize --config devel.fileindex.vacuum-mode=never
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=post-finalize --config devel.fileindex.vacuum-mode=never
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
@@ -461,10 +461,10 @@ Abort transaction, same file
   .hg/store/fileindex-tree.* (glob)
 
 Abort transaction, new file
-  $ hg commit -qAm 1 --config devel.debug.abort-transaction=abort-post-finalize --config devel.fileindex.vacuum-mode=always
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=post-finalize --config devel.fileindex.vacuum-mode=always
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
   $ test "$original_id" = "$(hg debug::file-index --docket -T '{tree_file_id}')"
   $ hg debug::file-index
@@ -475,7 +475,7 @@ Abort transaction, new file
   .hg/store/fileindex-tree.* (glob)
 
 Recover transaction, same file
-  $ hg commit -qAm 1 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.fileindex.vacuum-mode=never || echo exit=$?
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=post-finalize --config devel.debug.abort-transaction:method=sigkill --config devel.fileindex.vacuum-mode=never || echo exit=$?
   *Killed* (glob) (no-chg !)
   exit=137 (no-chg !)
   exit=255 (chg !)
@@ -496,7 +496,7 @@ Recover transaction, same file
 
 Recover transaction, new file
   $ id=$(hg debug::file-index --docket -T '{tree_file_id}')
-  $ hg commit -qAm 1 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.fileindex.vacuum-mode=always || echo exit=$?
+  $ hg commit -qAm 1 --config devel.debug.abort-transaction=post-finalize --config devel.debug.abort-transaction:method=sigkill --config devel.fileindex.vacuum-mode=always || echo exit=$?
   *Killed* (glob) (no-chg !)
   exit=137 (no-chg !)
   exit=255 (chg !)

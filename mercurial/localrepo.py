@@ -2574,6 +2574,9 @@ class localrepository(_localrepo_base_classes):
             checkambigfiles=cachedfiles,
             name=desc,
             debug_abort=self.ui.config(b'devel', b'debug.abort-transaction'),
+            debug_abort_method=self.ui.config(
+                b'devel', b'debug.abort-transaction:method'
+            ),
         )
         for vfs, path in self._journalfiles():
             tr.add_journal(vfs, path)

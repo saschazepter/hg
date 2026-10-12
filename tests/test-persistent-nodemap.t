@@ -540,10 +540,10 @@ The C implementation cannot do incremental updates.
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
-  $ hg ci -m a3 --config devel.debug.abort-transaction=abort-post-finalize --config devel.persistent-nodemap.vacuum-mode=never
+  $ hg ci -m a3 --config devel.debug.abort-transaction=post-finalize --config devel.persistent-nodemap.vacuum-mode=never
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
   $ hg debugnodemap --metadata
   uid: ???????? (glob)
@@ -566,10 +566,10 @@ Check that a failing transaction will properly revert the data (vacuum-mode=alwa
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
   .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
-  $ hg ci -m a3 --config devel.debug.abort-transaction=abort-post-finalize --config devel.persistent-nodemap.vacuum-mode=always
+  $ hg ci -m a3 --config devel.debug.abort-transaction=post-finalize --config devel.persistent-nodemap.vacuum-mode=always
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
   $ hg debugnodemap --metadata
   uid: ???????? (glob)
@@ -600,7 +600,7 @@ The C implementation cannot do incremental updates.
   $ f --size --sha256 .hg/store/00changelog-*.nd
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
-  $ hg ci -m a3 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.persistent-nodemap.vacuum-mode=never || echo exit=$?
+  $ hg ci -m a3 --config devel.debug.abort-transaction=post-finalize --config devel.debug.abort-transaction:method=sigkill --config devel.persistent-nodemap.vacuum-mode=never || echo exit=$?
   *Killed* (glob) (no-chg !)
   exit=137 (no-chg !)
   exit=255 (chg !)
@@ -628,7 +628,7 @@ Check that we can recover from an abandoned transaction (vacuum-mode=always)
   .hg/store/00changelog-????????.nd: size=121536, sha256=bb414468d225cf52d69132e1237afba34d4346ee2eb81b505027e6197b107f03 (glob) (pure !)
   .hg/store/00changelog-????????.nd: size=121536, sha256=909ac727bc4d1c0fda5f7bff3c620c98bd4a2967c143405a1503439e33b377da (glob) (rust !)
   .hg/store/00changelog-????????.nd: size=121088, sha256=342d36d30d86dde67d3cb6c002606c4a75bcad665595d941493845066d9c8ee0 (glob) (no-pure no-rust !)
-  $ hg ci -m a3 --config devel.debug.abort-transaction=kill-9-post-finalize --config devel.persistent-nodemap.vacuum-mode=always || echo exit=$?
+  $ hg ci -m a3 --config devel.debug.abort-transaction=post-finalize --config devel.debug.abort-transaction:method=sigkill --config devel.persistent-nodemap.vacuum-mode=always || echo exit=$?
   *Killed* (glob) (no-chg !)
   exit=137 (no-chg !)
   exit=255 (chg !)
@@ -689,7 +689,7 @@ Check aborted pull into a new repo with pretxnchangegroup hook
 --------------------------------------------------------------
 
   $ hg init ../test-repo-clone
-  $ hg -R ../test-repo-clone pull . --config devel.debug.abort-transaction=abort-post-finalize --config hooks.pretxnchangegroup=true
+  $ hg -R ../test-repo-clone pull . --config devel.debug.abort-transaction=post-finalize --config hooks.pretxnchangegroup=true
   pulling from .
   requesting all changes
   adding changesets
@@ -697,7 +697,7 @@ Check aborted pull into a new repo with pretxnchangegroup hook
   adding file changes
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
 
 Check race condition when multiple process write new data to the repository

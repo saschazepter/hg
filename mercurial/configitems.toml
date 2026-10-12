@@ -519,12 +519,20 @@ default = false
 section = "devel"
 name = "debug.abort-transaction"
 default = ""
-documentation = """If set to one of the listed values, all transactions will
-abort. This is used to test transaction rollback and recovery. Possible values:
-- ``abort-post-finalize``: abort the transaction normally after finalization but
-  before closing the transaction, causing a rollback
-- ``kill-9-post-finalize``: like abort-post-finalize but kill the process with
-  SIGKILL (9), leaving an abandoned transaction on disk
+documentation = """If set to one of the listed locations, all transactions will
+abort there, using the method in ``devel.debug.abort-transaction:method``. This
+is used to test transaction rollback and recovery. Possible values:
+- ``post-finalize``: after finalization but before closing the transaction
+"""
+
+[[items]]
+section = "devel"
+name = "debug.abort-transaction:method"
+default = "abort"
+documentation = """How to abort for ``devel.debug.abort-transaction``.
+Possible values:
+- ``abort`` (default): raise an error, causing a normal rollback
+- ``sigkill``: kill the process with SIGKILL (9)
 """
 
 [[items]]

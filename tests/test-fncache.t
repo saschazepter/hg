@@ -268,10 +268,10 @@ Aborting lock does not prevent fncache writes
 Aborting transaction prevents fncache change
 
   $ touch z
-  $ hg ci -qAm z --config devel.debug.abort-transaction=abort-post-finalize
+  $ hg ci -qAm z --config devel.debug.abort-transaction=post-finalize
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
   $ cat .hg/store/fncache
   data/y.i
@@ -283,7 +283,7 @@ Aborted transactions can be recovered later
 # Cannot rely on the return code value as chg use a different one.
 # So we use a `|| echo` trick
 # XXX-CHG fixing chg behavior would be nice here.
-  $ hg ci -qAm z --config devel.debug.abort-transaction=kill-9-post-finalize \
+  $ hg ci -qAm z --config devel.debug.abort-transaction=post-finalize --config devel.debug.abort-transaction:method=sigkill \
   > || echo "He's Dead, Jim." 2>/dev/null
   *Killed* (glob) (?)
   He's Dead, Jim.

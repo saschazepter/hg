@@ -492,10 +492,10 @@ Fail a commit that appended to the data file
 
   $ hg commit -qm appended \
   >   --config devel.dirstate.v2.data_update_mode=force-append \
-  >   --config devel.debug.abort-transaction=abort-post-finalize
+  >   --config devel.debug.abort-transaction=post-finalize
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
   $ check_undone
   dirstate preserved
@@ -505,10 +505,10 @@ Fail a commit that replaced the data file
 
   $ hg commit -qm rewritten \
   >   --config devel.dirstate.v2.data_update_mode=force-new \
-  >   --config devel.debug.abort-transaction=abort-post-finalize
+  >   --config devel.debug.abort-transaction=post-finalize
   transaction abort!
   rollback completed
-  abort: requested abort-post-finalize
+  abort: requested abort at post-finalize
   [255]
   $ check_undone
   dirstate preserved
