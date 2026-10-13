@@ -91,7 +91,7 @@ class NarrowInfo:
     """Matches files for this narrow view of the store"""
 
     fingerprint = attr.ib(
-        type=Optional[shapemod.ShapeFingerprint],
+        type=Optional[shapemod.Fingerprint],
         default=None,
     )
     """Fingerprint for a shape or shard, corresponding to self.matcher"""

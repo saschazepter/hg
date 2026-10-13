@@ -484,7 +484,7 @@ def _debugbundle2(ui, gen, all=None, **opts):
                 params[b'shard-id'] = fp.to_text()
             elif b"store-fingerprint" in params:
                 store_fp = params[b'store-fingerprint']
-                fp = shape_mod.ShardFingerprint.from_bytes(store_fp)
+                fp = shape_mod.ShapeFingerprint.from_bytes(store_fp)
                 params[b'store-fingerprint'] = fp.to_text()
         ui.writenoi18n(msg % (part.type, _quasirepr(params), part.mandatory))
         if part.type == b'changegroup':

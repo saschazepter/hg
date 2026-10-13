@@ -1787,7 +1787,7 @@ def write_repo_sharded_stream_bundles(
                 matcher,
                 match_top_level_entries,
             ) = info
-            fingerprint = shape_py.ShapeFingerprint(raw_fingerprint)
+            fingerprint = shape_py.ShardFingerprint(raw_fingerprint)
             filename = b"hg-sharded-%s-%s.hg" % (
                 bundle_group_id,
                 fingerprint.to_text(),
