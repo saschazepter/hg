@@ -101,3 +101,56 @@ The change is uncommitted in the working copy
   M a
 
   $ cd ..
+
+Test pre-setup-undo abort
+-------------------------
+
+If we abort at pre-setup-undo, it hits a ProgrammingError.
+TODO: fix this.
+
+  $ hg clone -q base pre-setup-undo-abort
+  $ cd pre-setup-undo-abort
+  $ echo change > a
+  $ hg commit -m change --config devel.debug.abort-transaction=pre-setup-undo 2>&1 \
+  >   | grep -E '^(abort|mercurial\.error)'
+  abort: requested abort at pre-setup-undo
+  mercurial.error.ProgrammingError: cannot use transaction when it is already committed/aborted (no-chg !)
+
+It left an abandoned transaction, and we can recover
+  $ hg recover
+  rolling back interrupted transaction
+  (verify step skipped, run `hg verify` to check your repository content)
+
+The change is uncommitted in the working copy
+  $ hg log -T '{rev}: {desc}\n'
+  0: 0
+  $ hg status
+  M a
+
+  $ cd ..
+
+Test pre-setup-undo SIGKILL
+---------------------------
+
+If we send SIGKILL at pre-setup-undo, hg leaves an abandoned transaction on
+disk. We can recover from that by running `hg recover`.
+
+  $ hg clone -q base pre-setup-undo-sigkill
+  $ cd pre-setup-undo-sigkill
+  $ echo change > a
+  $ hg commit -m change --config devel.debug.abort-transaction=pre-setup-undo \
+  >   --config devel.debug.abort-transaction:method=sigkill || echo exit=$?
+  *Killed* (glob) (no-chg !)
+  exit=137 (no-chg !)
+  exit=255 (chg !)
+  $ hg recover
+  rolling back interrupted transaction
+  (verify step skipped, run `hg verify` to check your repository content)
+
+The change is uncommitted in the working copy
+  $ hg log -T '{rev}: {desc}\n'
+  0: 0
+  $ hg status
+  M a
+
+  $ cd ..

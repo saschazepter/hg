@@ -57,6 +57,7 @@ GEN_GROUP_POST_FINALIZE = b'postfinalize'
 
 # Values of the config devel.debug.abort-transaction.
 ABORT_POST_FINALIZE = b'post-finalize'
+ABORT_PRE_SETUP_UNDO = b'pre-setup-undo'
 
 # Values of the config devel.debug.abort-transaction:method.
 ABORT_METHOD_ABORT = b'abort'
@@ -814,6 +815,7 @@ class transaction(util.transactional, itxn.ITransaction):
                         msg = b"couldn't remove %s: %s\n"
                         self._report(msg % (vfs.join(b), inst))
 
+        self._maybe_debug_abort(ABORT_PRE_SETUP_UNDO)
         with util.rust_tracing_span("transaction.close.setup-undo"):
             self._offsetmap = {}
             self._newfiles = set()

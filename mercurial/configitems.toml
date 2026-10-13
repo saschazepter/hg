@@ -523,6 +523,7 @@ documentation = """If set to one of the listed locations, all transactions will
 abort there, using the method in ``devel.debug.abort-transaction:method``. This
 is used to test transaction rollback and recovery. Possible values:
 - ``post-finalize``: after finalization but before closing the transaction
+- ``pre-setup-undo``: before setting up undo files
 """
 
 [[items]]
