@@ -411,6 +411,37 @@ configs should be read in lexicographical order
   $ HGRCPATH=configs hg config section.key
   99
 
+Extra system level location for testing
+=======================================
+
+`HGTEST_EXTRA_SYSTEMRCPATH` adds a configuration location at the system
+level, read before the other ones. It exists so that tests can write at
+that level, whose usual location belongs to the installation.
+
+  $ mkdir $TESTTMP/extra-system
+  $ cat > $TESTTMP/extra-system/hgrc << EOF
+  > [test-extra-system]
+  > value = from-system
+  > EOF
+
+The system level is only read when HGRCPATH does not take over the whole
+configuration, so we put it aside for this section.
+
+  $ BCK_HGRCPATH="$HGRCPATH"
+  $ unset HGRCPATH
+  $ hg config test-extra-system.value
+  [1]
+  $ HGTEST_EXTRA_SYSTEMRCPATH=$TESTTMP/extra-system \
+  >     hg config test-extra-system.value --source
+  $TESTTMP/extra-system/hgrc:2: from-system (glob)
+  $ HGRCPATH="$BCK_HGRCPATH"; export HGRCPATH
+
+It is ignored when HGRCPATH is in use.
+
+  $ HGTEST_EXTRA_SYSTEMRCPATH=$TESTTMP/extra-system \
+  >     hg config test-extra-system.value
+  [1]
+
 Listing all config options
 ==========================
 

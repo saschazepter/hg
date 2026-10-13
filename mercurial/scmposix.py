@@ -47,6 +47,10 @@ def systemrcpath() -> list[bytes]:
         root = b'lib/mercurial'
     else:
         root = b'etc/mercurial'
+    # testing hook: an extra system level location, read before the others
+    extra = encoding.environ.get(b'HGTEST_EXTRA_SYSTEMRCPATH')
+    if extra:
+        path.extend(_rcfiles(extra))
     # old mod_python does not set sys.argv
     if len(getattr(sys, 'argv', [])) > 0:
         p = os.path.dirname(os.path.dirname(pycompat.sysargv[0]))

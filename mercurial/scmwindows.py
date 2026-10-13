@@ -26,6 +26,12 @@ fallbackpager = b'more'
 def systemrcpath() -> list[bytes]:
     '''return default os-specific hgrc search path'''
     rcpath = []
+    # testing hook: an extra system level location, read before the others
+    extra = encoding.environ.get(b'HGTEST_EXTRA_SYSTEMRCPATH')
+    if extra:
+        # "hgrc", as %PROGRAMDATA% accepts below and as the other platforms
+        # use, so that tests need not care about the local spelling.
+        rcpath.append(os.path.join(extra, b'hgrc'))
     filename = win32.executablepath()
     # Use mercurial.ini found in directory with hg.exe
     progrc = os.path.join(os.path.dirname(filename), b'mercurial.ini')
