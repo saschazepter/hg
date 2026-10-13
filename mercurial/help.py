@@ -765,7 +765,7 @@ def sub_config_item_help(ui: uimod.ui, doc: bytes) -> bytes:
 
 
 def _getcategorizedhelpcmds(
-    ui: uimod.ui, cmdtable, name: bytes, select: _SelectFn | None = None
+    ui: uimod.ui, cmdtable, name: bytes | None, select: _SelectFn | None = None
 ) -> tuple[dict[bytes, list[bytes]], dict[bytes, bytes], _SynonymTable]:
     # Category -> list of commands
     cats = {}
@@ -773,6 +773,8 @@ def _getcategorizedhelpcmds(
     h = {}
     # Command -> string showing synonyms
     syns = {}
+    if name is None:
+        name = b''
     for c, e in cmdtable.items():
         fs = cmd_finder.parse_aliases(c)
         f = fs[0]
