@@ -154,3 +154,54 @@ The change is uncommitted in the working copy
   M a
 
   $ cd ..
+
+Test post-setup-undo abort
+--------------------------
+
+If we abort at post-setup-undo, it hits a ProgrammingError.
+TODO: fix this.
+
+  $ hg clone -q base post-setup-undo-abort
+  $ cd post-setup-undo-abort
+  $ echo change > a
+  $ hg commit -m change --config devel.debug.abort-transaction=post-setup-undo 2>&1 \
+  >   | grep -E '^(abort|mercurial\.error)'
+  abort: requested abort at post-setup-undo
+  mercurial.error.ProgrammingError: cannot use transaction when it is already committed/aborted (no-chg !)
+  $ hg recover
+  no interrupted transaction available
+  [1]
+
+Despite the ProgrammingError, the change was committed
+  $ hg log -T '{rev}: {desc}\n'
+  1: change
+  0: 0
+  $ hg status
+
+  $ cd ..
+
+Test post-setup-undo SIGKILL
+----------------------------
+
+If we send SIGKILL at post-setup-undo, then we skip some final steps, but the
+journal is gone so the transaction appears done. There is nothing to recover.
+
+  $ hg clone -q base post-setup-undo-sigkill
+  $ cd post-setup-undo-sigkill
+  $ echo change > a
+  $ hg commit -m change --config devel.debug.abort-transaction=post-setup-undo \
+  >   --config devel.debug.abort-transaction:method=sigkill || echo exit=$?
+  *Killed* (glob) (no-chg !)
+  exit=137 (no-chg !)
+  exit=255 (chg !)
+  $ hg recover
+  no interrupted transaction available
+  [1]
+
+The change was committed
+  $ hg log -T '{rev}: {desc}\n'
+  1: change
+  0: 0
+  $ hg status
+
+  $ cd ..

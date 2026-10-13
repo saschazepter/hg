@@ -58,6 +58,7 @@ GEN_GROUP_POST_FINALIZE = b'postfinalize'
 # Values of the config devel.debug.abort-transaction.
 ABORT_POST_FINALIZE = b'post-finalize'
 ABORT_PRE_SETUP_UNDO = b'pre-setup-undo'
+ABORT_POST_SETUP_UNDO = b'post-setup-undo'
 
 # Values of the config devel.debug.abort-transaction:method.
 ABORT_METHOD_ABORT = b'abort'
@@ -823,6 +824,8 @@ class transaction(util.transactional, itxn.ITransaction):
             if self._after:
                 self._after()
                 self._after = None  # Help prevent cycles.
+        self._maybe_debug_abort(ABORT_POST_SETUP_UNDO)
+        with util.rust_tracing_span("transaction.close.remove-journal"):
             if self._opener.isfile(self._backupjournal):
                 self._opener.unlink(self._backupjournal)
             if self._opener.isfile(self._journal):
