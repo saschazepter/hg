@@ -89,12 +89,16 @@ type PyNarrowPatterns = (Vec<Py<PyBytes>>, Vec<Py<PyBytes>>);
 /// its type
 #[derive(IntoPyObject)]
 pub struct PyFingerprint {
+    version: u8,
     digest: Vec<u8>,
 }
 
 impl From<Fingerprint> for PyFingerprint {
     fn from(fingerprint: Fingerprint) -> Self {
-        Self { digest: fingerprint.digest().to_vec() }
+        Self {
+            version: fingerprint.version(),
+            digest: fingerprint.digest().to_vec(),
+        }
     }
 }
 

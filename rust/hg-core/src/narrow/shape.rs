@@ -719,6 +719,9 @@ impl TempShardTreeNode {
     }
 }
 
+/// The version of the fingerprint computation that we currently produce
+pub const FINGERPRINT_VERSION: u8 = 0;
+
 /// What is identified by a given [`Fingerprint`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FingerprintKind {
@@ -731,6 +734,9 @@ pub enum FingerprintKind {
 /// Identifies a given set of files in the store. Two semantically equivalent
 /// shapes (or shards) have the same fingerprint.
 ///
+/// Fingerprinting can be evolved over time, so it is tagged with the version
+/// of the computation that produced it.
+///
 /// There are two representations:
 ///   - The digest (see [`Self::digest`]), used for storage, exchange and any
 ///     internal manipulation
@@ -740,6 +746,8 @@ pub enum FingerprintKind {
 pub struct Fingerprint {
     /// What this fingerprint identifies
     kind: FingerprintKind,
+    /// The version of the computation that produced [`Self::digest`]
+    version: u8,
     /// The hash of the normalized shape
     digest: [u8; Self::DIGEST_SIZE],
 }
@@ -753,7 +761,13 @@ impl Fingerprint {
         self.kind
     }
 
-    /// The hash of the normalized shape
+    /// The version of the computation that produced this fingerprint
+    pub fn version(&self) -> u8 {
+        self.version
+    }
+
+    /// The hash of the normalized shape, computed according to
+    /// [`Self::version`]
     pub fn digest(&self) -> &[u8; Self::DIGEST_SIZE] {
         &self.digest
     }
@@ -977,6 +991,7 @@ impl ShardTreeNode {
         self.serialize(&mut hasher).expect("writing to a hasher never fails");
         Fingerprint {
             kind: FingerprintKind::Shape,
+            version: FINGERPRINT_VERSION,
             digest: hasher.finalize().into(),
         }
     }
@@ -1313,8 +1328,10 @@ mod tests {
         let mut digest = [0; Fingerprint::DIGEST_SIZE];
         digest[0] = 0xab;
         digest[31] = 0x01;
-        let fingerprint = Fingerprint { kind: FingerprintKind::Shape, digest };
+        let fingerprint =
+            Fingerprint { kind: FingerprintKind::Shape, version: 0, digest };
         assert_eq!(fingerprint.kind(), FingerprintKind::Shape);
+        assert_eq!(fingerprint.version(), 0);
         assert_eq!(fingerprint.digest(), &digest);
         assert_eq!(fingerprint.to_string(), TEXT);
         assert_eq!(fingerprint.to_text_bytes(), TEXT.as_bytes());
@@ -1322,11 +1339,19 @@ mod tests {
         // Same digest, different kind: not the same fingerprint
         let shard_fingerprint = fingerprint.as_shard();
         assert_eq!(shard_fingerprint.kind(), FingerprintKind::Shard);
+        assert_eq!(shard_fingerprint.version(), 0);
         assert_eq!(shard_fingerprint.digest(), &digest);
         assert_ne!(shard_fingerprint, fingerprint);
 
+        // Same digest, different version: not the same fingerprint either
+        let fingerprint_v12 = Fingerprint { version: 12, ..fingerprint };
+        assert_eq!(fingerprint_v12.version(), 12);
+        assert_eq!(fingerprint_v12.digest(), &digest);
+        assert_ne!(fingerprint_v12, fingerprint);
+
         let tree = ShardTreeNode::from_patterns(&[], &[]).unwrap();
         assert_eq!(tree.fingerprint().kind(), FingerprintKind::Shape);
+        assert_eq!(tree.fingerprint().version(), FINGERPRINT_VERSION);
     }
 
     #[test]

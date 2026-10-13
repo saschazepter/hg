@@ -190,6 +190,9 @@ class FingerprintT(abc.ABC):
     TARGET: bytes
     """used for error and debug"""
 
+    version: int
+    """The version of the computation that produced `digest`"""
+
     digest: bytes
     """The hash of the normalized shape"""
 

@@ -37,6 +37,8 @@ else:
 rustmod = policy.importrust("shape")
 
 
+# The version of the fingerprint computation that we currently produce
+FINGERPRINT_VERSION = 0
 # Size in bytes of the digest of a fingerprint
 FINGERPRINT_DIGEST_SIZE = 32
 # Validator regex for a text representation of a fingerprint
@@ -55,10 +57,16 @@ class Fingerprint(FingerprintT):
     """Identifies a given set of files in the store. Two semantically
     equivalent shapes (or shards) have the same fingerprint.
 
+    Fingerprinting can be evolved over time, so it is tagged with the version
+    of the computation that produced it.
+
     The text form (see `to_text`) is only used for user-facing things."""
 
     TARGET: str
     """used for error and debug"""
+
+    version = attr.ib(type=int)
+    """The version of the computation that produced `digest`"""
 
     digest = attr.ib(type=bytes, validator=_check_digest)
     """The hash of the normalized shape"""
@@ -70,12 +78,12 @@ class Fingerprint(FingerprintT):
     @classmethod
     def from_bytes(cls, data: bytes) -> typing.Self:
         """Parse the binary form of a fingerprint of the given `kind`"""
-        return cls(data)
+        return cls(0, data)
 
     def to_text(self) -> bytes:
         r"""The textual form of this fingerprint: its hexadecimal digest
 
-        >>> ShapeFingerprint(b'\xab' * 32).to_text()
+        >>> ShapeFingerprint(0, b'\xab' * 32).to_text()
         b'abababababababababababababababababababababababababababababababab'
         """
         return hex(self.digest)
@@ -88,7 +96,7 @@ class Fingerprint(FingerprintT):
         fingerprint.
 
         >>> fp = ShapeFingerprint.from_text(b'ab' * 32)
-        >>> fp == ShapeFingerprint(b'\xab' * 32)
+        >>> fp == ShapeFingerprint(0, b'\xab' * 32)
         True
         >>> for invalid in [b'', b'abc', b'ab' * 31, b'ab' * 33, b'zz' * 32,
         ...                 b'AB' * 32, b'ab' * 32 + b' ']:
@@ -104,7 +112,7 @@ class Fingerprint(FingerprintT):
         ValueError: not a shard fingerprint: b'abc'
         """
         if _FINGERPRINT_TEXT_RE.fullmatch(text) is not None:
-            return cls(bin(text))
+            return cls(0, bin(text))
         msg = "not a %s fingerprint: %r"
         raise ValueError(msg % (cls.TARGET, text))
 
@@ -258,7 +266,7 @@ class ShardTreeNode:
             buf.append(b"%s%s\n" % (prefix, path))
 
         digest = hashlib.sha256(b"".join(buf)).digest()
-        return ShapeFingerprint(digest)
+        return ShapeFingerprint(FINGERPRINT_VERSION, digest)
 
 
 # Magic marker to help identify the format easily
