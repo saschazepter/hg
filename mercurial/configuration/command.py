@@ -142,6 +142,32 @@ def _managed_sibling(path: bytes) -> bytes:
     return core + MANAGED_SUFFIX + ext
 
 
+def _higher_level_boundaries(
+    repo,
+    level: ConfigLevelT,
+) -> list[tuple[ConfigLevelT, bytes]]:
+    """each configuration level read after `level`, with its first file
+
+    In read order. A definition from one of these files, or from anything
+    read after it, belongs to that higher configuration level, where
+    overriding the value we write is legitimate.
+    """
+    repo_path = None
+    if repo is not None:
+        repo_path = repo.root
+    boundaries = []
+    seen = set()
+    passed_level = False
+    for lvl, rc_type, value in rcutil.all_rc_components(repo_path):
+        if lvl == level:
+            passed_level = True
+        elif passed_level and rc_type == b'path' and lvl not in seen:
+            assert isinstance(value, bytes)
+            seen.add(lvl)
+            boundaries.append((lvl, value))
+    return boundaries
+
+
 def set_config(
     ui: uimod.ui,
     repo,
