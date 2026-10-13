@@ -649,10 +649,14 @@ def wire_store_shape_decode(
     tuple[set[bytes], set[bytes]],
 ]:
     """decode the three blocks used by `store_shape` wireprotocol command"""
+    if rustmod is not None:
+        patterns = rustmod.deserialize_patterns(patterns_block)
+    else:
+        patterns = _deserialize_patterns(patterns_block)
     return (
         _decode_fingerprints(fingerprints_block),
         _decode_shards_sets(shards_sets_block),
-        _deserialize_patterns(patterns_block),
+        patterns,
     )
 
 

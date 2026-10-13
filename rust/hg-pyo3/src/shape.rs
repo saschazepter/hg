@@ -233,6 +233,28 @@ fn deserialize(py: Python, serialized: &[u8]) -> PyResult<PyNarrowPatterns> {
     Ok(patterns_to_python(py, includes, excludes))
 }
 
+/// The includes and excludes of a "patterns block", as Python sets, see
+/// [`ShardTreeNode::deserialize_patterns`]
+#[pyfunction]
+fn deserialize_patterns<'py>(
+    py: Python<'py>,
+    serialized: &[u8],
+) -> PyResult<(Bound<'py, PySet>, Bound<'py, PySet>)> {
+    let (includes, excludes) =
+        ShardTreeNode::deserialize_patterns(serialized).into_pyerr(py)?;
+    Ok((
+        paths_to_python_set(py, &includes)?,
+        paths_to_python_set(py, &excludes)?,
+    ))
+}
+
+fn paths_to_python_set<'py>(
+    py: Python<'py>,
+    paths: &[HgPathBuf],
+) -> PyResult<Bound<'py, PySet>> {
+    PySet::new(py, paths.iter().map(|path| path.as_bytes()))
+}
+
 /// Return the fingerprint for the given include and exclude patterns. Returns
 /// `None` if we're unable to get a fingerprint.
 #[pyfunction]
@@ -280,6 +302,7 @@ pub fn init_module<'py>(
     m.add_function(wrap_pyfunction!(get_store_shards_from_bytes, &m)?)?;
     m.add_function(wrap_pyfunction!(fingerprint_for_patterns, &m)?)?;
     m.add_function(wrap_pyfunction!(deserialize, &m)?)?;
+    m.add_function(wrap_pyfunction!(deserialize_patterns, &m)?)?;
 
     Ok(m)
 }

@@ -30,6 +30,7 @@ use crate::utils::hg_path::HgPathBuf;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::hg_path::ZeroPath;
+use crate::utils::u32_u;
 use crate::utils::u64_u;
 
 lazy_static! {
@@ -83,12 +84,23 @@ pub enum ErrorKind {
 pub enum DeserializationError {
     /// Missing/incorrect magic marker
     InvalidMarker,
-    /// Missing/Invalid number of paths
-    InvalidLength,
+    /// Length of the data does not match the header
+    InvalidLength {
+        /// Size in bytes, according to the header. This is a lower bound if
+        /// the header itself is truncated.
+        expected: usize,
+        /// The actual size in bytes
+        got: usize,
+    },
     /// Missing/Invalid path prefix
     InvalidPrefix {
         /// The raw prefix bytes
         prefix: Vec<u8>,
+    },
+    /// A path that cannot be a path in the repository
+    InvalidPath {
+        /// The raw path bytes
+        path: Vec<u8>,
     },
     /// More paths found in the data than expected
     TooManyPaths {
@@ -1099,6 +1111,70 @@ impl ShardTreeNode {
         Ok(())
     }
 
+    /// Returns the includes and exclude paths, by doing the reverse operation
+    /// of [`Self::serialize_patterns`]
+    pub fn deserialize_patterns(
+        serialized: &[u8],
+    ) -> Result<(Vec<HgPathBuf>, Vec<HgPathBuf>), Error> {
+        const COUNT_SIZE: usize = size_of::<u32>();
+        const LEN_SIZE: usize = size_of::<u16>();
+
+        let invalid_length =
+            |expected: usize| DeserializationError::InvalidLength {
+                expected,
+                got: serialized.len(),
+            };
+
+        // Validate everything we can from the fixed-size information first
+        let Some((count, rest)) = serialized.split_first_chunk::<COUNT_SIZE>()
+        else {
+            return Err(invalid_length(COUNT_SIZE))?;
+        };
+        let count = u32_u(u32::from_be_bytes(*count));
+
+        let sizes_len = count.saturating_mul(LEN_SIZE);
+        let Some((sizes, paths)) = rest.split_at_checked(sizes_len) else {
+            return Err(invalid_length(COUNT_SIZE + sizes_len))?;
+        };
+        let sizes: Vec<(usize, bool)> = sizes
+            .as_chunks::<LEN_SIZE>()
+            .0
+            .iter()
+            .map(|raw| {
+                let raw = u16::from_be_bytes(*raw);
+                let included = raw & PATTERN_INCLUDED_FLAG != 0;
+                (usize::from(raw & !PATTERN_INCLUDED_FLAG), included)
+            })
+            .collect();
+
+        let paths_len: usize = sizes.iter().map(|(size, _)| size).sum();
+        if paths.len() != paths_len {
+            return Err(invalid_length(COUNT_SIZE + sizes_len + paths_len))?;
+        }
+
+        let mut includes = vec![];
+        let mut excludes = vec![];
+        let mut rest = paths;
+        for (size, included) in sizes {
+            let (path, new_rest) = rest.split_at(size);
+            rest = new_rest;
+            let hg_path = HgPathBuf::from_bytes(path);
+            // `check_state` accepts a trailing slash, a pattern cannot have one
+            if hg_path.check_state().is_err() || path.ends_with(b"/") {
+                return Err(DeserializationError::InvalidPath {
+                    path: path.to_vec(),
+                })?;
+            }
+            if included {
+                includes.push(hg_path);
+            } else {
+                excludes.push(hg_path);
+            }
+        }
+
+        Ok((includes, excludes))
+    }
+
     /// Serialize this node with the following binary format:
     ///
     /// `<HEADER>\n<NUM>\n[<MARKER>/<PATH>\n...]`
@@ -1147,12 +1223,13 @@ impl ShardTreeNode {
             return Err(DeserializationError::InvalidMarker)?;
         };
 
-        let (int_bytes, rest) = rest.split_at(size_of::<u64>());
-        let len = u64::from_le_bytes(
-            int_bytes
-                .try_into()
-                .map_err(|_| DeserializationError::InvalidLength)?,
-        );
+        let Some((int_bytes, rest)) = rest.split_first_chunk::<8>() else {
+            return Err(DeserializationError::InvalidLength {
+                expected: SERIALIZATION_MARKER.len() + 8,
+                got: serialized.len(),
+            })?;
+        };
+        let len = u64::from_le_bytes(*int_bytes);
 
         let mut includes = vec![];
         let mut excludes = vec![];
@@ -1402,6 +1479,12 @@ mod tests {
             let patterns_from_serialized =
                 ShardTreeNode::deserialize(&serialized).unwrap();
             assert_eq!(patterns, patterns_from_serialized);
+
+            let mut block = vec![];
+            internal_shape.tree.serialize_patterns(&mut block).unwrap();
+            let patterns_from_block =
+                ShardTreeNode::deserialize_patterns(&block).unwrap();
+            assert_eq!(patterns, patterns_from_block);
         }
     }
 
@@ -1423,6 +1506,59 @@ mod tests {
             block,
             b"\x00\x00\x00\x04\x00\x00\x80\x03\x00\x07\x80\x05foofoo/barfoo-x"
         );
+
+        let (includes, excludes) =
+            ShardTreeNode::deserialize_patterns(&block).unwrap();
+        let paths = |paths: &[&str]| -> Vec<HgPathBuf> {
+            paths.iter().map(|p| HgPathBuf::from_bytes(p.as_bytes())).collect()
+        };
+        assert_eq!(includes, paths(&["foo", "foo-x"]));
+        assert_eq!(excludes, paths(&["", "foo/bar"]));
+
+        // No paths at all is valid
+        let empty = ShardTreeNode::deserialize_patterns(b"\x00\x00\x00\x00");
+        assert_eq!(empty.unwrap(), (vec![], vec![]));
+    }
+
+    #[test]
+    fn test_patterns_block_errors() {
+        let assert_invalid_length = |data: &[u8], expected: usize| {
+            let err = ShardTreeNode::deserialize_patterns(data).unwrap_err();
+            assert_eq!(
+                *err.kind,
+                ErrorKind::Deserialization(
+                    DeserializationError::InvalidLength {
+                        expected,
+                        got: data.len()
+                    }
+                )
+            );
+        };
+        let assert_invalid_path = |data: &[u8], path: &[u8]| {
+            let err = ShardTreeNode::deserialize_patterns(data).unwrap_err();
+            assert_eq!(
+                *err.kind,
+                ErrorKind::Deserialization(DeserializationError::InvalidPath {
+                    path: path.to_vec()
+                })
+            );
+        };
+        // Truncated count
+        assert_invalid_length(b"", 4);
+        assert_invalid_length(b"\x00\x00\x01", 4);
+        // Truncated sizes
+        assert_invalid_length(b"\x00\x00\x00\x02\x80\x03", 8);
+        // Truncated paths
+        assert_invalid_length(b"\x00\x00\x00\x01\x80\x03fo", 9);
+        // Trailing data
+        assert_invalid_length(b"\x00\x00\x00\x00f", 4);
+        assert_invalid_length(b"\x00\x00\x00\x01\x80\x03fooo", 9);
+
+        // Invalid paths
+        assert_invalid_path(b"\x00\x00\x00\x01\x00\x02/f", b"/f");
+        assert_invalid_path(b"\x00\x00\x00\x01\x00\x02f/", b"f/");
+        assert_invalid_path(b"\x00\x00\x00\x01\x00\x04a//b", b"a//b");
+        assert_invalid_path(b"\x00\x00\x00\x01\x00\x03a\x00b", b"a\x00b");
     }
 
     #[test]
