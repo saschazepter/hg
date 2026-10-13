@@ -44,9 +44,14 @@ Checking the fingerprint of a narrow clone can be done by running::
 
     $ hg admin::narrow-client --store-fingerprint
 
-For now, we guarantee no stability of the fingerprints. Before we take shapes
-out of experimental, we will have a fingerprint versioning scheme, to allow
-for future changes with no confusion.
+Fingerprints are displayed as ``shapeXY-<hex>``, where ``XY`` is the version
+of the fingerprint computation and ``<hex>`` is the resulting hexadecimal
+digest. Shards (see below) have fingerprints too, displayed as
+``shardXY-<hex>``: they are computed the same way, but shards and shapes are
+distinct objects, so the prefix makes it explicit which one a fingerprint
+identifies.
+
+We guarantee no stability of version ``00`` fingerprints.
 
 Shards
 ......

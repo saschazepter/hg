@@ -143,7 +143,7 @@ bogus fingerprint.
   creating ssh peer from handshake results
   sending store_shape command
   abort: fingerprint mismatch for shape 'default'
-  (server: [00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5], client: 00-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
+  (server: [shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5], client: shape00-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
   [255]
 
 Test valid cases
@@ -350,7 +350,7 @@ Update the server shapes to change the fingerprint of this shape
   pulling from $TESTTMP/server
   searching for changes
   abort: fingerprint mismatch for shape 'default'
-  (server: 00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: 00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
   [255]
 #else
   $ hg pull
@@ -358,7 +358,7 @@ Update the server shapes to change the fingerprint of this shape
   searching for changes
   remote: abort: fingerprint mismatch for shape 'default'
   abort: pull failed on remote
-  (server: 00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: 00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
   [100]
 #endif
 
@@ -434,7 +434,7 @@ Update the server shapes to change the fingerprint of this shape
   pulling from $TESTTMP/server
   searching for changes
   abort: fingerprint mismatch for shape 'default'
-  (server: 00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: 00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
   [255]
 #else
   $ hg pull
@@ -442,7 +442,7 @@ Update the server shapes to change the fingerprint of this shape
   searching for changes
   remote: abort: fingerprint mismatch for shape 'default'
   abort: pull failed on remote
-  (server: 00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: 00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
+  (server: shape00-00dfe7451b0897c077166f360d431a57ea09a5279863b00cfe9d60cefa657dea, client: shape00-a51b6c5dbfb838215a64a972c8c297233be7731e12f566dee567fd17ef0cd5c5)
   [100]
 #endif
 

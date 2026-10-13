@@ -208,8 +208,9 @@ class FingerprintT(abc.ABC):
 
     @abc.abstractmethod
     def to_text(self) -> bytes:
-        """The textual form of this fingerprint: the hexadecimal of its
-        version (as one byte) and of its digest, separated by a `-`"""
+        """The textual form of this fingerprint: `shapeXY-<hex>` for a shape
+        and `shardXY-<hex>` for a shard, with `XY` the version as a decimal
+        number padded to two digits and `<hex>` the hexadecimal digest"""
 
     @classmethod
     @abc.abstractmethod

@@ -218,7 +218,7 @@ Add an empty "[exclude]" section
   path:d7
   [exclude]
   $ hg admin::narrow-client --store-fingerprint
-  00-e20aa412c8e6055a5d6ce47acb63a16e95e7f76a66a3d8e08950b5188d702eb5
+  shape00-e20aa412c8e6055a5d6ce47acb63a16e95e7f76a66a3d8e08950b5188d702eb5
 
 Swap the order of the first two includes
 
@@ -234,4 +234,4 @@ Swap the order of the first two includes
   path:d7
   [exclude]
   $ hg admin::narrow-client --store-fingerprint
-  00-e20aa412c8e6055a5d6ce47acb63a16e95e7f76a66a3d8e08950b5188d702eb5
+  shape00-e20aa412c8e6055a5d6ce47acb63a16e95e7f76a66a3d8e08950b5188d702eb5

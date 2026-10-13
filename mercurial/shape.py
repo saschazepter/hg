@@ -43,7 +43,7 @@ FINGERPRINT_VERSION = 0
 FINGERPRINT_DIGEST_SIZE = 32
 # Validator regex for a text representation of a fingerprint
 _FINGERPRINT_TEXT_RE = re.compile(
-    br'([0-9a-f]{2})-([0-9a-f]{%d})' % (2 * FINGERPRINT_DIGEST_SIZE)
+    br'(shape|shard)([0-9]{2,3})-([0-9a-f]{%d})' % (2 * FINGERPRINT_DIGEST_SIZE)
 )
 
 
@@ -66,6 +66,10 @@ class Fingerprint(FingerprintT):
     TARGET: str
     """used for error and debug"""
 
+    TEXT_PREFIX: bytes
+    """The prefix of the text form, making it explicit which kind of object a
+    fingerprint identifies"""
+
     version = attr.ib(type=int)
     """The version of the computation that produced `digest`"""
 
@@ -83,13 +87,21 @@ class Fingerprint(FingerprintT):
         return cls(b2u(data[:1]), data[1:])
 
     def to_text(self) -> bytes:
-        r"""The textual form of this fingerprint: the hexadecimal of its
-        version (as one byte) and of its digest, separated by a `-`
+        r"""The textual form of this fingerprint: `shapeXY-<hex>` for a shape
+        and `shardXY-<hex>` for a shard, with `XY` the version as a decimal
+        number padded to two digits and `<hex>` the hexadecimal digest
 
         >>> ShapeFingerprint(0, b'\xab' * 32).to_text()
-        b'00-abababababababababababababababababababababababababababababababab'
+        b'shape00-abababababababababababababababababababababababababababababababab'
+        >>> ShardFingerprint(0, b'\xab' * 32).to_text()
+        b'shard00-abababababababababababababababababababababababababababababababab'
+        >>> ShapeFingerprint(12, b'\x01' * 32).to_text()
+        b'shape12-0101010101010101010101010101010101010101010101010101010101010101'
+        >>> ShapeFingerprint(255, b'\x01' * 32).to_text()
+        b'shape255-0101010101010101010101010101010101010101010101010101010101010101'
         """
-        return b'%02x-%s' % (self.version, hex(self.digest))
+        prefix = self.TEXT_PREFIX
+        return b'%s%02d-%s' % (prefix, self.version, hex(self.digest))
 
     @classmethod
     def from_text(cls, text: bytes) -> typing.Self:
@@ -98,26 +110,36 @@ class Fingerprint(FingerprintT):
         Raises `ValueError` if `text` is not the textual form of such a
         fingerprint.
 
-        >>> fp = ShapeFingerprint.from_text(b'0c-' + b'ab' * 32)
+        >>> fp = ShapeFingerprint.from_text(b'shape12-' + b'ab' * 32)
         >>> fp == ShapeFingerprint(12, b'\xab' * 32)
         True
-        >>> for invalid in [b'', b'abc', b'ab' * 33, b'00-' + b'ab' * 31,
-        ...                 b'00-' + b'ab' * 33, b'00-' + b'zz' * 32,
-        ...                 b'00-' + b'AB' * 32, b'00-' + b'ab' * 32 + b' ']:
+        >>> fp = ShapeFingerprint.from_text(b'shape255-' + b'01' * 32)
+        >>> fp == ShapeFingerprint(255, b'\x01' * 32)
+        True
+        >>> for invalid in [b'', b'abab', b'shape00-', b'shape00-' + b'ab' * 31,
+        ...                 b'shape00-' + b'ab' * 33, b'shape00-' + b'AB' * 32,
+        ...                 b'shape00-' + b'ab' * 32 + b' ',
+        ...                 b'shape00:' + b'ab' * 32, b'shape-' + b'ab' * 32,
+        ...                 b'shape0-' + b'ab' * 32, b'shape256-' + b'ab' * 32,
+        ...                 b'shape012-' + b'ab' * 32, b'00-' + b'ab' * 32,
+        ...                 b'shard00-' + b'ab' * 32]:
         ...     try:
         ...         ShapeFingerprint.from_text(invalid)
         ...     except ValueError:
         ...         pass
         ...     else:
         ...         raise AssertionError(invalid)
-        >>> ShardFingerprint.from_text(b'abc')
+        >>> ShardFingerprint.from_text(b'shape00-abab')
         Traceback (most recent call last):
             ...
-        ValueError: not a shard fingerprint: b'abc'
+        ValueError: not a shard fingerprint: b'shape00-abab'
         """
         m = _FINGERPRINT_TEXT_RE.fullmatch(text)
-        if m is not None:
-            return cls(int(m.group(1), 16), bin(m.group(2)))
+        if m is not None and m.group(1) == cls.TEXT_PREFIX:
+            raw_version = m.group(2)
+            version = int(raw_version)
+            if version <= 255 and raw_version == b'%02d' % version:
+                return cls(version, bin(m.group(3)))
         msg = "not a %s fingerprint: %r"
         raise ValueError(msg % (cls.TARGET, text))
 
@@ -126,10 +148,14 @@ class ShapeFingerprint(Fingerprint, ShapeFingerprintT):
     TARGET = "shape"
     """used for error and debug"""
 
+    TEXT_PREFIX = b'shape'
+
 
 class ShardFingerprint(Fingerprint, ShardFingerprintT):
     TARGET = "shard"
     """used for error and debug"""
+
+    TEXT_PREFIX = b'shard'
 
 
 # File listing filenames of the saved `server-shapes` configs.

@@ -731,6 +731,17 @@ pub enum FingerprintKind {
     Shard,
 }
 
+impl FingerprintKind {
+    /// The prefix of the text representation of fingerprints of this kind,
+    /// e.g. `shape` in `shape00-<hex>`
+    fn text_prefix(self) -> &'static str {
+        match self {
+            Self::Shape => "shape",
+            Self::Shard => "shard",
+        }
+    }
+}
+
 /// Identifies a given set of files in the store. Two semantically equivalent
 /// shapes (or shards) have the same fingerprint.
 ///
@@ -773,8 +784,9 @@ impl Fingerprint {
         &self.digest
     }
 
-    /// The text representation, as bytes: the hexadecimal of the version (as
-    /// one byte) and that of the digest, separated by a `-`
+    /// The text representation, as bytes: `shapeXY-<hex>` for a shape and
+    /// `shardXY-<hex>` for a shard, with `XY` the version as a decimal number
+    /// padded to two digits and `<hex>` the hexadecimal digest.
     pub fn to_text_bytes(&self) -> Vec<u8> {
         self.to_string().into_bytes()
     }
@@ -790,7 +802,7 @@ impl Fingerprint {
 
 impl std::fmt::Display for Fingerprint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:02x}-", self.version)?;
+        write!(f, "{}{:02}-", self.kind.text_prefix(), self.version)?;
         for byte in self.digest {
             write!(f, "{:02x}", byte)?;
         }
@@ -1327,8 +1339,9 @@ mod tests {
     fn test_fingerprint_representations() {
         const DIGEST_HEX: &str =
             "ab00000000000000000000000000000000000000000000000000000000000001";
-        let text_v00 = format!("00-{DIGEST_HEX}");
-        let text_v12 = format!("0c-{DIGEST_HEX}");
+        let text_v00 = format!("shape00-{DIGEST_HEX}");
+        let text_v12 = format!("shape12-{DIGEST_HEX}");
+        let shard_text_v00 = format!("shard00-{DIGEST_HEX}");
 
         let mut digest = [0; Fingerprint::DIGEST_SIZE];
         digest[0] = 0xab;
@@ -1346,6 +1359,7 @@ mod tests {
         assert_eq!(shard_fingerprint.kind(), FingerprintKind::Shard);
         assert_eq!(shard_fingerprint.version(), 0);
         assert_eq!(shard_fingerprint.digest(), &digest);
+        assert_eq!(shard_fingerprint.to_string(), shard_text_v00);
         assert_ne!(shard_fingerprint, fingerprint);
 
         // Same digest, different version: not the same fingerprint either
