@@ -339,7 +339,7 @@ def fingerprint_for_patterns(
     fp = rustmod.fingerprint_for_patterns(include_pats, exclude_pats)
     if fp is None:
         return None
-    return ShapeFingerprint(fp)
+    return ShapeFingerprint(**fp)
 
 
 def py_fingerprint_for_patterns(
@@ -520,7 +520,7 @@ def wire_store_shape_encode(
     shape,
 ) -> tuple[bytes, bytes, bytes]:
     """encode the three blocks used by `store_shape` wireprotocol command"""
-    fingerprint = ShapeFingerprint(shape.fingerprint())
+    fingerprint = ShapeFingerprint(**shape.fingerprint())
     return (
         _encode_fingerprints([fingerprint]),
         _encode_shards_sets(shards_sets),
@@ -563,7 +563,7 @@ def read_previous_configs(repo: RepoT) -> list[tuple[bytes, bytes]]:
 
 def shard_fingerprints_sets(shards_sets) -> list[set[ShardFingerprint]]:
     """Wrap the sets of shard fingerprints returned by the Rust bindings"""
-    return [{ShardFingerprint(fp) for fp in s} for s in shards_sets]
+    return [{ShardFingerprint(**fp) for fp in s} for s in shards_sets]
 
 
 def previous_shards_sets(
@@ -587,7 +587,7 @@ def previous_shards_sets(
         if previous_shape is None:
             continue
         previous_fp = previous_shape.fingerprint()
-        if ShapeFingerprint(previous_fp) != fingerprint:
+        if ShapeFingerprint(**previous_fp) != fingerprint:
             continue
         previous_sets = previous.shard_fingerprints_for_shape(name) or []
         sets.extend(shard_fingerprints_sets(previous_sets))

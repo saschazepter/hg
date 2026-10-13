@@ -1736,7 +1736,7 @@ def write_new_stream_bundle(
         if shape_obj is None:
             raise error.InputError(b"unknown shape: '%s'" % shape)
         matcher = shape_obj.matcher()
-        fingerprint = shape_py.ShapeFingerprint(shape_obj.fingerprint())
+        fingerprint = shape_py.ShapeFingerprint(**shape_obj.fingerprint())
 
     caps: Capabilities = {b"stream": [version]}
     if opts.get(bundlecaches.BUNDLESPEC_OBSOLESCENCE, False):
@@ -1787,7 +1787,7 @@ def write_repo_sharded_stream_bundles(
                 matcher,
                 match_top_level_entries,
             ) = info
-            fingerprint = shape_py.ShardFingerprint(raw_fingerprint)
+            fingerprint = shape_py.ShardFingerprint(**raw_fingerprint)
             filename = b"hg-sharded-%s-%s.hg" % (
                 bundle_group_id,
                 fingerprint.to_text(),

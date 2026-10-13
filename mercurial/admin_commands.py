@@ -285,7 +285,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 fm.startitem()
                 name = shape.name().encode()
                 fingerprint = shape_py.ShapeFingerprint(
-                    shape.fingerprint()
+                    **shape.fingerprint()
                 ).to_text()
                 fm.write(b"fingerprint name", b"%s %s\n", fingerprint, name)
             return

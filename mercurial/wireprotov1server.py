@@ -419,7 +419,7 @@ def store_shape(repo, proto, name, args):
     previous = shape_py.previous_shards_sets(
         repo,
         shape_name,
-        shape_py.ShapeFingerprint(shape.fingerprint()),
+        shape_py.ShapeFingerprint(**shape.fingerprint()),
     )
     for group in previous:
         if group not in groups:

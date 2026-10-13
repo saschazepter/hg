@@ -5,6 +5,7 @@ use std::path::Path;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternSyntax;
 use hg::file_patterns::parse_one_pattern;
+use hg::narrow::shape::Fingerprint;
 use hg::narrow::shape::SHAPES_FILE;
 use hg::narrow::shape::Shape;
 use hg::narrow::shape::ShardName;
@@ -39,9 +40,9 @@ impl PyShape {
         self.inner.name().to_string()
     }
 
-    /// The digest of the fingerprint of this shape
-    pub fn fingerprint(&self) -> Vec<u8> {
-        self.inner.store_fingerprint().digest().to_vec()
+    /// The fingerprint of this shape, see [`PyFingerprint`]
+    pub fn fingerprint(&self) -> PyFingerprint {
+        self.inner.store_fingerprint().into()
     }
 
     /// A matcher for the files that this shape covers
@@ -84,6 +85,19 @@ fn patterns_to_python(
 
 type PyNarrowPatterns = (Vec<Py<PyBytes>>, Vec<Py<PyBytes>>);
 
+/// A fingerprint as expected by Python: a dict of the keyword arguments for
+/// its type
+#[derive(IntoPyObject)]
+pub struct PyFingerprint {
+    digest: Vec<u8>,
+}
+
+impl From<Fingerprint> for PyFingerprint {
+    fn from(fingerprint: Fingerprint) -> Self {
+        Self { digest: fingerprint.digest().to_vec() }
+    }
+}
+
 /// A useful object to query the shapes for this repo's store
 #[pyclass(frozen, name = "StoreShards")]
 pub struct PyStoreShards {
@@ -109,7 +123,7 @@ impl PyStoreShards {
         let sharded = self.inner.sharded_bundle_info();
         let sharded_iter = sharded.into_iter().map(|standalone_shard| {
             (
-                standalone_shard.fingerprint().digest().to_vec(),
+                PyFingerprint::from(standalone_shard.fingerprint()),
                 PyMatcher::new(Box::new(standalone_shard.matcher())),
                 standalone_shard.top_level,
             )
@@ -119,6 +133,9 @@ impl PyStoreShards {
 
     /// Return a [`PyList`] of all sets of shard fingerprints for this shape,
     /// or `None` if it does not exist.
+    ///
+    /// Each set is a [`PyList`] since a [`PyFingerprint`] is a dict, which is
+    /// not hashable.
     ///
     /// See [`StoreShards::shard_fingerprints_for_shape`].
     pub fn shard_fingerprints_for_shape(
@@ -133,12 +150,7 @@ impl PyStoreShards {
         let sets: Result<Vec<_>, _> = groups
             .into_iter()
             .map(|group| {
-                PySet::new(
-                    py,
-                    group
-                        .into_iter()
-                        .map(|fingerprint| fingerprint.digest().to_vec()),
-                )
+                PyList::new(py, group.into_iter().map(PyFingerprint::from))
             })
             .collect();
         Ok(Some(PyList::new(py, sets?)?.unbind()))
@@ -222,7 +234,7 @@ fn deserialize(py: Python, serialized: &[u8]) -> PyResult<PyNarrowPatterns> {
 fn fingerprint_for_patterns(
     include_pats: &Bound<'_, PySet>,
     exclude_pats: &Bound<'_, PySet>,
-) -> PyResult<Option<Vec<u8>>> {
+) -> PyResult<Option<PyFingerprint>> {
     let transform = |pat: Bound<'_, PyAny>| {
         let pat = pat
             .extract::<&[u8]>()
@@ -248,7 +260,7 @@ fn fingerprint_for_patterns(
     };
     // Any error means we can't get a fingerprint for these patterns
     let maybe_node = ShardTreeNode::from_patterns(&includes, &excludes).ok();
-    Ok(maybe_node.map(|node| node.fingerprint().digest().to_vec()))
+    Ok(maybe_node.map(|node| node.fingerprint().into()))
 }
 
 pub fn init_module<'py>(

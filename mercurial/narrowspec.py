@@ -308,7 +308,7 @@ def patterns_for_shape(
     if shape is None:
         raise error.Abort(b"shape not found on remote: '%s'" % name)
     if fingerprint is not None:
-        server_fingerprint = shapemod.ShapeFingerprint(shape.fingerprint())
+        server_fingerprint = shapemod.ShapeFingerprint(**shape.fingerprint())
         if fingerprint != server_fingerprint:
             msg = _(b"fingerprint mismatch for shape '%s'") % name
             hint = _(b"server: %s, client: %s")

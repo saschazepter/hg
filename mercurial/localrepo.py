@@ -486,7 +486,7 @@ class localpeer(peer.Peer, repository.ipeercommands):
             excludes,
         )
         # Checking the fingerprint is useless: we're the same implementation
-        fingerprint = shape_py.ShapeFingerprint(shape.fingerprint())
+        fingerprint = shape_py.ShapeFingerprint(**shape.fingerprint())
         return (
             [fingerprint],
             [],
