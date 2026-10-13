@@ -773,7 +773,8 @@ impl Fingerprint {
         &self.digest
     }
 
-    /// The text representation, as bytes: the hexadecimal digest
+    /// The text representation, as bytes: the hexadecimal of the version (as
+    /// one byte) and that of the digest, separated by a `-`
     pub fn to_text_bytes(&self) -> Vec<u8> {
         self.to_string().into_bytes()
     }
@@ -789,6 +790,7 @@ impl Fingerprint {
 
 impl std::fmt::Display for Fingerprint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02x}-", self.version)?;
         for byte in self.digest {
             write!(f, "{:02x}", byte)?;
         }
@@ -1323,8 +1325,10 @@ mod tests {
 
     #[test]
     fn test_fingerprint_representations() {
-        const TEXT: &str =
+        const DIGEST_HEX: &str =
             "ab00000000000000000000000000000000000000000000000000000000000001";
+        let text_v00 = format!("00-{DIGEST_HEX}");
+        let text_v12 = format!("0c-{DIGEST_HEX}");
 
         let mut digest = [0; Fingerprint::DIGEST_SIZE];
         digest[0] = 0xab;
@@ -1334,8 +1338,8 @@ mod tests {
         assert_eq!(fingerprint.kind(), FingerprintKind::Shape);
         assert_eq!(fingerprint.version(), 0);
         assert_eq!(fingerprint.digest(), &digest);
-        assert_eq!(fingerprint.to_string(), TEXT);
-        assert_eq!(fingerprint.to_text_bytes(), TEXT.as_bytes());
+        assert_eq!(fingerprint.to_string(), text_v00);
+        assert_eq!(fingerprint.to_text_bytes(), text_v00.as_bytes());
 
         // Same digest, different kind: not the same fingerprint
         let shard_fingerprint = fingerprint.as_shard();
@@ -1348,6 +1352,7 @@ mod tests {
         let fingerprint_v12 = Fingerprint { version: 12, ..fingerprint };
         assert_eq!(fingerprint_v12.version(), 12);
         assert_eq!(fingerprint_v12.digest(), &digest);
+        assert_eq!(fingerprint_v12.to_string(), text_v12);
         assert_ne!(fingerprint_v12, fingerprint);
 
         let tree = ShardTreeNode::from_patterns(&[], &[]).unwrap();

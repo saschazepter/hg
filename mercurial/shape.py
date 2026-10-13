@@ -43,7 +43,7 @@ FINGERPRINT_VERSION = 0
 FINGERPRINT_DIGEST_SIZE = 32
 # Validator regex for a text representation of a fingerprint
 _FINGERPRINT_TEXT_RE = re.compile(
-    br'[0-9a-f]{%d}' % (2 * FINGERPRINT_DIGEST_SIZE)
+    br'([0-9a-f]{2})-([0-9a-f]{%d})' % (2 * FINGERPRINT_DIGEST_SIZE)
 )
 
 
@@ -83,12 +83,13 @@ class Fingerprint(FingerprintT):
         return cls(b2u(data[:1]), data[1:])
 
     def to_text(self) -> bytes:
-        r"""The textual form of this fingerprint: its hexadecimal digest
+        r"""The textual form of this fingerprint: the hexadecimal of its
+        version (as one byte) and of its digest, separated by a `-`
 
         >>> ShapeFingerprint(0, b'\xab' * 32).to_text()
-        b'abababababababababababababababababababababababababababababababab'
+        b'00-abababababababababababababababababababababababababababababababab'
         """
-        return hex(self.digest)
+        return b'%02x-%s' % (self.version, hex(self.digest))
 
     @classmethod
     def from_text(cls, text: bytes) -> typing.Self:
@@ -97,11 +98,12 @@ class Fingerprint(FingerprintT):
         Raises `ValueError` if `text` is not the textual form of such a
         fingerprint.
 
-        >>> fp = ShapeFingerprint.from_text(b'ab' * 32)
-        >>> fp == ShapeFingerprint(0, b'\xab' * 32)
+        >>> fp = ShapeFingerprint.from_text(b'0c-' + b'ab' * 32)
+        >>> fp == ShapeFingerprint(12, b'\xab' * 32)
         True
-        >>> for invalid in [b'', b'abc', b'ab' * 31, b'ab' * 33, b'zz' * 32,
-        ...                 b'AB' * 32, b'ab' * 32 + b' ']:
+        >>> for invalid in [b'', b'abc', b'ab' * 33, b'00-' + b'ab' * 31,
+        ...                 b'00-' + b'ab' * 33, b'00-' + b'zz' * 32,
+        ...                 b'00-' + b'AB' * 32, b'00-' + b'ab' * 32 + b' ']:
         ...     try:
         ...         ShapeFingerprint.from_text(invalid)
         ...     except ValueError:
@@ -113,8 +115,9 @@ class Fingerprint(FingerprintT):
             ...
         ValueError: not a shard fingerprint: b'abc'
         """
-        if _FINGERPRINT_TEXT_RE.fullmatch(text) is not None:
-            return cls(0, bin(text))
+        m = _FINGERPRINT_TEXT_RE.fullmatch(text)
+        if m is not None:
+            return cls(int(m.group(1), 16), bin(m.group(2)))
         msg = "not a %s fingerprint: %r"
         raise ValueError(msg % (cls.TARGET, text))
 
