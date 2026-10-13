@@ -738,8 +738,9 @@ pub enum FingerprintKind {
 /// of the computation that produced it.
 ///
 /// There are two representations:
-///   - The digest (see [`Self::digest`]), used for storage, exchange and any
-///     internal manipulation
+///   - The version alongside the digest (see [`Self::version`] and
+///     [`Self::digest`]), used for storage, exchange and any internal
+///     manipulation
 ///   - The text one (see [`Self::to_text_bytes`]), only used for user-facing
 ///     things
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

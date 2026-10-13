@@ -198,7 +198,8 @@ class FingerprintT(abc.ABC):
 
     @abc.abstractmethod
     def to_bytes(self) -> bytes:
-        """The binary form of this fingerprint: its digest"""
+        """The binary form of this fingerprint: one byte for the version,
+        followed by the digest"""
 
     @classmethod
     @abc.abstractmethod

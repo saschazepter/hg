@@ -58,7 +58,8 @@ class Fingerprint(FingerprintT):
     equivalent shapes (or shards) have the same fingerprint.
 
     Fingerprinting can be evolved over time, so it is tagged with the version
-    of the computation that produced it.
+    of the computation that produced it. A fingerprint with a version that we
+    do not know about is valid, it simply cannot match anything we compute.
 
     The text form (see `to_text`) is only used for user-facing things."""
 
@@ -72,13 +73,14 @@ class Fingerprint(FingerprintT):
     """The hash of the normalized shape"""
 
     def to_bytes(self) -> bytes:
-        """The binary form of this fingerprint: its digest"""
-        return self.digest
+        """The binary form of this fingerprint: one byte for the version,
+        followed by the digest"""
+        return u2b(self.version, 1) + self.digest
 
     @classmethod
     def from_bytes(cls, data: bytes) -> typing.Self:
         """Parse the binary form of a fingerprint of the given `kind`"""
-        return cls(0, data)
+        return cls(b2u(data[:1]), data[1:])
 
     def to_text(self) -> bytes:
         r"""The textual form of this fingerprint: its hexadecimal digest
