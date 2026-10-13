@@ -43,6 +43,16 @@ if typing.TYPE_CHECKING:
 SOURCE_LEVEL_STEP = 10
 
 
+def _source_key(source: bytes) -> bytes:
+    """return the key identifying `source` in `_source_levels`
+
+    The same file can be reached through paths written differently (e.g.
+    mixing `/` and `\\` on Windows), so the path is normalized. The source
+    attached to the values is kept as is, since it is displayed.
+    """
+    return util.normpath(source)
+
+
 class config:
     def __init__(self, data: config | None = None):
         self._current_source_level: int = 0
@@ -173,7 +183,7 @@ class config:
         """
         if not source:
             return
-        levels = self._source_levels.setdefault(source, set())
+        levels = self._source_levels.setdefault(_source_key(source), set())
         levels.add(self._current_source_level)
 
     def insert_source_before(self, source: bytes, reference: bytes) -> None:
@@ -210,14 +220,23 @@ class config:
         >>> cfg.insert_source_before(b'file-b-managed', b'file-a')
         >>> sorted(cfg._source_levels[b'file-b-managed'])
         [19]
+
+        Different spellings of the same path refer to the same source:
+
+        >>> cfg.new_source()
+        >>> cfg.parse(b'dir/file-c', b'')
+        >>> cfg.insert_source_before(b'dir//file-c-managed', b'dir/./file-c')
+        >>> sorted(cfg._source_levels[b'dir/file-c-managed'])
+        [29]
         """
-        if source in self._source_levels:
+        source_key = _source_key(source)
+        if source_key in self._source_levels:
             return
-        reference_levels = self._source_levels.get(reference)
+        reference_levels = self._source_levels.get(_source_key(reference))
         if reference_levels is None:
             msg = b'inserting before an unknown source: %s' % reference
             raise error.ProgrammingError(msg)
-        self._source_levels[source] = {min(reference_levels) - 1}
+        self._source_levels[source_key] = {min(reference_levels) - 1}
 
     def copy(self) -> config:
         return config(self)
@@ -375,7 +394,7 @@ class config:
         >>> cfg.get(b'one', b'other')
         b'managed'
         """
-        levels = self._source_levels.get(source)
+        levels = self._source_levels.get(_source_key(source))
         if levels is None:
             msg = b'setting a value on an unknown source: %s' % source
             raise error.ProgrammingError(msg)
