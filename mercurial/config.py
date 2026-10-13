@@ -20,6 +20,11 @@ from . import (
 )
 
 if typing.TYPE_CHECKING:
+    from typing import Collection
+
+    # a configuration level and the first source it is read from
+    _BoundaryT = tuple[conf_mod.ConfigLevelT, bytes]
+
     from .interfaces.types import (
         CfgRemapT,
         CfgSectionsT,
@@ -356,6 +361,7 @@ class config:
         item: bytes,
         value: bytes,
         source: bytes,
+        higher_level_boundaries: Collection[_BoundaryT] = (),
     ) -> conf_mod.Shadowing | None:
         """set a value as if it came from `source`
 
@@ -364,8 +370,16 @@ class config:
         precedence over it, as it would on the next configuration read. The
         value is not installed at all in that case.
 
-        Return None when the new value is the one in use, or what shadows
-        it.
+        `higher_level_boundaries` pairs each configuration level read after
+        the one we write (user, repository, …) with the first source it is
+        read from, in read order. It tells where these levels start, so
+        that a definition from one of them is reported as
+        `SHADOW.HIGHER_LEVEL`, with the level it belongs to.
+
+        Return what hides the new value, None when it is the one in use.
+        Return None when the value is the one in use, or the item that
+        shadows it, as a Shadowing object.
+
 
         >>> cfg = config()
         >>> cfg.new_source()
@@ -374,13 +388,19 @@ class config:
         ...     b'[one]\\n'
         ...     b'key = from-user\\n',
         ... )
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'repo-rc',
+        ...     b'[one]\\n'
+        ...     b'repo-key = from-repo\\n',
+        ... )
         >>> cfg.insert_source_before(b'user-rc-managed', b'user-rc')
 
 
         Value at higher level shadow the insert of a lower one.
 
         >>> cfg.set_at_source(b'one', b'key', b'managed', b'user-rc-managed')
-        Shadowing(b'from-user', b'user-rc:2')
+        Shadowing(b'from-user', b'user-rc:2', SHADOW.SAME_LEVEL, None)
         >>> cfg.get(b'one', b'key')
         b'from-user'
 
@@ -394,6 +414,29 @@ class config:
         ... )
         >>> cfg.get(b'one', b'other')
         b'managed'
+
+        The shadowing definition can come from a higher configuration level,
+        which the caller tells us about:
+
+        >>> cfg.set_at_source(
+        ...     b'one',
+        ...     b'repo-key',
+        ...     b'managed',
+        ...     b'user-rc-managed',
+        ...     higher_level_boundaries=[('repo', b'repo-rc')],
+        ... )
+        Shadowing(b'from-repo', b'repo-rc:2', SHADOW.HIGHER_LEVEL, 'repo')
+
+        A boundary spelled differently still matches the source it names:
+
+        >>> cfg.set_at_source(
+        ...     b'one',
+        ...     b'repo-key',
+        ...     b'managed',
+        ...     b'user-rc-managed',
+        ...     higher_level_boundaries=[('repo', b'dir/../repo-rc')],
+        ... )
+        Shadowing(b'from-repo', b'repo-rc:2', SHADOW.HIGHER_LEVEL, 'repo')
         """
         levels = self._source_levels.get(_source_key(source))
         if levels is None:
@@ -412,8 +455,19 @@ class config:
             self._set_item(section, item, value, source, level=level)
             existing = None
         else:
-            e_value, e_source, _e_level = existing
-            existing = conf_mod.Shadowing(e_value, e_source)
+            e_value, e_source, e_level = existing
+            status = conf_mod.SHADOW.SAME_LEVEL
+            config_level = None
+            # the boundaries come in read order, so the last one the
+            # definition sits after is the level it belongs to.
+            for lvl, boundary_source in higher_level_boundaries:
+                boundary = self._source_levels.get(_source_key(boundary_source))
+                if boundary is not None and e_level >= min(boundary):
+                    status = conf_mod.SHADOW.HIGHER_LEVEL
+                    config_level = lvl
+            existing = conf_mod.Shadowing(
+                e_value, e_source, status, config_level
+            )
         return existing
 
     def _set_item(

@@ -227,6 +227,7 @@ def set_config(
             # relative paths keep the root of their first read.
             root = repo.root
 
+    boundaries = _higher_level_boundaries(repo, level)
     for section, key, value in values:
         shadowing = ui.register_config_write(
             section,
@@ -235,6 +236,7 @@ def set_config(
             managed_path,
             base_path,
             root=root,
+            higher_level_boundaries=boundaries,
         )
         if low_ui is not None:
             low_ui.register_config_write(
@@ -244,6 +246,7 @@ def set_config(
                 managed_path,
                 base_path,
                 root=root,
+                higher_level_boundaries=boundaries,
             )
         _report_if_shadowed(ui, section, key, value, shadowing)
     return 0

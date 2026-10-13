@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import enum
+
 from typing import (
     NamedTuple,
     Union,
@@ -32,6 +34,22 @@ NO_REPO_EDIT_LEVELS = (
 )
 
 
+class SHADOW(enum.Enum):
+    """what hides a value we just wrote in a managed configuration file
+
+    See `config.set_at_source` and `ui.register_config_write`.
+    """
+
+    # another definition of the same configuration level wins, typically a
+    # value the user wrote by hand
+    SAME_LEVEL = 'same-level'
+    # a definition from a higher configuration level wins, as it should
+    HIGHER_LEVEL = 'higher-level'
+
+    def __repr__(self) -> str:
+        return 'SHADOW.%s' % self.name
+
+
 class Shadowing(NamedTuple):
     """the definition that hides a value we wrote
 
@@ -42,9 +60,18 @@ class Shadowing(NamedTuple):
     value: bytes
     # where it comes from, as "<file>:<line>"
     source: bytes
+    # how that definition relates to the value we wrote
+    status: SHADOW
+    # configuration level it comes from, None for our own level
+    config_level: ConfigLevelT | None = None
 
     def __repr__(self) -> str:
-        return 'Shadowing(%r, %r)' % (self.value, self.source)
+        return 'Shadowing(%r, %r, %r, %r)' % (
+            self.value,
+            self.source,
+            self.status,
+            self.config_level,
+        )
 
 
 ConfigItemT = tuple[bytes, bytes, bytes, bytes]

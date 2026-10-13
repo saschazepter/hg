@@ -24,6 +24,7 @@ import typing
 from typing import (
     Any,
     Callable,
+    Collection,
     Iterator,
     NoReturn,
     Sequence,
@@ -55,6 +56,11 @@ from . import (
     util,
 )
 from .configuration import rcutil
+
+if typing.TYPE_CHECKING:
+    # a configuration level and the first source it is read from
+    _BoundaryT = tuple[conf_mod.ConfigLevelT, bytes]
+
 from .utils import (
     dateutil,
     procutil,
@@ -726,6 +732,7 @@ class ui:
         managed_file: bytes,
         base_file: bytes,
         root=None,
+        higher_level_boundaries: Collection[_BoundaryT] = (),
     ) -> conf_mod.Shadowing | None:
         """insert a value freshly written to `managed_file` in the config
 
@@ -741,6 +748,9 @@ class ui:
         file: the repository root for a repository level file, the user
         home for the others. Relative paths are resolved against it, so a
         wrong `root` points them at the wrong location.
+
+        `higher_level_boundaries` is passed to `config.set_at_source`, it is
+        what tells a shadow of a higher configuration level apart.
 
         NOTE: `_maybetweakdefaults` is not re-run, as tweaking defaults
         only applies to the initial configuration loading. This is likely
@@ -760,9 +770,21 @@ class ui:
 
         # the trusted configuration is the one this process uses so we read the
         # shadowing from there.
-        shadowing = self._tcfg.set_at_source(section, name, value, managed_file)
+        shadowing = self._tcfg.set_at_source(
+            section,
+            name,
+            value,
+            managed_file,
+            higher_level_boundaries=higher_level_boundaries,
+        )
         # and ignore the shadowing from the untrusted config
-        self._ucfg.set_at_source(section, name, value, managed_file)
+        self._ucfg.set_at_source(
+            section,
+            name,
+            value,
+            managed_file,
+            higher_level_boundaries=higher_level_boundaries,
+        )
 
         if root is None:
             root = os.path.expanduser(b'~')
