@@ -2573,7 +2573,9 @@ class localrepository(_localrepo_base_classes):
             releasefn=releasefn,
             checkambigfiles=cachedfiles,
             name=desc,
-            debug_abort=self.ui.config(b'devel', b'debug.abort-transaction'),
+            debug_abort=self.ui.configlist(
+                b'devel', b'debug.abort-transaction'
+            ),
             debug_abort_method=self.ui.config(
                 b'devel', b'debug.abort-transaction:method'
             ),

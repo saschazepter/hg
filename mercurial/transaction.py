@@ -289,7 +289,7 @@ class transaction(util.transactional, itxn.ITransaction):
         releasefn=None,
         checkambigfiles=None,
         name=b'<unnamed>',
-        debug_abort=b'',
+        debug_abort=(),
         debug_abort_method=ABORT_METHOD_ABORT,
     ):
         """Begin a new transaction
@@ -305,7 +305,8 @@ class transaction(util.transactional, itxn.ITransaction):
         which determine whether file stat ambiguity should be avoided
         for corresponded files.
 
-        `debug_abort` is a value of the config devel.debug.abort-transaction.
+        `debug_abort` holds the values of the config
+        devel.debug.abort-transaction.
 
         `debug_abort_method` is a value of the config
         devel.debug.abort-transaction:method.
@@ -863,7 +864,7 @@ class transaction(util.transactional, itxn.ITransaction):
             self._postclosecallback = None
 
     def _maybe_debug_abort(self, location: bytes) -> None:
-        if self._debug_abort != location:
+        if location not in self._debug_abort:
             return
         if self._debug_abort_method == ABORT_METHOD_ABORT:
             raise error.Abort(_(b"requested abort at %s") % location)

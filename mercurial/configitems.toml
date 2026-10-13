@@ -518,10 +518,10 @@ default = false
 [[items]]
 section = "devel"
 name = "debug.abort-transaction"
-default = ""
-documentation = """If set to one of the listed locations, all transactions will
-abort there, using the method in ``devel.debug.abort-transaction:method``. This
-is used to test transaction rollback and recovery. Possible values:
+default-type = "list_type"
+documentation = """A list of locations (space or comma separated) where all
+transactions will abort, using ``devel.debug.abort-transaction:method``.
+This is used to test transaction rollback and recovery. Possible values:
 - ``post-finalize``: after finalization but before closing the transaction
 - ``pre-setup-undo``: before setting up undo files
 - ``post-setup-undo``: after setting up undo files
