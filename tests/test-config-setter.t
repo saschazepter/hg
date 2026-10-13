@@ -338,8 +338,8 @@ The in-memory update respects the config priorities.
   $ TEST_ALIAS_NAME="config-set-live-shadow" hg -R repo \
   >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
   >     config --set alias.config-set-live-shadow=foo-bar
-  warning: new value for 'alias.config-set-live-shadow' is shadowed by $TESTTMP/repo/.hg/hgrc:3 (glob)
-  (clean your manual config to use --set on 'alias.config-set-live-shadow')
+  note: new value for 'alias.config-set-live-shadow' is shadowed by $TESTTMP/repo/.hg/hgrc:3 (glob)
+  (use --local to set 'alias.config-set-live-shadow' at that level)
   live value: foo
   live value in baseui: foo-bar
   $ hg config alias.config-set-live-shadow
@@ -469,9 +469,6 @@ The value `--set` writes is not always the one `hg config` displays. A
 warning points at the definition that hides it, so the user understands
 why the value they set is not visible.
 
-Every kind of shadowing definition is reported for now, the next
-changesets tell them apart.
-
 shadowed by a value written by hand
 -----------------------------------
 
@@ -528,3 +525,40 @@ no warning with --quiet
   $ hg config --quiet --set alias.config-set-test-hand=from-set-quiet
   $ hg config alias.config-set-test-hand
   hand-written
+
+shadowed by another level of configuration
+------------------------------------------
+
+The value still applies outside of that repository, so this is not a warning,
+just a note pointing at the flag that writes at that level. In case the user
+need the nudge.
+
+  $ hg -R repo config --local --set alias.config-set-test-I=local-i
+  $ hg -R repo config --set alias.config-set-test-I=user-i
+  note: new value for 'alias.config-set-test-I' is shadowed by $TESTTMP/repo/.hg/hgrc-managed:5 (glob)
+  (use --local to set 'alias.config-set-test-I' at that level)
+  $ hg -R repo config alias.config-set-test-I
+  local-i
+  $ hg config alias.config-set-test-I
+  user-i
+
+shadowed by a file the repository configuration includes
+--------------------------------------------------------
+
+Such a file is not a configuration file of its own, yet it is read within
+the level of the file including it, so the note can point at that level.
+
+  $ cat > $TESTTMP/repo-extra.rc <<EOF
+  > [alias]
+  > config-set-test-P = repo-include
+  > EOF
+  $ cat >> repo/.hg/hgrc <<EOF
+  > %include $TESTTMP/repo-extra.rc
+  > EOF
+  $ hg -R repo config --set alias.config-set-test-P=user-value
+  note: new value for 'alias.config-set-test-P' is shadowed by $TESTTMP/repo-extra.rc:2 (glob)
+  (use --local to set 'alias.config-set-test-P' at that level)
+  $ hg -R repo config alias.config-set-test-P
+  repo-include
+  $ hg config alias.config-set-test-P
+  user-value

@@ -28,8 +28,12 @@ from .. import (
 from . import (
     ConfigLevelT,
     EDIT_LEVELS,
+    LEVEL_GLOBAL,
+    LEVEL_LOCAL,
+    LEVEL_NON_SHARED,
     LEVEL_SHARED,
     NO_REPO_EDIT_LEVELS,
+    SHADOW,
     Shadowing,
     rcutil,
 )
@@ -252,6 +256,17 @@ def set_config(
     return 0
 
 
+# the `hg config --set` flag writing at a given configuration level
+#
+# the user level is the default one and has no flag of its own.
+_LEVEL_FLAGS: dict[ConfigLevelT, bytes] = {
+    LEVEL_GLOBAL: b'--global',
+    LEVEL_LOCAL: b'--local',
+    LEVEL_SHARED: b'--shared',
+    LEVEL_NON_SHARED: b'--non-shared',
+}
+
+
 def _report_if_shadowed(
     ui: uimod.ui,
     section: bytes,
@@ -259,14 +274,28 @@ def _report_if_shadowed(
     value: bytes,
     shadowing: Shadowing | None,
 ) -> None:
-    """warn when the value we just wrote is not the one that will be used
+    """tell the user when the value we just wrote is not the one in use
 
     This is a sub section of `set_config` extracted for readability.
+
+    A definition from a higher configuration level legitimately wins over
+    what we just wrote, so it only gets a note pointing at the flag that
+    writes at that level.
     """
     if shadowing is None or ui.quiet:
         return
     shadow_msg = _(b"new value for '%s.%s' is shadowed by %s\n")
     shadow_msg %= (section, key, shadowing.source)
+    if shadowing.status is SHADOW.HIGHER_LEVEL:
+        # softer than a warning, but still a message about the command we
+        # just ran, so it goes to stderr like the others.
+        ui.warn(_(b"note: %s") % shadow_msg)
+        flag = _LEVEL_FLAGS.get(shadowing.config_level)
+        if flag is not None:
+            msg = _(b"(use %s to set '%s.%s' at that level)\n")
+            ui.warn(msg % (flag, section, key))
+        return
+    assert shadowing.status is SHADOW.SAME_LEVEL
     if shadowing.value == value:
         # the user sees the value they asked for, so this is not worth a
         # warning, just a mention for whoever debugs the configuration.
