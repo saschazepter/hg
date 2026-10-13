@@ -633,7 +633,7 @@ def wire_store_shape_encode(
     return (
         _encode_fingerprints([fingerprint]),
         _encode_shards_sets(shards_sets),
-        serialize_patterns(*shape.patterns()),
+        shape.serialized(),
     )
 
 

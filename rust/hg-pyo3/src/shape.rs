@@ -57,10 +57,11 @@ impl PyShape {
         patterns_to_python(py, includes, excludes)
     }
 
-    /// Serialize this shape for use in the wireprotocol
+    /// The "patterns block" of this shape, see
+    /// [`ShardTreeNode::serialize_patterns`]
     pub fn serialized(&self, py: Python) -> PyResult<Py<PyBytes>> {
         PyBytes::new_with_writer(py, 0, |writer| {
-            Ok(self.inner.serialize(writer)?)
+            Ok(self.inner.serialize_patterns(writer)?)
         })
         .map(|b| b.unbind())
     }

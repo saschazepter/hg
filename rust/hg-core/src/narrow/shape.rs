@@ -618,8 +618,13 @@ impl Shape {
         self.tree.fingerprint()
     }
 
-    pub fn serialize(&self, buf: impl Write) -> Result<(), std::io::Error> {
-        self.tree.serialize(buf)
+    /// Serialize the patterns of this shape, see
+    /// [`ShardTreeNode::serialize_patterns`]
+    pub fn serialize_patterns(
+        &self,
+        buf: impl Write,
+    ) -> Result<(), std::io::Error> {
+        self.tree.serialize_patterns(buf)
     }
 
     pub fn patterns(&self) -> (Vec<HgPathBuf>, Vec<HgPathBuf>) {
@@ -809,6 +814,9 @@ impl std::fmt::Display for Fingerprint {
         Ok(())
     }
 }
+
+/// Flag set on the serialized size of a path if this path is included
+const PATTERN_INCLUDED_FLAG: u16 = 1 << 15;
 
 /// Magic marker to help identify the format easily
 const SERIALIZATION_MARKER: &[u8; 9] = b"shape-v1\n";
@@ -1031,6 +1039,66 @@ impl ShardTreeNode {
         (includes, excludes)
     }
 
+    /// Return the paths of the node normalized as a flat sequence of
+    /// `(path, included)`, in the canonical order (sorted by [`ZeroPath`], so
+    /// we get the children next to their parents).
+    fn flat_sorted(&self) -> Vec<(HgPathBuf, bool)> {
+        let (includes, excludes) = self.flat();
+        includes
+            .into_iter()
+            .map(|path| (path, true))
+            .chain(excludes.into_iter().map(|path| (path, false)))
+            .sorted_by_cached_key(|(path, _included)| {
+                ZeroPath::try_from(path.as_ref())
+                    .expect("paths of a node are valid")
+            })
+            .collect()
+    }
+
+    /// Serialize the includes and excludes of this node into a "patterns
+    /// block".
+    ///
+    /// The binary format is the following (all integers are big-endian):
+    ///
+    /// `<COUNT>[<SIZE>...][<PATH>...]`
+    ///
+    /// With:
+    ///   - `<COUNT>`, the number of paths as a 32 bits integer
+    ///   - `[X...]` is syntax for "for each path, X"
+    ///   - `<SIZE>`, the size in bytes of i-th path as a 16 bits integer. Its
+    ///     highest bit is set if the path is included, and unset if it is
+    ///     excluded (see [`PATTERN_INCLUDED_FLAG`])
+    ///   - `<PATH>`, the raw bytes of the i-th path, rooted at the empty path
+    ///
+    /// Paths are sorted by [`ZeroPath`], so a directory is directly followed
+    /// by its contents.
+    pub fn serialize_patterns(
+        &self,
+        mut buf: impl Write,
+    ) -> Result<(), std::io::Error> {
+        let patterns = self.flat_sorted();
+
+        let count: u32 = patterns.len().try_into().expect("too many paths");
+        buf.write_all(&count.to_be_bytes())?;
+
+        for (path, included) in patterns.iter() {
+            let mut size: u16 = match path.len().try_into() {
+                Ok(size) if size < PATTERN_INCLUDED_FLAG => size,
+                _ => panic!("path is too long: {} bytes", path.len()),
+            };
+            if *included {
+                size |= PATTERN_INCLUDED_FLAG;
+            }
+            buf.write_all(&size.to_be_bytes())?;
+        }
+
+        for (path, _included) in patterns.iter() {
+            buf.write_all(path.as_bytes())?;
+        }
+
+        Ok(())
+    }
+
     /// Serialize this node with the following binary format:
     ///
     /// `<HEADER>\n<NUM>\n[<MARKER>/<PATH>\n...]`
@@ -1178,6 +1246,8 @@ impl<T> PanickingRwLock<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -1333,6 +1403,26 @@ mod tests {
                 ShardTreeNode::deserialize(&serialized).unwrap();
             assert_eq!(patterns, patterns_from_serialized);
         }
+    }
+
+    fn path_pattern(path: &str) -> FilePattern {
+        FilePattern::new(PatternSyntax::Path, path.as_bytes(), Path::new(""))
+    }
+
+    #[test]
+    fn test_patterns_block() {
+        // `foo-x` is before `foo/bar` in bytes order, but not in the
+        // canonical one.
+        let includes = [path_pattern("foo"), path_pattern("foo-x")];
+        let excludes = [path_pattern("foo/bar")];
+        let tree = ShardTreeNode::from_patterns(&includes, &excludes).unwrap();
+
+        let mut block = vec![];
+        tree.serialize_patterns(&mut block).unwrap();
+        assert_eq!(
+            block,
+            b"\x00\x00\x00\x04\x00\x00\x80\x03\x00\x07\x80\x05foofoo/barfoo-x"
+        );
     }
 
     #[test]
