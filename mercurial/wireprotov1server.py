@@ -405,10 +405,11 @@ def store_shape(repo, proto, name, args):
         )
     shape_name = name.decode()
     store_shards = shapemod.get_store_shards(repo.root)
-    shape = store_shards.shape(shape_name)
     codes = wireprototypes.ShapeReturnCode
     header = wireprototypes.STORE_SHAPE_ENCODE
-    if shape is None:
+    try:
+        shape = store_shards.shape(shape_name)
+    except KeyError:
         rep = header.pack(codes.SHAPE_NOT_FOUND, 0, 0, 0)
         return wireprototypes.bytesresponse(rep)
     groups = store_shards.shard_fingerprints_for_shape(shape_name)

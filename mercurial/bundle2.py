@@ -1732,9 +1732,10 @@ def write_new_stream_bundle(
         if shape_mod is None:
             raise error.ProgrammingError("shapes are a Rust-only feature")
         store_shards = shape_mod.get_store_shards(repo.root)
-        shape_obj = store_shards.shape(shape.decode())
-        if shape_obj is None:
-            raise error.InputError(b"unknown shape: '%s'" % shape)
+        try:
+            shape_obj = store_shards.shape(shape.decode())
+        except KeyError as e:
+            raise error.InputError(b"unknown shape: '%s'" % e.args[0])
         matcher = shape_obj.matcher()
         fingerprint = shape_py.ShapeFingerprint(**shape_obj.fingerprint())
 

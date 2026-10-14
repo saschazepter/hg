@@ -272,9 +272,10 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             raise error.Abort(
                 _(b"composed shapespec is not implemented (yet)"),
             )
-        shape = store_shards.shape(name.decode())
-        if shape is None:
-            raise error.Abort(_(b"shape '%s' not found" % name))
+        try:
+            shape = store_shards.shape(name.decode())
+        except KeyError as e:
+            raise error.Abort(_(b"shape '%s' not found") % e.args[0])
 
     ui.pager(b"admin::narrow-server")
     fm_ctx = ui.formatter(b"admin::narrow-server", pycompat.byteskwargs(opts))

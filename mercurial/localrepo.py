@@ -472,9 +472,10 @@ class localpeer(peer.Peer, repository.ipeercommands):
             )
         store_shards = shapemod.get_store_shards(self._repo.root)
         name_str = encoding.strfromlocal(name)
-        shape = store_shards.shape(name_str)
-        if shape is None:
-            msg = _(b"shape not found on remote: '%s'") % name
+        try:
+            shape = store_shards.shape(name_str)
+        except KeyError as e:
+            msg = _(b"shape not found on remote: '%s'") % e.args[0]
             raise error.RepoLookupError(msg)
         includes, excludes = shape.patterns()
 
