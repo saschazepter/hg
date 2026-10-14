@@ -148,7 +148,7 @@ impl PyStoreShards {
     }
 
     /// Return a [`PyList`] of all sets of shard fingerprints for this shape,
-    /// or `None` if it does not exist.
+    /// raise `KeyError` with the unknown name (as bytes) if it does not exist.
     ///
     /// Each set is a [`PyList`] since a [`PyFingerprint`] is a dict, which is
     /// not hashable.
@@ -158,15 +158,16 @@ impl PyStoreShards {
         &self,
         py: Python,
         name: &str,
-    ) -> PyResult<Option<Py<PyList>>> {
+    ) -> PyResult<Py<PyList>> {
         let groups = match self.inner.shard_fingerprints_for_shape(name) {
             Ok(groups) => groups,
-            Err(err)
-                if matches!(*err.kind, ShapeErrorKind::UnknownShape(_)) =>
-            {
-                return Ok(None);
+            Err(err) => {
+                if let ShapeErrorKind::UnknownShape(unknown) = &*err.kind {
+                    let unknown = unknown.as_bytes().to_vec();
+                    return Err(PyKeyError::new_err(unknown));
+                }
+                return Err(err).into_pyerr(py);
             }
-            Err(err) => return Err(err).into_pyerr(py),
         };
         let sets: Result<Vec<_>, _> = groups
             .into_iter()
@@ -174,7 +175,7 @@ impl PyStoreShards {
                 PyList::new(py, group.into_iter().map(PyFingerprint::from))
             })
             .collect();
-        Ok(Some(PyList::new(py, sets?)?.unbind()))
+        Ok(PyList::new(py, sets?)?.unbind())
     }
 
     /// Return a list of all known shapes

@@ -642,7 +642,10 @@ def previous_shards_sets(
         previous_fp = previous_shape.fingerprint()
         if ShapeFingerprint(**previous_fp) != fingerprint:
             continue
-        previous_sets = previous.shard_fingerprints_for_shape(name) or []
+        try:
+            previous_sets = previous.shard_fingerprints_for_shape(name)
+        except KeyError:
+            continue
         sets.extend(shard_fingerprints_sets(previous_sets))
     return sets
 
