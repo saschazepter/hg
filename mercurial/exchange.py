@@ -2562,7 +2562,7 @@ def getbundlechunks(
             raise error.Abort(msg % txt_fingerprint)
         (includes, excludes) = narrowspec.patterns_for_shape(
             repo=repo,
-            name=shape,
+            names=[shape],
             fingerprint=fingerprint,
         )
         kwargs[b"includepats"] = includes

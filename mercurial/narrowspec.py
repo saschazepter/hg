@@ -293,25 +293,26 @@ def write_shape(file: BinaryIO, name):
 
 def patterns_for_shape(
     repo: RepoT,
-    name: bytes,
+    names: list[bytes],
     fingerprint: shapemod.Fingerprint | None,
 ) -> StoreShapeLegacyPatternsT:
-    """Return the (legacy) include and exclude patterns for this shape.
+    """Return the (legacy) include and exclude patterns for the shape of these
+    names.
 
     `fingerprint` is the expected fingerprint to check against"""
     if shapemod_rust is None:
         raise error.ProgrammingError("called `get_shape` without Rust support")
-    as_str = _decode_shape(name)
+    as_str = [_decode_shape(name) for name in names]
 
     store_shards = shapemod_rust.get_store_shards(repo.root)
     try:
-        shape = store_shards.shape([as_str])
+        shape = store_shards.shape(as_str)
     except KeyError as e:
         raise error.Abort(b"shape not found on remote: '%s'" % e.args[0])
     if fingerprint is not None:
         server_fingerprint = shapemod.ShapeFingerprint(**shape.fingerprint())
         if fingerprint != server_fingerprint:
-            msg = _(b"fingerprint mismatch for shape '%s'") % name
+            msg = _(b"fingerprint mismatch for shape '%s'") % b','.join(names)
             hint = _(b"server: %s, client: %s")
             hint %= (server_fingerprint.to_text(), fingerprint.to_text())
             raise error.Abort(msg, hint=hint)
