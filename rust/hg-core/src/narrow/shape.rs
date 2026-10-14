@@ -158,6 +158,19 @@ impl ShardName {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_bytes()
     }
+
+    /// Validate `names`, then return them sorted and without duplicates.
+    ///
+    /// The first invalid name is reported, see [`Self::new`].
+    pub fn canonical_names(names: &[&str]) -> Result<Vec<Self>, Error> {
+        let mut names = names
+            .iter()
+            .map(|name| Self::new(name.to_string()))
+            .collect::<Result<Vec<_>, _>>()?;
+        names.sort();
+        names.dedup();
+        Ok(names)
+    }
 }
 
 /// Defines a subset of files in this repo's history.
@@ -1457,6 +1470,26 @@ mod tests {
         assert_invalid_path(b"\x00\x00\x00\x01\x00\x02f/", b"f/");
         assert_invalid_path(b"\x00\x00\x00\x01\x00\x04a//b", b"a//b");
         assert_invalid_path(b"\x00\x00\x00\x01\x00\x03a\x00b", b"a\x00b");
+    }
+
+    #[test]
+    fn test_canonical_names() {
+        let name = |name: &str| ShardName::new(name.to_string()).unwrap();
+
+        // Sorted, without duplicates
+        let names =
+            ShardName::canonical_names(&["celeste", "babar", "celeste"]);
+        assert_eq!(names.unwrap(), vec![name("babar"), name("celeste")]);
+        assert_eq!(ShardName::canonical_names(&[]).unwrap(), vec![]);
+
+        // The first invalid name is reported
+        let err = ShardName::canonical_names(&["babar", "Zephir", ""]);
+        assert_eq!(
+            *err.unwrap_err().kind,
+            ErrorKind::InvalidShardName("Zephir".to_string())
+        );
+        let err = ShardName::canonical_names(&["babar", "", "Zephir"]);
+        assert_eq!(*err.unwrap_err().kind, ErrorKind::EmptyShardName);
     }
 
     #[test]
