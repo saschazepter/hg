@@ -204,6 +204,49 @@ Test valid cases
     )
   )
 
+Test composite shapes
+---------------------
+
+Comma-separated names designate a composite shape, whatever their order
+
+  $ hg debugwireproto --localssh << EOF
+  > command store_shape
+  >     name other-secret,default
+  > EOF
+  creating ssh peer from handshake results
+  sending store_shape command
+  response: (
+    [
+      ShapeFingerprint(version=0, digest=b'\x0c\xa8Q\xef|\xda\x7f\xb1\x82Bd\xb2\x0f\xf0\x0fQ\xc6\x17U\xbb\x91\xee\x12\xf5\xf9\x0cV8k?\x99\xf4')
+    ],
+    [
+      set([
+        ShardFingerprint(version=0, digest=b'\x19g\xbf\xea\x8ed \x11\x11\x0bw\x17\xd5\xa6\x8a\xcd\xcaF\xee=\xb5\xede\x92\x86\x01\x02=\x0c`\xcb\x1d'),
+        ShardFingerprint(version=0, digest=b"O\x0f(Id\xa6\xb4y\xf7\xa0\x06>\xb0\x1bz\xff\x91'\xd2|+\n\x87$\x89\x9f\xf33?\xbb\xa6g"),
+        ShardFingerprint(version=0, digest=b'\xc4\x91\xfc\x7fG\x80\xd4\x90\xa8\x15l8\x88\xe5\x91\x10\x1a\xccq\xf3\x0fj\x04\x81\xa2\xe1\xb4K^i\xcc\xb6')
+      ])
+    ],
+    (
+      set([
+        b'path:.'
+      ]),
+      set([
+        b'path:secret'
+      ])
+    )
+  )
+
+Only the name that is not found is reported
+
+  $ hg debugwireproto --localssh << EOF
+  > command store_shape
+  >     name default,unknown-shape
+  > EOF
+  creating ssh peer from handshake results
+  sending store_shape command
+  abort: shape not found on remote: 'unknown-shape'
+  [10]
+
 Test narrow clone with `--store-shape`
 --------------------------------
 

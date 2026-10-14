@@ -1146,6 +1146,10 @@ up this shape. The last element is always a set containing only this shape's
 fingerprint, to make clonebundle filtering easier, and to allow for checking
 that fingerprint computation has not drifted between the server and client.
 
+The ``names`` argument is a comma-separated list of shape names, for their
+composite shape that covers every file that any of them covers; their order
+does not matter.
+
 The payload is split in four binary blocks:
 
 Header Block

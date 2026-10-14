@@ -445,7 +445,7 @@ class wirepeer(
 
             return fingerprints, shard_sets, patterns
 
-        return {b"name": encoding.fromlocal(name)}, decode
+        return {b"names": encoding.fromlocal(name)}, decode
 
     def _finish_inline_clone_bundle(self, stream):
         pass  # allow override for httppeer

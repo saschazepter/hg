@@ -387,9 +387,11 @@ def clonebundles_2(repo, proto, args):
     return wireprototypes.bytesresponse(b''.join(manifest_lines))
 
 
-@wireprotocommand(b'store_shape', b'name *', permission=b'pull')
-def store_shape(repo, proto, name, args):
+@wireprotocommand(b'store_shape', b'names *', permission=b'pull')
+def store_shape(repo, proto, names, args):
     """Server command for returning information about a store shape.
+
+    `names` is a comma-separated list of names, for their composite shape.
 
     Clients will use this to get the includes and excludes of that shape, and
     check their fingerprint computation against that of this server, to make
@@ -403,25 +405,25 @@ def store_shape(repo, proto, name, args):
             _(b"server has no shapes support"),
             hint=_(b"lacking Rust extensions"),
         )
-    shape_name = name.decode()
+    shape_names = [shape_name.decode() for shape_name in names.split(b',')]
     store_shards = shapemod.get_store_shards(repo.root)
     codes = wireprototypes.ShapeReturnCode
     header = wireprototypes.STORE_SHAPE_ENCODE
     try:
-        shape = store_shards.shape([shape_name])
+        shape = store_shards.shape(shape_names)
     except KeyError as e:
         block = shape_py.wire_unknown_names_encode([e.args[0]])
         rep = header.pack(codes.SHAPE_NOT_FOUND, len(block), 0, 0)
         return wireprototypes.bytesresponse(rep + block)
     try:
-        groups = store_shards.shard_fingerprints_for_shape([shape_name])
+        groups = store_shards.shard_fingerprints_for_shape(shape_names)
     except KeyError as e:
         msg = _(b"could not compute shard fingerprints for shape %s")
         raise error.Abort(msg % e.args[0])
     groups = shape_py.shard_fingerprints_sets(groups)
     previous = shape_py.previous_shards_sets(
         repo,
-        [shape_name],
+        shape_names,
         shape_py.ShapeFingerprint(**shape.fingerprint()),
     )
     for group in previous:
