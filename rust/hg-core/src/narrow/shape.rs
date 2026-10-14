@@ -455,17 +455,18 @@ impl StoreShards {
     /// against sharded bundles.
     /// A client cloning a particular shape will need to know which shards make
     /// up that shape to select the right set of bundles (one per shard).
+    ///
+    /// Returns [`ErrorKind::UnknownShape`] if no shard of that name is marked
+    /// as a shape.
     pub fn shard_fingerprints_for_shape(
         &self,
         name: &str,
-    ) -> Result<Option<Vec<FastHashSet<Fingerprint>>>, Error> {
+    ) -> Result<Vec<FastHashSet<Fingerprint>>, Error> {
         let shard_name = ShardName::new(name.to_string())?;
-        let Some(shard) = self.shards.get(&shard_name) else {
-            return Ok(None);
+        let shard = match self.shards.get(&shard_name) {
+            Some(shard) if shard.shape => shard,
+            _ => return Err(ErrorKind::UnknownShape(name.to_string()))?,
         };
-        if !shard.shape {
-            return Ok(None);
-        }
         let mut dependent_shards = self.dependencies(shard)?;
         dependent_shards.insert(&shard_name, shard);
         let fingerprints = dependent_shards
@@ -476,7 +477,7 @@ impl StoreShards {
         // For now we only have a single set of fingerprints for a given shape
         // but we start keeping track of multiple states of a shape, and thus
         // could answer multiple sets of fingerprints.
-        Ok(Some(vec![fingerprints]))
+        Ok(vec![fingerprints])
     }
 
     /// Gather all recursive dependent shards for `shard`
@@ -1511,6 +1512,10 @@ mod tests {
         let err = store_shards.shape(&["zz"]).unwrap_err();
         assert_eq!(*err.kind, ErrorKind::UnknownShape("zz".to_string()));
         let err = store_shards.shape(&["baz"]).unwrap_err();
+        assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
+        let err = store_shards.shard_fingerprints_for_shape("zz").unwrap_err();
+        assert_eq!(*err.kind, ErrorKind::UnknownShape("zz".to_string()));
+        let err = store_shards.shard_fingerprints_for_shape("baz").unwrap_err();
         assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
     }
 

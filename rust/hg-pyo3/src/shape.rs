@@ -159,9 +159,14 @@ impl PyStoreShards {
         py: Python,
         name: &str,
     ) -> PyResult<Option<Py<PyList>>> {
-        let groups = self.inner.shard_fingerprints_for_shape(name);
-        let Some(groups) = groups.into_pyerr(py)? else {
-            return Ok(None);
+        let groups = match self.inner.shard_fingerprints_for_shape(name) {
+            Ok(groups) => groups,
+            Err(err)
+                if matches!(*err.kind, ShapeErrorKind::UnknownShape(_)) =>
+            {
+                return Ok(None);
+            }
+            Err(err) => return Err(err).into_pyerr(py),
         };
         let sets: Result<Vec<_>, _> = groups
             .into_iter()
