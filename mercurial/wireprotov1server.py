@@ -409,9 +409,10 @@ def store_shape(repo, proto, name, args):
     header = wireprototypes.STORE_SHAPE_ENCODE
     try:
         shape = store_shards.shape([shape_name])
-    except KeyError:
-        rep = header.pack(codes.SHAPE_NOT_FOUND, 0, 0, 0)
-        return wireprototypes.bytesresponse(rep)
+    except KeyError as e:
+        block = shape_py.wire_unknown_names_encode([e.args[0]])
+        rep = header.pack(codes.SHAPE_NOT_FOUND, len(block), 0, 0)
+        return wireprototypes.bytesresponse(rep + block)
     try:
         groups = store_shards.shard_fingerprints_for_shape([shape_name])
     except KeyError as e:

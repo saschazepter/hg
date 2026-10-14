@@ -393,7 +393,11 @@ class wirepeer(
             cursor = header_spec.size
             codes = wireprototypes.ShapeReturnCode
             if return_code == codes.SHAPE_NOT_FOUND:
-                msg = _(b"shape not found on remote: '%s'") % name
+                # the first size is that of the "unknown names" block
+                block = data[cursor : cursor + fingerprints_size]
+                unknown_names = shape_py.wire_unknown_names_decode(block)
+                msg = _(b"shape not found on remote: '%s'")
+                msg %= b','.join(unknown_names)
                 self._abort(error.RepoLookupError(msg))
             if return_code != codes.OK:
                 msg = _(b"unknown shape error code: %d") % return_code

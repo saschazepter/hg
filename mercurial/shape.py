@@ -561,6 +561,29 @@ def _decode_shards_sets(data: bytes) -> list[set[ShardFingerprint]]:
     return shards_sets
 
 
+def wire_unknown_names_encode(names: list[bytes]) -> bytes:
+    """encode the "unknown names" block of a `store_shape` "not found" reply"""
+    pieces = [u2b(len(names), 4)]
+    pieces.extend(u2b(len(name), 4) for name in names)
+    pieces.extend(names)
+    return b''.join(pieces)
+
+
+def wire_unknown_names_decode(data: bytes) -> list[bytes]:
+    """decode the "unknown names" block of a `store_shape` "not found" reply"""
+    # XXX error handling needs to exists at some point
+    count = b2u(data[:4])
+    cursor = 4 + 4 * count
+    names = []
+    for idx in range(count):
+        size_offset = 4 + 4 * idx
+        name_size = b2u(data[size_offset : size_offset + 4])
+        names.append(data[cursor : cursor + name_size])
+        cursor += name_size
+    assert cursor == len(data)
+    return names
+
+
 # XXX having this in the Python module and not in the Rust module is
 # "unexpected" and should be fixed" sooner than later.
 def wire_store_shape_encode(

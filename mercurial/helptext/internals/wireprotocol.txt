@@ -1159,8 +1159,9 @@ Contains fixed size information and size of the three other blocks.
 * u32: size of the "patterns" block in bytes
 
 The return code is ``1`` if successful, ``2`` if the shape isn't found. Other
-error codes are reserved for future use. If ``2``, the other blocks should be
-empty
+error codes are reserved for future use. If ``2``, the size of the shape
+fingerprints block is instead that of the "unknown names" block, which follows
+the header, and the other blocks are empty.
 
 Shape Fingerprints block
 ~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1193,6 +1194,15 @@ byte and surrounding by null bytes) such that a directory is directly followed
 by its contents.
 
 The digest of a fingerprint of version 0 is the SHA-256 of this block.
+
+Unknown names block:
+~~~~~~~~~~~~~~~~~~~~
+
+Only sent with the return code ``2``, the names that were not found.
+
+* u32:   number of names
+* [u32]: array of name sizes (as many entries as the number of names)
+* [bytes]: each name (according to the size in the previous field)
 
 stream_out
 ----------

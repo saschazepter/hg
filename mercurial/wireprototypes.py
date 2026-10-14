@@ -66,7 +66,7 @@ TRANSPORTS = {
 STORE_SHAPE_ENCODE = struct.Struct(">BHII")
 """
 - return code
-- fingerprints block size
+- fingerprints block size (unknown names block size for `SHAPE_NOT_FOUND`)
 - shards sets block size
 - pattern block size
 """
