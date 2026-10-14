@@ -458,10 +458,10 @@ class localpeer(peer.Peer, repository.ipeercommands):
     def store_shape(
         self,
         *,
-        name: bytes,
+        names: list[bytes],
         **kwargs,
     ) -> StoreShapePatternsT:
-        """Returns the narrow patterns for the shape of this name, alongside
+        """Returns the narrow patterns for the shape of these names, alongside
         the list of sets fingerprints of its constituent shards.
         There can be multiple sets of shard fingerprints since a shape can
         evolve over time, as well as provide a full shape only fingerprint."""
@@ -471,9 +471,9 @@ class localpeer(peer.Peer, repository.ipeercommands):
                 hint=_(b"lacking Rust extensions"),
             )
         store_shards = shapemod.get_store_shards(self._repo.root)
-        name_str = encoding.strfromlocal(name)
+        names_str = [encoding.strfromlocal(name) for name in names]
         try:
-            shape = store_shards.shape([name_str])
+            shape = store_shards.shape(names_str)
         except KeyError as e:
             msg = _(b"shape not found on remote: '%s'") % e.args[0]
             raise error.RepoLookupError(msg)

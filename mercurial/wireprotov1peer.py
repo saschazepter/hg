@@ -376,10 +376,10 @@ class wirepeer(
         return {b"mandatory_params": b'1'}, decode
 
     @batchable
-    def store_shape(self, *, name: bytes, **kwargs):
-        """Ask the narrow server information about this shape. The server
-        will return the includes, excludes and fingerprint of this shape,
-        allowing us to check that we agree on how they're computed."""
+    def store_shape(self, *, names: list[bytes], **kwargs):
+        """Ask the narrow server information about the shape of these names.
+        The server will return the includes, excludes and fingerprint of this
+        shape, allowing us to check that we agree on how they're computed."""
         self.requirecap(wireprototypes.SHAPECAP, _(b'use store shapes'))
 
         def decode(data: bytes) -> StoreShapePatternsT:
@@ -435,7 +435,8 @@ class wirepeer(
             if computed_fingerprint not in fingerprints:
                 # Sanity check
                 # Should only happen if we change how fingerprints are computed
-                msg = _(b"fingerprint mismatch for shape '%s'") % name
+                msg = _(b"fingerprint mismatch for shape '%s'")
+                msg %= b','.join(names)
                 hint = _(b"server: [%s], client: %s")
                 hint %= (
                     b', '.join(fp.to_text() for fp in fingerprints),
@@ -445,7 +446,8 @@ class wirepeer(
 
             return fingerprints, shard_sets, patterns
 
-        return {b"names": encoding.fromlocal(name)}, decode
+        wire_names = b','.join(encoding.fromlocal(name) for name in names)
+        return {b"names": wire_names}, decode
 
     def _finish_inline_clone_bundle(self, stream):
         pass  # allow override for httppeer

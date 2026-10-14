@@ -203,7 +203,7 @@ def clone(
 
         if shape is not None:
             with srcpeer.commandexecutor() as e:
-                command = e.callcommand(b'store_shape', {b'name': shape})
+                command = e.callcommand(b'store_shape', {b'names': [shape]})
                 (
                     fingerprints,
                     shards_sets,

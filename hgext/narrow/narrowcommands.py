@@ -786,7 +786,7 @@ def _tracked_remote_path(
 
     if shape is not None:
         with remote.commandexecutor() as e:
-            command = e.callcommand(b'store_shape', {b'name': shape})
+            command = e.callcommand(b'store_shape', {b'names': [shape]})
             (
                 fingerprints,
                 shards_sets,

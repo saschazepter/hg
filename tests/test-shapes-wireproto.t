@@ -64,7 +64,7 @@ First disable support so we test old client behavior
 
   $ hg debugwireproto --localssh << EOF
   > command store_shape
-  >     name unknown-shape
+  >     names eval:[b'unknown-shape']
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
@@ -84,7 +84,7 @@ Test error cases
 
   $ hg debugwireproto --localssh << EOF
   > command store_shape
-  >     name unknown-shape
+  >     names eval:[b'unknown-shape']
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
@@ -94,7 +94,7 @@ Test error cases
   $ hg debugwireproto --localssh << EOF
   > command store_shape
   >     # try a shard
-  >     name secrets
+  >     names eval:[b'secrets']
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
@@ -138,7 +138,7 @@ bogus fingerprint.
 
   $ hg debugwireproto --localssh --config extensions.bogus=$TESTTMP/bogus-fingerprint.py << EOF
   > command store_shape
-  >     name default
+  >     names eval:[b'default']
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
@@ -152,10 +152,10 @@ Test valid cases
   $ hg debugwireproto --localssh << EOF
   > command store_shape
   >     # valid shape
-  >     name other-secret
+  >     names eval:[b'other-secret']
   > command store_shape
   >     # valid shape
-  >     name default
+  >     names eval:[b'default']
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
@@ -211,7 +211,7 @@ Comma-separated names designate a composite shape, whatever their order
 
   $ hg debugwireproto --localssh << EOF
   > command store_shape
-  >     name other-secret,default
+  >     names eval:[b'other-secret', b'default']
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
@@ -240,7 +240,7 @@ Only the name that is not found is reported
 
   $ hg debugwireproto --localssh << EOF
   > command store_shape
-  >     name default,unknown-shape
+  >     names eval:[b'default', b'unknown-shape']
   > EOF
   creating ssh peer from handshake results
   sending store_shape command

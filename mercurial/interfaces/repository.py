@@ -439,10 +439,10 @@ class ipeercommands(Protocol):
     def store_shape(
         self,
         *,
-        name: bytes,
+        names: list[bytes],
         **kwargs,
     ) -> StoreShapePatternsT:
-        """Returns the narrow patterns for the shape of this name"""
+        """Returns the narrow patterns for the shape of these names"""
 
 
 class ipeerlegacycommands(Protocol):
