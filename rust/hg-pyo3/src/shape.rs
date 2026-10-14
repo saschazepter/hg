@@ -5,6 +5,7 @@ use std::path::Path;
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternSyntax;
 use hg::file_patterns::parse_one_pattern;
+use hg::narrow::shape::ErrorKind as ShapeErrorKind;
 use hg::narrow::shape::Fingerprint;
 use hg::narrow::shape::SHAPES_FILE;
 use hg::narrow::shape::Shape;
@@ -114,10 +115,15 @@ pub struct PyStoreShards {
 impl PyStoreShards {
     /// Return the shape of name `name`, or `None` if it doesn't exist
     pub fn shape(&self, py: Python, name: &str) -> PyResult<Option<PyShape>> {
-        self.inner
-            .shape(name)
-            .into_pyerr(py)
-            .map(|shape| shape.map(|inner| PyShape { inner }))
+        match self.inner.shape(name) {
+            Ok(inner) => Ok(Some(PyShape { inner })),
+            Err(err)
+                if matches!(*err.kind, ShapeErrorKind::UnknownShape(_)) =>
+            {
+                Ok(None)
+            }
+            Err(err) => Err(err).into_pyerr(py),
+        }
     }
 
     /// Return a [`PyList`] whose items are, for each shard in the store:

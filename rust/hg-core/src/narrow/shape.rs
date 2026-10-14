@@ -76,6 +76,10 @@ pub enum ErrorKind {
     ParseError(toml::de::Error),
     /// Deserialization of the shape failed
     Deserialization(DeserializationError),
+    /// No shard of this name is marked as a shape
+    UnknownShape(String),
+    /// A shape was requested without any name
+    NoShapeNames,
 }
 
 /// All error cases specific to shape deserialization
@@ -415,16 +419,16 @@ impl StoreShards {
             .collect()
     }
 
-    /// Return the [`Shape`] of name `name`, or `None`.
-    pub fn shape(&self, name: &str) -> Result<Option<Shape>, Error> {
+    /// Return the [`Shape`] of name `name`, or [`ErrorKind::UnknownShape`] if
+    /// no shard of that name is marked as a shape.
+    pub fn shape(&self, name: &str) -> Result<Shape, Error> {
         let shard_name = ShardName::new(name.to_string())?;
         if let Some(shard) = self.shards.get(&shard_name)
             && shard.shape
         {
-            let shape = Shape::new(vec![shard_name], self, &[shard])?;
-            return Ok(Some(shape));
+            return Shape::new(vec![shard_name], self, &[shard]);
         }
-        Ok(None)
+        Err(ErrorKind::UnknownShape(name.to_string()).into())
     }
 
     /// Return enough information about each shard in the store to generate
@@ -1493,6 +1497,16 @@ mod tests {
     }
 
     #[test]
+    fn test_unknown_shape() {
+        let (store_shards, _) = valid_store_shards();
+        // Unknown names and non-shapes (shards) are reported
+        let err = store_shards.shape("zz").unwrap_err();
+        assert_eq!(*err.kind, ErrorKind::UnknownShape("zz".to_string()));
+        let err = store_shards.shape("baz").unwrap_err();
+        assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
+    }
+
+    #[test]
     fn test_fingerprint_representations() {
         const DIGEST_HEX: &str =
             "ab00000000000000000000000000000000000000000000000000000000000001";
@@ -1593,7 +1607,7 @@ mod tests {
             expected_includes: &[&str],
             expected_excludes: &[&str],
         ) {
-            let shape = store_shards.shape(shard_name).unwrap().unwrap();
+            let shape = store_shards.shape(shard_name).unwrap();
             dbg!(&shard_name);
             dbg!(&shape.tree);
             let (includes, excludes) = shape.patterns();
@@ -1850,7 +1864,7 @@ mod tests {
         let shape_to_matcher: Vec<_> = all_shape_names
             .iter()
             .map(|name| {
-                let shape = store_shards.shape(name).unwrap().unwrap();
+                let shape = store_shards.shape(name).unwrap();
                 let matcher = shape.matcher();
                 (shape.names().iter().join(","), matcher)
             })
@@ -1882,7 +1896,7 @@ mod tests {
         }
 
         // Full should always return the root node
-        let shape = store_shards.shape("full").unwrap().unwrap();
+        let shape = store_shards.shape("full").unwrap();
         let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
         assert_node(node, b"");
         assert_eq!(node.included, true);
@@ -1894,7 +1908,7 @@ mod tests {
         assert_eq!(node.included, true);
 
         // Test simple nested shape
-        let shape = store_shards.shape("bar").unwrap().unwrap();
+        let shape = store_shards.shape("bar").unwrap();
         let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
         assert_node(node, b"");
         assert_eq!(node.included, false);
@@ -1915,7 +1929,7 @@ mod tests {
         assert_eq!(node.included, false);
 
         // Test doubly nested shape
-        let shape = store_shards.shape("baron").unwrap().unwrap();
+        let shape = store_shards.shape("baron").unwrap();
         dbg!(&shape);
         let node = deepest_prefix_node(&shape.tree, HgPath::new(b""));
         assert_node(node, b"");
@@ -1947,20 +1961,20 @@ mod tests {
         assert_node(node, b"bar/baz");
         assert_eq!(node.included, false);
 
-        let shape = store_shards.shape("stone").unwrap().unwrap();
+        let shape = store_shards.shape("stone").unwrap();
         dbg!(&shape.tree);
         let node = deepest_prefix_node(&shape.tree, HgPath::new(b"stone/liz"));
         assert_node(node, b"stone");
         assert_eq!(node.included, true);
 
-        let shape = store_shards.shape("borden").unwrap().unwrap();
+        let shape = store_shards.shape("borden").unwrap();
         dbg!(&shape.tree);
         let node =
             deepest_prefix_node(&shape.tree, HgPath::new(b"stone/liz/zie/bor"));
         assert_node(node, b"stone/liz/zie");
         assert_eq!(node.included, false);
 
-        let shape = store_shards.shape("mummy").unwrap().unwrap();
+        let shape = store_shards.shape("mummy").unwrap();
         dbg!(&shape.tree);
         let node = deepest_prefix_node(
             &shape.tree,
@@ -1973,7 +1987,7 @@ mod tests {
     #[test]
     fn test_matcher_visit_children_set() {
         let (store_shards, _all_shape_names) = valid_store_shards();
-        let shape = store_shards.shape("bar").unwrap().unwrap();
+        let shape = store_shards.shape("bar").unwrap();
         let matcher = shape.matcher();
         // Test an exact match on a non-included node
         assert_eq!(
@@ -2001,7 +2015,7 @@ mod tests {
             VisitChildrenSet::Empty,
         );
 
-        let shape = store_shards.shape("bazik").unwrap().unwrap();
+        let shape = store_shards.shape("bazik").unwrap();
         let matcher = shape.matcher();
         // Test an exact match on a non-included node, through a `requires`
         assert_eq!(

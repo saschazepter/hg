@@ -2715,14 +2715,14 @@ mod tests {
 
         let store_shards =
             StoreShards::from_config(toml::from_str(config).unwrap()).unwrap();
-        let shape = store_shards.shape("test").unwrap().unwrap();
+        let shape = store_shards.shape("test").unwrap();
         let matcher = ShapeMatcher::new(shape);
         assert!(matcher.matches(HgPath::new("a")));
         assert!(!matcher.matches(HgPath::new("a/b")));
         assert!(matcher.matches(HgPath::new("a/b/c")));
         assert!(matcher.matches(HgPath::new("a/b/c/d/e/f/nested thing")));
         assert!(!matcher.matches(HgPath::new("rootfile")));
-        let shape = store_shards.shape("default").unwrap().unwrap();
+        let shape = store_shards.shape("default").unwrap();
         let matcher = ShapeMatcher::new(shape);
         assert!(!matcher.matches(HgPath::new("a")));
         assert!(matcher.matches(HgPath::new("rootfile")));

@@ -614,6 +614,12 @@ impl fmt::Display for HgError {
                     ShapeErrorKind::PatternError(err) => {
                         return format_pattern_error(f, err);
                     }
+                    ShapeErrorKind::UnknownShape(name) => {
+                        format!("{backtrace}unknown shape '{name}'")
+                    }
+                    ShapeErrorKind::NoShapeNames => {
+                        format!("{backtrace}at least one shape name is needed")
+                    }
                     ShapeErrorKind::Deserialization(deserialization_error) => {
                         let mut msg =
                             format!("{backtrace}error deserializing shape: ");
