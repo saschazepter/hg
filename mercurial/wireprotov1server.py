@@ -420,7 +420,7 @@ def store_shape(repo, proto, name, args):
     groups = shape_py.shard_fingerprints_sets(groups)
     previous = shape_py.previous_shards_sets(
         repo,
-        shape_name,
+        [shape_name],
         shape_py.ShapeFingerprint(**shape.fingerprint()),
     )
     for group in previous:

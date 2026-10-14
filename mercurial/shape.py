@@ -620,7 +620,7 @@ def shard_fingerprints_sets(shards_sets) -> list[set[ShardFingerprint]]:
 
 def previous_shards_sets(
     repo: RepoT,
-    name: str,
+    names: list[str],
     fingerprint: ShapeFingerprint,
 ) -> list[set[ShardFingerprint]]:
     """Shard fingerprint sets from previous versions of the `server-shapes` config.
@@ -630,20 +630,21 @@ def previous_shards_sets(
     Saving and reading the previous versions of the `server-shapes` config allows the
     old bundles to still be usable.
 
-    Only configs that still define `name` with `fingerprint` are used since a different
-    fingerprint means the shape covers a different set of files."""
+    Only configs where the (composite) shape of `names` still has `fingerprint`
+    are used, since a different fingerprint means it covers a different set of
+    files."""
     sets = []
     for __, contents in read_previous_configs(repo):
         previous = rustmod.get_store_shards_from_bytes(contents)
         try:
-            previous_shape = previous.shape([name])
+            previous_shape = previous.shape(names)
         except KeyError:
             continue
         previous_fp = previous_shape.fingerprint()
         if ShapeFingerprint(**previous_fp) != fingerprint:
             continue
         try:
-            previous_sets = previous.shard_fingerprints_for_shape([name])
+            previous_sets = previous.shard_fingerprints_for_shape(names)
         except KeyError:
             continue
         sets.extend(shard_fingerprints_sets(previous_sets))
