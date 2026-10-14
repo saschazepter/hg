@@ -305,7 +305,7 @@ def patterns_for_shape(
 
     store_shards = shapemod_rust.get_store_shards(repo.root)
     try:
-        shape = store_shards.shape(as_str)
+        shape = store_shards.shape([as_str])
     except KeyError as e:
         raise error.Abort(b"shape not found on remote: '%s'" % e.args[0])
     if fingerprint is not None:

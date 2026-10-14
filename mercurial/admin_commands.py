@@ -273,7 +273,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 _(b"composed shapespec is not implemented (yet)"),
             )
         try:
-            shape = store_shards.shape(name.decode())
+            shape = store_shards.shape([name.decode()])
         except KeyError as e:
             raise error.Abort(_(b"shape '%s' not found") % e.args[0])
 

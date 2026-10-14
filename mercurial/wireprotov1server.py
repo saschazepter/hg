@@ -408,12 +408,12 @@ def store_shape(repo, proto, name, args):
     codes = wireprototypes.ShapeReturnCode
     header = wireprototypes.STORE_SHAPE_ENCODE
     try:
-        shape = store_shards.shape(shape_name)
+        shape = store_shards.shape([shape_name])
     except KeyError:
         rep = header.pack(codes.SHAPE_NOT_FOUND, 0, 0, 0)
         return wireprototypes.bytesresponse(rep)
     try:
-        groups = store_shards.shard_fingerprints_for_shape(shape_name)
+        groups = store_shards.shard_fingerprints_for_shape([shape_name])
     except KeyError as e:
         msg = _(b"could not compute shard fingerprints for shape %s")
         raise error.Abort(msg % e.args[0])

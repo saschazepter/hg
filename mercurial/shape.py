@@ -636,14 +636,14 @@ def previous_shards_sets(
     for __, contents in read_previous_configs(repo):
         previous = rustmod.get_store_shards_from_bytes(contents)
         try:
-            previous_shape = previous.shape(name)
+            previous_shape = previous.shape([name])
         except KeyError:
             continue
         previous_fp = previous_shape.fingerprint()
         if ShapeFingerprint(**previous_fp) != fingerprint:
             continue
         try:
-            previous_sets = previous.shard_fingerprints_for_shape(name)
+            previous_sets = previous.shard_fingerprints_for_shape([name])
         except KeyError:
             continue
         sets.extend(shard_fingerprints_sets(previous_sets))

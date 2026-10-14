@@ -114,10 +114,12 @@ pub struct PyStoreShards {
 
 #[pymethods]
 impl PyStoreShards {
-    /// Return the shape of name `name`, raise `KeyError` with the unknown name
-    /// (as bytes) if it doesn't exist
-    pub fn shape(&self, py: Python, name: &str) -> PyResult<PyShape> {
-        let names = vec![name];
+    /// Return the shape combining the shapes of these `names`, raise
+    /// `KeyError` with the first unknown name (as bytes) if one doesn't exist
+    ///
+    /// See [`StoreShards::shape`].
+    pub fn shape(&self, py: Python, names: Vec<String>) -> PyResult<PyShape> {
+        let names: Vec<&str> = names.iter().map(String::as_str).collect();
         match self.inner.shape(&names) {
             Ok(inner) => Ok(PyShape { inner }),
             Err(err) => {
@@ -147,8 +149,9 @@ impl PyStoreShards {
         Ok(PyList::new(py, sharded_iter)?.unbind())
     }
 
-    /// Return a [`PyList`] of all sets of shard fingerprints for this shape,
-    /// raise `KeyError` with the unknown name (as bytes) if it does not exist.
+    /// Return a [`PyList`] of all sets of shard fingerprints for the shape
+    /// combining the shapes of these `names`, raise `KeyError` with the first
+    /// unknown name (as bytes) if one does not exist.
     ///
     /// Each set is a [`PyList`] since a [`PyFingerprint`] is a dict, which is
     /// not hashable.
@@ -157,9 +160,9 @@ impl PyStoreShards {
     pub fn shard_fingerprints_for_shape(
         &self,
         py: Python,
-        name: &str,
+        names: Vec<String>,
     ) -> PyResult<Py<PyList>> {
-        let shape = self.shape(py, name)?.inner;
+        let shape = self.shape(py, names)?.inner;
         let groups =
             self.inner.shard_fingerprints_for_shape(&shape).into_pyerr(py)?;
         let sets: Result<Vec<_>, _> = groups
