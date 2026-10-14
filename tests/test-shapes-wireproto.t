@@ -269,6 +269,54 @@ Check that a file inside the shape is available
   $ hg cat file1
   file1 contents
 
+Test `getbundle` with a composite shape
+=======================================
+
+Comma-separated names in `store_shape_with_fingerprint` designate their
+composite shape, with the same checks as for a single shape.
+
+  $ cd $TESTTMP/server
+
+Names must not be empty
+-----------------------
+
+  $ hg debugwireproto --localssh << EOF
+  > command getbundle
+  >     source pull
+  >     store_shape_with_fingerprint default,,other-secret:shape00-0000000000000000000000000000000000000000000000000000000000000000
+  > EOF
+  creating ssh peer from handshake results
+  sending getbundle command
+  response: <mercurial.changegroup.cg1unpacker object at 0x*> (glob)
+  remote: config error: shard names must not be empty
+
+An unknown name is reported by itself
+-------------------------------------
+
+  $ hg debugwireproto --localssh << EOF
+  > command getbundle
+  >     source pull
+  >     store_shape_with_fingerprint default,unknown-shape:shape00-0000000000000000000000000000000000000000000000000000000000000000
+  > EOF
+  creating ssh peer from handshake results
+  sending getbundle command
+  response: <mercurial.changegroup.cg1unpacker object at 0x*> (glob)
+  remote: abort: shape not found on remote: 'unknown-shape'
+
+The fingerprint must be the one of the composite shape
+------------------------------------------------------
+
+  $ hg debugwireproto --localssh << EOF
+  > command getbundle
+  >     source pull
+  >     store_shape_with_fingerprint default,other-secret:shape00-0000000000000000000000000000000000000000000000000000000000000000
+  > EOF
+  creating ssh peer from handshake results
+  sending getbundle command
+  response: <mercurial.changegroup.cg1unpacker object at 0x*> (glob)
+  remote: abort: fingerprint mismatch for shape 'default,other-secret'
+  remote: (server: shape00-0ca851ef7cda7fb1824264b20ff00f51c61755bb91ee12f5f90c56386b3f99f4, client: shape00-0000000000000000000000000000000000000000000000000000000000000000)
+
 Test pull
 =========
 

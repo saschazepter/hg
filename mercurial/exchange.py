@@ -1988,8 +1988,9 @@ def _pullbundle2(pullop: pulloperation):
                     _(b"cannot compute fingerprint for local narrow patterns")
                 )
             # `shape` was checked to be valid UTF-8
+            names = [shape.encode()]
             shape_with_fingerprint = b"%s:%s" % (
-                shape.encode(),
+                b",".join(names),
                 fingerprint.to_text(),
             )
             kwargs[b'store_shape_with_fingerprint'] = shape_with_fingerprint
@@ -2554,7 +2555,7 @@ def getbundlechunks(
     usebundle2 = bundle2requested(bundlecaps)
 
     if store_shape_with_fingerprint is not None:
-        shape, txt_fingerprint = store_shape_with_fingerprint.split(b':')
+        names, txt_fingerprint = store_shape_with_fingerprint.split(b':')
         try:
             fingerprint = shape_py.ShapeFingerprint.from_text(txt_fingerprint)
         except ValueError:
@@ -2562,7 +2563,7 @@ def getbundlechunks(
             raise error.Abort(msg % txt_fingerprint)
         (includes, excludes) = narrowspec.patterns_for_shape(
             repo=repo,
-            names=[shape],
+            names=names.split(b','),
             fingerprint=fingerprint,
         )
         kwargs[b"includepats"] = includes

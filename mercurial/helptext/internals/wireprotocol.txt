@@ -999,6 +999,12 @@ bookmarks
    Boolean indicating whether bookmark data is requested.
 phases
    Boolean indicating whether phases data is requested.
+store_shape_with_fingerprint
+   ``<names>:<fingerprint>``, where ``<names>`` is the comma-delimited list of
+   the store shapes the client tracks, designating their composite shape, and
+   ``<fingerprint>`` the text form of the fingerprint of that shape. The
+   server limits the bundle to that shape and aborts if a name is unknown or
+   if the fingerprint is not the one it computes.
 
 The return type on success is a ``stream`` where the value is bundle.
 On the HTTP version 1 transport, the response is zlib compressed.
