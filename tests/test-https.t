@@ -549,6 +549,13 @@ Certificate and private key can be given as separate files
   5fed3813f7f5
   $ killdaemons.py ../hg0.pid
 
+  $ hg serve -p $HGPORT -d --pid-file=../hg0.pid \
+  > --certificate="$CERTSDIR/pub.pem" --certificate-key="$CERTSDIR/priv.pem"
+  $ cat ../hg0.pid >> $DAEMON_PIDS
+  $ hg id https://localhost:$HGPORT/ --config web.cacerts="$CERTSDIR/pub.pem"
+  5fed3813f7f5
+  $ killdaemons.py ../hg0.pid
+
 Missing certificate file(s) are detected
 
   $ hg serve -p $HGPORT --certificate=/missing/certificate \

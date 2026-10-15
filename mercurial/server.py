@@ -230,10 +230,11 @@ def _createhgwebservice(ui: UiT, repo: RepoT | None, opts: dict[bytes, Any]):
 
     optlist = (
         b"name templates style address port prefix ipv6"
-        b" accesslog errorlog certificate encoding"
+        b" accesslog errorlog certificate certificate-key encoding"
     )
     for o in optlist.split():
-        val = opts.get(o, b'')
+        o_ident = o.replace(b'-', b'_')
+        val = opts.get(o_ident, b'')
         if val in (None, b''):  # should check against default options instead
             continue
         for u in alluis:
