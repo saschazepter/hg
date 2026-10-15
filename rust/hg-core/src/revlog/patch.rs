@@ -47,15 +47,15 @@ pub trait DeltaPiece<'a>: Clone {
     /// The data replacing the chunk
     fn data(&self) -> &'a [u8];
 
-    /// Length of the replaced date.
+    /// Length of the replacing data.
     fn size(&self) -> u32;
 
-    /// Length of the replaced date.
+    /// Length of the replaced data.
     fn replaced_len(&self) -> u32 {
         self.end() - self.start()
     }
 
-    /// Length of the replaced date.
+    /// `true` if the DeltaPiece amount for nothing
     fn is_empty(&self) -> bool {
         self.replaced_len() == 0 && self.size() == 0
     }
@@ -157,7 +157,7 @@ impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
         self.data
     }
 
-    /// Length of the replaced date.
+    /// Length of the replacing data.
     fn size(&self) -> u32 {
         u_u32(self.data.len())
     }
@@ -266,7 +266,7 @@ impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
         self.inner.data()
     }
 
-    /// Length of the replaced date.
+    /// Length of the replacing data.
     fn size(&self) -> u32 {
         self.inner.size()
     }
