@@ -323,6 +323,7 @@ class _httprequesthandlerssl(_httprequesthandler):
             raise error.Abort(_(b"SSL support is unavailable"))
 
         certfile = ui.config(b'web', b'certificate')
+        keyfile = ui.config(b'web', b'certificate-key')
 
         # These config options are currently only meant for testing. Use
         # at your own risk.
@@ -333,6 +334,7 @@ class _httprequesthandlerssl(_httprequesthandler):
             httpserver.socket,
             ui,
             certfile=certfile,
+            keyfile=keyfile,
             cafile=cafile,
             requireclientcert=reqcert,
         )

@@ -3287,7 +3287,12 @@ The full set of options is:
     Whether to support caching in hgweb. (default: True)
 
 ``certificate``
-    Certificate to use when running :hg:`serve`.
+    Certificate to use when running :hg:`serve`. The file may also contain
+    the private key, placed before the certificate.
+
+``certificate-key``
+    Private key to use when running :hg:`serve`, if it is not part of the
+    ``certificate`` file.
 
 ``collapse``
     With ``descend`` enabled, repositories in subdirectories are shown at

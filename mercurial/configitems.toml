@@ -3307,6 +3307,10 @@ name = "certificate"
 
 [[items]]
 section = "web"
+name = "certificate-key"
+
+[[items]]
+section = "web"
 name = "collapse"
 default = false
 
