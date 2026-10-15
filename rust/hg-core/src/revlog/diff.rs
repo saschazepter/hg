@@ -9,8 +9,8 @@ use super::RevlogError;
 use super::inner_revlog::InnerRevlog;
 use super::inner_revlog::SingleRevisionCache;
 use super::patch;
-use super::patch::DeltaPiece;
-use super::patch::PlainDeltaPiece;
+use super::patch::Edit;
+use super::patch::PlainEdit;
 use crate::Revision;
 use crate::utils::RawData;
 use crate::utils::u_i32;
@@ -59,13 +59,13 @@ impl<'a> DeltaCursor<'a> {
     }
 
     /// flush a non empty cursor
-    pub fn into_piece(self) -> PlainDeltaPiece<'a> {
+    pub fn into_piece(self) -> PlainEdit<'a> {
         let start = self.old.0;
         let end = self.old.1;
         let d_start = u32_u(self.new.0);
         let d_end = u32_u(self.new.1);
         let data = &self.data[d_start..d_end];
-        PlainDeltaPiece { start, end, data }
+        PlainEdit { start, end, data }
     }
 }
 
@@ -247,13 +247,13 @@ pub(super) fn text_delta_with_offset(
 
 fn all_created(prefix_size: usize, content: &[u8], delta: &mut Vec<u8>) {
     let start = u_u32(prefix_size);
-    PlainDeltaPiece { start, end: start, data: content }.write(delta)
+    PlainEdit { start, end: start, data: content }.write(delta)
 }
 
 fn all_deleted(prefix_size: usize, deleted: &[u8], delta: &mut Vec<u8>) {
     let start = u_u32(prefix_size);
     let end = start + u_u32(deleted.len());
-    PlainDeltaPiece { start, end, data: &[] }.write(delta)
+    PlainEdit { start, end, data: &[] }.write(delta)
 }
 
 /// The main part of [`text_delta`] extracted for clarity
@@ -325,7 +325,7 @@ pub(super) struct RevDeltaState<'irl> {
 /// a `RevDeltaState`)
 pub(super) struct Prepared<'state, D>
 where
-    D: patch::DeltaPiece<'state>,
+    D: patch::Edit<'state>,
 {
     pub(super) common_rev: Revision,
     pub(super) base_text: &'state [u8],
@@ -413,7 +413,7 @@ impl<'irl> RevDeltaState<'irl> {
         &'irl mut self,
     ) -> Result<Prepared<'irl, D>, RevlogError>
     where
-        D: patch::DeltaPiece<'irl>,
+        D: patch::Edit<'irl>,
     {
         // determine the base_text and when the delta start in the chunks
         let (base_text, chain_start): (&[u8], usize) =

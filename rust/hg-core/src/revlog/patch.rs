@@ -5,10 +5,10 @@
 //! **Full-Text:** a blob of bytes that consistitute a consisten content
 //! (usually a revision)
 //!
-//! **Delta:** A series of "DeltaPiece" that can be applied to a Full-Text" to
+//! **Delta:** A series of "Edit" that can be applied to a Full-Text" to
 //! produce another "Full-Text".
 //!
-//! **DeltaPiece:** An atomic unit that replace a section of the *old*
+//! **Edit:** An atomic unit that replace a section of the *old*
 //! "Full-Text" with another.
 //!
 //! **Delta-Chain:** A "Full-Text" followed by a list of Delta.
@@ -26,8 +26,8 @@ use crate::utils::u_u32;
 use crate::utils::u32_u;
 
 /// A piece of data to insert, delete or replace in a Delta
-pub trait DeltaPiece<'a>: Clone {
-    /// build a DeltaPiece from extra information
+pub trait Edit<'a>: Clone {
+    /// build a Edit from extra information
     ///
     /// The implementation is free to discard the information it doesn't need.
     fn new_rich(
@@ -68,7 +68,7 @@ pub trait DeltaPiece<'a>: Clone {
     /// Adjusted start of the data to replace.
     ///
     /// The offset, taking into account the growth/shrinkage of data
-    /// induced by previously applied DeltaPiece.
+    /// induced by previously applied Edit.
     fn start_offset_by(&self, offset: i32) -> u32 {
         let start = self.start() as i32 + offset;
         assert!(start >= 0, "negative chunk start should never happen");
@@ -78,27 +78,27 @@ pub trait DeltaPiece<'a>: Clone {
     /// Adjusted end of the data to replace.
     ///
     /// The offset, taking into account the growth/shrinkage of data
-    /// induced by previously applied DeltaPiece.
+    /// induced by previously applied Edit.
     fn end_offset_by(&self, offset: i32) -> u32 {
         self.start_offset_by(offset) + self.size()
     }
 
-    /// cut this DeltaPiece into two
+    /// cut this Edit into two
     ///
     /// The `cut_start` argument refer to the first index in `self.data()` that
-    /// goes in the first DeltaPiece. self is modified in place to contains
-    /// the second DeltaPiece.
+    /// goes in the first Edit. self is modified in place to contains
+    /// the second Edit.
     fn cut_at(&mut self, cut_start: u32) -> Self;
 
-    /// remove the `size` first bytes from the this DeltaPiece
+    /// remove the `size` first bytes from the this Edit
     fn trim_prefix(&mut self, size: u32) -> i32;
 
-    /// adjust this DeltaPiece by the given offset
+    /// adjust this Edit by the given offset
     ///
     /// (the offset is substracted to the piece `start` and `end`).
     fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self;
 
-    /// push a single DeltaPiece inside a Delta, ignoring empty ones
+    /// push a single Edit inside a Delta, ignoring empty ones
     fn write(self, delta: &mut Vec<u8>) {
         if self.replaced_len() == 0 && self.size() == 0 {
             return;
@@ -116,13 +116,13 @@ pub trait DeltaPiece<'a>: Clone {
 
 /// A piece of data to insert, delete or replace in a Delta
 ///
-/// A DeltaPiece is:
+/// A Edit is:
 /// - an insertion when `!data.is_empty() && start == end`
 /// - an deletion when `data.is_empty() && start < end`
 /// - a replacement when `!data.is_empty() && start < end`
 /// - not doing anything when `data.is_empty() && start == end`
 #[derive(Clone)]
-pub struct PlainDeltaPiece<'a> {
+pub struct PlainEdit<'a> {
     /// The start position of the chunk of data to replace
     pub(crate) start: u32,
     /// The end position of the chunk of data to replace (open end interval)
@@ -131,7 +131,7 @@ pub struct PlainDeltaPiece<'a> {
     pub(crate) data: &'a [u8],
 }
 
-impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
+impl<'a> Edit<'a> for PlainEdit<'a> {
     fn new_rich(
         _src: SrcToken,
         start: u32,
@@ -162,17 +162,17 @@ impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
         u_u32(self.data.len())
     }
 
-    /// cut this DeltaPiece into two
+    /// cut this Edit into two
     ///
     /// The `cut_start` argument refer to the first index in `self.data()` that
-    /// needs to go in the second DeltaPiece
+    /// needs to go in the second Edit
     fn cut_at(&mut self, cut_start: u32) -> Self {
         assert!(cut_start > 0);
         assert!(cut_start < self.size());
 
         let (left_data, right_data) = self.data.split_at(u32_u(cut_start));
         self.data = right_data;
-        PlainDeltaPiece {
+        PlainEdit {
             // there is no need to think too hard about which section of the
             // replaced part goes in the prefix and which goes in
             // the suffix. So lets use a zero size replacement for
@@ -205,9 +205,9 @@ impl<'a> DeltaPiece<'a> for PlainDeltaPiece<'a> {
     }
 }
 
-impl std::fmt::Debug for PlainDeltaPiece<'_> {
+impl std::fmt::Debug for PlainEdit<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PlainDeltaPiece")
+        f.debug_struct("PlainEdit")
             .field("start", &self.start)
             .field("end", &self.end)
             .field("size", &self.data.len())
@@ -215,22 +215,22 @@ impl std::fmt::Debug for PlainDeltaPiece<'_> {
     }
 }
 
-/// An identifier for which Chunk a DeltaPiece comes from.
+/// An identifier for which Chunk a Edit comes from.
 ///
-/// Used within RichDeltaPiece
+/// Used within RichEdit
 ///
 /// The 0 value is usually reserved for the base-text
 pub type SrcToken = u32;
 
-/// A DeltaPiece with information about  source and position within that source
+/// A Edit with information about  source and position within that source
 #[derive(Clone, Debug)]
-pub struct RichDeltaPiece<'a> {
-    pub inner: PlainDeltaPiece<'a>,
+pub struct RichEdit<'a> {
+    pub inner: PlainEdit<'a>,
     pub src: SrcToken,
     pub data_pos: u32,
 }
 
-impl RichDeltaPiece<'_> {
+impl RichEdit<'_> {
     pub(super) fn data_start(&self) -> u32 {
         self.data_pos
     }
@@ -240,7 +240,7 @@ impl RichDeltaPiece<'_> {
     }
 }
 
-impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
+impl<'a> Edit<'a> for RichEdit<'a> {
     fn new_rich(
         src: SrcToken,
         start: u32,
@@ -248,7 +248,7 @@ impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
         data_pos: u32,
         data: &'a [u8],
     ) -> Self {
-        let inner = PlainDeltaPiece::new_rich(src, start, end, data_pos, data);
+        let inner = PlainEdit::new_rich(src, start, end, data_pos, data);
         Self { inner, src, data_pos }
     }
     /// The start position of the chunk of data to replace
@@ -271,10 +271,10 @@ impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
         self.inner.size()
     }
 
-    /// cut this DeltaPiece into two
+    /// cut this Edit into two
     ///
     /// The `cut_start` argument refer to the first index in `self.data()` that
-    /// needs to go in the second DeltaPiece
+    /// needs to go in the second Edit
     fn cut_at(&mut self, cut_start: u32) -> Self {
         let old_pos = self.data_pos;
         self.data_pos += cut_start;
@@ -300,11 +300,11 @@ impl<'a> DeltaPiece<'a> for RichDeltaPiece<'a> {
 #[derive(Debug, Clone)]
 pub struct Delta<'a, P>
 where
-    P: DeltaPiece<'a>,
+    P: Edit<'a>,
 {
-    /// A collection of DeltaPiece to apply.
+    /// A collection of Edit to apply.
     ///
-    /// Those DeltaPiece are:
+    /// Those Edit are:
     /// - ordered from the left-most replacement to the right-most replacement
     /// - non-overlapping, meaning that two chucks can not change the same
     ///   chunk of the patched data
@@ -312,7 +312,7 @@ where
     phantom: std::marker::PhantomData<&'a P>,
 }
 
-impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
+impl<'a> Delta<'a, PlainEdit<'a>> {
     /// Create a `Delta` from bytes.
     pub fn new(data: &'a [u8]) -> Result<Self, RevlogError> {
         Self::new_rich(u32::MAX, data)
@@ -321,7 +321,7 @@ impl<'a> Delta<'a, PlainDeltaPiece<'a>> {
 
 impl<'a, D> Delta<'a, D>
 where
-    D: DeltaPiece<'a>,
+    D: Edit<'a>,
 {
     pub fn new_rich(
         src: SrcToken,
@@ -373,7 +373,7 @@ where
 
 impl<'a, P> Delta<'a, P>
 where
-    P: DeltaPiece<'a>,
+    P: Edit<'a>,
 {
     /// Create and empty Delta
     pub fn empty() -> Self {
@@ -555,11 +555,11 @@ where
     }
 }
 
-impl<'a> Delta<'a, RichDeltaPiece<'a>> {
+impl<'a> Delta<'a, RichEdit<'a>> {
     pub(super) fn into_iter_from_base(
         self,
         initial: &'a [u8],
-    ) -> impl Iterator<Item = RichDeltaPiece<'a>> {
+    ) -> impl Iterator<Item = RichEdit<'a>> {
         let mut chunks = self.chunks.into_iter();
         let mut next = chunks.next();
         let mut last: usize = 0;
@@ -571,7 +571,7 @@ impl<'a> Delta<'a, RichDeltaPiece<'a>> {
                     let data = &initial[last..o_start];
                     let pos = last;
                     last = o_start;
-                    Some(RichDeltaPiece::new_rich(0, 0, 0, u_u32(pos), data))
+                    Some(RichEdit::new_rich(0, 0, 0, u_u32(pos), data))
                 } else {
                     last = u32_u(current.end());
                     let ret = next.take().expect("in a Some(_) close");
@@ -582,7 +582,7 @@ impl<'a> Delta<'a, RichDeltaPiece<'a>> {
                 let data = &initial[last..];
                 let pos = last;
                 last = initial.len();
-                Some(RichDeltaPiece::new_rich(0, 0, 0, u_u32(pos), data))
+                Some(RichEdit::new_rich(0, 0, 0, u_u32(pos), data))
             } else {
                 None
             }
@@ -593,11 +593,11 @@ impl<'a> Delta<'a, RichDeltaPiece<'a>> {
 /// Combine a list of Deltas into a single Delta "optimized".
 ///
 /// Content from different Delta will still appears in different
-/// DeltaPiece, so the result if not "minimal". However it is "optiomized"
-/// in terms of application as it only contains non overlapping DeltaPiece.
+/// Edit, so the result if not "minimal". However it is "optiomized"
+/// in terms of application as it only contains non overlapping Edit.
 pub(super) fn fold_deltas<'a, P>(deltas: Vec<Delta<'a, P>>) -> Delta<'a, P>
 where
-    P: DeltaPiece<'a>,
+    P: Edit<'a>,
 {
     let full_size = deltas.len();
     let mut deltas = deltas.into_iter();
@@ -606,7 +606,7 @@ where
 
 fn fold_deltas_inner<'a, P, I>(deltas: &mut I, size: usize) -> Delta<'a, P>
 where
-    P: DeltaPiece<'a>,
+    P: Edit<'a>,
     I: ExactSizeIterator<Item = Delta<'a, P>>,
 {
     if size <= 1 {
@@ -640,7 +640,7 @@ pub fn build_data_from_deltas<T>(
 /// Parse the Deltas from their binary form.
 pub(super) fn deltas<D>(
     deltas: &[D],
-) -> Result<Vec<Delta<'_, PlainDeltaPiece<'_>>>, RevlogError>
+) -> Result<Vec<Delta<'_, PlainEdit<'_>>>, RevlogError>
 where
     D: AsRef<[u8]>,
 {

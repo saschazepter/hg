@@ -50,8 +50,8 @@ use super::options::RevlogDataConfig;
 use super::options::RevlogDeltaConfig;
 use super::options::RevlogFeatureConfig;
 use super::patch;
-use super::patch::DeltaPiece;
-use super::patch::PlainDeltaPiece;
+use super::patch::Edit;
+use super::patch::PlainEdit;
 use crate::GraphErrorKind;
 use crate::Node;
 use crate::NodePrefix;
@@ -617,11 +617,8 @@ impl InnerRevlog {
                 // if the old version is empty, we can create a trivial "replace
                 // all" delta
                 let mut delta = vec![];
-                let patch = PlainDeltaPiece {
-                    start: 0,
-                    end: 0,
-                    data: new_data.as_ref(),
-                };
+                let patch =
+                    PlainEdit { start: 0, end: 0, data: new_data.as_ref() };
                 patch.write(&mut delta);
                 delta
             } else {
@@ -670,7 +667,7 @@ impl InnerRevlog {
                 let deleted_size =
                     entry.uncompressed_len().expect("checked above?");
                 let patch =
-                    PlainDeltaPiece { start: 0, end: deleted_size, data: &[] };
+                    PlainEdit { start: 0, end: deleted_size, data: &[] };
                 patch.write(&mut delta);
                 Ok(delta)
             }
@@ -683,8 +680,7 @@ impl InnerRevlog {
                 let mut delta = vec![];
                 let entry = &self.get_entry(new_rev)?;
                 let data = entry.data_unchecked()?;
-                let patch =
-                    PlainDeltaPiece { start: 0, end: 0, data: data.as_ref() };
+                let patch = PlainEdit { start: 0, end: 0, data: data.as_ref() };
                 patch.write(&mut delta);
                 Ok(delta)
             }
@@ -772,8 +768,7 @@ impl InnerRevlog {
                 extra_delta,
             )?;
 
-            let p: diff::Prepared<'_, patch::RichDeltaPiece> =
-                state.prepare()?;
+            let p: diff::Prepared<'_, patch::RichEdit> = state.prepare()?;
             let common_2 = p.common_delta.clone();
             let new_delta = common_2.combine(p.new_delta);
             let old_delta = p.common_delta.combine(p.old_delta);
@@ -791,7 +786,7 @@ impl InnerRevlog {
                 extra_delta,
             )?;
 
-            let p: diff::Prepared<'_, PlainDeltaPiece> = state.prepare()?;
+            let p: diff::Prepared<'_, PlainEdit> = state.prepare()?;
 
             let common_buff;
             let old_buff;
@@ -2007,7 +2002,7 @@ pub(super) fn affected_range<'a, P>(
     right: &super::patch::Delta<'a, P>,
 ) -> Option<(u32, u32)>
 where
-    P: DeltaPiece<'a>,
+    P: Edit<'a>,
 {
     match (&left.chunks[..], &right.chunks[..]) {
         ([], []) => None, // both delta chain cancelled themself out eventually

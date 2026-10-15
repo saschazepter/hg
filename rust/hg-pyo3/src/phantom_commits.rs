@@ -9,8 +9,8 @@ use elsa::FrozenVec;
 use hg::FastHashMap;
 use hg::revlog::diff::text_delta;
 use hg::revlog::patch::Delta;
-use hg::revlog::patch::DeltaPiece;
-use hg::revlog::patch::RichDeltaPiece;
+use hg::revlog::patch::Edit;
+use hg::revlog::patch::RichEdit;
 use hg::revlog::patch::SrcToken;
 use hg::utils::files::is_binary;
 use hg::utils::u32_u;
@@ -124,7 +124,7 @@ impl UserKind {
 
 self_cell::self_cell! {
     /// A wrapper around [`Squasher`] that owns the text of delta pieces. The
-    /// [`RichDeltaPiece`]s in [`Squasher`] point into `owner`.
+    /// [`RichEdit`]s in [`Squasher`] point into `owner`.
     struct OwnedSquasher {
         owner: FrozenVec<Vec<u8>>,
         #[covariant]
@@ -254,12 +254,12 @@ enum Diff<'a> {
     /// File was modified.
     /// The delta is from [`Snapshot::delta_base`] to the final snapshot.
     /// The state's snapshot must NOT be [`Snapshot::Absent`].
-    Modified(Delta<'a, RichDeltaPiece<'a>>),
+    Modified(Delta<'a, RichEdit<'a>>),
     /// File was added by this [`SrcToken`].
     /// The delta is from [`Snapshot::delta_base`] to the final snapshot.
     /// The state's snapshot is usually [`Snapshot::Absent`], but it is present
     /// if the added file has a copy source in the base.
-    Added(SrcToken, Delta<'a, RichDeltaPiece<'a>>),
+    Added(SrcToken, Delta<'a, RichEdit<'a>>),
     /// File was removed by this [`SrcToken`].
     /// The state's snapshot must NOT be [`Snapshot::Absent`].
     Removed(SrcToken),

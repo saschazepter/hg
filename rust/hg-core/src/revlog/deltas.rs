@@ -10,14 +10,14 @@ const H_SIZE: usize = HP_SIZE * 3;
 /// A piece of delta that replace a section of the base by another piece of
 /// data.
 #[derive(Copy, Clone, Debug, PartialEq)]
-struct DeltaPiece {
+struct Edit {
     start: i32,
     old_end: i32,
     size: i32,
 }
 
-impl DeltaPiece {
-    /// return a new version of this DeltaPiece move by <offset> bytes
+impl Edit {
+    /// return a new version of this Edit move by <offset> bytes
     ///
     /// This is used when adjusting a delta to the change made by another one
     pub fn offsetted(&self, offset: i32) -> Self {
@@ -38,16 +38,16 @@ impl DeltaPiece {
         }
     }
 
-    /// the amount of bytes content after this DeltaPiece get shifted.
+    /// the amount of bytes content after this Edit get shifted.
     pub fn offset(&self) -> i32 {
         (self.start + self.size) - self.old_end
     }
 
-    /// return a new version of this DeltaPiece, removing the <amount> first
+    /// return a new version of this Edit, removing the <amount> first
     /// bytes change to the base.
     pub fn truncated(&self, amount: i32) -> Self {
         assert!(amount < (self.old_end - self.start));
-        DeltaPiece {
+        Edit {
             start: self.start + amount,
             old_end: self.old_end,
             size: self.size - amount.min(self.size),
@@ -131,9 +131,9 @@ pub fn optimize_base(
 /// folding the two last patch would result in a patch requesting an unecessary
 /// replacement of the line with "A".
 fn fold_deltas(
-    bottom_delta: &[DeltaPiece],
-    top_delta: &[DeltaPiece],
-    folded_delta: &mut Vec<DeltaPiece>,
+    bottom_delta: &[Edit],
+    top_delta: &[Edit],
+    folded_delta: &mut Vec<Edit>,
 ) -> usize {
     assert!(folded_delta.is_empty());
     // The amount of bytes added or removed by content from "bottom" so far
@@ -157,8 +157,8 @@ fn fold_deltas(
     let mut offset_top_bottom: i32 = 0;
 
     // Hold temporary "truncated" value
-    let mut tmp_bottom: DeltaPiece;
-    let mut tmp_top: DeltaPiece;
+    let mut tmp_bottom: Edit;
+    let mut tmp_top: Edit;
 
     // patches from the bottom delta
     let mut bottom_iter = bottom_delta.iter();
@@ -358,7 +358,7 @@ fn fold_deltas(
                 let size = end_a - start_a
                     + local_offset_from_top
                     + local_offset_from_bottom;
-                folded_delta.push(DeltaPiece {
+                folded_delta.push(Edit {
                     start: start_a,
                     old_end: end_a,
                     size,
@@ -375,7 +375,7 @@ fn fold_deltas(
 ///
 /// return the storage size of the parsed delta
 /// (which should be the size of `chunk` anyway)
-fn chunk_to_delta(delta: &mut Vec<DeltaPiece>, chunk: &[u8]) -> usize {
+fn chunk_to_delta(delta: &mut Vec<Edit>, chunk: &[u8]) -> usize {
     assert!(delta.is_empty());
     let mut offset = 0;
     let mut delta_size = 0;
@@ -402,7 +402,7 @@ fn chunk_to_delta(delta: &mut Vec<DeltaPiece>, chunk: &[u8]) -> usize {
             // inconsistent patch ‽
             break;
         }
-        delta.push(DeltaPiece { start, old_end, size });
+        delta.push(Edit { start, old_end, size });
         delta_size = delta_size + H_SIZE + size as usize;
         offset += size as usize;
     }
@@ -415,7 +415,7 @@ mod tests {
 
     use super::*;
 
-    fn delta_size(delta: &[DeltaPiece]) -> usize {
+    fn delta_size(delta: &[Edit]) -> usize {
         delta.iter().map(|p| p.size as usize + H_SIZE).sum()
     }
 
@@ -424,8 +424,8 @@ mod tests {
     /// (with patches not doing any offsets)
     #[test]
     fn test_disjoint_patches() {
-        let low_delta = vec![DeltaPiece { start: 0, old_end: 10, size: 10 }];
-        let high_delta = vec![DeltaPiece { start: 20, old_end: 30, size: 10 }];
+        let low_delta = vec![Edit { start: 0, old_end: 10, size: 10 }];
+        let high_delta = vec![Edit { start: 20, old_end: 30, size: 10 }];
         let mut folded_delta = vec![];
 
         assert_eq!(delta_size(&low_delta), 22);
@@ -436,8 +436,8 @@ mod tests {
         assert_eq!(
             folded_delta,
             vec![
-                DeltaPiece { start: 0, old_end: 10, size: 10 },
-                DeltaPiece { start: 20, old_end: 30, size: 10 },
+                Edit { start: 0, old_end: 10, size: 10 },
+                Edit { start: 20, old_end: 30, size: 10 },
             ]
         )
     }
@@ -447,8 +447,8 @@ mod tests {
     /// (with patches not doing any offsets)
     #[test]
     fn test_consecutive_patches() {
-        let low_delta = vec![DeltaPiece { start: 0, old_end: 10, size: 10 }];
-        let high_delta = vec![DeltaPiece { start: 10, old_end: 20, size: 10 }];
+        let low_delta = vec![Edit { start: 0, old_end: 10, size: 10 }];
+        let high_delta = vec![Edit { start: 10, old_end: 20, size: 10 }];
         let mut folded_delta = vec![];
 
         assert_eq!(delta_size(&low_delta), 22);
@@ -458,7 +458,7 @@ mod tests {
         assert_eq!(delta_size(&folded_delta), 32);
         assert_eq!(
             folded_delta,
-            vec![DeltaPiece { start: 0, old_end: 20, size: 20 },]
+            vec![Edit { start: 0, old_end: 20, size: 20 },]
         )
     }
 
@@ -467,8 +467,8 @@ mod tests {
     /// (without offset)
     #[test]
     fn test_overlapping_patches() {
-        let low_delta = vec![DeltaPiece { start: 0, old_end: 10, size: 10 }];
-        let high_delta = vec![DeltaPiece { start: 5, old_end: 15, size: 10 }];
+        let low_delta = vec![Edit { start: 0, old_end: 10, size: 10 }];
+        let high_delta = vec![Edit { start: 5, old_end: 15, size: 10 }];
         let mut folded_delta = vec![];
 
         assert_eq!(delta_size(&low_delta), 22);
@@ -478,7 +478,7 @@ mod tests {
         assert_eq!(delta_size(&folded_delta), 27);
         assert_eq!(
             folded_delta,
-            vec![DeltaPiece { start: 0, old_end: 15, size: 15 },]
+            vec![Edit { start: 0, old_end: 15, size: 15 },]
         )
     }
 
@@ -488,13 +488,13 @@ mod tests {
     #[test]
     fn test_overlapping_chain_or_patches() {
         let low_delta = vec![
-            DeltaPiece { start: 0, old_end: 10, size: 10 },
-            DeltaPiece { start: 15, old_end: 25, size: 10 },
-            DeltaPiece { start: 30, old_end: 40, size: 10 },
+            Edit { start: 0, old_end: 10, size: 10 },
+            Edit { start: 15, old_end: 25, size: 10 },
+            Edit { start: 30, old_end: 40, size: 10 },
         ];
         let high_delta = vec![
-            DeltaPiece { start: 8, old_end: 18, size: 10 },
-            DeltaPiece { start: 23, old_end: 33, size: 10 },
+            Edit { start: 8, old_end: 18, size: 10 },
+            Edit { start: 23, old_end: 33, size: 10 },
         ];
         let mut folded_delta = vec![];
 
@@ -504,7 +504,7 @@ mod tests {
         fold_deltas(&low_delta, &high_delta, &mut folded_delta);
         assert_eq!(
             folded_delta,
-            vec![DeltaPiece { start: 0, old_end: 40, size: 40 },]
+            vec![Edit { start: 0, old_end: 40, size: 40 },]
         );
         assert_eq!(delta_size(&folded_delta), 52);
     }
@@ -515,12 +515,12 @@ mod tests {
     #[test]
     fn test_superset_patches() {
         let low_delta = vec![
-            DeltaPiece { start: 0, old_end: 30, size: 30 },
-            DeltaPiece { start: 50, old_end: 60, size: 10 },
+            Edit { start: 0, old_end: 30, size: 30 },
+            Edit { start: 50, old_end: 60, size: 10 },
         ];
         let high_delta = vec![
-            DeltaPiece { start: 10, old_end: 20, size: 10 },
-            DeltaPiece { start: 40, old_end: 70, size: 30 },
+            Edit { start: 10, old_end: 20, size: 10 },
+            Edit { start: 40, old_end: 70, size: 30 },
         ];
         let mut folded_delta = vec![];
 
@@ -531,8 +531,8 @@ mod tests {
         assert_eq!(
             folded_delta,
             vec![
-                DeltaPiece { start: 0, old_end: 30, size: 30 },
-                DeltaPiece { start: 40, old_end: 70, size: 30 },
+                Edit { start: 0, old_end: 30, size: 30 },
+                Edit { start: 40, old_end: 70, size: 30 },
             ]
         );
         assert_eq!(delta_size(&folded_delta), 84);
@@ -543,8 +543,8 @@ mod tests {
     /// (with offsets)
     #[test]
     fn test_disjoint_patches_offsets() {
-        let low_delta = vec![DeltaPiece { start: 0, old_end: 10, size: 5 }];
-        let high_delta = vec![DeltaPiece { start: 10, old_end: 15, size: 10 }];
+        let low_delta = vec![Edit { start: 0, old_end: 10, size: 5 }];
+        let high_delta = vec![Edit { start: 10, old_end: 15, size: 10 }];
         let mut folded_delta = vec![];
 
         assert_eq!(delta_size(&low_delta), 17);
@@ -554,8 +554,8 @@ mod tests {
         assert_eq!(
             folded_delta,
             vec![
-                DeltaPiece { start: 0, old_end: 10, size: 5 },
-                DeltaPiece { start: 15, old_end: 20, size: 10 },
+                Edit { start: 0, old_end: 10, size: 5 },
+                Edit { start: 15, old_end: 20, size: 10 },
             ]
         );
         assert_eq!(delta_size(&folded_delta), 39);
@@ -566,8 +566,8 @@ mod tests {
     /// (with offsets)
     #[test]
     fn test_consecutive_patches_offsets() {
-        let low_delta = vec![DeltaPiece { start: 0, old_end: 10, size: 15 }];
-        let high_delta = vec![DeltaPiece { start: 15, old_end: 20, size: 7 }];
+        let low_delta = vec![Edit { start: 0, old_end: 10, size: 15 }];
+        let high_delta = vec![Edit { start: 15, old_end: 20, size: 7 }];
         let mut folded_delta = vec![];
 
         assert_eq!(delta_size(&low_delta), 27);
@@ -576,7 +576,7 @@ mod tests {
         fold_deltas(&low_delta, &high_delta, &mut folded_delta);
         assert_eq!(
             folded_delta,
-            vec![DeltaPiece { start: 0, old_end: 15, size: 22 },]
+            vec![Edit { start: 0, old_end: 15, size: 22 },]
         );
         assert_eq!(delta_size(&folded_delta), 34);
     }
@@ -586,8 +586,8 @@ mod tests {
     /// (with offsets)
     #[test]
     fn test_overlapping_patches_offsets() {
-        let low_delta = vec![DeltaPiece { start: 10, old_end: 20, size: 20 }];
-        let high_delta = vec![DeltaPiece { start: 25, old_end: 35, size: 3 }];
+        let low_delta = vec![Edit { start: 10, old_end: 20, size: 20 }];
+        let high_delta = vec![Edit { start: 25, old_end: 35, size: 3 }];
         let mut folded_delta = vec![];
 
         assert_eq!(delta_size(&low_delta), 32);
@@ -596,7 +596,7 @@ mod tests {
         fold_deltas(&low_delta, &high_delta, &mut folded_delta);
         assert_eq!(
             folded_delta,
-            vec![DeltaPiece { start: 10, old_end: 25, size: 18 },]
+            vec![Edit { start: 10, old_end: 25, size: 18 },]
         );
         assert_eq!(delta_size(&folded_delta), 30);
     }
@@ -607,16 +607,16 @@ mod tests {
     #[test]
     fn test_overlapping_chain_of_patches_offsets() {
         let low_delta = vec![
-            DeltaPiece { start: 0, old_end: 0, size: 5 },
-            DeltaPiece { start: 5, old_end: 10, size: 15 },
-            DeltaPiece { start: 15, old_end: 20, size: 0 },
-            DeltaPiece { start: 30, old_end: 35, size: 15 },
-            DeltaPiece { start: 40, old_end: 80, size: 10 },
+            Edit { start: 0, old_end: 0, size: 5 },
+            Edit { start: 5, old_end: 10, size: 15 },
+            Edit { start: 15, old_end: 20, size: 0 },
+            Edit { start: 30, old_end: 35, size: 15 },
+            Edit { start: 40, old_end: 80, size: 10 },
         ];
         let high_delta = vec![
-            DeltaPiece { start: 18, old_end: 45, size: 5 },
-            DeltaPiece { start: 50, old_end: 65, size: 30 },
-            DeltaPiece { start: 75, old_end: 75, size: 5 },
+            Edit { start: 18, old_end: 45, size: 5 },
+            Edit { start: 50, old_end: 65, size: 30 },
+            Edit { start: 75, old_end: 75, size: 5 },
         ];
         let mut folded_delta = vec![];
 
@@ -627,9 +627,9 @@ mod tests {
         assert_eq!(
             folded_delta,
             vec![
-                DeltaPiece { start: 0, old_end: 0, size: 5 },
-                DeltaPiece { start: 5, old_end: 82, size: 55 },
-                DeltaPiece { start: 85, old_end: 85, size: 5 },
+                Edit { start: 0, old_end: 0, size: 5 },
+                Edit { start: 5, old_end: 82, size: 55 },
+                Edit { start: 85, old_end: 85, size: 5 },
             ]
         );
         assert_eq!(delta_size(&folded_delta), 101);
@@ -641,14 +641,14 @@ mod tests {
     #[test]
     fn test_superset_patches_offsets() {
         let low_delta = vec![
-            DeltaPiece { start: 5, old_end: 10, size: 15 },
-            DeltaPiece { start: 20, old_end: 50, size: 10 },
-            DeltaPiece { start: 80, old_end: 90, size: 40 },
+            Edit { start: 5, old_end: 10, size: 15 },
+            Edit { start: 20, old_end: 50, size: 10 },
+            Edit { start: 80, old_end: 90, size: 40 },
         ];
         let high_delta = vec![
-            DeltaPiece { start: 33, old_end: 38, size: 65 },
-            DeltaPiece { start: 65, old_end: 120, size: 10 },
-            DeltaPiece { start: 150, old_end: 200, size: 66 },
+            Edit { start: 33, old_end: 38, size: 65 },
+            Edit { start: 65, old_end: 120, size: 10 },
+            Edit { start: 150, old_end: 200, size: 66 },
         ];
         let mut folded_delta = vec![];
 
@@ -659,10 +659,10 @@ mod tests {
         assert_eq!(
             folded_delta,
             vec![
-                DeltaPiece { start: 5, old_end: 10, size: 15 },
-                DeltaPiece { start: 20, old_end: 50, size: 70 },
-                DeltaPiece { start: 75, old_end: 100, size: 10 },
-                DeltaPiece { start: 130, old_end: 180, size: 66 },
+                Edit { start: 5, old_end: 10, size: 15 },
+                Edit { start: 20, old_end: 50, size: 70 },
+                Edit { start: 75, old_end: 100, size: 10 },
+                Edit { start: 130, old_end: 180, size: 66 },
             ]
         );
         assert_eq!(delta_size(&folded_delta), 209);
@@ -672,72 +672,72 @@ mod tests {
     #[test]
     fn test_large() {
         let low_delta = vec![
-            DeltaPiece { start: 0, old_end: 1651, size: 1652 },
-            DeltaPiece { start: 9868, old_end: 9901, size: 33 },
-            DeltaPiece { start: 19768, old_end: 19801, size: 33 },
-            DeltaPiece { start: 29668, old_end: 29701, size: 33 },
-            DeltaPiece { start: 39568, old_end: 39601, size: 33 },
-            DeltaPiece { start: 49468, old_end: 49501, size: 33 },
-            DeltaPiece { start: 59368, old_end: 59401, size: 33 },
-            DeltaPiece { start: 69268, old_end: 69301, size: 33 },
-            DeltaPiece { start: 79168, old_end: 79201, size: 33 },
-            DeltaPiece { start: 89068, old_end: 89101, size: 33 },
-            DeltaPiece { start: 98968, old_end: 99001, size: 33 },
-            DeltaPiece { start: 108868, old_end: 108901, size: 33 },
-            DeltaPiece { start: 118768, old_end: 118801, size: 33 },
-            DeltaPiece { start: 128668, old_end: 128701, size: 33 },
-            DeltaPiece { start: 138568, old_end: 138601, size: 33 },
-            DeltaPiece { start: 148468, old_end: 148501, size: 33 },
-            DeltaPiece { start: 158368, old_end: 158401, size: 33 },
-            DeltaPiece { start: 168268, old_end: 168301, size: 33 },
-            DeltaPiece { start: 178168, old_end: 178201, size: 33 },
-            DeltaPiece { start: 188068, old_end: 188101, size: 33 },
-            DeltaPiece { start: 197968, old_end: 198001, size: 33 },
-            DeltaPiece { start: 207868, old_end: 207901, size: 33 },
-            DeltaPiece { start: 217768, old_end: 217801, size: 33 },
-            DeltaPiece { start: 227668, old_end: 227701, size: 33 },
-            DeltaPiece { start: 237568, old_end: 237601, size: 33 },
-            DeltaPiece { start: 247468, old_end: 247501, size: 33 },
-            DeltaPiece { start: 257368, old_end: 257401, size: 33 },
-            DeltaPiece { start: 267268, old_end: 267301, size: 33 },
-            DeltaPiece { start: 277168, old_end: 277201, size: 33 },
-            DeltaPiece { start: 287068, old_end: 287101, size: 33 },
-            DeltaPiece { start: 296968, old_end: 297001, size: 33 },
-            DeltaPiece { start: 306868, old_end: 306901, size: 33 },
-            DeltaPiece { start: 316768, old_end: 316801, size: 33 },
-            DeltaPiece { start: 326668, old_end: 326701, size: 33 },
-            DeltaPiece { start: 336568, old_end: 336601, size: 33 },
+            Edit { start: 0, old_end: 1651, size: 1652 },
+            Edit { start: 9868, old_end: 9901, size: 33 },
+            Edit { start: 19768, old_end: 19801, size: 33 },
+            Edit { start: 29668, old_end: 29701, size: 33 },
+            Edit { start: 39568, old_end: 39601, size: 33 },
+            Edit { start: 49468, old_end: 49501, size: 33 },
+            Edit { start: 59368, old_end: 59401, size: 33 },
+            Edit { start: 69268, old_end: 69301, size: 33 },
+            Edit { start: 79168, old_end: 79201, size: 33 },
+            Edit { start: 89068, old_end: 89101, size: 33 },
+            Edit { start: 98968, old_end: 99001, size: 33 },
+            Edit { start: 108868, old_end: 108901, size: 33 },
+            Edit { start: 118768, old_end: 118801, size: 33 },
+            Edit { start: 128668, old_end: 128701, size: 33 },
+            Edit { start: 138568, old_end: 138601, size: 33 },
+            Edit { start: 148468, old_end: 148501, size: 33 },
+            Edit { start: 158368, old_end: 158401, size: 33 },
+            Edit { start: 168268, old_end: 168301, size: 33 },
+            Edit { start: 178168, old_end: 178201, size: 33 },
+            Edit { start: 188068, old_end: 188101, size: 33 },
+            Edit { start: 197968, old_end: 198001, size: 33 },
+            Edit { start: 207868, old_end: 207901, size: 33 },
+            Edit { start: 217768, old_end: 217801, size: 33 },
+            Edit { start: 227668, old_end: 227701, size: 33 },
+            Edit { start: 237568, old_end: 237601, size: 33 },
+            Edit { start: 247468, old_end: 247501, size: 33 },
+            Edit { start: 257368, old_end: 257401, size: 33 },
+            Edit { start: 267268, old_end: 267301, size: 33 },
+            Edit { start: 277168, old_end: 277201, size: 33 },
+            Edit { start: 287068, old_end: 287101, size: 33 },
+            Edit { start: 296968, old_end: 297001, size: 33 },
+            Edit { start: 306868, old_end: 306901, size: 33 },
+            Edit { start: 316768, old_end: 316801, size: 33 },
+            Edit { start: 326668, old_end: 326701, size: 33 },
+            Edit { start: 336568, old_end: 336601, size: 33 },
         ];
         let high_delta = vec![
-            DeltaPiece { start: 0, old_end: 1652, size: 1652 },
-            DeltaPiece { start: 9869, old_end: 9902, size: 33 },
-            DeltaPiece { start: 29669, old_end: 29702, size: 33 },
-            DeltaPiece { start: 49469, old_end: 49502, size: 33 },
-            DeltaPiece { start: 59369, old_end: 59402, size: 33 },
-            DeltaPiece { start: 69269, old_end: 69302, size: 33 },
-            DeltaPiece { start: 69335, old_end: 69368, size: 33 },
-            DeltaPiece { start: 79169, old_end: 79202, size: 33 },
-            DeltaPiece { start: 98969, old_end: 99002, size: 33 },
-            DeltaPiece { start: 108869, old_end: 108902, size: 33 },
-            DeltaPiece { start: 118769, old_end: 118802, size: 33 },
-            DeltaPiece { start: 138569, old_end: 138602, size: 33 },
-            DeltaPiece { start: 158369, old_end: 158402, size: 33 },
-            DeltaPiece { start: 168269, old_end: 168302, size: 33 },
-            DeltaPiece { start: 178169, old_end: 178202, size: 33 },
-            DeltaPiece { start: 178235, old_end: 178268, size: 33 },
-            DeltaPiece { start: 188069, old_end: 188102, size: 33 },
-            DeltaPiece { start: 207869, old_end: 207902, size: 33 },
-            DeltaPiece { start: 217769, old_end: 217802, size: 33 },
-            DeltaPiece { start: 227669, old_end: 227702, size: 33 },
-            DeltaPiece { start: 247469, old_end: 247502, size: 33 },
-            DeltaPiece { start: 267269, old_end: 267302, size: 33 },
-            DeltaPiece { start: 277169, old_end: 277202, size: 33 },
-            DeltaPiece { start: 287069, old_end: 287102, size: 33 },
-            DeltaPiece { start: 287135, old_end: 287168, size: 33 },
-            DeltaPiece { start: 296969, old_end: 297002, size: 33 },
-            DeltaPiece { start: 316769, old_end: 316802, size: 33 },
-            DeltaPiece { start: 326669, old_end: 326702, size: 33 },
-            DeltaPiece { start: 336569, old_end: 336602, size: 33 },
+            Edit { start: 0, old_end: 1652, size: 1652 },
+            Edit { start: 9869, old_end: 9902, size: 33 },
+            Edit { start: 29669, old_end: 29702, size: 33 },
+            Edit { start: 49469, old_end: 49502, size: 33 },
+            Edit { start: 59369, old_end: 59402, size: 33 },
+            Edit { start: 69269, old_end: 69302, size: 33 },
+            Edit { start: 69335, old_end: 69368, size: 33 },
+            Edit { start: 79169, old_end: 79202, size: 33 },
+            Edit { start: 98969, old_end: 99002, size: 33 },
+            Edit { start: 108869, old_end: 108902, size: 33 },
+            Edit { start: 118769, old_end: 118802, size: 33 },
+            Edit { start: 138569, old_end: 138602, size: 33 },
+            Edit { start: 158369, old_end: 158402, size: 33 },
+            Edit { start: 168269, old_end: 168302, size: 33 },
+            Edit { start: 178169, old_end: 178202, size: 33 },
+            Edit { start: 178235, old_end: 178268, size: 33 },
+            Edit { start: 188069, old_end: 188102, size: 33 },
+            Edit { start: 207869, old_end: 207902, size: 33 },
+            Edit { start: 217769, old_end: 217802, size: 33 },
+            Edit { start: 227669, old_end: 227702, size: 33 },
+            Edit { start: 247469, old_end: 247502, size: 33 },
+            Edit { start: 267269, old_end: 267302, size: 33 },
+            Edit { start: 277169, old_end: 277202, size: 33 },
+            Edit { start: 287069, old_end: 287102, size: 33 },
+            Edit { start: 287135, old_end: 287168, size: 33 },
+            Edit { start: 296969, old_end: 297002, size: 33 },
+            Edit { start: 316769, old_end: 316802, size: 33 },
+            Edit { start: 326669, old_end: 326702, size: 33 },
+            Edit { start: 336569, old_end: 336602, size: 33 },
         ];
         let mut folded_delta = vec![];
 
@@ -748,44 +748,44 @@ mod tests {
         assert_eq!(
             folded_delta,
             vec![
-                DeltaPiece { start: 0, old_end: 1651, size: 1652 },
-                DeltaPiece { start: 9868, old_end: 9901, size: 33 },
-                DeltaPiece { start: 19768, old_end: 19801, size: 33 },
-                DeltaPiece { start: 29668, old_end: 29701, size: 33 },
-                DeltaPiece { start: 39568, old_end: 39601, size: 33 },
-                DeltaPiece { start: 49468, old_end: 49501, size: 33 },
-                DeltaPiece { start: 59368, old_end: 59401, size: 33 },
-                DeltaPiece { start: 69268, old_end: 69301, size: 33 },
-                DeltaPiece { start: 69334, old_end: 69367, size: 33 },
-                DeltaPiece { start: 79168, old_end: 79201, size: 33 },
-                DeltaPiece { start: 89068, old_end: 89101, size: 33 },
-                DeltaPiece { start: 98968, old_end: 99001, size: 33 },
-                DeltaPiece { start: 108868, old_end: 108901, size: 33 },
-                DeltaPiece { start: 118768, old_end: 118801, size: 33 },
-                DeltaPiece { start: 128668, old_end: 128701, size: 33 },
-                DeltaPiece { start: 138568, old_end: 138601, size: 33 },
-                DeltaPiece { start: 148468, old_end: 148501, size: 33 },
-                DeltaPiece { start: 158368, old_end: 158401, size: 33 },
-                DeltaPiece { start: 168268, old_end: 168301, size: 33 },
-                DeltaPiece { start: 178168, old_end: 178201, size: 33 },
-                DeltaPiece { start: 178234, old_end: 178267, size: 33 },
-                DeltaPiece { start: 188068, old_end: 188101, size: 33 },
-                DeltaPiece { start: 197968, old_end: 198001, size: 33 },
-                DeltaPiece { start: 207868, old_end: 207901, size: 33 },
-                DeltaPiece { start: 217768, old_end: 217801, size: 33 },
-                DeltaPiece { start: 227668, old_end: 227701, size: 33 },
-                DeltaPiece { start: 237568, old_end: 237601, size: 33 },
-                DeltaPiece { start: 247468, old_end: 247501, size: 33 },
-                DeltaPiece { start: 257368, old_end: 257401, size: 33 },
-                DeltaPiece { start: 267268, old_end: 267301, size: 33 },
-                DeltaPiece { start: 277168, old_end: 277201, size: 33 },
-                DeltaPiece { start: 287068, old_end: 287101, size: 33 },
-                DeltaPiece { start: 287134, old_end: 287167, size: 33 },
-                DeltaPiece { start: 296968, old_end: 297001, size: 33 },
-                DeltaPiece { start: 306868, old_end: 306901, size: 33 },
-                DeltaPiece { start: 316768, old_end: 316801, size: 33 },
-                DeltaPiece { start: 326668, old_end: 326701, size: 33 },
-                DeltaPiece { start: 336568, old_end: 336601, size: 33 },
+                Edit { start: 0, old_end: 1651, size: 1652 },
+                Edit { start: 9868, old_end: 9901, size: 33 },
+                Edit { start: 19768, old_end: 19801, size: 33 },
+                Edit { start: 29668, old_end: 29701, size: 33 },
+                Edit { start: 39568, old_end: 39601, size: 33 },
+                Edit { start: 49468, old_end: 49501, size: 33 },
+                Edit { start: 59368, old_end: 59401, size: 33 },
+                Edit { start: 69268, old_end: 69301, size: 33 },
+                Edit { start: 69334, old_end: 69367, size: 33 },
+                Edit { start: 79168, old_end: 79201, size: 33 },
+                Edit { start: 89068, old_end: 89101, size: 33 },
+                Edit { start: 98968, old_end: 99001, size: 33 },
+                Edit { start: 108868, old_end: 108901, size: 33 },
+                Edit { start: 118768, old_end: 118801, size: 33 },
+                Edit { start: 128668, old_end: 128701, size: 33 },
+                Edit { start: 138568, old_end: 138601, size: 33 },
+                Edit { start: 148468, old_end: 148501, size: 33 },
+                Edit { start: 158368, old_end: 158401, size: 33 },
+                Edit { start: 168268, old_end: 168301, size: 33 },
+                Edit { start: 178168, old_end: 178201, size: 33 },
+                Edit { start: 178234, old_end: 178267, size: 33 },
+                Edit { start: 188068, old_end: 188101, size: 33 },
+                Edit { start: 197968, old_end: 198001, size: 33 },
+                Edit { start: 207868, old_end: 207901, size: 33 },
+                Edit { start: 217768, old_end: 217801, size: 33 },
+                Edit { start: 227668, old_end: 227701, size: 33 },
+                Edit { start: 237568, old_end: 237601, size: 33 },
+                Edit { start: 247468, old_end: 247501, size: 33 },
+                Edit { start: 257368, old_end: 257401, size: 33 },
+                Edit { start: 267268, old_end: 267301, size: 33 },
+                Edit { start: 277168, old_end: 277201, size: 33 },
+                Edit { start: 287068, old_end: 287101, size: 33 },
+                Edit { start: 287134, old_end: 287167, size: 33 },
+                Edit { start: 296968, old_end: 297001, size: 33 },
+                Edit { start: 306868, old_end: 306901, size: 33 },
+                Edit { start: 316768, old_end: 316801, size: 33 },
+                Edit { start: 326668, old_end: 326701, size: 33 },
+                Edit { start: 336568, old_end: 336601, size: 33 },
             ]
         );
         assert_eq!(delta_size(&folded_delta), 3329);

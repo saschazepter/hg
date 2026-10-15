@@ -744,7 +744,7 @@ pub struct RawdataBuf {
 impl<'a> RawdataBuf {
     fn as_delta(
         &'a self,
-    ) -> Result<patch::Delta<'a, patch::PlainDeltaPiece<'a>>, RevlogError> {
+    ) -> Result<patch::Delta<'a, patch::PlainEdit<'a>>, RevlogError> {
         match self.base {
             None => Ok(patch::Delta::full_snapshot(&self.data)),
             Some(_) => patch::Delta::new(&self.data),

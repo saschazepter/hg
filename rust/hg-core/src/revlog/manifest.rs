@@ -10,7 +10,7 @@ use rayon::slice::ParallelSlice;
 use super::RevlogType;
 use super::diff::CMP_BLK_SIZE;
 use super::diff::lines_prefix_size_low;
-use super::patch::DeltaPiece;
+use super::patch::Edit;
 use crate::Graph;
 use crate::GraphError;
 use crate::NULL_REVISION;
@@ -708,7 +708,7 @@ impl<'a> ManifestSection<'a> {
             ([], []) => return 0,
             (_, []) => {
                 // the old section is deleted
-                patch::PlainDeltaPiece {
+                patch::PlainEdit {
                     start: offset,
                     end: (offset + self.size),
                     data: &[],
@@ -781,7 +781,7 @@ fn last_filename(section: &[u8]) -> &[u8] {
     }
 }
 
-/// Iterate over two series of RichDeltaPiece and yield associate SyncSection
+/// Iterate over two series of RichEdit and yield associate SyncSection
 ///
 /// the iteration keep data mostly in sync so that common data can be detected
 /// and yielded as [`SyncSection::Identical`]
@@ -790,7 +790,7 @@ fn sync_iter<'a, P>(
     new_iter: P,
 ) -> impl Iterator<Item = SyncSection<'a>>
 where
-    P: Iterator<Item = patch::RichDeltaPiece<'a>>,
+    P: Iterator<Item = patch::RichEdit<'a>>,
 {
     use SyncSection as S;
 
@@ -946,7 +946,7 @@ pub(super) fn manifest_delta_from_patches<'a, P>(
     new_iter: P,
 ) -> Vec<u8>
 where
-    P: Iterator<Item = patch::RichDeltaPiece<'a>>,
+    P: Iterator<Item = patch::RichEdit<'a>>,
 {
     use SyncSection as S;
     let mut delta = vec![];
