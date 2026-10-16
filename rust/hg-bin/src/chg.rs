@@ -11,6 +11,8 @@ pub const POLICY_ENV_VAR: &str = "HGDAEMONIZEPOLICY";
 pub const POLICY_AUTO: &[u8] = b"auto";
 /// Policy value requiring a command server.
 pub const POLICY_ALWAYS: &[u8] = b"always";
+/// Policy value disabling the use of a command server.
+pub const POLICY_NEVER: &[u8] = b"never";
 
 /// Daemonization requested through `$HGDAEMONIZEPOLICY` (see the crate
 /// documentation for the exact semantics of each value).
@@ -29,6 +31,7 @@ impl Policy {
         match value {
             POLICY_AUTO => Policy::Auto,
             POLICY_ALWAYS => Policy::Always,
+            POLICY_NEVER => Policy::Never,
             _ => Policy::Never,
         }
     }
