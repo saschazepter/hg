@@ -13,15 +13,21 @@
 //!   to do so,
 //! - adjusting how the Python process runs on Windows (e.g. binary IO mode).
 //!
-//! The `HGDAEMONIZEPOLICY` variable controls the use of a long running
-//! command server through the chg client logic (see the `chg` module):
+//! The `HGDAEMONIZEPOLICY` environment variable and the `[policy] daemonize`
+//! configuration control the use of a long running command server through
+//! the chg client logic (see the `chg` module). The configuration is only
+//! read below the repository level (system and user level). The possible
+//! values are:
 //!
 //! - `never`:   always start a fresh Python process,
 //! - `always`:  use daemonization, but abort when chg support is missing,
 //! - `auto`:    use daemonization when available,
-//! - `default`: use the built-in default, `never` for now.
+//! - `default`: defer to the next policy source: the environment defers to the
+//!   configuration, the configuration to the built-in default (`never`, for
+//!   now).
 //!
-//! An unset or empty variable is read as `default`, an unrecognized value
+//! An unset or empty environment variable, like a missing or empty
+//! configuration item, is read as `default`; an unrecognized value is read
 //! as `never`.
 
 mod chg;

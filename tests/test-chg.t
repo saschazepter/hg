@@ -796,3 +796,73 @@ is not vacuous).
   daemonized
 
   $ cd ..
+
+daemonize policy configuration
+==============================
+
+The `[policy] daemonize` configuration drives daemonization when
+$HGDAEMONIZEPOLICY is unset or set to "default". Only configuration below
+the repository level is read.
+
+  $ cd babar
+
+/!\ The cases below rely on daemonization being off without any policy, so
+/!\ check that first: this line has to be adjusted when the built-in
+/!\ default changes.
+  $ (unset HGDAEMONIZEPOLICY; CHGDEBUG= hg version -q 2>&1 >/dev/null \
+  >  | grep 'chg: debug:' > /dev/null) && echo SAFE-GUARD-BREAK \
+  >  || echo DIRECT-AS-EXPECTED
+  DIRECT-AS-EXPECTED
+/!\ do not update the above line without checking the associated comment
+
+the configuration can enable daemonization
+------------------------------------------
+
+  $ cat >> $HGRCPATH <<EOF
+  > [policy]
+  > daemonize = auto
+  > EOF
+  $ (unset HGDAEMONIZEPOLICY; daemonize_status hg version -q)
+  daemonized
+
+the environment takes precedence over the configuration
+-------------------------------------------------------
+
+  $ HGDAEMONIZEPOLICY=never daemonize_status hg version -q
+  direct
+
+a "default" environment value defers to the configuration
+---------------------------------------------------------
+
+  $ HGDAEMONIZEPOLICY=default daemonize_status hg version -q
+  daemonized
+
+an empty environment value defers to the configuration too
+----------------------------------------------------------
+
+  $ HGDAEMONIZEPOLICY= daemonize_status hg version -q
+  daemonized
+
+a "default" configuration value means "never" (for now)
+-------------------------------------------------------
+
+The value written last wins, as in any configuration file.
+
+  $ cat >> $HGRCPATH <<EOF
+  > [policy]
+  > daemonize = default
+  > EOF
+  $ (unset HGDAEMONIZEPOLICY; daemonize_status hg version -q)
+  direct
+
+repository level configuration is ignored
+-----------------------------------------
+
+  $ cat >> .hg/hgrc <<EOF
+  > [policy]
+  > daemonize = auto
+  > EOF
+  $ (unset HGDAEMONIZEPOLICY; daemonize_status hg root)
+  direct
+
+  $ cd ..

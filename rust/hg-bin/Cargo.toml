@@ -11,6 +11,8 @@ default = ["chg"]
 chg = []
 
 [dependencies]
+# used to read the daemonize policy from the user/system configuration
+hg-core = { path = "../hg-core", default-features = false }
 
 [build-dependencies]
 # cannot be optional (gated by the "chg" feature): build.rs always compiles

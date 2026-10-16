@@ -2107,6 +2107,28 @@ name = "publish"
 default = true
 
 [[items]]
+section = "policy"
+name = "daemonize"
+default = "default"
+documentation="""Control running command through a long running command server.
+(formally known as chg)
+
+Accepted values:
+
+- ``never``: always start a fresh process,
+- ``auto``: use a command server when the installation supports it,
+- ``always``: use a command server, abort when the support is missing,
+- ``default``: use the built-in default, "never" for now.
+
+The ``HGDAEMONIZEPOLICY`` environment variable takes precedence over this
+configuration.
+
+This configuration is only taken in account for general and user level config.
+The configuration from repository and share is ignored. The value is used
+during initialization, and will be used for the full duration of the command.
+"""
+
+[[items]]
 section = "profiling"
 name = "enabled"
 default = false

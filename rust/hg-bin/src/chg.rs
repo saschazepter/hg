@@ -7,17 +7,24 @@
 
 /// Environment variable controlling the use of a command server.
 pub const POLICY_ENV_VAR: &str = "HGDAEMONIZEPOLICY";
+/// Configuration section controlling the use of a command server.
+pub const POLICY_CONFIG_SECTION: &[u8] = b"policy";
+/// Configuration item controlling the use of a command server.
+pub const POLICY_CONFIG_ITEM: &[u8] = b"daemonize";
+
 /// Policy value requesting a command server when supported.
 pub const POLICY_AUTO: &[u8] = b"auto";
 /// Policy value requiring a command server.
 pub const POLICY_ALWAYS: &[u8] = b"always";
 /// Policy value disabling the use of a command server.
 pub const POLICY_NEVER: &[u8] = b"never";
-/// Policy value requesting the built-in default.
+/// Policy value deferring to the next policy source.
 pub const POLICY_DEFAULT: &[u8] = b"default";
 
-/// Daemonization requested through `$HGDAEMONIZEPOLICY` (see the crate
-/// documentation for the exact semantics of each value).
+/// Daemonization requested through `$HGDAEMONIZEPOLICY` or the
+/// `[policy] daemonize` configuration
+///
+/// (see the crate documentation for the exact semantics of each value).
 pub enum Policy {
     /// never run through a Daemon.
     Never,
@@ -25,13 +32,19 @@ pub enum Policy {
     Auto,
     /// use a Daemon, abort when the feature is unavailable.
     Always,
-    /// use the built-in default.
+    /// ignore that source and rely on the next one (in this order):
+    /// - environement,
+    /// - config,
+    /// - built-in default.
     Default,
 }
 
 impl Policy {
-    /// Parse a policy value. An empty value is read as `Default`, an
-    /// unrecognized one as `Never`.
+    /// Parse a policy value, shared by the environment variable and the
+    /// configuration.
+    ///
+    /// An empty value is read as `Default`.
+    /// An unrecognized one as `Never`.
     fn from_bytes(value: &[u8]) -> Self {
         match value {
             b"" => Policy::Default,
@@ -43,9 +56,9 @@ impl Policy {
         }
     }
 
-    /// Read the daemonization policy from `$HGDAEMONIZEPOLICY`. An unset
-    /// or empty variable is read as `Default`, an unrecognized value as
-    /// `Never`.
+    /// Read the daemonization policy from `$HGDAEMONIZEPOLICY`.
+    ///
+    /// An unset or empty variable is read as `Default`.
     pub fn from_env() -> Self {
         match std::env::var_os(POLICY_ENV_VAR) {
             Some(value) => Self::from_bytes(value.as_encoded_bytes()),
@@ -53,14 +66,30 @@ impl Policy {
         }
     }
 
-    /// Resolve the effective daemonization policy: the environment
-    /// variable, falling back to the built-in default (`Never`, for now).
-    /// Never returns `Default`.
-    pub fn resolve() -> Self {
-        match Self::from_env() {
-            Policy::Default => Policy::Never,
-            policy => policy,
+    /// Read the daemonization policy from the `[policy] daemonize`
+    /// configuration.
+    pub fn from_config() -> Self {
+        let Ok(config) = hg::config::Config::load_non_repo() else {
+            return Policy::Never;
+        };
+        match config.get(POLICY_CONFIG_SECTION, POLICY_CONFIG_ITEM) {
+            Some(value) => Self::from_bytes(value),
+            None => Policy::Default,
         }
+    }
+
+    /// Resolve the effective daemonization policy: the environment variable
+    /// first, deferring to the configuration, itself deferring to the
+    /// built-in default (`Never`, for now). Never returns `Default`.
+    pub fn resolve() -> Self {
+        let mut policy = Self::from_env();
+        if let Policy::Default = policy {
+            policy = Self::from_config();
+        }
+        if let Policy::Default = policy {
+            policy = Policy::Never;
+        }
+        policy
     }
 }
 
