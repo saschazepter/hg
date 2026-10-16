@@ -52,15 +52,24 @@ impl Policy {
             None => Policy::Default,
         }
     }
+
+    /// Resolve the effective daemonization policy: the environment
+    /// variable, falling back to the built-in default (`Never`, for now).
+    /// Never returns `Default`.
+    pub fn resolve() -> Self {
+        match Self::from_env() {
+            Policy::Default => Policy::Never,
+            policy => policy,
+        }
+    }
 }
 
 /// Should the command be handed over to the chg client logic (`run`)?
 ///
-/// Follows the `$HGDAEMONIZEPOLICY` policy (see the crate documentation).
+/// Follows the daemonize policy (see the crate documentation).
 #[cfg(feature = "chg")]
 pub fn enabled() -> bool {
-    match Policy::from_env() {
-        // the built-in default, for now
+    match Policy::resolve() {
         Policy::Never | Policy::Default => false,
         Policy::Auto | Policy::Always => true,
     }
@@ -68,12 +77,11 @@ pub fn enabled() -> bool {
 
 /// Should the command be handed over to the chg client logic (`run`)?
 ///
-/// This binary was built without chg support: abort when the
-/// `$HGDAEMONIZEPOLICY` policy requires a command server (`always`).
+/// This binary was built without chg support: abort when the daemonize
+/// policy requires a command server (`always`).
 #[cfg(not(feature = "chg"))]
 pub fn enabled() -> bool {
-    match Policy::from_env() {
-        // `Default` is the built-in default, for now
+    match Policy::resolve() {
         Policy::Never | Policy::Auto | Policy::Default => false,
         Policy::Always => {
             eprintln!(
