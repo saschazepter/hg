@@ -8,9 +8,9 @@
 /// Environment variable controlling the use of a command server.
 pub const POLICY_ENV_VAR: &str = "HGDAEMONIZEPOLICY";
 /// Policy value requesting a command server when supported.
-pub const POLICY_AUTO: &str = "auto";
+pub const POLICY_AUTO: &[u8] = b"auto";
 /// Policy value requiring a command server.
-pub const POLICY_ALWAYS: &str = "always";
+pub const POLICY_ALWAYS: &[u8] = b"always";
 
 /// Daemonization requested through `$HGDAEMONIZEPOLICY` (see the crate
 /// documentation for the exact semantics of each value).
@@ -24,13 +24,21 @@ pub enum Policy {
 }
 
 impl Policy {
+    /// Parse a policy value. An unrecognized value is read as `Never`.
+    fn from_bytes(value: &[u8]) -> Self {
+        match value {
+            POLICY_AUTO => Policy::Auto,
+            POLICY_ALWAYS => Policy::Always,
+            _ => Policy::Never,
+        }
+    }
+
     /// Read the daemonization policy from `$HGDAEMONIZEPOLICY`. An unset
     /// variable or an unrecognized value is read as `Never`.
     pub fn from_env() -> Self {
         match std::env::var_os(POLICY_ENV_VAR) {
-            Some(value) if value == POLICY_AUTO => Policy::Auto,
-            Some(value) if value == POLICY_ALWAYS => Policy::Always,
-            _ => Policy::Never,
+            Some(value) => Self::from_bytes(value.as_encoded_bytes()),
+            None => Policy::Never,
         }
     }
 }
