@@ -25,6 +25,17 @@ This is done to reduce the flakiness of this test on heavy load.
   >       -e 's!\(/server-\)[0-9a-f]*!\1...!g'
   > }
 
+Report whether a command went through a command server, as the chg client
+logic announces itself in its debug output:
+
+  $ daemonize_status () {
+  >   if CHGDEBUG= "$@" 2>&1 >/dev/null | grep 'chg: debug:' > /dev/null; then
+  >     echo daemonized
+  >   else
+  >     echo direct
+  >   fi
+  > }
+
 Install the `chg` wrapper around the rust front's daemonized mode:
 
   $ . "$TESTDIR/testlib/helpers-chg.sh"
@@ -751,3 +762,37 @@ then update the working copy while it is restrictive:
   $ cd ..
 
 #endif
+
+daemonize policy default
+========================
+
+An unset $HGDAEMONIZEPOLICY, like the "default" value, defers to the
+built-in default, which is "never" for now.
+
+  $ hg init babar
+  $ cd babar
+
+/!\ The cases below rely on daemonization being off without any policy, so
+/!\ check that first: this line has to be adjusted when the built-in
+/!\ default changes.
+  $ (unset HGDAEMONIZEPOLICY; CHGDEBUG= hg version -q 2>&1 >/dev/null \
+  >  | grep 'chg: debug:' > /dev/null) && echo SAFE-GUARD-BREAK \
+  >  || echo DIRECT-AS-EXPECTED
+  DIRECT-AS-EXPECTED
+/!\ do not update the above line without checking the associated comment
+
+  $ HGDAEMONIZEPOLICY=default daemonize_status hg version -q
+  direct
+
+An empty value is read as "default" too.
+
+  $ HGDAEMONIZEPOLICY= daemonize_status hg version -q
+  direct
+
+An explicit value still takes precedence (and shows the detection above
+is not vacuous).
+
+  $ HGDAEMONIZEPOLICY=auto daemonize_status hg version -q
+  daemonized
+
+  $ cd ..

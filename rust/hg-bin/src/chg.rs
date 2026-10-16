@@ -13,6 +13,8 @@ pub const POLICY_AUTO: &[u8] = b"auto";
 pub const POLICY_ALWAYS: &[u8] = b"always";
 /// Policy value disabling the use of a command server.
 pub const POLICY_NEVER: &[u8] = b"never";
+/// Policy value requesting the built-in default.
+pub const POLICY_DEFAULT: &[u8] = b"default";
 
 /// Daemonization requested through `$HGDAEMONIZEPOLICY` (see the crate
 /// documentation for the exact semantics of each value).
@@ -23,25 +25,31 @@ pub enum Policy {
     Auto,
     /// use a Daemon, abort when the feature is unavailable.
     Always,
+    /// use the built-in default.
+    Default,
 }
 
 impl Policy {
-    /// Parse a policy value. An unrecognized value is read as `Never`.
+    /// Parse a policy value. An empty value is read as `Default`, an
+    /// unrecognized one as `Never`.
     fn from_bytes(value: &[u8]) -> Self {
         match value {
+            b"" => Policy::Default,
             POLICY_AUTO => Policy::Auto,
             POLICY_ALWAYS => Policy::Always,
             POLICY_NEVER => Policy::Never,
+            POLICY_DEFAULT => Policy::Default,
             _ => Policy::Never,
         }
     }
 
     /// Read the daemonization policy from `$HGDAEMONIZEPOLICY`. An unset
-    /// variable or an unrecognized value is read as `Never`.
+    /// or empty variable is read as `Default`, an unrecognized value as
+    /// `Never`.
     pub fn from_env() -> Self {
         match std::env::var_os(POLICY_ENV_VAR) {
             Some(value) => Self::from_bytes(value.as_encoded_bytes()),
-            None => Policy::Never,
+            None => Policy::Default,
         }
     }
 }
@@ -52,7 +60,8 @@ impl Policy {
 #[cfg(feature = "chg")]
 pub fn enabled() -> bool {
     match Policy::from_env() {
-        Policy::Never => false,
+        // the built-in default, for now
+        Policy::Never | Policy::Default => false,
         Policy::Auto | Policy::Always => true,
     }
 }
@@ -64,7 +73,8 @@ pub fn enabled() -> bool {
 #[cfg(not(feature = "chg"))]
 pub fn enabled() -> bool {
     match Policy::from_env() {
-        Policy::Never | Policy::Auto => false,
+        // `Default` is the built-in default, for now
+        Policy::Never | Policy::Auto | Policy::Default => false,
         Policy::Always => {
             eprintln!(
                 "chg: abort: this hg binary was built without chg support"

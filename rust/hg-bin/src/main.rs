@@ -16,11 +16,13 @@
 //! The `HGDAEMONIZEPOLICY` variable controls the use of a long running
 //! command server through the chg client logic (see the `chg` module):
 //!
-//! - `never`: always start a fresh Python process (the default),
-//! - `always`: use daemonization, but abort when chg support is missing,
-//! - `auto`:   use daemonization when available.
+//! - `never`:   always start a fresh Python process,
+//! - `always`:  use daemonization, but abort when chg support is missing,
+//! - `auto`:    use daemonization when available,
+//! - `default`: use the built-in default, `never` for now.
 //!
-//! An unset variable or an unrecognized value falls back to `never`.
+//! An unset or empty variable is read as `default`, an unrecognized value
+//! as `never`.
 
 mod chg;
 
