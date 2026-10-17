@@ -1625,6 +1625,12 @@ mod tests {
                 let TestEdit { start, end, data, src, data_pos } = self;
                 RichEdit::new_rich(*src, *start, *end, *data_pos, data)
             }
+
+            fn from_rich(edit: &RichEdit) -> Self {
+                let inner = &edit.inner;
+                let (start, end) = (u32_u(inner.start), u32_u(inner.end));
+                TestEdit::new(edit.src, start, end, inner.data)
+            }
         }
 
         /// Build a [`Delta`] from edits.
@@ -1931,6 +1937,37 @@ mod tests {
             }
         }
 
+        /// Combine two deltas with [`Delta::combine`] and return the edits.
+        fn combine(low: &[TestEdit], high: &[TestEdit]) -> Vec<TestEdit> {
+            let combined = to_delta(low).combine(to_delta(high));
+            combined.chunks.iter().map(TestEdit::from_rich).collect()
+        }
+
+        /// Run a case through [`Delta::combine`]:
+        ///
+        /// 1. build the scenario of the case: `base` and the two deltas;
+        /// 2. apply `low` to `base`, then `high` to the result: this is the
+        ///    expected final text;
+        /// 3. combine the two deltas and apply the result to `base`: it must
+        ///    produce that text;
+        /// 4. the edits of the combined delta must be the expected ones, up to
+        ///    normalization: ownership is preserved.
+        fn run_case(case: &Case) {
+            let scenario = Scenario::build(case);
+            let Scenario { base, low, high } = &scenario;
+
+            let after_low = apply(low, base);
+            let after_high = apply(high, &after_low);
+
+            let combined = combine(low, high);
+            let after_combined = apply(&combined, base);
+
+            // sanity check the combine result.
+            assert_eq!(after_combined, after_high);
+
+            assert_eq!(normalize(&combined), normalize(&scenario.expected()));
+        }
+
         #[test]
         fn test_scenario_build() {
             // the example of the documentation: `low` replaces three spans
@@ -2031,6 +2068,20 @@ mod tests {
                     TestEdit::new(3, 28, 35, b"CCCCCCC"),
                 ])
             );
+        }
+
+        /// Check the machinery on the example of the documentation: `low`
+        /// replaces its three spans in place and `high` deletes the
+        /// untouched bytes between L1 and L2 (positions 4 to 6). Nothing
+        /// interacts, so the combined delta is simply the four edits.
+        #[test]
+        fn test_run_case() {
+            let case = Case {
+                layout: 1,
+                low: [ReplaceSame, ReplaceSame, ReplaceSame],
+                high: vec![HighEdit { operation: Delete, start: 4, end: 6 }],
+            };
+            run_case(&case);
         }
     }
 }
