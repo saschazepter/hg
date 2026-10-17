@@ -1553,9 +1553,10 @@ mod tests {
     /// no untouched bytes at either end of the file, and `high` deletes
     /// from the end of L1 to the start of L2.
     mod combine_cases {
+        use super::*;
+
         /// The [C] operation of an edit.
-        #[derive(Clone, Copy)]
-        #[allow(unused)] // until the next changesets use it
+        #[derive(Clone, Copy, PartialEq, Eq)]
         enum Operation {
             Delete,
             ReplaceLess,
@@ -1563,9 +1564,9 @@ mod tests {
             ReplaceMore,
             Insert,
         }
+        use Operation::*;
 
         /// A `high` edit: its operation and its [B] positions.
-        #[allow(unused)] // until the next changesets use it
         struct HighEdit {
             operation: Operation,
             start: usize,
@@ -1573,13 +1574,279 @@ mod tests {
         }
 
         /// A case of the matrix.
-        #[allow(unused)] // until the next changesets use it
         struct Case {
             /// The [A] layout, 1 to 4.
             layout: usize,
             /// The operation of the three `low` edits.
             low: [Operation; 3],
             high: Vec<HighEdit>,
+        }
+
+        /// A [`RichEdit`] owning the data it inserts.
+        ///
+        /// Positions are `u32`, as in a real edit, not the handier `usize`:
+        /// computing in the same type as the code catches more bugs.
+        #[derive(Debug)]
+        struct TestEdit {
+            start: u32,
+            end: u32,
+            data: Vec<u8>,
+            src: SrcToken,
+            /// Where `data` starts in the data of its delta.
+            ///
+            /// (Not verified yet, but useful to better map to the Edit and
+            /// will be verified later)
+            data_pos: u32,
+        }
+
+        /// Equality ignores `data_pos`: the tests do not check how `combine`
+        /// carries it.
+        impl PartialEq for TestEdit {
+            fn eq(&self, other: &Self) -> bool {
+                let TestEdit { start, end, data, src, data_pos: _ } = self;
+                (start, end, data, src)
+                    == (&other.start, &other.end, &other.data, &other.src)
+            }
+        }
+        impl Eq for TestEdit {}
+
+        impl TestEdit {
+            fn new(
+                src: SrcToken,
+                start: usize,
+                end: usize,
+                data: impl Into<Vec<u8>>,
+            ) -> Self {
+                let (start, end) = (u_u32(start), u_u32(end));
+                TestEdit { start, end, data: data.into(), src, data_pos: 0 }
+            }
+
+            fn to_rich(&self) -> RichEdit<'_> {
+                let TestEdit { start, end, data, src, data_pos } = self;
+                RichEdit::new_rich(*src, *start, *end, *data_pos, data)
+            }
+        }
+
+        /// Build a [`Delta`] from edits.
+        fn to_delta(edits: &[TestEdit]) -> Delta<'_, RichEdit<'_>> {
+            let chunks = edits.iter().map(TestEdit::to_rich).collect();
+            Delta { chunks, phantom: std::marker::PhantomData }
+        }
+
+        /// Apply edits to `text`.
+        fn apply(edits: &[TestEdit], text: &[u8]) -> Vec<u8> {
+            // the size is only a capacity hint
+            to_delta(edits).as_applied(text, 0, u_u32(text.len()))
+        }
+
+        /// Length of the spans inserted by `low`, of the untouched segments
+        /// and of the bytes a `low` edit replaces in place: room for six
+        /// distinct `high` boundaries strictly inside any of them.
+        const SPAN: usize = 7;
+
+        /// The src of the first `high` edit, the next ones following. The
+        /// value is arbitrary, picked far from those of `low` (1 to 3).
+        const HIGH_SRC: SrcToken = 24;
+
+        impl Operation {
+            /// Lengths of the bytes a `low` edit replaces and inserts.
+            fn low_lengths(self) -> (usize, usize) {
+                match self {
+                    Delete => (SPAN, 0),
+                    ReplaceLess => (SPAN + 1, SPAN),
+                    ReplaceSame => (SPAN, SPAN),
+                    ReplaceMore => (SPAN - 1, SPAN),
+                    Insert => (0, SPAN),
+                }
+            }
+
+            /// Length of the bytes a `high` edit inserts in place of
+            /// `replaced` bytes.
+            fn high_inserted(self, replaced: usize) -> usize {
+                match self {
+                    Delete => 0,
+                    ReplaceLess => {
+                        // replacing a single byte with less is deleting it:
+                        // such a case is not a Replace, but a Delete. creating
+                        // it would duplicate its `Delete` variant
+                        assert!(replaced > 1, "replacing one byte with less");
+                        replaced - 1
+                    }
+                    ReplaceSame => replaced,
+                    ReplaceMore => replaced + 1,
+                    Insert => 1,
+                }
+            }
+        }
+
+        /// The texts and edits of a case.
+        ///
+        /// The bytes of `base` are `abcdefg…`, restarted at each segment; the
+        /// bytes inserted by `low` repeat the letter of their src (`A`, `B`,
+        /// `C`), those inserted by `high` a digit per edit (`1`, `2`, `3`).
+        #[derive(Debug, PartialEq, Eq)]
+        struct Scenario {
+            base: Vec<u8>,
+            low: Vec<TestEdit>,
+            high: Vec<TestEdit>,
+        }
+
+        impl Scenario {
+            fn build(case: &Case) -> Scenario {
+                let base_bytes = |count: usize| -> Vec<u8> {
+                    (0..count).map(|idx| b'a' + (idx % 26) as u8).collect()
+                };
+                // the untouched bytes starting and ending the file, per [A]
+                let (prefix, suffix) = match case.layout {
+                    1 => (0, 0),
+                    2 => (SPAN, 0),
+                    3 => (0, SPAN),
+                    4 => (SPAN, SPAN),
+                    layout => panic!("bad [A] layout {layout}"),
+                };
+
+                // `base` and the edits of `low`, tracking the offset of
+                // each [B] position in the text `low` produces, as (start,
+                // length): a point has length 0. `produced` is the length
+                // of that text so far.
+                let mut base = base_bytes(prefix);
+                let mut low = vec![];
+                let mut positions = vec![(0, base.len())];
+                let mut produced = base.len();
+                // where the data of the next edit starts in that of `low`
+                let mut data_pos = 0;
+                for (idx, operation) in case.low.iter().enumerate() {
+                    if idx > 0 {
+                        positions.push((produced, SPAN));
+                        base.extend(base_bytes(SPAN));
+                        produced += SPAN;
+                    }
+                    let (replaced, inserted) = operation.low_lengths();
+                    let start = base.len();
+                    base.extend(base_bytes(replaced));
+                    let data = vec![b'A' + idx as u8; inserted];
+                    let src = u_u32(idx + 1);
+                    low.push(TestEdit {
+                        data_pos,
+                        ..TestEdit::new(src, start, base.len(), data)
+                    });
+                    data_pos += u_u32(inserted);
+                    positions.push((produced, 0));
+                    positions.push((produced, inserted));
+                    produced += inserted;
+                    positions.push((produced, 0));
+                }
+                positions.push((produced, suffix));
+                base.extend(base_bytes(suffix));
+
+                // The edits of `high`: a point position is its offset,
+                // successive boundaries inside a segment get successive
+                // offsets, strictly inside it.
+                let mut next_inside: Vec<usize> =
+                    positions.iter().map(|&(start, _)| start + 1).collect();
+                let mut offset_at = |position: usize| {
+                    let (start, length) = positions[position - 1];
+                    if length == 0 {
+                        return start;
+                    }
+                    let offset = next_inside[position - 1];
+                    assert!(
+                        offset < start + length,
+                        "too many `high` boundaries at position {position}"
+                    );
+                    next_inside[position - 1] += 1;
+                    offset
+                };
+                let mut high = vec![];
+                let mut previous_end = None;
+                // where the data of the next edit starts in that of `high`
+                let mut data_pos = 0;
+                for (idx, edit) in case.high.iter().enumerate() {
+                    let start = offset_at(edit.start);
+                    let end = if edit.operation == Insert {
+                        assert_eq!(
+                            edit.start, edit.end,
+                            "`high` edit {idx}: an insertion has one position"
+                        );
+                        start
+                    } else {
+                        offset_at(edit.end)
+                    };
+                    assert!(
+                        start < end || edit.operation == Insert,
+                        "`high` edit {idx} covers nothing"
+                    );
+                    assert!(
+                        previous_end.is_none_or(|previous| previous < start),
+                        "`high` edits {} and {idx} are not separated",
+                        idx.saturating_sub(1)
+                    );
+                    previous_end = Some(end);
+                    let inserted = edit.operation.high_inserted(end - start);
+                    let data = vec![b'1' + idx as u8; inserted];
+                    let src = HIGH_SRC + u_u32(idx);
+                    high.push(TestEdit {
+                        data_pos,
+                        ..TestEdit::new(src, start, end, data)
+                    });
+                    data_pos += u_u32(inserted);
+                }
+                Scenario { base, low, high }
+            }
+        }
+
+        #[test]
+        fn test_scenario_build() {
+            // the example of the documentation: `low` replaces three spans
+            // in place, `high` deletes the untouched bytes between L1 and
+            // L2
+            let case = Case {
+                layout: 1,
+                low: [ReplaceSame, ReplaceSame, ReplaceSame],
+                high: vec![HighEdit { operation: Delete, start: 4, end: 6 }],
+            };
+            let scenario = Scenario::build(&case);
+            assert_eq!(
+                scenario,
+                Scenario {
+                    base: b"abcdefgabcdefgabcdefgabcdefgabcdefg".to_vec(),
+                    low: vec![
+                        TestEdit::new(1, 0, 7, b"AAAAAAA"),
+                        TestEdit::new(2, 14, 21, b"BBBBBBB"),
+                        TestEdit::new(3, 28, 35, b"CCCCCCC"),
+                    ],
+                    high: vec![TestEdit::new(24, 7, 14, b"")],
+                }
+            );
+            let after_low = apply(&scenario.low, &scenario.base);
+            assert_eq!(after_low, b"AAAAAAAabcdefgBBBBBBBabcdefgCCCCCCC");
+
+            // positions shift with the edits of `low`: a deletion is a
+            // point, an insertion sits in the text `low` produces
+            let case = Case {
+                layout: 2,
+                low: [Delete, Insert, ReplaceMore],
+                high: vec![
+                    HighEdit { operation: Insert, start: 7, end: 7 },
+                    HighEdit { operation: ReplaceLess, start: 9, end: 12 },
+                ],
+            };
+            let scenario = Scenario::build(&case);
+            assert_eq!(
+                scenario.low,
+                vec![
+                    TestEdit::new(1, 7, 14, b""),
+                    TestEdit::new(2, 21, 21, b"BBBBBBB"),
+                    TestEdit::new(3, 28, 34, b"CCCCCCC"),
+                ]
+            );
+            assert_eq!(
+                scenario.high,
+                vec![
+                    TestEdit::new(24, 15, 15, b"1"),
+                    TestEdit::new(25, 22, 35, b"222222222222"),
+                ]
+            );
         }
     }
 }
