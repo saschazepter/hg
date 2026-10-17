@@ -1552,5 +1552,34 @@ mod tests {
     /// For instance `1ccc_a4-6`: `low` replaces three spans in place, with
     /// no untouched bytes at either end of the file, and `high` deletes
     /// from the end of L1 to the start of L2.
-    mod combine_cases {}
+    mod combine_cases {
+        /// The [C] operation of an edit.
+        #[derive(Clone, Copy)]
+        #[allow(unused)] // until the next changesets use it
+        enum Operation {
+            Delete,
+            ReplaceLess,
+            ReplaceSame,
+            ReplaceMore,
+            Insert,
+        }
+
+        /// A `high` edit: its operation and its [B] positions.
+        #[allow(unused)] // until the next changesets use it
+        struct HighEdit {
+            operation: Operation,
+            start: usize,
+            end: usize,
+        }
+
+        /// A case of the matrix.
+        #[allow(unused)] // until the next changesets use it
+        struct Case {
+            /// The [A] layout, 1 to 4.
+            layout: usize,
+            /// The operation of the three `low` edits.
+            low: [Operation; 3],
+            high: Vec<HighEdit>,
+        }
+    }
 }
