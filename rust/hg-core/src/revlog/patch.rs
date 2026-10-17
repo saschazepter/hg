@@ -2049,11 +2049,63 @@ mod tests {
 
             let combined = combine(low, high);
             let after_combined = apply(&combined, base);
+            // the edits as they are compared: normalized
+            let expected = normalize(&scenario.expected());
+            let result = normalize(&combined);
+
+            // the message of a failing case, only built on failure: a full
+            // matrix runs many cases
+            let report = || {
+                format!(
+                    "{}\n\nbase: {}\nlow:  {}\nhigh: {}\n\n\
+                     expected: {}\nresult:   {}\n\n\
+                     expected text: {}\nresult text:   {}",
+                    case.to_code(),
+                    text(base),
+                    render(low, base),
+                    render(high, &after_low),
+                    render(&expected, base),
+                    render(&result, base),
+                    text(&after_high),
+                    text(&after_combined),
+                )
+            };
 
             // sanity check the combine result.
-            assert_eq!(after_combined, after_high);
+            assert!(after_combined == after_high, "{}", report());
 
-            assert_eq!(normalize(&combined), normalize(&scenario.expected()));
+            assert!(result == expected, "{}", report());
+        }
+
+        /// A byte string as readable text, for messages.
+        fn text(bytes: &[u8]) -> String {
+            String::from_utf8_lossy(bytes).into_owned()
+        }
+
+        /// Write a delta as the text it applies to, with each edit in place
+        /// of the bytes it replaces, as `[src#deleted>inserted]`:
+        ///
+        /// - `[1#abc>XY]`: src 1 replaces `abc` with `XY`;
+        /// - `[1#abc>]`: src 1 deletes `abc`;
+        /// - `[1#>XY]`: src 1 inserts `XY`.
+        ///
+        /// For instance `AAAAAAAa[24#bcdefg>]abcdefg` is a delta over the
+        /// text `AAAAAAAabcdefgabcdefg`, where src 24 deletes `bcdefg`.
+        fn render(edits: &[TestEdit], applied_to: &[u8]) -> String {
+            let mut rendered = String::new();
+            let mut pos = 0;
+            for TestEdit { start, end, data, src, .. } in edits {
+                let (start, end) = (u32_u(*start), u32_u(*end));
+                rendered.push_str(&text(&applied_to[pos..start]));
+                rendered.push_str(&format!(
+                    "[{src}#{}>{}]",
+                    text(&applied_to[start..end]),
+                    text(data)
+                ));
+                pos = end;
+            }
+            rendered.push_str(&text(&applied_to[pos..]));
+            rendered
         }
 
         #[test]
