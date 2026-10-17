@@ -1468,4 +1468,89 @@ mod tests {
             }
         }
     }
+
+    /// Coverage of what [`Delta::combine`] does to [`SrcToken`] ownership.
+    ///
+    /// The combined delta turns `base` into the text produced by `high`.
+    /// The ownership of that transformation is defined as:
+    ///
+    /// - additions of bytes are owned by the delta that inserted them
+    /// - removals of bytes are owned by the delta that removed them
+    ///
+    /// The following test cases systematically check that `combine`
+    /// preserves ownership, combining multiple dimensions to produce
+    /// variants covering all identified cases.
+    ///
+    /// # Tested Dimensions
+    ///
+    /// We test the combination of two deltas. The low delta always has
+    /// three edits; the high delta has between 1 and 3 edits.
+    ///
+    /// The cases can be described along three dimensions.
+    ///
+    /// ## [A] Layout of the low Delta
+    ///
+    /// Is there any content in `base` before the start, and after the end,
+    /// of the low delta?
+    ///
+    /// | file start → | no | yes |
+    /// | file end ↓   |    |     |
+    /// |--------------|----|-----|
+    /// | no           | A1 | A2  |
+    /// | yes          | A3 | A4  |
+    ///
+    /// Untouched bytes always separate two consecutive edits of `low`: a
+    /// diff never produces adjacent edits, they would be a single one. The
+    /// distinct src of each `low` edit only serves to tell them apart.
+    ///
+    /// ## [B] Position of a `high` edit relative to a `low` edit
+    ///
+    /// In the text produced by `low`, the bytes inserted by its three
+    /// edits form the spans L1, L2 and L3 (a span is a point when the
+    /// edit only deleted). A `high` edit starts and ends at one of these
+    /// positions, numbered in text order:
+    ///
+    /// 1. before L1: in the untouched bytes starting the file;
+    /// 2. start of L1: right before its first byte;
+    /// 3. inside L1: strictly between its first and last bytes;
+    /// 4. end of L1: right after its last byte;
+    /// 5. between L1 and L2: in the untouched bytes separating them;
+    /// 6. start of L2;
+    /// 7. inside L2;
+    /// 8. end of L2;
+    /// 9. between L2 and L3;
+    /// 10. start of L3;
+    /// 11. inside L3;
+    /// 12. end of L3;
+    /// 13. after L3: in the untouched bytes ending the file.
+    ///
+    /// The value of this dimension for a `high` edit is its pair of
+    /// positions, `start-end`, e.g. `4-7` for an edit going from the end of
+    /// L1 to inside L2. A deleted span is a point, addressed by its start
+    /// position only.
+    ///
+    /// ## [C] Operation of an Edit
+    ///
+    /// a. delete some bytes;
+    /// b. replace some bytes (with less bytes);
+    /// c. replace some bytes (with as many bytes);
+    /// d. replace some bytes (with more bytes);
+    /// e. insert some bytes (where is a matter of [B]).
+    ///
+    /// # Case encoding
+    ///
+    /// Each case can now be encoded in the following form:
+    ///
+    /// ```text
+    /// ACCC_CB-B_CB-B_CB-B
+    /// ```
+    ///
+    /// - the A value is global;
+    /// - the first group of three C values matches the low delta;
+    /// - each `CB-B` group matches one high edit (their number may vary).
+    ///
+    /// For instance `1ccc_a4-6`: `low` replaces three spans in place, with
+    /// no untouched bytes at either end of the file, and `high` deletes
+    /// from the end of L1 to the start of L2.
+    mod combine_cases {}
 }
