@@ -2083,5 +2083,18 @@ mod tests {
             };
             run_case(&case);
         }
+
+        /// `high` inserts inside L1: `combine` splits the `low` edit around
+        /// the insertion. Ownership is preserved, and the normalized edits
+        /// match the expected ones.
+        #[test]
+        fn test_run_case_split_edit() {
+            let case = Case {
+                layout: 1,
+                low: [ReplaceSame, ReplaceSame, ReplaceSame],
+                high: vec![HighEdit { operation: Insert, start: 3, end: 3 }],
+            };
+            run_case(&case);
+        }
     }
 }
