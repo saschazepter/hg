@@ -2243,5 +2243,227 @@ mod tests {
                 assert_eq!(Case::parse(code).to_code(), code);
             }
         }
+
+        // The test cases below recreates the ones defined by Mitchell Kember in
+        // https://foss.heptapod.net/mercurial/mercurial-devel/-/merge_requests/1885/diffs?commit_id=5c34f0e82e704fd42a8f63ae8becdd278f95194a
+
+        // two lines at the start of the file, `low` touching the first
+
+        #[test]
+        /// Delete 1st, delete 2nd.
+        fn test_1acc_a4_5() {
+            run_case(&Case::parse("1acc_a4-5"));
+        }
+
+        #[test]
+        /// Delete 1st, replace 2nd.
+        fn test_1acc_c4_5() {
+            run_case(&Case::parse("1acc_c4-5"));
+        }
+
+        #[test]
+        /// Replace 1st, delete 2nd.
+        fn test_1ccc_a4_5() {
+            run_case(&Case::parse("1ccc_a4-5"));
+        }
+
+        #[test]
+        /// Replace 1st, replace 2nd.
+        fn test_1ccc_c4_5() {
+            run_case(&Case::parse("1ccc_c4-5"));
+        }
+
+        // two lines at the start of the file, `high` touching the first
+
+        #[test]
+        #[should_panic]
+        /// Delete 2nd, delete 1st.
+        fn test_2acc_a1_2() {
+            run_case(&Case::parse("2acc_a1-2"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Delete 2nd, replace 1st.
+        fn test_2acc_c1_2() {
+            run_case(&Case::parse("2acc_c1-2"));
+        }
+
+        #[test]
+        /// Replace 2nd, delete 1st.
+        fn test_2ccc_a1_2() {
+            run_case(&Case::parse("2ccc_a1-2"));
+        }
+
+        #[test]
+        /// Replace 2nd, replace 1st.
+        fn test_2ccc_c1_2() {
+            run_case(&Case::parse("2ccc_c1-2"));
+        }
+
+        // two lines in the middle of the file, `low` touching the first
+
+        #[test]
+        /// Delete 1st, delete 2nd.
+        fn test_2acc_a4_5() {
+            run_case(&Case::parse("2acc_a4-5"));
+        }
+
+        #[test]
+        /// Delete 1st, replace 2nd.
+        fn test_2acc_c4_5() {
+            run_case(&Case::parse("2acc_c4-5"));
+        }
+
+        #[test]
+        /// Replace 1st, delete 2nd.
+        fn test_2ccc_a4_5() {
+            run_case(&Case::parse("2ccc_a4-5"));
+        }
+
+        #[test]
+        /// Replace 1st, replace 2nd.
+        fn test_2ccc_c4_5() {
+            run_case(&Case::parse("2ccc_c4-5"));
+        }
+
+        // two lines in the middle of the file, `high` touching the first
+
+        #[test]
+        #[should_panic]
+        /// Delete 2nd, delete 1st.
+        fn test_1cac_a5_6() {
+            run_case(&Case::parse("1cac_a5-6"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Delete 2nd, replace 1st.
+        fn test_1cac_c5_6() {
+            run_case(&Case::parse("1cac_c5-6"));
+        }
+
+        #[test]
+        /// Replace 2nd, delete 1st.
+        fn test_1ccc_a5_6() {
+            run_case(&Case::parse("1ccc_a5-6"));
+        }
+
+        #[test]
+        /// Replace 2nd, replace 1st.
+        fn test_1ccc_c5_6() {
+            run_case(&Case::parse("1ccc_c5-6"));
+        }
+
+        // one line replaced by two
+
+        #[test]
+        /// Delete 1st, replace 2nd with two.
+        fn test_1acc_d4_5() {
+            run_case(&Case::parse("1acc_d4-5"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Delete 2nd, replace 1st with two.
+        fn test_1cac_d5_6() {
+            run_case(&Case::parse("1cac_d5-6"));
+        }
+
+        #[test]
+        /// Replace 1st with two, delete 2nd.
+        fn test_1dcc_a4_5() {
+            run_case(&Case::parse("1dcc_a4-5"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Replace 1st with two, delete part of the replacement.
+        fn test_1dcc_a3_4() {
+            run_case(&Case::parse("1dcc_a3-4"));
+        }
+
+        #[test]
+        /// Replace 2nd with two, delete 1st.
+        fn test_1cdc_a5_6() {
+            run_case(&Case::parse("1cdc_a5-6"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Replace 2nd with two, delete part of the replacement.
+        fn test_1cdc_a6_7() {
+            run_case(&Case::parse("1cdc_a6-7"));
+        }
+
+        #[test]
+        /// Replace 1st with two, replace 2nd.
+        fn test_1dcc_c4_5() {
+            run_case(&Case::parse("1dcc_c4-5"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Replace 1st with two, replace part of the replacement.
+        fn test_1dcc_c3_4() {
+            run_case(&Case::parse("1dcc_c3-4"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Replace 1st with two, replace part of the replacement and 2nd.
+        fn test_1dcc_c3_5() {
+            run_case(&Case::parse("1dcc_c3-5"));
+        }
+
+        #[test]
+        /// Replace 2nd with two, replace 1st.
+        fn test_1cdc_c5_6() {
+            run_case(&Case::parse("1cdc_c5-6"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Replace 2nd with two, replace part of the replacement.
+        fn test_1cdc_c6_7() {
+            run_case(&Case::parse("1cdc_c6-7"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Replace 2nd with two, replace 1st and part of the replacement.
+        fn test_1cdc_c5_7() {
+            run_case(&Case::parse("1cdc_c5-7"));
+        }
+
+        // three lines
+
+        #[test]
+        #[should_panic]
+        /// Delete 1st & 3rd, delete 2nd.
+        fn test_1aac_a4_6() {
+            run_case(&Case::parse("1aac_a4-6"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Delete 1st & 3rd, replace 2nd.
+        fn test_1aac_c4_6() {
+            run_case(&Case::parse("1aac_c4-6"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Delete 2nd, delete 1st & 3rd in one edit.
+        fn test_1cac_a5_9() {
+            run_case(&Case::parse("1cac_a5-9"));
+        }
+
+        #[test]
+        #[should_panic]
+        /// Delete 2nd, replace 1st & 3rd in one edit.
+        fn test_1cac_c5_9() {
+            run_case(&Case::parse("1cac_c5-9"));
+        }
     }
 }
