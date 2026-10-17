@@ -1846,6 +1846,89 @@ mod tests {
                 }
                 Scenario { base, low, high }
             }
+
+            /// The edits an ownership-preserving `combine` returns for this
+            /// scenario, one byte per edit: they only compare equal to the
+            /// combined delta once both are normalized.
+            ///
+            /// Each byte of `base` is:
+            ///
+            /// - kept, if neither delta deletes it;
+            /// - deleted by `low`, if `low` deletes it;
+            /// - deleted by `high`, if `high` deletes it.
+            ///
+            /// Each byte of the final text that is not from `base` is:
+            ///
+            /// - inserted by `high`, if `high` inserted it;
+            /// - inserted by `low`, otherwise.
+            ///
+            /// Bytes inserted by `low` and deleted by `high` are in neither
+            /// text and leave no trace.
+            fn expected(&self) -> Vec<TestEdit> {
+                let Scenario { base, low, high } = self;
+
+                // what `high` does at each offset of the text `low` produces
+                let produced = apply(low, base).len();
+                let mut deleted_by = vec![None; produced];
+                let mut inserted_before: Vec<Vec<(SrcToken, u8)>> =
+                    vec![vec![]; produced + 1];
+                for TestEdit { start, end, data, src, .. } in high {
+                    deleted_by[u32_u(*start)..u32_u(*end)].fill(Some(*src));
+                    inserted_before[u32_u(*end)]
+                        .extend(data.iter().map(|&byte| (*src, byte)));
+                }
+
+                // walk the text `low` produces, one byte at a time: a byte
+                // of `base` that `low` kept, or a byte `low` inserted. Its
+                // edits go at `pos` in `base`: on the byte itself, or after
+                // the bytes `low` replaced.
+                let mut edits = vec![];
+                let mut offset = 0;
+                let mut step =
+                    |edits: &mut Vec<TestEdit>,
+                     pos: usize,
+                     low_inserted: Option<(SrcToken, u8)>| {
+                        for (src, byte) in inserted_before[offset].drain(..) {
+                            edits.push(TestEdit::new(src, pos, pos, [byte]));
+                        }
+                        match (deleted_by[offset], low_inserted) {
+                            (Some(src), None) => edits.push(TestEdit::new(
+                                src,
+                                pos,
+                                pos + 1,
+                                b"",
+                            )),
+                            (None, Some((src, byte))) => {
+                                edits.push(TestEdit::new(src, pos, pos, [byte]))
+                            }
+                            // kept, or inserted by `low` and deleted by `high`
+                            _ => {}
+                        }
+                        offset += 1;
+                    };
+                let mut base_pos = 0;
+                for TestEdit { start, end, data, src, .. } in low {
+                    while base_pos < u32_u(*start) {
+                        step(&mut edits, base_pos, None);
+                        base_pos += 1;
+                    }
+                    for pos in u32_u(*start)..u32_u(*end) {
+                        edits.push(TestEdit::new(*src, pos, pos + 1, b""));
+                    }
+                    base_pos = u32_u(*end);
+                    for &byte in data {
+                        step(&mut edits, base_pos, Some((*src, byte)));
+                    }
+                }
+                while base_pos < base.len() {
+                    step(&mut edits, base_pos, None);
+                    base_pos += 1;
+                }
+                for (src, byte) in inserted_before[produced].drain(..) {
+                    edits.push(TestEdit::new(src, base_pos, base_pos, [byte]));
+                }
+                edits
+            }
         }
 
         #[test]
@@ -1926,6 +2009,28 @@ mod tests {
                 [TestEdit::new(1, 0, 1, b""), TestEdit::new(24, 1, 1, b"Q")];
             assert_eq!(normalize(&before), after);
             assert_eq!(normalize(&after), after);
+        }
+
+        /// The example of the documentation: `low` replaces its three
+        /// spans in place and `high` deletes the untouched bytes between
+        /// L1 and L2 (positions 4 to 6). Nothing interacts, so the
+        /// expected combination is simply the four edits.
+        #[test]
+        fn test_scenario_expected() {
+            let case = Case {
+                layout: 1,
+                low: [ReplaceSame, ReplaceSame, ReplaceSame],
+                high: vec![HighEdit { operation: Delete, start: 4, end: 6 }],
+            };
+            assert_eq!(
+                normalize(&Scenario::build(&case).expected()),
+                normalize(&[
+                    TestEdit::new(1, 0, 7, b"AAAAAAA"),
+                    TestEdit::new(24, 7, 14, b""),
+                    TestEdit::new(2, 14, 21, b"BBBBBBB"),
+                    TestEdit::new(3, 28, 35, b"CCCCCCC"),
+                ])
+            );
         }
     }
 }
