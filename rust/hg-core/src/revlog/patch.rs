@@ -2036,12 +2036,7 @@ mod tests {
             // the example of the documentation: `low` replaces three spans
             // in place, `high` deletes the untouched bytes between L1 and
             // L2
-            let case = Case {
-                layout: 1,
-                low: [ReplaceSame, ReplaceSame, ReplaceSame],
-                high: vec![HighEdit { operation: Delete, start: 4, end: 6 }],
-            };
-            let scenario = Scenario::build(&case);
+            let scenario = Scenario::build(&Case::parse("1ccc_a4-6"));
             assert_eq!(
                 scenario,
                 Scenario {
@@ -2059,15 +2054,7 @@ mod tests {
 
             // positions shift with the edits of `low`: a deletion is a
             // point, an insertion sits in the text `low` produces
-            let case = Case {
-                layout: 2,
-                low: [Delete, Insert, ReplaceMore],
-                high: vec![
-                    HighEdit { operation: Insert, start: 7, end: 7 },
-                    HighEdit { operation: ReplaceLess, start: 9, end: 12 },
-                ],
-            };
-            let scenario = Scenario::build(&case);
+            let scenario = Scenario::build(&Case::parse("2aed_e7-7_b9-12"));
             assert_eq!(
                 scenario.low,
                 vec![
@@ -2117,11 +2104,7 @@ mod tests {
         /// expected combination is simply the four edits.
         #[test]
         fn test_scenario_expected() {
-            let case = Case {
-                layout: 1,
-                low: [ReplaceSame, ReplaceSame, ReplaceSame],
-                high: vec![HighEdit { operation: Delete, start: 4, end: 6 }],
-            };
+            let case = Case::parse("1ccc_a4-6");
             assert_eq!(
                 normalize(&Scenario::build(&case).expected()),
                 normalize(&[
@@ -2139,12 +2122,7 @@ mod tests {
         /// interacts, so the combined delta is simply the four edits.
         #[test]
         fn test_run_case() {
-            let case = Case {
-                layout: 1,
-                low: [ReplaceSame, ReplaceSame, ReplaceSame],
-                high: vec![HighEdit { operation: Delete, start: 4, end: 6 }],
-            };
-            run_case(&case);
+            run_case(&Case::parse("1ccc_a4-6"));
         }
 
         /// `high` inserts inside L1: `combine` splits the `low` edit around
@@ -2152,12 +2130,7 @@ mod tests {
         /// match the expected ones.
         #[test]
         fn test_run_case_split_edit() {
-            let case = Case {
-                layout: 1,
-                low: [ReplaceSame, ReplaceSame, ReplaceSame],
-                high: vec![HighEdit { operation: Insert, start: 3, end: 3 }],
-            };
-            run_case(&case);
+            run_case(&Case::parse("1ccc_e3-3"));
         }
 
         /// Decode two encodings: the example of the documentation, and one
