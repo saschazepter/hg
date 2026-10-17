@@ -1632,6 +1632,21 @@ mod tests {
                 assert!(!high.is_empty(), "{}", context("expected a CB-B"));
                 Case { layout, low, high }
             }
+
+            /// The encoding of this case.
+            fn to_code(&self) -> String {
+                let mut code = self.layout.to_string();
+                code.extend(self.low.iter().map(|op| op.to_letter()));
+                for edit in &self.high {
+                    code.push_str(&format!(
+                        "_{}{}-{}",
+                        edit.operation.to_letter(),
+                        edit.start,
+                        edit.end
+                    ));
+                }
+                code
+            }
         }
 
         /// A [`RichEdit`] owning the data it inserts.
@@ -1797,6 +1812,16 @@ mod tests {
                     b'd' => Some(ReplaceMore),
                     b'e' => Some(Insert),
                     _ => None,
+                }
+            }
+
+            fn to_letter(self) -> char {
+                match self {
+                    Delete => 'a',
+                    ReplaceLess => 'b',
+                    ReplaceSame => 'c',
+                    ReplaceMore => 'd',
+                    Insert => 'e',
                 }
             }
         }
@@ -2161,6 +2186,10 @@ mod tests {
                     ],
                 }
             );
+            // between them, these use every operation letter
+            for code in ["1ccc_a4-6", "4abe_e7-7_b9-12", "2aed_e7-7_b9-12"] {
+                assert_eq!(Case::parse(code).to_code(), code);
+            }
         }
     }
 }
