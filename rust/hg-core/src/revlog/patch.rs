@@ -1556,7 +1556,7 @@ mod tests {
         use super::*;
 
         /// The [C] operation of an edit.
-        #[derive(Clone, Copy, PartialEq, Eq)]
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         enum Operation {
             Delete,
             ReplaceLess,
@@ -1567,6 +1567,7 @@ mod tests {
         use Operation::*;
 
         /// A `high` edit: its operation and its [B] positions.
+        #[derive(Debug, PartialEq, Eq)]
         struct HighEdit {
             operation: Operation,
             start: usize,
@@ -1574,12 +1575,63 @@ mod tests {
         }
 
         /// A case of the matrix.
+        #[derive(Debug, PartialEq, Eq)]
         struct Case {
             /// The [A] layout, 1 to 4.
             layout: usize,
             /// The operation of the three `low` edits.
             low: [Operation; 3],
             high: Vec<HighEdit>,
+        }
+
+        impl Case {
+            /// Decode `ACCC_CB-B_CB-B_CB-B`.
+            fn parse(code: &str) -> Case {
+                let context = |what: &str| format!("{what} in {code:?}");
+                let operation = |letter: u8| {
+                    Operation::from_letter(letter)
+                        .unwrap_or_else(|| panic!("{}", context("bad C")))
+                };
+                let position = |number: &str| {
+                    let position: usize = number
+                        .parse()
+                        .unwrap_or_else(|_| panic!("{}", context("bad B")));
+                    assert!(
+                        (1..=13).contains(&position),
+                        "{}",
+                        context("B is 1 to 13")
+                    );
+                    position
+                };
+
+                let mut groups = code.split('_');
+                let head = groups.next().unwrap_or_default().as_bytes();
+                assert_eq!(head.len(), 4, "{}", context("expected ACCC"));
+                let layout = usize::from(head[0].wrapping_sub(b'0'));
+                assert!((1..=4).contains(&layout), "{}", context("bad A"));
+                let low = [
+                    operation(head[1]),
+                    operation(head[2]),
+                    operation(head[3]),
+                ];
+                let high: Vec<HighEdit> = groups
+                    .map(|group| {
+                        let (letter, positions) = group.split_at(1);
+                        let (start, end) =
+                            positions.split_once('-').unwrap_or_else(|| {
+                                panic!("{}", context("expected CB-B"))
+                            });
+                        HighEdit {
+                            operation: operation(letter.as_bytes()[0]),
+                            start: position(start),
+                            end: position(end),
+                        }
+                    })
+                    .collect();
+                // with no `high` edit, there is nothing to combine
+                assert!(!high.is_empty(), "{}", context("expected a CB-B"));
+                Case { layout, low, high }
+            }
         }
 
         /// A [`RichEdit`] owning the data it inserts.
@@ -1734,6 +1786,17 @@ mod tests {
                     ReplaceSame => replaced,
                     ReplaceMore => replaced + 1,
                     Insert => 1,
+                }
+            }
+
+            fn from_letter(letter: u8) -> Option<Self> {
+                match letter {
+                    b'a' => Some(Delete),
+                    b'b' => Some(ReplaceLess),
+                    b'c' => Some(ReplaceSame),
+                    b'd' => Some(ReplaceMore),
+                    b'e' => Some(Insert),
+                    _ => None,
                 }
             }
         }
@@ -2095,6 +2158,36 @@ mod tests {
                 high: vec![HighEdit { operation: Insert, start: 3, end: 3 }],
             };
             run_case(&case);
+        }
+
+        /// Decode two encodings: the example of the documentation, and one
+        /// using every part of the format (an insertion repeating its
+        /// position, a two-digit position).
+        #[test]
+        fn test_case_parse() {
+            assert_eq!(
+                Case::parse("1ccc_a4-6"),
+                Case {
+                    layout: 1,
+                    low: [ReplaceSame, ReplaceSame, ReplaceSame],
+                    high: vec![HighEdit {
+                        operation: Delete,
+                        start: 4,
+                        end: 6
+                    }],
+                }
+            );
+            assert_eq!(
+                Case::parse("4abe_e7-7_b9-12"),
+                Case {
+                    layout: 4,
+                    low: [Delete, ReplaceLess, Insert],
+                    high: vec![
+                        HighEdit { operation: Insert, start: 7, end: 7 },
+                        HighEdit { operation: ReplaceLess, start: 9, end: 12 },
+                    ],
+                }
+            );
         }
     }
 }
