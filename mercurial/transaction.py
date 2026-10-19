@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import errno
 import os
+import signal
 import typing
 
 from typing import (
@@ -59,6 +60,7 @@ ABORT_POST_FINALIZE = b'post-finalize'
 
 # Values of the config devel.debug.abort-transaction:method.
 ABORT_METHOD_ABORT = b'abort'
+ABORT_METHOD_SIGTERM = b'sigterm'
 ABORT_METHOD_SIGKILL = b'sigkill'
 
 
@@ -860,6 +862,8 @@ class transaction(util.transactional, itxn.ITransaction):
             return
         if self._debug_abort_method == ABORT_METHOD_ABORT:
             raise error.Abort(_(b"requested abort at %s") % location)
+        elif self._debug_abort_method == ABORT_METHOD_SIGTERM:
+            os.kill(os.getpid(), signal.SIGTERM)
         elif self._debug_abort_method == ABORT_METHOD_SIGKILL:
             procutil.kill_self()
         else:

@@ -43,6 +43,39 @@ The change is uncommitted in the working copy
 
   $ cd ..
 
+
+#if no-windows
+
+Test post-finalize SIGTERM
+--------------------------
+
+If we send SIGTERM, it causes an abort, so this behaves similarly to
+"Test post-finalize abort" (hg should roll back the transaction).
+
+
+  $ hg clone -q base post-finalize-sigterm
+  $ cd post-finalize-sigterm
+  $ echo change > a
+  $ hg commit -m change --config devel.debug.abort-transaction=post-finalize \
+  >   --config devel.debug.abort-transaction:method=sigterm
+  transaction abort!
+  rollback completed
+  killed!
+  [255]
+  $ hg recover
+  no interrupted transaction available
+  [1]
+
+The change is uncommitted in the working copy
+  $ hg log -T '{rev}: {desc}\n'
+  0: 0
+  $ hg status
+  M a
+
+  $ cd ..
+
+#endif
+
 Test post-finalize SIGKILL
 --------------------------
 

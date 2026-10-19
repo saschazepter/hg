@@ -532,6 +532,7 @@ default = "abort"
 documentation = """How to abort for ``devel.debug.abort-transaction``.
 Possible values:
 - ``abort`` (default): raise an error, causing a normal rollback
+- ``sigterm``: send SIGTERM to the process
 - ``sigkill``: kill the process with SIGKILL (9)
 """
 
