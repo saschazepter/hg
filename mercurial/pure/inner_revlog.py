@@ -1193,7 +1193,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         radix: bytes,
         target: tuple[int, bytes],
         docket: docket_mod.RevlogDocket,
-        index_parser: Callable[[tuple[ByteString, ...]], Index2],
+        index_parser: Callable[[tuple[list[ByteString], ...]], Index2],
         configs: revlog_config.RevlogConfigs,
     ):
         self.docket = docket
@@ -1220,7 +1220,7 @@ class InnerRevlogV2(BaseInnerRevlog):
                         block_size,
                     )
                     raise error.RevlogError(msg)
-            index_blocks.append(block)
+            index_blocks.append([block])
 
         try:
             index = index_parser(tuple(index_blocks))

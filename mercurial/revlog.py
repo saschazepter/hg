@@ -275,11 +275,11 @@ def parse_index_v1(
     return index, cache
 
 
-def parse_index_v2(data: tuple[ByteString]) -> Index2:
+def parse_index_v2(data: tuple[list[ByteString]]) -> Index2:
     return pure_parsers.parse_index_v2(data)
 
 
-def parse_index_cl_v2(data: tuple[ByteString]) -> IndexChangelogV2:
+def parse_index_cl_v2(data: tuple[list[ByteString]]) -> IndexChangelogV2:
     return pure_parsers.parse_index_cl_v2(data)
 
 

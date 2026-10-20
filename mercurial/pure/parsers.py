@@ -1245,11 +1245,11 @@ def parse_index2(
         return index, (0, data)
 
 
-def parse_index_v2(data: tuple[ByteString, ...]) -> Index2:
+def parse_index_v2(data: tuple[list[ByteString], ...]) -> Index2:
     return Index2(data)
 
 
-def parse_index_cl_v2(data: tuple[ByteString, ...]) -> IndexChangelogV2:
+def parse_index_cl_v2(data: tuple[list[ByteString], ...]) -> IndexChangelogV2:
     return IndexChangelogV2(data)
 
 
@@ -1259,14 +1259,9 @@ class SegmentedData:
     def __init__(
         self,
         item_format: struct.Struct,
-        data: bytes | bytearray,
+        data: list[bytes | bytearray],
     ):
-        # we build the SegmentedData from a single segment for now to stay
-        # compatible with StructArray API.
-        #
-        # We will take multiple segments when the docket can actually track that.
-        single_segment = StructArray(item_format, data)
-        self._segments = [single_segment]
+        self._segments = [StructArray(item_format, d) for d in data]
 
     def __len__(self):
         """the total length of the segmented data"""
@@ -1386,14 +1381,14 @@ class MultiBlockIndex(BaseIndex):
 
     def __init__(
         self,
-        data: tuple[ByteString, ...],
+        data: tuple[list[ByteString], ...],
         uses_generaldelta,
     ):
         assert len(data) == len(self._index_formats)
         count = []
         for idx, f in enumerate(self._index_formats):
             entry_size = f.size
-            len_data = len(data[idx])
+            len_data = sum(len(d) for d in data[idx])
             assert (len_data % entry_size) == 0
             count.append(len_data // entry_size)
         assert len(set(count)) == 1, count
@@ -1599,7 +1594,7 @@ class Index2(MultiBlockIndex):
 
     def __init__(
         self,
-        data: tuple[ByteString, ...],
+        data: tuple[list[ByteString], ...],
         uses_generaldelta: bool = True,
     ):
         # turn the data into something mutable, this is needlessly expensive
@@ -1721,7 +1716,7 @@ class IndexChangelogV2(Index2):
 
     def __init__(
         self,
-        data: tuple[ByteString, ...],
+        data: tuple[list[ByteString], ...],
     ):
         super().__init__(data, uses_generaldelta=False)
 
