@@ -1253,6 +1253,74 @@ def parse_index_cl_v2(data: tuple[ByteString, ...]) -> IndexChangelogV2:
     return IndexChangelogV2(data)
 
 
+class SegmentedData:
+    """a multi-segment piece of data"""
+
+    def __init__(
+        self,
+        item_format: struct.Struct,
+        data: bytes | bytearray,
+    ):
+        # we build the SegmentedData from a single segment for now to stay
+        # compatible with StructArray API.
+        #
+        # We will take multiple segments when the docket can actually track that.
+        single_segment = StructArray(item_format, data)
+        self._segments = [single_segment]
+
+    def __len__(self):
+        """the total length of the segmented data"""
+        return sum(len(s) for s in self._segments)
+
+    def _find_segment(self, idx):
+        """find the segment responsible for this idx
+
+        return a tuple with:
+
+        - the index of the segment responsible for it
+        - the segment responsible for it
+        - the index of the item within that segment
+        """
+        prev_size = 0
+        for segment_idx, s in enumerate(self._segments):
+            segment_size = len(s)
+            adjusted_idx = idx - prev_size
+            assert 0 <= adjusted_idx, idx
+
+            if adjusted_idx <= segment_size:
+                return (segment_idx, s, adjusted_idx)
+            else:
+                # item is later, skip it
+                prev_size += segment_size
+        else:
+            # we no longer have any segment
+            raise IndexError(idx)
+
+    def bin(self, idx: int) -> bytes:
+        """the binary form of entry at index <idx>"""
+        (segment_idx, s, adjusted_idx) = self._find_segment(idx)
+        return s.bin(adjusted_idx)
+
+    def __getitem__(self, idx: int) -> tuple:
+        """Get the deserialized tuple for item as index `idx`"""
+        (segment_idx, s, adjusted_idx) = self._find_segment(idx)
+        return s[adjusted_idx]
+
+    def __setitem__(self, idx: int, value: bytes) -> None:
+        """Set the serialized bytes for item as index `idx`
+
+        NOTE: this is asymetrical with `__getitem__` that return the tuple.
+        """
+        (segment_idx, s, adjusted_idx) = self._find_segment(idx)
+        s[adjusted_idx] = value
+
+    def delete_from(self, idx: int) -> None:
+        """drop all items starting at index `idx`"""
+        (segment_idx, s, adjusted_idx) = self._find_segment(idx)
+        s.delete_from(adjusted_idx)
+        del self._segments[segment_idx + 1 :]
+
+
 class StructArray:
     """A small object that expose a blob of binary data as an array of tuple
 
@@ -1330,8 +1398,8 @@ class MultiBlockIndex(BaseIndex):
             count.append(len_data // entry_size)
         assert len(set(count)) == 1, count
 
-        self._data: tuple[StructArray] = tuple(
-            StructArray(s, d) for (d, s) in zip(data, self._index_formats)
+        self._data: tuple[SegmentedData] = tuple(
+            SegmentedData(s, d) for (d, s) in zip(data, self._index_formats)
         )
         self._lgt = count[0]
         self._extra: list[tuple[bytes, ...]] = []
