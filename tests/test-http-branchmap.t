@@ -1,3 +1,21 @@
+#testcases cg-old cg04
+
+The cg04 variant makes the server send its stored compressed deltas as they
+are. Serving them must not leave the server's changelog open, or the push
+below crashes the server.
+
+#if cg04
+  $ cat >> $HGRCPATH << EOF
+  > [experimental]
+  > changegroup4 = yes
+  > EOF
+#else
+  $ cat >> $HGRCPATH << EOF
+  > [experimental]
+  > changegroup4 = false
+  > EOF
+#endif
+
   $ hgserve() {
   >     hg serve -a localhost -p $HGPORT1 -d --pid-file=hg.pid \
   >       -E errors.log -v $@ > startup.log

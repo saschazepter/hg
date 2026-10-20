@@ -117,7 +117,7 @@ instead of the following map::
       "long_value": "some very large value...",
    }
 
-Use a map followed by a byte string:
+Use a map followed by a byte string::
 
    {
       "key1": "value1",

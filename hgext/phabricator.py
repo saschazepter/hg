@@ -2076,7 +2076,7 @@ def getdiffmeta(diff):
 def _getdrevs(ui, stack, specs):
     """convert user supplied DREVSPECs into "Differential Revision" dicts
 
-    See ``hg help phabread`` for how to specify each DREVSPEC.
+    See :hg:`help phabread` for how to specify each DREVSPEC.
     """
     if len(specs) > 0:
 
@@ -2182,7 +2182,7 @@ def phabimport(ui, repo, *specs, **opts):
     The patches are read and applied starting at the parent of the working
     directory.
 
-    See ``hg help phabread`` for how to specify DREVSPEC.
+    See :hg:`help phabread` for how to specify DREVSPEC.
     """
     opts = pycompat.byteskwargs(opts)
 

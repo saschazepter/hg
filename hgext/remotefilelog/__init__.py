@@ -4,7 +4,7 @@
 #
 # This software may be used and distributed according to the terms of the
 # GNU General Public License version 2 or any later version.
-"""remotefilelog causes Mercurial to lazilly fetch file contents (EXPERIMENTAL)
+"""remotefilelog causes Mercurial to lazily fetch file contents (EXPERIMENTAL)
 
 This extension is HIGHLY EXPERIMENTAL. There are NO BACKWARDS COMPATIBILITY
 GUARANTEES. This means that repositories created with this extension may
@@ -1215,7 +1215,7 @@ def resolveprefetchopts(ui, opts):
 def prefetch(ui, repo, *pats, **opts):
     """prefetch file revisions from the server
 
-    Prefetchs file revisions for the specified revs and stores them in the
+    Prefetches file revisions for the specified revs and stores them in the
     local remotefilelog cache.  If no rev is specified, the default rev is
     used which is the union of dot, draft, pullprefetch and bgprefetchrev.
     File names or patterns can be used to limit which files are downloaded.

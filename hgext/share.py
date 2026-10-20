@@ -55,7 +55,7 @@ The following ``share.`` config options influence this feature:
     storage format from one repository but does not set related configs
     in the shares.
 
-    Setting `format.exp-share-safe = True` enables sharing configs and
+    Setting ``format.exp-share-safe = True`` enables sharing configs and
     requirements. This only applies to shares which are done after enabling
     the config option.
 

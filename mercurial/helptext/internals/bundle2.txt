@@ -160,7 +160,7 @@ The value, if present, is formed by URL quoting each value in
 the capability list and concatenating the result with a comma (``,``).
 
 For example, the capabilities ``novaluekey`` and ``listvaluekey``
-with values ``value 1`` and ``value 2``. This would be encoded as:
+with values ``value 1`` and ``value 2``. This would be encoded as::
 
    listvaluekey=value%201,value%202\nnovaluekey
 

@@ -464,6 +464,14 @@ class httpbasicauthhandler(urlreq.httpbasicauthhandler):
                 return None
             self.auth = auth
             req.add_unredirected_header(self.auth_header, auth)
+
+            # if the original request had data, it must be rewinded, otherwise
+            # this hangs indefinitely. Typical case would be the `ubundle`
+            # wireproto command.
+            seek = getattr(req.data, 'seek', None)
+            if seek is not None:
+                seek(0)
+
             return self.parent.open(req)
         else:
             return None

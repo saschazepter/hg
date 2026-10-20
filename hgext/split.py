@@ -62,10 +62,10 @@ def split(ui, repo, *revs, **opts):
     Repeatedly prompt changes and commit message for new changesets until there
     is nothing left in the original changeset.
 
-    If --rev was not given, split the working directory parent.
+    If ``--rev`` was not given, split the working directory parent.
 
     By default, rebase connected non-obsoleted descendants onto the new
-    changeset. Use --no-rebase to avoid the rebase.
+    changeset. Use ``--no-rebase`` to avoid the rebase.
     """
     revlist = []
     if opts.get('rev'):

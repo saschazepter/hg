@@ -233,26 +233,26 @@ The extension can generate multiple variants of the clone bundle. Each
 different variant will be defined by the "bundle-spec" they use::
 
     [clone-bundles]
-    auto-generate.formats= zstd-v2, gzip-v2
+    auto-generate.formats = zstd-v2, gzip-v2
 
-See `hg help bundlespec` for details about available options.
+See :hg:`help bundlespec` for details about available options.
 
 By default, new bundles are generated when 5% of the repository contents or at
 least 1000 revisions are not contained in the cached bundles. This option can
-be controlled by the `clone-bundles.trigger.below-bundled-ratio` option
-(default 0.95) and the `clone-bundles.trigger.revs` option (default 1000)::
+be controlled by the ``clone-bundles.trigger.below-bundled-ratio`` option
+(default 0.95) and the ``clone-bundles.trigger.revs`` option (default 1000)::
 
     [clone-bundles]
-    trigger.below-bundled-ratio=0.95
-    trigger.revs=1000
+    trigger.below-bundled-ratio = 0.95
+    trigger.revs = 1000
 
-This logic can be manually triggered using the `admin::clone-bundles-refresh`
-command, or automatically on each repository change if
-`clone-bundles.auto-generate.on-change` is set to `yes`::
+This logic can be manually triggered using the
+:hg:`admin::clone-bundles-refresh` command, or automatically on each repository
+change if ``clone-bundles.auto-generate.on-change`` is set to `yes`::
 
     [clone-bundles]
-    auto-generate.on-change=yes
-    auto-generate.formats= zstd-v2, gzip-v2
+    auto-generate.on-change = yes
+    auto-generate.formats = zstd-v2, gzip-v2
 
 Automatic Inline serving
 ........................
@@ -261,12 +261,12 @@ The simplest way to serve the generated bundle is through the Mercurial
 protocol. However it is not the most efficient as request will still be served
 by that main server. It is useful in case where authentication is complexe or
 when an efficient mirror system is already in use anyway. See the `inline
-clonebundles` section above for details about inline clonebundles
+clonebundles` section above for details about inline clonebundles.
 
 To automatically serve generated bundle through inline clonebundle, simply set
 the following option::
 
-    auto-generate.serve-inline=yes
+    auto-generate.serve-inline = yes
 
 Enabling this option disable the managed upload and serving explained below.
 
@@ -277,8 +277,8 @@ This is the most efficient way to serve automatically generated clone bundles,
 but requires some setup.
 
 The generated bundles need to be made available to users through a "public" URL.
-This should be donne through `clone-bundles.upload-command` configuration. The
-value of this command should be a shell command. It will have access to the
+This should be done through ``clone-bundles.upload-command`` configuration.
+The value of this command should be a shell command. It will have access to the
 bundle file path through the `$HGCB_BUNDLE_PATH` variable. And the expected
 basename in the "public" URL is accessible at::
 
@@ -288,8 +288,8 @@ basename in the "public" URL is accessible at::
 
 If the file was already uploaded, the command must still succeed.
 
-After upload, the file should be available at an url defined by
-`clone-bundles.url-template`.
+After upload, the file should be available at a URL defined by
+``clone-bundles.url-template``::
 
   [clone-bundles]
   url-template=https://bundles.host/cache/clone-bundles/{basename}
@@ -300,7 +300,7 @@ Old bundles cleanup:
 When new bundles are generated, the older ones are no longer necessary and can
 be removed from storage. This is done through the `clone-bundles.delete-command`
 configuration. The command is given the url of the artifact to delete through
-the `$HGCB_BUNDLE_URL` environment variable.
+the `$HGCB_BUNDLE_URL` environment variable::
 
   [clone-bundles]
   delete-command=sftp rm sftp://bundles.host/clone-bundles/$HGCB_BUNDLE_BASENAME
@@ -1049,7 +1049,7 @@ def cmd_admin_clone_bundles_refresh(
     """generate clone bundles according to the configuration
 
     This runs the logic for automatic generation, removing outdated bundles and
-    generating new ones if necessary. See :hg:`help -e clone-bundles` for
+    generating new ones if necessary. See :hg:`help -e clonebundles` for
     details about how to configure this feature.
     """
     debug = repo.ui.configbool(b'devel', b'debug.clonebundles')
@@ -1098,7 +1098,7 @@ def cmd_admin_clone_bundles_refresh(
 def cmd_admin_clone_bundles_clear(ui, repo: AutoBundlesRepoT):
     """remove existing clone bundle caches
 
-    See `hg help admin::clone-bundles-refresh` for details on how to regenerate
+    See :hg:`help admin::clone-bundles-refresh` for details on how to regenerate
     them.
 
     This command will only affect bundles currently available, it will not

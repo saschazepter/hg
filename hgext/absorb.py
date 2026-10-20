@@ -16,7 +16,7 @@ amend modified chunks into the corresponding non-public changesets.
     # only check 50 recent non-public changesets at most
     max-stack-size = 50
     # whether to add noise to new commits to avoid obsolescence cycle
-    add-noise = 1
+    add-noise = true
     # make `amend --correlated` a shortcut to the main command
     amend-flag = correlated
 

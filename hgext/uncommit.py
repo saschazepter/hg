@@ -148,7 +148,7 @@ def uncommit(ui, repo, *pats, **opts):
     deleted in the changeset will be left unchanged, and so will remain
     modified in the working directory.
 
-    If no files are specified, the commit will be pruned, unless --keep is
+    If no files are specified, the commit will be pruned, unless ``--keep`` is
     given.
     """
     cmdutil.check_note_size(opts)
@@ -258,8 +258,8 @@ def unamend(ui, repo, **opts):
 
     This command will roll back to the previous version of a changeset,
     leaving working directory in state in which it was before running
-    `hg amend` (e.g. files modified as part of an amend will be
-    marked as modified `hg status`)
+    :hg:`amend` (e.g. files modified as part of an amend will be
+    marked as modified in :hg:`status`)
     """
 
     unfi = repo.unfiltered()

@@ -20,9 +20,9 @@ Here is an example configuration that causes :hg:`fix` to apply automatic
 formatting fixes to modified lines in C++ code::
 
   [fix]
-  clang-format:command=clang-format --assume-filename={rootpath}
-  clang-format:linerange=--lines={first}:{last}
-  clang-format:pattern=set:**.cpp or **.hpp
+  clang-format:command = clang-format --assume-filename={rootpath}
+  clang-format:linerange = --lines={first}:{last}
+  clang-format:pattern = set:**.cpp or **.hpp
 
 The :command suboption forms the first part of the shell command that will be
 used to fix a file. The content of the file is passed on standard input, and the
@@ -122,7 +122,7 @@ perform other post-fixing work. The supported hooks are::
     previously passed to the "postfixfile" hook.
 
 You can specify a list of directories to search the tool command in using the
-`fix.extra-bin-paths` configuration.
+``fix.extra-bin-paths`` configuration.
 """
 
 from __future__ import annotations
@@ -250,13 +250,13 @@ def fix(ui, repo, *pats, **opts):
     Runs any configured tools to fix the content of files. (See
     :hg:`help -e fix` for details about configuring tools.) Only affects files
     with changes, unless file arguments are provided. Only affects changed lines
-    of files, unless the --whole flag is used. Some tools may always affect the
-    whole file regardless of --whole.
+    of files, unless the ``--whole`` flag is used. Some tools may always affect
+    the whole file regardless of ``--whole``.
 
-    If --working-dir is used, files with uncommitted changes in the working copy
-    will be fixed. Note that no backup are made.
+    If ``--working-dir`` is used, files with uncommitted changes in the working
+    copy will be fixed. Note that no backups are made.
 
-    If revisions are specified with --source, those revisions and their
+    If revisions are specified with ``--source``, those revisions and their
     descendants will be checked, and they may be replaced with new revisions
     that have fixed file content. By automatically including the descendants,
     no merging, rebasing, or evolution will be required. If an ancestor of the
@@ -265,8 +265,9 @@ def fix(ui, repo, *pats, **opts):
 
     When determining what lines of each file to fix at each revision, the whole
     set of revisions being fixed is considered, so that fixes to earlier
-    revisions are not forgotten in later ones. The --base flag can be used to
-    override this default behavior, though it is not usually desirable to do so.
+    revisions are not forgotten in later ones. The ``--base`` flag can be used
+    to override this default behavior, though it is not usually desirable to do
+    so.
     """
     opts = pycompat.byteskwargs(opts)
     cmdutil.check_at_most_one_arg(opts, b'all', b'source', b'rev')

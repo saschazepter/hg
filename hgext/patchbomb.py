@@ -38,11 +38,11 @@ override global ``[email]`` address settings.
 Then you can use the :hg:`email` command to mail a series of
 changesets as a patchbomb.
 
-You can also either configure the method option in the email section
-to be a sendmail compatible mailer or fill out the [smtp] section so
+You can also either configure the method option in the ``[email]`` section
+to be a sendmail compatible mailer or fill out the ``[smtp]`` section so
 that the patchbomb extension can automatically send patchbombs
-directly from the commandline. See the [email] and [smtp] sections in
-hgrc(5) for details.
+directly from the commandline. See :hg:`help config.email` and :hg:`help
+config.smtp` for details.
 
 By default, :hg:`email` will prompt for a ``To`` or ``CC`` header if
 you do not supply one via configuration or the command line.  You can
@@ -53,15 +53,15 @@ override this to never prompt by configuring an empty value::
 
 You can control the default inclusion of an introduction message with the
 ``patchbomb.intro`` configuration option. The configuration is always
-overwritten by command line flags like --intro and --desc::
+overwritten by command line flags like ``--intro`` and ``--desc``::
 
   [patchbomb]
-  intro=auto   # include introduction message if more than 1 patch (default)
-  intro=never  # never include an introduction message
-  intro=always # always include an introduction message
+  intro = auto   # include introduction message if more than 1 patch (default)
+  intro = never  # never include an introduction message
+  intro = always # always include an introduction message
 
 You can specify a template for flags to be added in subject prefixes. Flags
-specified by --flag option are exported as ``{flags}`` keyword::
+specified by ``--flag`` option are exported as ``{flags}`` keyword::
 
   [patchbomb]
   flagtemplate = "{separate(' ',

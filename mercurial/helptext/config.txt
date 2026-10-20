@@ -636,7 +636,6 @@ required):
 
 - :hg:`backout`
 - :hg:`commit`
-- :hg:`fetch` (for merge commit only)
 - :hg:`graft`
 - :hg:`histedit`
 - :hg:`import`
@@ -656,7 +655,6 @@ messages for each action.
 - ``changeset.commit.amend.normal`` for :hg:`commit --amend` on other
 - ``changeset.commit.normal.merge`` for :hg:`commit` on merges
 - ``changeset.commit.normal.normal`` for :hg:`commit` on other
-- ``changeset.fetch`` for :hg:`fetch` (impling merge commit)
 - ``changeset.gpg.sign`` for :hg:`sign`
 - ``changeset.graft`` for :hg:`graft`
 - ``changeset.histedit.edit`` for ``edit`` of :hg:`histedit`
@@ -1524,7 +1522,7 @@ The following options control default behavior for all hosts.
     Defines the cryptographic ciphers to use for connections.
 
     Value must be a valid OpenSSL Cipher List Format as documented at
-    https://www.openssl.org/docs/manmaster/apps/ciphers.html#CIPHER-LIST-FORMAT.
+    https://docs.openssl.org/master/man1/openssl-ciphers/#cipher-list-format.
 
     This setting is for advanced users only. Setting to incorrect values
     can significantly lower connection security or decrease performance.
@@ -1985,7 +1983,7 @@ The following sub-options can be defined:
     in the future. If you think you need this option, you should make sure you
     are also talking to the Mercurial developer community to get confirmation.
 
-  See `hg help config.storage.revlog.reuse-external-delta-parent` for a similar
+  See :hg:`help config.storage.revlog.reuse-external-delta-parent` for a similar
   global option. That option defines the behavior of `default`.
 
 The following special named paths exist:
@@ -2363,7 +2361,7 @@ category impact performance and repository size.
     through push, pull, clone and unbundle.
 
     To fix affected revisions that already exist within the repository, one can
-    use :hg:`debug-repair-issue-6528`.
+    use :hg:`debug-repair-issue6528`.
 
 .. container:: verbose
 

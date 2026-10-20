@@ -27,7 +27,8 @@ Help for uncommit
   changeset will be left unchanged, and so will remain modified in the working
   directory.
   
-  If no files are specified, the commit will be pruned, unless --keep is given.
+  If no files are specified, the commit will be pruned, unless "--keep" is
+  given.
   
   (use 'hg help -e uncommit' to show help for the uncommit extension)
   

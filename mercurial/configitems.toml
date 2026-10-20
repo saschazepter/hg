@@ -85,7 +85,7 @@ default = "abort"
 documentation="""Control how to react when accessing censored content.
 Accepted value: "abort", "ignore". Defaults to abort.
 
-A few informative commands such as ``hg grep`` will unconditionally ignore
+A few informative commands such as :hg:`grep` will unconditionally ignore
 censored data and merely report that it was encountered.
 """
 
@@ -1471,13 +1471,13 @@ In particular, one can expect better performance for the following categories of
 commands for repositories using this format can expect better performance than
 ones using older formats:
 
-- `hg status --copies --rev X`
-- `hg diff`
-- `hg merge`
-- `hg clone`
-- `hg pull`
-- `hg push`
-- `hg unbundle`
+- :hg:`status --copies --rev X`
+- :hg:`diff`
+- :hg:`merge`
+- :hg:`clone`
+- :hg:`pull`
+- :hg:`push`
+- :hg:`unbundle`
 """
 
 # This will never get out of experimental and will be removed once the fileindex
