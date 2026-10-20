@@ -125,7 +125,7 @@ impl PyStoreShards {
         match self.inner.shape(&names) {
             Ok(inner) => Ok(PyShape { inner }),
             Err(err) => {
-                if let ShapeErrorKind::UnknownShape(unknown) = &*err.kind {
+                if let ShapeErrorKind::UnknownProfile(unknown) = &*err.kind {
                     let unknown = unknown.as_bytes().to_vec();
                     return Err(PyKeyError::new_err(unknown));
                 }

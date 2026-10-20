@@ -95,10 +95,10 @@ pub enum ErrorKind {
     ParseError(toml::de::Error),
     /// Deserialization of the shape failed
     Deserialization(DeserializationError),
-    /// No shard of this name is marked as a shape
-    UnknownShape(String),
-    /// A shape was requested without any name
-    NoShapeNames,
+    /// There is no profile with this name
+    UnknownProfile(String),
+    /// A profile was requested without any name
+    NoProfileNames,
 }
 
 /// All error cases specific to shape deserialization
@@ -486,14 +486,14 @@ impl StoreShards {
     /// names that do not exist or are a [`Shard`] result in an error
     pub fn shape(&self, names: &[&str]) -> Result<Shape, Error> {
         if names.is_empty() {
-            return Err(ErrorKind::NoShapeNames)?;
+            return Err(ErrorKind::NoProfileNames)?;
         }
         let shard_names = ShardName::canonical_names(names)?;
         let mut shards = Vec::with_capacity(shard_names.len());
         for name in &shard_names {
             match self.shards.get(name) {
                 Some(shard) if shard.shape => shards.push(shard),
-                _ => return Err(ErrorKind::UnknownShape(name.to_string()))?,
+                _ => return Err(ErrorKind::UnknownProfile(name.to_string()))?,
             }
         }
         Shape::new(shard_names, self, &shards)
@@ -535,7 +535,7 @@ impl StoreShards {
         let mut dependent_shards = FastHashMap::default();
         for name in shape.names() {
             let Some(shard) = self.shards.get(name) else {
-                return Err(ErrorKind::UnknownShape(name.to_string()))?;
+                return Err(ErrorKind::UnknownProfile(name.to_string()))?;
             };
             dependent_shards.extend(self.dependencies(shard)?);
             dependent_shards.insert(name, shard);
@@ -1573,7 +1573,7 @@ mod tests {
         // These are only usable through the shapes that include them
         for name in ["foo-deps", "baron-parts"] {
             let err = store_shards.shape(&[name]).unwrap_err();
-            assert_eq!(*err.kind, ErrorKind::UnknownShape(name.to_string()));
+            assert_eq!(*err.kind, ErrorKind::UnknownProfile(name.to_string()));
         }
         (store_shards, all_shape_names)
     }
@@ -1701,9 +1701,9 @@ mod tests {
         let (store_shards, _) = valid_store_shards();
         // Unknown names and non-shapes (shards) are reported
         let err = store_shards.shape(&["zz"]).unwrap_err();
-        assert_eq!(*err.kind, ErrorKind::UnknownShape("zz".to_string()));
+        assert_eq!(*err.kind, ErrorKind::UnknownProfile("zz".to_string()));
         let err = store_shards.shape(&["baz"]).unwrap_err();
-        assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
+        assert_eq!(*err.kind, ErrorKind::UnknownProfile("baz".to_string()));
     }
 
     #[test]
@@ -1740,11 +1740,11 @@ mod tests {
 
         // Unknown names and non-shapes (shards) are reported
         let err = store_shards.shape(&["bar", "zz"]).unwrap_err();
-        assert_eq!(*err.kind, ErrorKind::UnknownShape("zz".to_string()));
+        assert_eq!(*err.kind, ErrorKind::UnknownProfile("zz".to_string()));
         let err = store_shards.shape(&["bar", "baz"]).unwrap_err();
-        assert_eq!(*err.kind, ErrorKind::UnknownShape("baz".to_string()));
+        assert_eq!(*err.kind, ErrorKind::UnknownProfile("baz".to_string()));
         let err = store_shards.shape(&[]).unwrap_err();
-        assert_eq!(*err.kind, ErrorKind::NoShapeNames);
+        assert_eq!(*err.kind, ErrorKind::NoProfileNames);
     }
 
     #[test]
@@ -1767,7 +1767,7 @@ mod tests {
         let outsider = Shape::from_patterns(&[], &[]).unwrap();
         let err =
             store_shards.shard_fingerprints_for_shape(&outsider).unwrap_err();
-        let expected = ErrorKind::UnknownShape("hg-internal".to_string());
+        let expected = ErrorKind::UnknownProfile("hg-internal".to_string());
         assert_eq!(*err.kind, expected);
     }
 
