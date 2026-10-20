@@ -818,6 +818,19 @@ def _tracked_remote_path(
 
     if not (widening or narrowing or autoremoveincludes):
         ui.status(_(b"nothing to widen or narrow\n"))
+        # Even when there is nothing to widen or narrow, we still write the store-shape
+        # file. This is useful for migrating between profiles with the same shape or for
+        # updating a repo without a store-shape file.
+        if shape is not None and repo.store_shape != [
+            name.decode() for name in shape
+        ]:
+            with repo.transaction(b"store-shape") as tr:
+                tr.addfilegenerator(
+                    b"store-shape",
+                    (narrowspec.SHAPE_FILENAME,),
+                    lambda f: narrowspec.write_shape(f, shape),
+                    location=b'store',
+                )
         return 0
 
     scmutil.bail_if_changed(repo)

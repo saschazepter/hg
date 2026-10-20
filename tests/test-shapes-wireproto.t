@@ -777,8 +777,7 @@ file even though there is nothing to widen or narrow.
   nothing to widen or narrow
   $ cat .hg/store/store-shape
   0
-  default,other-secret (known-bad-output !)
-  default-and-other-secret (missing-correct-output !)
+  default-and-other-secret
 
 A repo without a store-shape file gets one
 ------------------------------------------
@@ -804,8 +803,7 @@ When the patterns already match the shape, we just write the file.
   comparing with ssh://user@dummy/server
   nothing to widen or narrow
   $ cat .hg/store/store-shape 2>/dev/null || echo "no store-shape file"
-  no store-shape file (known-bad-output !)
-  0 (missing-correct-output !)
-  default (missing-correct-output !)
+  0
+  default
 
 #endif
