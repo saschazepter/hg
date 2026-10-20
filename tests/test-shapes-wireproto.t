@@ -755,4 +755,57 @@ A composite shape tracks the union
   file1 contents
   new contents
 
+Switching to a shape with the same fingerprint
+----------------------------------------------
+
+If profile names have changed but the shape fingerprint hasn't, we update the store-shape
+file even though there is nothing to widen or narrow.
+
+  $ cp $TESTTMP/starting-shapes $TESTTMP/alias-shapes
+  $ cat >> $TESTTMP/alias-shapes <<EOF
+  > [[profiles]]
+  > name = "default-and-other-secret"
+  > includes = ["default", "other-secret"]
+  > public = true
+  > EOF
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  cleared 1 saved server-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/alias-shapes
+
+  $ hg tracked --store-shape default-and-other-secret
+  comparing with ssh://user@dummy/server
+  nothing to widen or narrow
+  $ cat .hg/store/store-shape
+  0
+  default,other-secret (known-bad-output !)
+  default-and-other-secret (missing-correct-output !)
+
+A repo without a store-shape file gets one
+------------------------------------------
+
+When the patterns don't match the shape, narrowing or widening writes the file.
+
+  $ rm -f .hg/store/store-shape
+  $ hg tracked --store-shape default
+  comparing with ssh://user@dummy/server
+  searching for changes
+  looking for local changes to affected paths
+  deleting data/foo/bar/other-secret/secret-file.i
+  deleting data/foo/bar/other-secret/secret-file2.i
+  deleting unwanted files from working copy
+  $ cat .hg/store/store-shape 2>/dev/null
+  0
+  default
+
+When the patterns already match the shape, we just write the file.
+
+  $ rm -f .hg/store/store-shape
+  $ hg tracked --store-shape default
+  comparing with ssh://user@dummy/server
+  nothing to widen or narrow
+  $ cat .hg/store/store-shape 2>/dev/null || echo "no store-shape file"
+  no store-shape file (known-bad-output !)
+  0 (missing-correct-output !)
+  default (missing-correct-output !)
+
 #endif
