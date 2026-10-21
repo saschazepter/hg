@@ -4,7 +4,6 @@ import contextlib
 import os
 
 from typing import (
-    Any,
     Iterable,
     Iterator,
     cast,
@@ -359,7 +358,7 @@ class gitdirstate(intdirstate.IDirstate):
     def walk(
         self,
         match: MatcherT,
-        subrepos: Any,
+        subrepos: list[HgPathT],
         unknown: bool,
         ignored: bool,
         full: bool = True,

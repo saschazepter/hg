@@ -15,7 +15,6 @@ import typing
 import uuid
 
 from typing import (
-    Any,
     Iterable,
     Iterator,
 )
@@ -1387,7 +1386,7 @@ class dirstate(intdirstate.IDirstate):
     def walk(
         self,
         match: MatcherT,
-        subrepos: Any,
+        subrepos: list[HgPathT],
         unknown: bool,
         ignored: bool,
         full: bool = True,

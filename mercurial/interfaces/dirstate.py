@@ -6,7 +6,6 @@ import os
 import typing
 
 from typing import (
-    Any,
     Callable,
     Iterable,
     Iterator,
@@ -396,7 +395,7 @@ class IDirstate(Protocol):
     def walk(
         self,
         match: matcher.IMatcher,
-        subrepos: Any,  # TODO: figure out what this is
+        subrepos: list[HgPathT],
         unknown: bool,
         ignored: bool,
         full: bool = True,
