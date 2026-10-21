@@ -37,6 +37,7 @@ pub struct Output<O = Stdout, E = Stderr> {
     output: Mutex<O>,
     error: Mutex<E>,
     escape_output: bool,
+    escape_error: bool,
 }
 
 impl Output {
@@ -45,6 +46,7 @@ impl Output {
         let (stdout, stderr) = (io::stdout(), io::stderr());
         Self {
             escape_output: stdout.is_terminal(),
+            escape_error: stderr.is_terminal(),
             ..Self::new(format, stdout, stderr)
         }
     }
@@ -54,7 +56,8 @@ impl<O: Write, E: Write> Output<O, E> {
     /// Writes to `output` and `error` as if they were terminals
     pub fn new(format: Option<Format>, output: O, error: E) -> Self {
         let (output, error) = (Mutex::new(output), Mutex::new(error));
-        Self { format, output, error, escape_output: true }
+        let (escape_output, escape_error) = (true, true);
+        Self { format, output, error, escape_output, escape_error }
     }
 
     /// Writes a record of `kind` with `write`, see [`record!`](crate::record)
@@ -88,7 +91,7 @@ impl<O: Write, E: Write> Output<O, E> {
             ErrorKind::Abort(message) => message,
             ErrorKind::Hg(error) => &hg_message(error),
         };
-        let _ = for_humans(&mut *out, true, |sink| {
+        let _ = for_humans(&mut *out, self.escape_error, |sink| {
             write_bytes!(sink, "abort: ")?;
             for context in error.context.iter().rev() {
                 write_bytes!(sink, "{context}: ")?;
@@ -96,7 +99,7 @@ impl<O: Write, E: Write> Output<O, E> {
             write_bytes!(sink, "{message}\n")
         });
         if let Some(hint) = &error.hint {
-            let _ = for_humans(&mut *out, true, |sink| {
+            let _ = for_humans(&mut *out, self.escape_error, |sink| {
                 write_bytes!(sink, "({hint})\n")
             });
         }
@@ -178,14 +181,18 @@ mod tests {
     }
 
     #[test]
-    fn as_is_when_not_a_terminal() {
+    fn as_is_when_not_terminals() {
         let output = Output {
             escape_output: false,
+            escape_error: false,
             ..Output::new(None, vec![], vec![])
         };
         let path = b"caf\xe9".to_vec();
         crate::record!(output, "status", "{path}\n").unwrap();
-        assert_eq!(output.into_inner().0, b"caf\xe9\n");
+        let message = message!("{path}", path = path.clone());
+        output.error(&CommandError::abort(message));
+        let expected = (b"caf\xe9\n".to_vec(), b"abort: caf\xe9\n".to_vec());
+        assert_eq!(output.into_inner(), expected);
     }
 
     #[test]
