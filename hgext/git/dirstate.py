@@ -465,7 +465,11 @@ class gitdirstate(intdirstate.IDirstate):
         )
 
     def verify(
-        self, m1, m2, p1: bytes, narrow_matcher: Any | None = None
+        self,
+        m1,
+        m2,
+        p1: bytes,
+        narrow_matcher: MatcherT | None = None,
     ) -> Iterator[bytes]:
         raise NotImplementedError
 

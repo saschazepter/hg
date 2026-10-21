@@ -457,7 +457,11 @@ class IDirstate(Protocol):
 
     @abc.abstractmethod
     def verify(
-        self, m1, m2, p1: bytes, narrow_matcher: Any | None = None
+        self,
+        m1,
+        m2,
+        p1: bytes,
+        narrow_matcher: matcher.IMatcher | None = None,
     ) -> Iterator[bytes]:
         """
         check the dirstate contents against the parent manifest and yield errors
