@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::io::Write;
 use std::mem::take;
 
@@ -14,6 +15,7 @@ use hg::revlog::RevlogType;
 use hg::revlog::filelog::FileCompOutcome;
 use hg::revlog::filelog::is_file_modified;
 use hg::revlog::options::default_revlog_options;
+use hg::warnings::HgWarningContext;
 use hg::{self};
 use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
@@ -49,7 +51,11 @@ pub fn run(invocation: RepoInvocation, _args: Args, output: &Output) {
 
     let mut stderr = std::io::stderr();
 
-    let after_status = |res: StatusResult, _warnings| {
+    let after_status = |res: StatusResult, hg_warnings: HgWarningContext| {
+        let Ok(()) = hg_warnings.finish(|warning| {
+            output.warn(warning.into());
+            Ok::<_, Infallible>(())
+        });
         let mut ds_status = res.expect("status failed");
         for (path, error) in take(&mut ds_status.bad) {
             let error = match error {

@@ -66,3 +66,18 @@ Test copies, and output for machines
   $ jf status --do-not-use-format json
   {"_internal_jf_kind":"status","path":"foo","status":"R"}
   {"_internal_jf_kind":"status","copy_source":"bar","path":"baz","status":"A"}
+
+Test warnings
+
+  $ echo 'syntax: bogus' > .hgignore
+  $ jf status
+  warning: $TESTTMP/repo/.hgignore: ignoring invalid syntax 'bogus'
+  R foo
+  A baz
+    bar
+  ? .hgignore
+  $ jf status --do-not-use-format json
+  {"_internal_jf_kind":"warning","message":{"args":{"path":"$TESTTMP/repo/.hgignore","syntax":"bogus"},"template":"{path}: ignoring invalid syntax '{syntax}'","text":"$TESTTMP/repo/.hgignore: ignoring invalid syntax 'bogus'"}}
+  {"_internal_jf_kind":"status","path":"foo","status":"R"}
+  {"_internal_jf_kind":"status","copy_source":"bar","path":"baz","status":"A"}
+  {"_internal_jf_kind":"status","path":".hgignore","status":"?"}
