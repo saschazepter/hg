@@ -7,6 +7,7 @@ use jif::commands;
 use jif::error::CommandError;
 use jif::error::ErrorKind;
 use jif::error::hg_message;
+use jif::output::Format;
 use jif::terminal::Terminal;
 use jif::utils::RepoInvocation;
 use serde_json::json;
@@ -36,11 +37,6 @@ struct Args {
     do_not_use_format: Option<Format>,
     #[command(subcommand)]
     command: Command,
-}
-
-#[derive(Clone, Copy, PartialEq, clap::ValueEnum)]
-enum Format {
-    Json,
 }
 
 fn main() {
