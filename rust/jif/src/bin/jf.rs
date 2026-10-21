@@ -13,6 +13,7 @@ use tracing_chrome::ChromeLayerBuilder;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::FlushGuard;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::filter::LevelFilter;
 #[cfg(not(feature = "full-tracing"))]
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::prelude::*;
@@ -90,10 +91,7 @@ fn setup_tracing() -> FlushGuard {
             chrome_layer_builder.writer(hg::logging::SafeWriter::create(path));
     }
     let (chrome_layer, chrome_layer_guard) = chrome_layer_builder.build();
-    tracing_subscriber::registry()
-        .with(EnvFilter::from_default_env())
-        .with(chrome_layer)
-        .init();
+    tracing_subscriber::registry().with(env_filter()).with(chrome_layer).init();
     chrome_layer_guard
 }
 
@@ -108,6 +106,13 @@ fn setup_tracing() {
                 .with_ansi(std::io::stderr().is_terminal())
                 .with_span_events(FmtSpan::CLOSE),
         )
-        .with(EnvFilter::from_default_env())
+        .with(env_filter())
         .init()
+}
+
+/// Logs are for developers, so they are off unless `RUST_LOG` asks for them
+fn env_filter() -> EnvFilter {
+    EnvFilter::builder()
+        .with_default_directive(LevelFilter::OFF.into())
+        .from_env_lossy()
 }
