@@ -376,7 +376,7 @@ fn print_output<'a>(
                 }
                 let path = json_string(path.as_bytes())?;
                 stdout
-                    .write_all(&format_bytes!(b"  \"path\": {}\n }", path))?;
+                    .write_all(&format_bytes!(b"  \"path\": {}\n }}", path))?;
             }
             stdout.write_all(b"\n]\n")?;
         }

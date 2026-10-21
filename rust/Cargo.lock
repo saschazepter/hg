@@ -705,22 +705,22 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "format-bytes"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48942366ef93975da38e175ac9e10068c6fc08ca9e85930d4f098f4d5b14c2fd"
+checksum = "1965297cc9a4ad36ec64e7fa6cbb652825bcff68701c98954b73ee1f16b88ccf"
 dependencies = [
  "format-bytes-macros",
 ]
 
 [[package]]
 name = "format-bytes-macros"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "203aadebefcc73d12038296c228eabf830f99cba991b0032adf20e9fa6ce7e4f"
+checksum = "f7c660f5957711a2b08a6e801147b3614f961c7a1b8cd3bcbddea2be397da0c6"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.114",
 ]
 
 [[package]]

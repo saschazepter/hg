@@ -19,7 +19,7 @@ default = ["extension-module"]
 pyo3 = { version = "0.28.0" }
 pyo3-sharedref = { path = "../pyo3-sharedref" }
 hg-core = { path = "../hg-core" }
-format-bytes = "0.3.0"
+format-bytes = "0.4.0"
 stable_deref_trait = "1.2.1"
 derive_more = { version = "2.1.1", features = ["display", "from"] }
 crossbeam-channel = "0.5.15"
