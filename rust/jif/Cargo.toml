@@ -21,6 +21,7 @@ path = "src/bin/jf.rs"
 full-tracing = ["hg-core/full-tracing", "dep:tracing-chrome"]
 
 [dependencies]
+annotate-snippets = "0.12.17"
 base64 = "0.22.1"
 chrono = "0.4.43"
 clap = { version = "4.5.54", features = ["derive"] }
