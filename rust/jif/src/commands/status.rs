@@ -19,14 +19,6 @@ use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use tracing::info;
 
-// use std::ffi::OsString;
-// use std::io::stdout;
-// use std::io::Write;
-// use std::path::PathBuf;
-//
-// use hg::revlog::filelog::FilelogRevisionData;
-// use hg::revlog::RevisionOrWdir;
-// use hg::utils::hg_path::path_to_hg_path_buf;
 use crate::utils::RepoInvocation;
 
 #[derive(clap::Args)]
