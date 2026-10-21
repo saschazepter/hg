@@ -3,6 +3,7 @@ use format_bytes::write_bytes;
 use hg::exit_codes;
 use jif::commands;
 use jif::error::CommandError;
+use jif::error::ErrorKind;
 use jif::terminal::Terminal;
 use jif::utils::RepoInvocation;
 #[cfg(feature = "full-tracing")]
@@ -63,12 +64,13 @@ fn main() {
 fn exit(result: Result<(), CommandError>) -> ! {
     match &result {
         Ok(()) => {}
-        Err(CommandError::Abort { message, hint, .. }) => {
+        Err(error) => {
             // Ignore errors when writing to stderr, we’re already exiting with
             // failure code so there’s not much more we can do.
             let mut stderr = Terminal(std::io::stderr());
+            let ErrorKind::Abort(message) = &error.kind;
             let _ = write_bytes!(&mut stderr, "abort: {message}\n");
-            if let Some(hint) = hint {
+            if let Some(hint) = &error.hint {
                 let _ = write_bytes!(&mut stderr, "({hint})\n");
             }
         }
@@ -79,11 +81,7 @@ fn exit(result: Result<(), CommandError>) -> ! {
 fn exit_code(result: &Result<(), CommandError>) -> i32 {
     match result {
         Ok(()) => exit_codes::OK,
-        Err(CommandError::Abort { .. }) => {
-            // Ignore `detailed_exit_code` for now since we aren't reading the
-            // `ui.detailed-exit-code` config yet.
-            exit_codes::ABORT
-        }
+        Err(_) => exit_codes::ABORT,
     }
 }
 
