@@ -129,6 +129,9 @@ impl<O: Write, E: Write> Output<O, E> {
             }
             write_bytes!(sink, "{message}\n")
         });
+        for snippet in &error.snippets {
+            let _ = Terminal(&mut buffer).snippet(snippet);
+        }
         if let Some(hint) = &error.hint {
             let _ = for_humans(&mut buffer, self.escape_error, |sink| {
                 write_bytes!(sink, "({hint})\n")
@@ -149,7 +152,9 @@ impl<O: Write, E: Write> Output<O, E> {
     }
 }
 
-/// Writes with `write` for humans, escaping user data if `escape`
+/// Writes with `write` for humans, escaping user data if `escape`.
+///
+/// Snippets are always escaped, since they are drawn from text.
 fn for_humans(
     writer: &mut impl Write,
     escape: bool,
@@ -195,6 +200,7 @@ mod tests {
     use hg::exit_codes::ABORT;
 
     use super::*;
+    use crate::diagnostic::Snippet;
 
     fn record(format: Option<Format>) -> String {
         let output = Output::new(format, vec![], vec![]);
@@ -251,6 +257,15 @@ mod tests {
     }
 
     #[test]
+    fn error_snippets() {
+        let output = Output::new(None, vec![], vec![]);
+        let snippet = Snippet::new(b"x".to_vec()).label(0..1, message!("here"));
+        output.error(&CommandError::abort(message!("a")).with_snippet(snippet));
+        let stderr = String::from_utf8(output.into_inner().1).unwrap();
+        assert_eq!(stderr, "abort: a\n  |\n1 | x\n  | ^ here\n");
+    }
+
+    #[test]
     fn warnings() {
         let output = Output::new(None, vec![], vec![]);
         output.warn(Warning::new(message!("a")));
@@ -282,10 +297,12 @@ mod tests {
     #[test]
     fn diagnostics_in_one_go() {
         let output = Output::new(None, vec![], Writes::default());
+        let snippet =
+            || Snippet::new(b"x".to_vec()).label(0..1, message!("here"));
         output.warn(Warning::new(message!("a")));
         let error = HgError::abort("b", ABORT, Some("c".into()));
         let error = CommandError::from(error);
-        output.error(&error);
+        output.error(&error.with_snippet(snippet()));
         assert_eq!(output.into_inner().1.0.len(), 2);
     }
 }
