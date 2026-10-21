@@ -44,6 +44,7 @@ pub struct Output<O = Stdout, E = Stderr> {
 
 impl Output {
     /// Writes to the process' stdout and stderr
+    #[allow(clippy::disallowed_methods)] // Where all output goes
     pub fn std(format: Option<Format>) -> Self {
         let (stdout, stderr) = (io::stdout(), io::stderr());
         Self {

@@ -99,6 +99,7 @@ fn setup_tracing() -> FlushGuard {
 
 #[cfg(not(feature = "full-tracing"))]
 /// Enable an env-filtered logger to stderr
+#[allow(clippy::disallowed_methods)] // Logs are for developers, not machines
 fn setup_tracing() {
     tracing_subscriber::registry()
         .with(

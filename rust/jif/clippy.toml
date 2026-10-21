@@ -1,0 +1,13 @@
+# Replaces `rust/clippy.toml` for jif, so keep this in sync with it
+msrv = "1.91.1"
+
+disallowed-methods = [
+    { path = "std::io::stdout", reason = "write through `jif::output::Output`, so that machines get records" },
+    { path = "std::io::stderr", reason = "write through `jif::output::Output`, so that machines get records" },
+]
+disallowed-macros = [
+    { path = "std::print", reason = "write through `jif::output::Output`, so that machines get records" },
+    { path = "std::println", reason = "write through `jif::output::Output`, so that machines get records" },
+    { path = "std::eprint", reason = "write through `jif::output::Output`, so that machines get records" },
+    { path = "std::eprintln", reason = "write through `jif::output::Output`, so that machines get records" },
+]
