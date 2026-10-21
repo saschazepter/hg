@@ -22,6 +22,7 @@ from typing import (
 
 from .i18n import _
 from .interfaces.types import (
+    HgPathT,
     MatcherT,
     TransactionT,
 )
@@ -629,7 +630,7 @@ class dirstate(intdirstate.IDirstate):
             return DirstateItem()
         return entry
 
-    def __contains__(self, key: Any) -> bool:
+    def __contains__(self, key: HgPathT) -> bool:
         return key in self._map
 
     def __iter__(self) -> Iterator[bytes]:

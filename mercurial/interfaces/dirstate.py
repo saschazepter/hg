@@ -265,7 +265,7 @@ class IDirstate(Protocol):
         """return a DirstateItem for the associated path"""
 
     @abc.abstractmethod
-    def __contains__(self, key: Any) -> bool:
+    def __contains__(self, key: HgPathT) -> bool:
         """Check if bytestring `key` is known to the dirstate."""
 
     @abc.abstractmethod

@@ -11,6 +11,7 @@ from typing import (
 )
 
 from mercurial.interfaces.types import (
+    HgPathT,
     MatcherT,
     TransactionT,
 )
@@ -156,7 +157,7 @@ class gitdirstate(intdirstate.IDirstate):
             return b'?'
         return _STATUS_MAP[gs]
 
-    def __contains__(self, filename: Any) -> bool:
+    def __contains__(self, filename: HgPathT) -> bool:
         try:
             gs = self.git.status_file(filename)
             return _STATUS_MAP[gs] != b'?'
