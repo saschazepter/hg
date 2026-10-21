@@ -98,12 +98,12 @@ impl<O: Write, E: Write> Output<O, E> {
             let _ = self.json("error", json::error(error));
             return;
         }
-        let mut out = lock(&self.error);
+        let mut buffer = vec![];
         let message = match &error.kind {
             ErrorKind::Abort(message) => message,
             ErrorKind::Hg(error) => &hg_message(error),
         };
-        let _ = for_humans(&mut *out, self.escape_error, |sink| {
+        let _ = for_humans(&mut buffer, self.escape_error, |sink| {
             write_bytes!(sink, "abort: ")?;
             for context in error.context.iter().rev() {
                 write_bytes!(sink, "{context}: ")?;
@@ -111,10 +111,12 @@ impl<O: Write, E: Write> Output<O, E> {
             write_bytes!(sink, "{message}\n")
         });
         if let Some(hint) = &error.hint {
-            let _ = for_humans(&mut *out, self.escape_error, |sink| {
+            let _ = for_humans(&mut buffer, self.escape_error, |sink| {
                 write_bytes!(sink, "({hint})\n")
             });
         }
+        // In one go, so that logs cannot cut in
+        let _ = lock(&self.error).write_all(&buffer);
     }
 
     /// Writes an object made by [`json`] as a record of `kind`
@@ -170,6 +172,8 @@ macro_rules! record {
 #[cfg(test)]
 mod tests {
     use format_bytes::message;
+    use hg::errors::HgError;
+    use hg::exit_codes::ABORT;
 
     use super::*;
 
@@ -225,5 +229,29 @@ mod tests {
         assert_eq!(stderr, b"");
         let record: Value = serde_json::from_slice(&stdout).unwrap();
         assert_eq!(record[json::KIND], "error");
+    }
+
+    /// Keeps each write apart
+    #[derive(Default)]
+    struct Writes(Vec<Vec<u8>>);
+
+    impl Write for Writes {
+        fn write(&mut self, buffer: &[u8]) -> io::Result<usize> {
+            self.0.push(buffer.to_vec());
+            Ok(buffer.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn diagnostics_in_one_go() {
+        let output = Output::new(None, vec![], Writes::default());
+        let error = HgError::abort("b", ABORT, Some("c".into()));
+        let error = CommandError::from(error);
+        output.error(&error);
+        assert_eq!(output.into_inner().1.0.len(), 1);
     }
 }
