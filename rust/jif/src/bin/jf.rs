@@ -1,3 +1,6 @@
+#[cfg(not(feature = "full-tracing"))]
+use std::io::IsTerminal;
+
 use clap::Parser;
 use hg::exit_codes;
 use jif::commands;
@@ -101,6 +104,7 @@ fn setup_tracing() {
         .with(
             tracing_subscriber::fmt::layer()
                 .with_writer(std::io::stderr)
+                .with_ansi(std::io::stderr().is_terminal())
                 .with_span_events(FmtSpan::CLOSE),
         )
         .with(EnvFilter::from_default_env())
