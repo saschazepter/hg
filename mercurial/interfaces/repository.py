@@ -656,6 +656,9 @@ class IDeltaQuality(Protocol):
 class IInboundRevision(Protocol):
     """Data retrieved for a changegroup like data (used in revlog.addgroup)"""
 
+    # keep the slotted implementations free of a `__dict__`
+    __slots__ = ()
+
     node: NodeIdT
     """the revision node"""
 
