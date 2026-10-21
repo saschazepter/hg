@@ -103,6 +103,10 @@ impl<O: Write, E: Write> Output<O, E> {
                 for_humans(&mut buffer, self.escape_error, |sink| {
                     write_bytes!(sink, "warning: {message}\n")
                 })
+                .and_then(|()| {
+                    let mut buffer = Terminal(&mut buffer);
+                    warning.snippets.iter().try_for_each(|s| buffer.snippet(s))
+                })
                 // In one go, so that logs cannot cut in
                 .and_then(|()| lock(&self.error).write_all(&buffer))
             }
@@ -299,7 +303,7 @@ mod tests {
         let output = Output::new(None, vec![], Writes::default());
         let snippet =
             || Snippet::new(b"x".to_vec()).label(0..1, message!("here"));
-        output.warn(Warning::new(message!("a")));
+        output.warn(Warning::new(message!("a")).with_snippet(snippet()));
         let error = HgError::abort("b", ABORT, Some("c".into()));
         let error = CommandError::from(error);
         output.error(&error.with_snippet(snippet()));
