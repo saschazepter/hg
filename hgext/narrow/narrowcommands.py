@@ -772,6 +772,16 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
         remote.close()
 
 
+def _normalize_root(pats: set[bytes]) -> set[bytes]:
+    """Normalize the root pattern to `path:.`.
+
+    Depending on how the pattern was constructed, either `path:` or `path:.`
+    may be used to refer to the root. These should be treated as equivalent
+    when `tracked` compares patterns.
+    """
+    return {b'path:.' if p == b'path:' else p for p in pats}
+
+
 def _tracked_remote_path(
     repo,
     opts,
@@ -803,6 +813,8 @@ def _tracked_remote_path(
     # filter the user passed additions and deletions into actual additions and
     # deletions of excludes and includes
     if shape is not None:
+        oldincludes = _normalize_root(oldincludes)
+        oldexcludes = _normalize_root(oldexcludes)
         old_fingerprint = shape_py.fingerprint_for_patterns(
             oldincludes, oldexcludes
         )

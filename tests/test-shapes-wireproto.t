@@ -833,19 +833,10 @@ Changing the shape afterwards only fetches the difference.
   $ hg tracked --store-shape default,other-secret
   comparing with ssh://user@dummy/server
   searching for changes
-  looking for local changes to affected paths (known-bad-output !)
-  deleting data/dir1/file1.i (known-bad-output !)
-  deleting data/file1.i (known-bad-output !)
-  deleting data/file2.i (known-bad-output !)
-  deleting data/file3.i (known-bad-output !)
-  deleting data/foo/file1.i (known-bad-output !)
-  deleting data/foo/file2.i (known-bad-output !)
-  deleting unwanted files from working copy (known-bad-output !)
   adding changesets
   adding manifests
   adding file changes
-  added 0 changesets with 14 changes to 8 files (known-bad-output !)
-  added 0 changesets with 5 changes to 2 files (missing-correct-output !)
+  added 0 changesets with 5 changes to 2 files
   $ hg tracked
   I path:.
   X path:secret
