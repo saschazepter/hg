@@ -1175,7 +1175,9 @@ class dirstate(intdirstate.IDirstate):
         self._use_tracked_hint = False
 
     def addparentchangecallback(
-        self, category: bytes, callback: intdirstate.AddParentChangeCallbackT
+        self,
+        category: bytes,
+        callback: intdirstate.AddParentChangeCallbackT,
     ) -> None:
         """add a callback to be called when the wd parents are changed
 

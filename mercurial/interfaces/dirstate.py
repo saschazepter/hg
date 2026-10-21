@@ -17,6 +17,7 @@ from typing import (
 if typing.TYPE_CHECKING:
     from ._basetypes import (
         NeedsTypeHint,
+        NodeIdT,
     )
 
     # Almost all mercurial modules are only imported in the type checking phase
@@ -27,9 +28,8 @@ if typing.TYPE_CHECKING:
         transaction,
     )
 
-    # TODO: finish adding type hints
     AddParentChangeCallbackT = Callable[
-        ["IDirstate", tuple[Any, Any], tuple[Any, Any]], Any
+        ["IDirstate", tuple[NodeIdT, NodeIdT], tuple[NodeIdT, NodeIdT]], None
     ]
     """The callback type for dirstate.addparentchangecallback()."""
 
