@@ -13,14 +13,16 @@ use serde_json::Map;
 use serde_json::Value;
 use serde_json::json;
 
+use crate::diagnostic::Snippet;
 use crate::error::CommandError;
 use crate::error::ErrorKind;
 use crate::error::hg_message;
 use crate::terminal;
 use crate::warning::Warning;
 
-/// An error as `{"code", "message", "context", "hint"}`, with messages as
-/// written by [`message`], and context outermost first.
+/// An error as `{"code", "message", "context", "hint", "snippets"}`, with
+/// messages and snippets as written by [`message`] and [`snippet`], and context
+/// outermost first.
 pub fn error(error: &CommandError) -> Value {
     let message = match &error.kind {
         ErrorKind::Abort(message) => message,
@@ -32,12 +34,34 @@ pub fn error(error: &CommandError) -> Value {
         "message": self::message(message),
         "context": context.collect::<Vec<_>>(),
         "hint": error.hint.as_ref().map(self::message),
+        "snippets": error.snippets.iter().map(snippet).collect::<Vec<_>>(),
     })
 }
 
-/// A warning as `{"message"}`, as in [`error`].
+/// A warning as `{"message", "snippets"}`, as in [`error`].
 pub fn warning(warning: &Warning) -> Value {
-    json!({ "message": message(&warning.message) })
+    json!({
+        "message": message(&warning.message),
+        "snippets": warning.snippets.iter().map(snippet).collect::<Vec<_>>(),
+    })
+}
+
+/// A snippet as `{"origin", "source", "labels"}`, with `origin` and `source`
+/// as text in [`message`], and labels as `{"start", "end", "message"}`, in
+/// byte offsets into the source.
+pub fn snippet(snippet: &Snippet) -> Value {
+    let labels = snippet.labels.iter().map(|label| {
+        json!({
+            "start": label.span.start,
+            "end": label.span.end,
+            "message": message(&label.message),
+        })
+    });
+    json!({
+        "origin": snippet.origin.as_ref().map(|origin| value(origin)),
+        "source": value(&snippet.source),
+        "labels": labels.collect::<Vec<_>>(),
+    })
 }
 
 /// A message as `{"text", "template", "args"}`, where `text` is as on a
@@ -172,6 +196,7 @@ mod tests {
                 "message": message("a"),
                 "context": [message("c"), message("b")],
                 "hint": null,
+                "snippets": [],
             })
         );
     }
@@ -217,7 +242,34 @@ mod tests {
     fn warnings() {
         assert_eq!(
             warning(&Warning::new(message!("a"))),
-            json!({ "message": { "text": "a", "template": "a", "args": {} } })
+            json!({
+                "message": { "text": "a", "template": "a", "args": {} },
+                "snippets": [],
+            })
+        );
+    }
+
+    #[test]
+    fn snippets() {
+        let snippet = Snippet::new(b"caf\xe9".to_vec())
+            .origin(b"revset".to_vec())
+            .label(0..4, message!("unknown revision"));
+        let error = CommandError::abort(message!("a")).with_snippet(snippet);
+        assert_eq!(
+            super::error(&error)["snippets"],
+            json!([{
+                "origin": "revset",
+                "source": { "base64": "Y2Fm6Q==" },
+                "labels": [{
+                    "start": 0,
+                    "end": 4,
+                    "message": {
+                        "text": "unknown revision",
+                        "template": "unknown revision",
+                        "args": {},
+                    },
+                }],
+            }])
         );
     }
 }
