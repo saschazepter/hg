@@ -631,6 +631,9 @@ class iverifyproblem(Protocol):
 
 
 class IDeltaQuality(Protocol):
+    # keep the slotted implementations free of a `__dict__`
+    __slots__ = ()
+
     GOOD_FACTOR = 1.05
     """The "Good" threshold compared to the smallest parent size
 
