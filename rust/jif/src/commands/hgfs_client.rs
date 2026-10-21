@@ -6,6 +6,8 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 use std::path::PathBuf;
 
+use format_bytes::Utf8;
+use format_bytes::message;
 use hg::utils::files::get_path_from_bytes;
 use hyper_util::rt::TokioIo;
 use tokio::net::UnixStream;
@@ -66,14 +68,15 @@ pub fn run(args: Args) -> Result<(), CommandError> {
     let socket = match args.socket {
         Some(socket) => PathBuf::from(socket),
         None => vfs_api::default_socket_path().ok_or_else(|| {
-            CommandError::abort(
-                "no $XDG_RUNTIME_DIR to derive a socket path; pass --socket",
-            )
+            CommandError::abort(message!(
+                "no $XDG_RUNTIME_DIR to derive a socket path; pass --socket"
+            ))
         })?,
     };
 
-    dispatch(socket, args.command)
-        .map_err(|e| CommandError::abort(e.to_string()))
+    dispatch(socket, args.command).map_err(|e| {
+        CommandError::abort(message!("{e}", e = Utf8(e.to_string())))
+    })
 }
 
 #[tokio::main]

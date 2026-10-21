@@ -1,10 +1,9 @@
-use std::io::Write;
-
 use clap::Parser;
-use format_bytes::format_bytes;
+use format_bytes::write_bytes;
 use hg::exit_codes;
 use jif::commands;
 use jif::error::CommandError;
+use jif::terminal::Terminal;
 use jif::utils::RepoInvocation;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::ChromeLayerBuilder;
@@ -67,14 +66,10 @@ fn exit(result: Result<(), CommandError>) -> ! {
         Err(CommandError::Abort { message, hint, .. }) => {
             // Ignore errors when writing to stderr, we’re already exiting with
             // failure code so there’s not much more we can do.
-            if !message.is_empty() {
-                // TODO use `ui` to write to stderr
-                let _ = std::io::stderr()
-                    .write_all(&format_bytes!(b"abort: {}\n", message));
-            }
+            let mut stderr = Terminal(std::io::stderr());
+            let _ = write_bytes!(&mut stderr, "abort: {message}\n");
             if let Some(hint) = hint {
-                let _ = std::io::stderr()
-                    .write_all(&format_bytes!(b"({})\n", hint));
+                let _ = write_bytes!(&mut stderr, "({hint})\n");
             }
         }
     }

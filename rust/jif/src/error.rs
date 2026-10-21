@@ -1,5 +1,6 @@
 //! Errors that `jf` commands can fail with.
 
+use format_bytes::Message;
 use hg::errors::HgBacktrace;
 use hg::exit_codes;
 
@@ -8,17 +9,17 @@ use hg::exit_codes;
 pub enum CommandError {
     /// Exit with an error message and "standard" failure exit code.
     Abort {
-        message: Vec<u8>,
+        message: Message,
         detailed_exit_code: exit_codes::ExitCode,
-        hint: Option<Vec<u8>>,
+        hint: Option<Message>,
         backtrace: HgBacktrace,
     },
 }
 
 impl CommandError {
-    pub fn abort(message: impl AsRef<[u8]>) -> Self {
+    pub fn abort(message: Message) -> Self {
         Self::Abort {
-            message: message.as_ref().to_owned(),
+            message,
             detailed_exit_code: exit_codes::ABORT,
             hint: None,
             backtrace: HgBacktrace::capture(),

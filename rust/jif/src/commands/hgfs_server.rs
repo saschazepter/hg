@@ -7,6 +7,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use format_bytes::Utf8;
+use format_bytes::message;
 use hg::Node;
 use hg::config::Config;
 use hg::errors::HgError;
@@ -174,13 +176,15 @@ pub fn run(args: Args) -> Result<(), CommandError> {
     let socket_path = match args.socket {
         Some(socket) => PathBuf::from(socket),
         None => vfs_api::default_socket_path().ok_or_else(|| {
-            CommandError::abort(
-                "no $XDG_RUNTIME_DIR to derive a socket path; pass --socket",
-            )
+            CommandError::abort(message!(
+                "no $XDG_RUNTIME_DIR to derive a socket path; pass --socket"
+            ))
         })?,
     };
 
-    serve(socket_path).map_err(|e| CommandError::abort(e.to_string()))
+    serve(socket_path).map_err(|e| {
+        CommandError::abort(message!("{e}", e = Utf8(e.to_string())))
+    })
 }
 
 #[tokio::main]
