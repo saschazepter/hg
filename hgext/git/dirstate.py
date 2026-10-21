@@ -235,7 +235,7 @@ class gitdirstate(intdirstate.IDirstate):
 
         # TODO are we really always sure of status here?
         return (
-            False,
+            [],
             scmutil.status(
                 modified, added, removed, deleted, unknown, ignored, clean
             ),
