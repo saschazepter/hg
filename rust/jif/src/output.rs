@@ -12,7 +12,6 @@ use std::sync::PoisonError;
 use format_bytes::Sink;
 use format_bytes::write_bytes;
 use serde_json::Value;
-use serde_json::json;
 
 use crate::error::CommandError;
 use crate::error::ErrorKind;
@@ -29,8 +28,9 @@ pub enum Format {
 
 /// Where commands write records and errors, for humans or machines.
 ///
-/// Records go to `output` and errors to `error`. Humans get user data escaped
-/// on terminals only, so that pipes get it as-is.
+/// Humans get records on `output` and errors on `error`, with user data
+/// escaped on terminals only, so that pipes get it as-is. Machines get
+/// everything on `output`, errors being records of their own.
 /// Can be shared between threads, and each record is written whole.
 pub struct Output<O = Stdout, E = Stderr> {
     format: Option<Format>,
@@ -81,9 +81,7 @@ impl<O: Write, E: Write> Output<O, E> {
     /// failing already.
     pub fn error(&self, error: &CommandError) {
         if self.format == Some(Format::Json) {
-            // A list in an object, to make room for output and more errors
-            let errors = json!({ "errors": [json::error(error)] });
-            let _ = writeln!(lock(&self.error), "{errors}");
+            let _ = self.json("error", json::error(error));
             return;
         }
         let mut out = lock(&self.error);
@@ -103,6 +101,12 @@ impl<O: Write, E: Write> Output<O, E> {
                 write_bytes!(sink, "({hint})\n")
             });
         }
+    }
+
+    /// Writes an object made by [`json`] as a record of `kind`
+    fn json(&self, kind: &str, mut value: Value) -> io::Result<()> {
+        value[json::KIND] = kind.into();
+        writeln!(lock(&self.output), "{value}")
     }
 
     pub fn into_inner(self) -> (O, E) {
@@ -200,5 +204,12 @@ mod tests {
         let output = Output::new(None, vec![], vec![]);
         output.error(&CommandError::abort(message!("a")));
         assert_eq!(output.into_inner(), (vec![], b"abort: a\n".to_vec()));
+
+        let output = Output::new(Some(Format::Json), vec![], vec![]);
+        output.error(&CommandError::abort(message!("a")));
+        let (stdout, stderr) = output.into_inner();
+        assert_eq!(stderr, b"");
+        let record: Value = serde_json::from_slice(&stdout).unwrap();
+        assert_eq!(record[json::KIND], "error");
     }
 }

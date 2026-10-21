@@ -9,6 +9,19 @@ Test behavior of repo command outside a repo
   abort: no repository found in $TESTTMP
   [255]
 
+Humans get errors on stderr, machines get them as normal records on stdout
+
+  $ jf status >/dev/null
+  abort: no repository found in $TESTTMP
+  [255]
+  $ jf status 2>/dev/null
+  [255]
+  $ jf status --do-not-use-format json 2>/dev/null
+  {"_internal_jf_kind":"error","code":"repo-not-found","context":[],"hint":null,"message":{"args":{"path":"$TESTTMP"},"template":"no repository found in {path}","text":"no repository found in $TESTTMP"}}
+  [255]
+  $ jf status --do-not-use-format json >/dev/null
+  [255]
+
 Get a small repo
 
   $ hg init repo
