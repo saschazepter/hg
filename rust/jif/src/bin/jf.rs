@@ -41,12 +41,8 @@ fn main() {
     let result = match args.command {
         Command::HgfsClient(args) => commands::hgfs_client::run(args),
         Command::HgfsServer(args) => commands::hgfs_server::run(args),
-        Command::Status(args) => {
-            let invocation = RepoInvocation::new();
-            // TODO status should return a `CommandError` instead of panicking
-            commands::status::run(invocation, args);
-            Ok(())
-        }
+        Command::Status(args) => RepoInvocation::new()
+            .map(|invocation| commands::status::run(invocation, args)),
     };
 
     #[cfg(feature = "full-tracing")]

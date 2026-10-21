@@ -1,18 +1,14 @@
 use hg::config::Config;
 use hg::repo::Repo;
 
+use crate::error::CommandError;
+
 pub struct RepoInvocation {
     pub repo: Repo,
 }
 impl RepoInvocation {
-    pub fn new() -> Self {
-        let repo = Repo::find(&Config::empty(), None).unwrap();
-        Self { repo }
-    }
-}
-
-impl Default for RepoInvocation {
-    fn default() -> Self {
-        Self::new()
+    pub fn new() -> Result<Self, CommandError> {
+        let repo = Repo::find(&Config::empty(), None)?;
+        Ok(Self { repo })
     }
 }

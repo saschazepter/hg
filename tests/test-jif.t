@@ -4,6 +4,10 @@ Basic jif testing
 
 #require jif
 
+Test behavior of repo command outside a repo
+  $ jf status
+  abort: no repository found in $TESTTMP
+  [255]
 
 Get a small repo
 
