@@ -82,7 +82,7 @@ if pygit2:
     }
 
 
-class gitdirstate(intdirstate.idirstate):
+class gitdirstate(intdirstate.IDirstate):
     def __init__(self, ui, vfs, gitrepo, use_dirstate_v2):
         self._ui = ui
         self._root = os.path.dirname(vfs.base)

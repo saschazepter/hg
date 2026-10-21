@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 
     # TODO: finish adding type hints
     AddParentChangeCallbackT = Callable[
-        ["idirstate", tuple[Any, Any], tuple[Any, Any]], Any
+        ["IDirstate", tuple[Any, Any], tuple[Any, Any]], Any
     ]
     """The callback type for dirstate.addparentchangecallback()."""
 
@@ -69,7 +69,7 @@ if typing.TYPE_CHECKING:
     """
 
 
-class idirstate(Protocol):
+class IDirstate(Protocol):
     # TODO: convert these constructor args to fields?
     # def __init__(
     #     self,

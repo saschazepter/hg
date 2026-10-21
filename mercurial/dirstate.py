@@ -160,7 +160,7 @@ CHANGE_TYPE_PARENTS = "parents"
 CHANGE_TYPE_FILES = "files"
 
 
-class dirstate(intdirstate.idirstate):
+class dirstate(intdirstate.IDirstate):
     # used by largefile to avoid overwritting transaction callback
     _tr_key_suffix = b''
 

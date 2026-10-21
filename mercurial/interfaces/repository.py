@@ -2135,7 +2135,7 @@ class IRepo(Protocol):
         Keep this in sync with ``IRepoFileFn``.
         """
 
-    dirstate: intdirstate.idirstate
+    dirstate: intdirstate.IDirstate
     """Working directory state."""
 
     narrowpats: Any  # TODO: add type hints
