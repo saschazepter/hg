@@ -33,6 +33,72 @@ pub enum ErrorKind {
     Hg(HgError),
 }
 
+/// Identifies errors for machines so messages can be changed.
+///
+/// Note that there is no backwards compatibility promise in `jf` until 1.0,
+/// so while there will be deprecation windows, any code may change until then.
+///
+/// Changes in `hg-core` only change how its errors map to codes here, `jf` is
+/// not coupled to `hg-core`'s ordering etc.
+/// jf's own error cases will get codes here as they come.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorCode {
+    /// Any other failure
+    Abort,
+    /// Reading or writing failed
+    Io,
+    /// Repository data is not as expected
+    CorruptedRepository,
+    /// The repository or the operation needs an unsupported feature
+    Unsupported,
+    /// A configuration value is invalid
+    InvalidConfig,
+    /// There is no repository where one is needed
+    RepoNotFound,
+    Interrupted,
+}
+
+impl ErrorCode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ErrorCode::Abort => "abort",
+            ErrorCode::Io => "io",
+            ErrorCode::CorruptedRepository => "corrupted-repository",
+            ErrorCode::Unsupported => "unsupported",
+            ErrorCode::InvalidConfig => "invalid-config",
+            ErrorCode::RepoNotFound => "repo-not-found",
+            ErrorCode::Interrupted => "interrupted",
+        }
+    }
+}
+
+impl ErrorKind {
+    pub fn code(&self) -> ErrorCode {
+        match self {
+            ErrorKind::Abort(_) => ErrorCode::Abort,
+            ErrorKind::Hg(error) => match error {
+                HgError::IO(_) => ErrorCode::Io,
+                HgError::CorruptedRepository(..) => {
+                    ErrorCode::CorruptedRepository
+                }
+                HgError::UnsupportedFeature(..) => ErrorCode::Unsupported,
+                HgError::ConfigValueParseError(_) => ErrorCode::InvalidConfig,
+                HgError::RepoNotFound { .. } => ErrorCode::RepoNotFound,
+                HgError::InterruptReceived => ErrorCode::Interrupted,
+                // TODO tell these apart once `hg-core` gives them structure
+                HgError::Abort { .. }
+                | HgError::Revlog(_)
+                | HgError::Dirstate(_)
+                | HgError::Shape(_)
+                | HgError::Pattern(_)
+                | HgError::FileIndex(_)
+                | HgError::RaceDetected(_)
+                | HgError::Path(_) => ErrorCode::Abort,
+            },
+        }
+    }
+}
+
 impl CommandError {
     pub fn abort(message: Message) -> Self {
         Self(Box::new(Details {
