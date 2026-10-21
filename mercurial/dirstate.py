@@ -622,7 +622,7 @@ class dirstate(intdirstate.IDirstate):
             return util.pconvert(path)
         return path
 
-    def get_entry(self, path: bytes) -> intdirstate.DirstateItemT:
+    def get_entry(self, path: bytes) -> intdirstate.IDirstateItem:
         """return a DirstateItem for the associated path"""
         entry = self._map.get(path)
         if entry is None:
@@ -635,7 +635,7 @@ class dirstate(intdirstate.IDirstate):
     def __iter__(self) -> Iterator[bytes]:
         return iter(sorted(self._map))
 
-    def items(self) -> Iterator[tuple[bytes, intdirstate.DirstateItemT]]:
+    def items(self) -> Iterator[tuple[bytes, intdirstate.IDirstateItem]]:
         return self._map.items()
 
     iteritems = items

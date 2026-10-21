@@ -31,6 +31,10 @@ from ..node import (
 from ..thirdparty import attr
 
 # Force pytype to use the non-vendored package
+from ..interfaces import (
+    dirstate as int_dirstate,
+)
+
 if typing.TYPE_CHECKING:
     # noinspection PyPackageRequirements
     import attr
@@ -87,7 +91,7 @@ DIRSTATE_V2_ALL_IGNORED_RECORDED = 1 << 15
 
 
 @attr.s(slots=True, init=False)
-class DirstateItem:
+class DirstateItem(int_dirstate.IDirstateItem):
     """represent a dirstate entry
 
     It hold multiple attributes

@@ -34,11 +34,6 @@ if typing.TYPE_CHECKING:
     ]
     """The callback type for dirstate.addparentchangecallback()."""
 
-    # TODO: add a Protocol for dirstatemap.DirStateItem? (It is
-    #  conditionalized with python or rust implementations.  Also,
-    #  git.dirstate needs to yield non-None from ``items()``.)
-    DirstateItemT = Any  # dirstatemap.DirstateItem
-
     IgnoreFileAndLineT = tuple[Optional[bytes], int, bytes]
     """The return type of dirstate._ignorefileandline(), which holds
     ``(file, lineno, originalline)``.
@@ -73,6 +68,82 @@ if typing.TYPE_CHECKING:
     The matched files are keyed in the dictionary, mapped to a stat-like object
     if the file exists.
     """
+
+
+class IDirstateItem(Protocol):
+    """represent a dirstate entry
+
+    (implemented in Python by mercurial.pure.parsers.DirstateItem, and in Rust
+    for the dirstate-map bindings)
+    """
+
+    # keep the slotted implementations free of a `__dict__`
+    __slots__ = ()
+
+    @property
+    @abc.abstractmethod
+    def state(self) -> bytes:
+        """The dirstate-v1 state: one of b'n', b'm', b'r', b'a' or b'?'."""
+
+    @property
+    @abc.abstractmethod
+    def has_fallback_exec(self) -> bool:
+        """True if "fallback" information are available for the "exec" bit"""
+
+    @property
+    @abc.abstractmethod
+    def fallback_exec(self) -> bool | None:
+        """ "fallback" information for the executable bit"""
+
+    @property
+    @abc.abstractmethod
+    def has_fallback_symlink(self) -> bool:
+        """True if "fallback" information are available for symlink status"""
+
+    @property
+    @abc.abstractmethod
+    def fallback_symlink(self) -> bool | None:
+        """ "fallback" information for symlink status"""
+
+    @property
+    @abc.abstractmethod
+    def tracked(self) -> bool:
+        """True is the file is tracked in the working copy"""
+
+    @property
+    @abc.abstractmethod
+    def any_tracked(self) -> bool:
+        """True is the file is tracked anywhere (wc or parents)"""
+
+    @property
+    @abc.abstractmethod
+    def added(self) -> bool:
+        """True if the file has been added"""
+
+    @property
+    @abc.abstractmethod
+    def modified(self) -> bool:
+        """True if the file has been modified"""
+
+    @property
+    @abc.abstractmethod
+    def maybe_clean(self) -> bool:
+        """True if the file has a chance to be in the "clean" state"""
+
+    @property
+    @abc.abstractmethod
+    def p1_tracked(self) -> bool:
+        """True if the file is tracked in the first parent manifest"""
+
+    @property
+    @abc.abstractmethod
+    def p2_info(self) -> bool:
+        """True if the file needed to merge or apply any input from p2"""
+
+    @property
+    @abc.abstractmethod
+    def removed(self) -> bool:
+        """True if the file has been removed"""
 
 
 class IDirstate(Protocol):
@@ -190,7 +261,7 @@ class IDirstate(Protocol):
         pass
 
     @abc.abstractmethod
-    def get_entry(self, path: bytes) -> DirstateItemT:
+    def get_entry(self, path: bytes) -> IDirstateItem:
         """return a DirstateItem for the associated path"""
 
     @abc.abstractmethod
@@ -202,7 +273,7 @@ class IDirstate(Protocol):
         """Iterate the dirstate's contained filenames as bytestrings."""
 
     @abc.abstractmethod
-    def items(self) -> Iterator[tuple[bytes, DirstateItemT]]:
+    def items(self) -> Iterator[tuple[bytes, IDirstateItem]]:
         """Iterate the dirstate's entries as (filename, DirstateItem.
 
         As usual, filename is a bytestring.

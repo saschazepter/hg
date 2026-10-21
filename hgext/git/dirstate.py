@@ -7,6 +7,7 @@ from typing import (
     Any,
     Iterable,
     Iterator,
+    cast,
 )
 
 from mercurial.interfaces.types import (
@@ -140,9 +141,10 @@ class gitdirstate(intdirstate.IDirstate):
     def __iter__(self) -> Iterator[bytes]:
         return (pycompat.fsencode(f.path) for f in self.git.index)
 
-    def items(self) -> Iterator[tuple[bytes, intdirstate.DirstateItemT]]:
+    def items(self) -> Iterator[tuple[bytes, intdirstate.IDirstateItem]]:
         for ie in self.git.index:
-            yield ie.path, None  # value should be a DirstateItem
+            # XXX value should be a DirstateItem
+            yield ie.path, cast(intdirstate.IDirstateItem, None)
 
     # py2,3 compat forward
     iteritems = items
@@ -254,7 +256,7 @@ class gitdirstate(intdirstate.IDirstate):
             os.path.dirname(pycompat.fsencode(self.git.path))
         )
 
-    def get_entry(self, path: bytes) -> intdirstate.DirstateItemT:
+    def get_entry(self, path: bytes) -> intdirstate.IDirstateItem:
         """return a DirstateItem for the associated path"""
         entry = self._map.get(path)
         if entry is None:
