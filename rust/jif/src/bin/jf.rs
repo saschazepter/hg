@@ -69,7 +69,11 @@ fn exit(result: Result<(), CommandError>) -> ! {
                 ErrorKind::Abort(message) => message,
                 ErrorKind::Hg(error) => &hg_message(error),
             };
-            let _ = write_bytes!(&mut stderr, "abort: {message}\n");
+            let _ = write_bytes!(&mut stderr, "abort: ");
+            for context in error.context.iter().rev() {
+                let _ = write_bytes!(&mut stderr, "{context}: ");
+            }
+            let _ = write_bytes!(&mut stderr, "{message}\n");
             if let Some(hint) = &error.hint {
                 let _ = write_bytes!(&mut stderr, "({hint})\n");
             }

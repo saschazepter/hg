@@ -18,6 +18,8 @@ pub struct CommandError(Box<Details>);
 #[derive(Debug)]
 pub struct Details {
     pub kind: ErrorKind,
+    /// What was being done, innermost first
+    pub context: Vec<Message>,
     pub hint: Option<Message>,
     pub backtrace: HgBacktrace,
 }
@@ -35,6 +37,7 @@ impl CommandError {
     pub fn abort(message: Message) -> Self {
         Self(Box::new(Details {
             kind: ErrorKind::Abort(message),
+            context: vec![],
             hint: None,
             backtrace: HgBacktrace::capture(),
         }))
@@ -56,9 +59,32 @@ impl From<HgError> for CommandError {
             .map(|hint| message!("{hint}", hint = Utf8(hint.into_owned())));
         Self(Box::new(Details {
             kind: ErrorKind::Hg(error),
+            context: vec![],
             hint,
             backtrace: HgBacktrace::capture(),
         }))
+    }
+}
+
+/// Adds context to errors.
+pub trait ResultExt<T> {
+    /// Add any message as context to the [`CommandError`].
+    fn with_context(
+        self,
+        context: impl FnOnce() -> Message,
+    ) -> Result<T, CommandError>;
+}
+
+impl<T, E: Into<CommandError>> ResultExt<T> for Result<T, E> {
+    fn with_context(
+        self,
+        context: impl FnOnce() -> Message,
+    ) -> Result<T, CommandError> {
+        self.map_err(|error| {
+            let mut error = error.into();
+            error.0.context.push(context());
+            error
+        })
     }
 }
 
@@ -108,6 +134,20 @@ mod tests {
 
     use super::*;
     use crate::terminal::Terminal;
+
+    #[test]
+    fn context_innermost_first() {
+        let result: Result<(), _> = Err(CommandError::abort(message!("a")));
+        let error = result
+            .with_context(|| message!("b"))
+            .with_context(|| message!("c"))
+            .unwrap_err();
+        let mut terminal = Terminal(vec![]);
+        for context in &error.context {
+            context.write_to(&mut terminal).unwrap();
+        }
+        assert_eq!(terminal.0, b"bc");
+    }
 
     #[test]
     fn hg_message_escapes_paths() {
