@@ -113,6 +113,7 @@ if typing.TYPE_CHECKING:
     import _weakref
 
     from .interfaces.types import (
+        DirstateT,
         FileStorageT,
         FsPathT,
         HgPathT,
@@ -1258,7 +1259,7 @@ class localrepository(_localrepo_base_classes):
         # - bookmark changes
         self.filteredrevcache = {}
 
-        self._dirstate = None
+        self._dirstate: DirstateT | None = None
         # post-dirstate-status hooks
         self._postdsstatus = []
 
@@ -1596,14 +1597,14 @@ class localrepository(_localrepo_base_classes):
             )
 
     @unfilteredpropertycache
-    def dirstate(self):
+    def dirstate(self) -> DirstateT:
         if self._dirstate is None:
             self._dirstate = self._makedirstate()
         else:
             self._dirstate.refresh()
         return self._dirstate
 
-    def _makedirstate(self):
+    def _makedirstate(self) -> DirstateT:
         """Extension point for wrapping the dirstate per-repo."""
         sparsematchfn = None
         if sparse.use_sparse(self):

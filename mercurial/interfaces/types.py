@@ -38,6 +38,7 @@ from . import (
     bundle,
     config,
     context,
+    dirstate,
     exchange,
     matcher,
     misc,
@@ -65,6 +66,8 @@ StoreShapeLegacyPatternsT = repository.StoreShapeLegacyPatternsT
 LocalRepoMainT = repository.IRepo
 LocalRepoCompleteT = repository.IRepo
 LocalRepoFileStorageT = repository.IRepo
+
+DirstateT = dirstate.IDirstate
 
 RepoFileFnT = repository.IRepoFileFn
 
