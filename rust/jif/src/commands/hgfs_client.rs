@@ -8,7 +8,6 @@ use std::path::PathBuf;
 
 use format_bytes::Utf8;
 use format_bytes::message;
-use hg::utils::files::get_path_from_bytes;
 use hyper_util::rt::TokioIo;
 use tokio::net::UnixStream;
 use tonic::transport::Channel;
@@ -23,6 +22,8 @@ use vfs_api::vfs::UnmountResponse;
 use vfs_api::vfs::vfs_control_client::VfsControlClient;
 
 use crate::error::CommandError;
+use crate::output::Output;
+use crate::record;
 
 /// Query the hg virtual filesystem control server (EXPERIMENTAL)
 #[derive(clap::Args)]
@@ -64,7 +65,7 @@ enum ClientCommand {
     List,
 }
 
-pub fn run(args: Args) -> Result<(), CommandError> {
+pub fn run(args: Args, output: &Output) -> Result<(), CommandError> {
     let socket = match args.socket {
         Some(socket) => PathBuf::from(socket),
         None => vfs_api::default_socket_path().ok_or_else(|| {
@@ -74,7 +75,7 @@ pub fn run(args: Args) -> Result<(), CommandError> {
         })?,
     };
 
-    dispatch(socket, args.command).map_err(|e| {
+    dispatch(socket, args.command, output).map_err(|e| {
         CommandError::abort(message!("{e}", e = Utf8(e.to_string())))
     })
 }
@@ -83,6 +84,7 @@ pub fn run(args: Args) -> Result<(), CommandError> {
 async fn dispatch(
     socket: PathBuf,
     command: ClientCommand,
+    output: &Output,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut client = VfsControlClient::new(connect_channel(&socket).await?);
 
@@ -93,7 +95,13 @@ async fn dispatch(
                 .await
                 .map_err(map_status)?
                 .into_inner();
-            println!("Health: version={} pid={}", resp.version, resp.pid);
+            record!(
+                output,
+                "health",
+                "Health: version={version} pid={pid}\n",
+                version = Utf8(resp.version),
+                pid = resp.pid
+            )?;
         }
         ClientCommand::Mount { clone, mount, backing_path, revision } => {
             let request = MountRequest {
@@ -104,19 +112,26 @@ async fn dispatch(
             };
             let resp =
                 client.mount(request).await.map_err(map_status)?.into_inner();
-            println!(
-                "mounted {} at {} (created {})",
-                clone.display(),
-                mount.display(),
-                format_time(resp.created_at)
-            );
+            record!(
+                output,
+                "mount",
+                "mounted {clone} at {mount} (created {created})\n",
+                clone = clone.as_bytes(),
+                mount = mount.as_bytes(),
+                created = Utf8(format_time(resp.created_at))
+            )?;
         }
         ClientCommand::Unmount { mount } => {
             let request =
                 UnmountRequest { mount_point: mount.as_bytes().to_vec() };
             let UnmountResponse {} =
                 client.unmount(request).await.map_err(map_status)?.into_inner();
-            println!("unmounted {}", mount.display());
+            record!(
+                output,
+                "unmount",
+                "unmounted {mount}\n",
+                mount = mount.as_bytes()
+            )?;
         }
         ClientCommand::List => {
             let resp = client
@@ -125,15 +140,17 @@ async fn dispatch(
                 .map_err(map_status)?
                 .into_inner();
             if resp.mounts.is_empty() {
-                println!("no mounts");
+                output.human(&message!("no mounts\n"))?;
             } else {
                 for m in resp.mounts {
-                    println!(
-                        "{} clone={} created={}",
-                        get_path_from_bytes(&m.mount_point).display(),
-                        get_path_from_bytes(&m.clone_path).display(),
-                        format_time(m.created_at)
-                    );
+                    record!(
+                        output,
+                        "mount",
+                        "{mount} clone={clone} created={created}\n",
+                        mount = m.mount_point,
+                        clone = m.clone_path,
+                        created = Utf8(format_time(m.created_at))
+                    )?;
                 }
             }
         }

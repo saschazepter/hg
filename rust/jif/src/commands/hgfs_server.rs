@@ -38,6 +38,8 @@ use vfs_api::vfs::vfs_control_server::VfsControl;
 use vfs_api::vfs::vfs_control_server::VfsControlServer;
 
 use crate::error::CommandError;
+use crate::output::Output;
+use crate::record;
 
 /// Run the hg virtual filesystem control server (EXPERIMENTAL)
 #[derive(clap::Args)]
@@ -172,7 +174,7 @@ fn mount_error_to_status(e: MountError) -> Status {
     }
 }
 
-pub fn run(args: Args) -> Result<(), CommandError> {
+pub fn run(args: Args, output: &Output) -> Result<(), CommandError> {
     let socket_path = match args.socket {
         Some(socket) => PathBuf::from(socket),
         None => vfs_api::default_socket_path().ok_or_else(|| {
@@ -182,13 +184,16 @@ pub fn run(args: Args) -> Result<(), CommandError> {
         })?,
     };
 
-    serve(socket_path).map_err(|e| {
+    serve(socket_path, output).map_err(|e| {
         CommandError::abort(message!("{e}", e = Utf8(e.to_string())))
     })
 }
 
 #[tokio::main]
-async fn serve(socket_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+async fn serve(
+    socket_path: PathBuf,
+    output: &Output,
+) -> Result<(), Box<dyn std::error::Error>> {
     let lock = take_socket_lock(&socket_path)?;
     match std::fs::remove_file(&socket_path) {
         Ok(()) => {
@@ -202,11 +207,13 @@ async fn serve(socket_path: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let listener = UnixListener::bind(&socket_path)?;
-    println!(
-        "hgfs-server listening on {} (pid {})",
-        socket_path.display(),
-        std::process::id()
-    );
+    record!(
+        output,
+        "listening",
+        "hgfs-server listening on {socket} (pid {pid})\n",
+        socket = get_bytes_from_path(&socket_path),
+        pid = std::process::id()
+    )?;
 
     // Load the non-repo config once; every mount request reuses it.
     let config = Arc::new(

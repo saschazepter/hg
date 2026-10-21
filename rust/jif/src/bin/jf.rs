@@ -43,8 +43,8 @@ fn main() {
     setup_tracing();
 
     let result = match args.command {
-        Command::HgfsClient(args) => commands::hgfs_client::run(args),
-        Command::HgfsServer(args) => commands::hgfs_server::run(args),
+        Command::HgfsClient(args) => commands::hgfs_client::run(args, &output),
+        Command::HgfsServer(args) => commands::hgfs_server::run(args, &output),
         Command::Status(args) => RepoInvocation::new()
             .map(|invocation| commands::status::run(invocation, args, &output)),
     };

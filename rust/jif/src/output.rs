@@ -9,6 +9,7 @@ use std::sync::Mutex;
 use std::sync::MutexGuard;
 use std::sync::PoisonError;
 
+use format_bytes::Message;
 use format_bytes::Sink;
 use format_bytes::write_bytes;
 use serde_json::Value;
@@ -74,6 +75,19 @@ impl<O: Write, E: Write> Output<O, E> {
                 write(&mut record)?;
                 writeln!(out, "{}", Value::Object(record.0))
             }
+        }
+    }
+
+    /// Writes `message` for humans only, such as "no mounts": machines get
+    /// records alone.
+    pub fn human(&self, message: &Message) -> io::Result<()> {
+        match self.format {
+            None => for_humans(
+                &mut *lock(&self.output),
+                self.escape_output,
+                |sink| message.write_to(sink),
+            ),
+            Some(Format::Json) => Ok(()),
         }
     }
 
