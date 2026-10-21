@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod diagnostic;
 pub mod error;
 pub mod json;
 pub mod output;
