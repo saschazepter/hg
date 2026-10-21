@@ -38,18 +38,24 @@ pub fn error(error: &CommandError) -> Value {
 /// UTF-8), and `null` when they fail to display.
 pub fn message(message: &Message) -> Value {
     let template = message.template();
-    let args = template.args.iter().enumerate().map(|(index, name)| {
-        let name = match name {
-            ArgName::Index(index) => index.to_string(),
-            ArgName::Name(name) => name.to_string(),
-        };
-        (name, value(message.arg(index)))
-    });
+    let args = template
+        .args
+        .iter()
+        .enumerate()
+        .map(|(index, name)| (field(name), value(message.arg(index))));
     json!({
         "text": terminal::render(message),
         "template": template.source,
         "args": args.collect::<serde_json::Map<_, _>>(),
     })
+}
+
+/// The name of an argument as a field: its name, or its position
+fn field(name: &ArgName) -> String {
+    match name {
+        ArgName::Index(index) => index.to_string(),
+        ArgName::Name(name) => name.to_string(),
+    }
 }
 
 fn value(value: &dyn DisplayBytes) -> Value {
