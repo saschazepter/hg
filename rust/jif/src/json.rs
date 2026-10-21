@@ -14,7 +14,7 @@ use serde_json::json;
 use crate::error::CommandError;
 use crate::error::ErrorKind;
 use crate::error::hg_message;
-use crate::terminal::Terminal;
+use crate::terminal;
 
 /// An error as `{"code", "message", "context", "hint"}`, with messages as
 /// written by [`message`], and context outermost first.
@@ -37,8 +37,6 @@ pub fn error(error: &CommandError) -> Value {
 /// arrays, messages, or text (which is the object `{"base64": …}` when not
 /// UTF-8), and `null` when they fail to display.
 pub fn message(message: &Message) -> Value {
-    let mut text = Terminal(vec![]);
-    message.write_to(&mut text).expect("a `Terminal` on a `Vec` cannot fail");
     let template = message.template();
     let args = template.args.iter().enumerate().map(|(index, name)| {
         let name = match name {
@@ -48,7 +46,7 @@ pub fn message(message: &Message) -> Value {
         (name, value(message.arg(index)))
     });
     json!({
-        "text": String::from_utf8(text.0).expect("escaping makes it UTF-8"),
+        "text": terminal::render(message),
         "template": template.source,
         "args": args.collect::<serde_json::Map<_, _>>(),
     })

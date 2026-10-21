@@ -36,6 +36,15 @@ impl<W: Write> Sink for Terminal<W> {
     }
 }
 
+/// `value` as a [`Terminal`] shows it, such as a whole message
+pub fn render(value: &dyn DisplayBytes) -> String {
+    let mut terminal = Terminal(vec![]);
+    terminal
+        .arg(ArgName::Index(0), value)
+        .expect("a `Terminal` on a `Vec` cannot fail");
+    String::from_utf8(terminal.0).expect("escaping makes it UTF-8")
+}
+
 /// Visits an argument for a [`Terminal`]
 struct Escape<'a, W>(&'a mut Terminal<W>);
 
@@ -80,19 +89,11 @@ pub(crate) mod tests {
         }
     }
 
-    fn render(message: Message) -> String {
-        let mut terminal = Terminal(vec![]);
-        message
-            .write_to(&mut terminal)
-            .expect("a `Terminal` on a `Vec` cannot fail");
-        String::from_utf8(terminal.0).expect("escaping makes it UTF-8")
-    }
-
     #[test]
     fn escapes_user_data_only() {
         let path = b"caf\xe9 \xc3\xa9\\\x1b[31m\n".to_vec();
         assert_eq!(
-            render(message!("{path}:\n", path = path)),
+            render(&message!("{path}:\n", path = path)),
             "caf\\xe9 é\\\\\\u{1b}[31m\\n:\n"
         );
     }
@@ -101,7 +102,7 @@ pub(crate) mod tests {
     fn nested_messages() {
         let cause = message!("no {path}", path = b"\x1b".to_vec());
         assert_eq!(
-            render(message!("cannot load\t{cause}")),
+            render(&message!("cannot load\t{cause}")),
             "cannot load\tno \\u{1b}"
         );
     }
@@ -110,7 +111,7 @@ pub(crate) mod tests {
     fn failing_args() {
         let cause = message!("no {value}", value = Failing);
         assert_eq!(
-            render(message!("{value} {cause}", value = Failing)),
+            render(&message!("{value} {cause}", value = Failing)),
             "<error> no <error>"
         );
     }
