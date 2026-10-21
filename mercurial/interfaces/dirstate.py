@@ -16,6 +16,7 @@ from typing import (
 
 if typing.TYPE_CHECKING:
     from ._basetypes import (
+        HgPathT,
         NeedsTypeHint,
         NodeIdT,
     )
@@ -49,9 +50,14 @@ if typing.TYPE_CHECKING:
     FlagFuncReturnT = Callable[[bytes], bytes]
     """The return type of dirstate.flagfunc()."""
 
-    # TODO: verify and complete this- it came from a pytype *.pyi file
-    StatusReturnT = tuple[Any, istatus.Status, Any]
+    StatusReturnT = tuple[list[HgPathT], istatus.Status, Optional["TimestampT"]]
     """The return type of dirstate.status()."""
+
+    TimestampT = tuple[int, int, bool]
+    """A Unix timestamp with optional nanoseconds precision, modulo 2**31
+    seconds, as ``(truncated_seconds, subsecond_nanoseconds,
+    second_ambiguous)``.
+    """
 
     TransactionT = transaction.ITransaction
     """The type for a transaction used with dirstate.
