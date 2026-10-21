@@ -9,6 +9,8 @@ use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::utils::files::get_bytes_from_path;
 
+use crate::diagnostic::Snippet;
+
 /// Why a `jf` command failed.
 ///
 /// Boxed, so that results stay small when there is no error.
@@ -21,6 +23,8 @@ pub struct Details {
     /// What was being done, innermost first
     pub context: Vec<Message>,
     pub hint: Option<Message>,
+    /// The parts of its source that the error points into
+    pub snippets: Vec<Snippet>,
     pub backtrace: HgBacktrace,
 }
 
@@ -105,8 +109,15 @@ impl CommandError {
             kind: ErrorKind::Abort(message),
             context: vec![],
             hint: None,
+            snippets: vec![],
             backtrace: HgBacktrace::capture(),
         }))
+    }
+
+    /// Points into the source of the error
+    pub fn with_snippet(mut self, snippet: Snippet) -> Self {
+        self.0.snippets.push(snippet);
+        self
     }
 }
 
@@ -127,6 +138,7 @@ impl From<HgError> for CommandError {
             kind: ErrorKind::Hg(error),
             context: vec![],
             hint,
+            snippets: vec![],
             backtrace: HgBacktrace::capture(),
         }))
     }
