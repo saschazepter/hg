@@ -40,6 +40,7 @@ use vfs_api::vfs::vfs_control_server::VfsControlServer;
 use crate::error::CommandError;
 use crate::output::Output;
 use crate::record;
+use crate::warning::Warning;
 
 /// Run the hg virtual filesystem control server (EXPERIMENTAL)
 #[derive(clap::Args)]
@@ -196,12 +197,10 @@ async fn serve(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let lock = take_socket_lock(&socket_path)?;
     match std::fs::remove_file(&socket_path) {
-        Ok(()) => {
-            tracing::warn!(
-                "removed stale socket file {}",
-                socket_path.display()
-            )
-        }
+        Ok(()) => output.warn(Warning::new(message!(
+            "removed stale socket file {path}",
+            path = get_bytes_from_path(&socket_path)
+        ))),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
         Err(e) => return Err(e.into()),
     }
@@ -227,7 +226,7 @@ async fn serve(
         .add_service(VfsControlServer::new(service))
         .serve_with_incoming_shutdown(
             UnixListenerStream::new(listener),
-            shutdown_signal(),
+            shutdown_signal(output),
         )
         .await;
 
@@ -265,20 +264,28 @@ fn socket_lock_file(socket_path: &Path) -> PathBuf {
     socket_path.with_extension("lock")
 }
 
-async fn shutdown_signal() {
-    fn listen(kind: SignalKind, name: &str) -> Option<Signal> {
+async fn shutdown_signal(output: &Output) {
+    fn listen(
+        kind: SignalKind,
+        name: &'static str,
+        output: &Output,
+    ) -> Option<Signal> {
         match signal(kind) {
             Ok(s) => Some(s),
             Err(e) => {
-                tracing::error!("failed to create a listener for {name}: {e}");
+                output.warn(Warning::new(message!(
+                    "failed to create a listener for {name}: {e}",
+                    name = Utf8(name),
+                    e = Utf8(e)
+                )));
                 None
             }
         }
     }
     let (Some(mut sigterm), Some(mut sigint), Some(mut sighup)) = (
-        listen(SignalKind::terminate(), "SIGTERM"),
-        listen(SignalKind::interrupt(), "SIGINT"),
-        listen(SignalKind::hangup(), "SIGHUP"),
+        listen(SignalKind::terminate(), "SIGTERM", output),
+        listen(SignalKind::interrupt(), "SIGINT", output),
+        listen(SignalKind::hangup(), "SIGHUP", output),
     ) else {
         return;
     };

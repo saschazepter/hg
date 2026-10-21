@@ -121,6 +121,11 @@ Stale socket file is cleaned up
   $ jf hgfs-client --socket "$STALE" health
   Health: version=* pid=* (glob)
 
+The server warns about the stale socket file it removed
+
+  $ cat stale-error.log
+  warning: removed stale socket file $TESTTMP/stale.sock
+
 Graceful shutdown unmounts, removes the socket, and releases the lock
 ---------------------------------------------------------------------
 
