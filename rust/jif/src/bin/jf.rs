@@ -1,17 +1,10 @@
-use std::io::Write;
-
 use clap::Parser;
-use format_bytes::write_bytes;
 use hg::exit_codes;
 use jif::commands;
 use jif::error::CommandError;
-use jif::error::ErrorKind;
-use jif::error::hg_message;
 use jif::output::Format;
 use jif::output::Output;
-use jif::terminal::Terminal;
 use jif::utils::RepoInvocation;
-use serde_json::json;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::ChromeLayerBuilder;
 #[cfg(feature = "full-tracing")]
@@ -42,8 +35,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let format = args.do_not_use_format;
-    let output = Output::std(format);
+    let output = Output::std(args.do_not_use_format);
 
     #[cfg(feature = "full-tracing")]
     let chrome_layer_guard = setup_tracing();
@@ -65,36 +57,13 @@ fn main() {
     // Explicitly run `drop` here to wait for the writing thread to join
     // because `drop` may not be called when `std::process::exit` is called.
     drop(chrome_layer_guard);
-    exit(result, format)
+    exit(result, &output)
 }
 
-/// Report `result` on stderr, if there is anything to report, and exit with the
-/// relevant exit code.
-fn exit(result: Result<(), CommandError>, format: Option<Format>) -> ! {
-    match &result {
-        Ok(()) => {}
-        Err(error) if format == Some(Format::Json) => {
-            // A list in an object, to make room for output and more errors
-            let errors = json!({ "errors": [jif::json::error(error)] });
-            let _ = writeln!(std::io::stderr(), "{errors}");
-        }
-        Err(error) => {
-            // Ignore errors when writing to stderr, we’re already exiting with
-            // failure code so there’s not much more we can do.
-            let mut stderr = Terminal(std::io::stderr());
-            let message = match &error.kind {
-                ErrorKind::Abort(message) => message,
-                ErrorKind::Hg(error) => &hg_message(error),
-            };
-            let _ = write_bytes!(&mut stderr, "abort: ");
-            for context in error.context.iter().rev() {
-                let _ = write_bytes!(&mut stderr, "{context}: ");
-            }
-            let _ = write_bytes!(&mut stderr, "{message}\n");
-            if let Some(hint) = &error.hint {
-                let _ = write_bytes!(&mut stderr, "({hint})\n");
-            }
-        }
+/// Report `result` if it is an error, and exit with the relevant exit code.
+fn exit(result: Result<(), CommandError>, output: &Output) -> ! {
+    if let Err(error) = &result {
+        output.error(error);
     }
     std::process::exit(exit_code(&result))
 }

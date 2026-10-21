@@ -2,6 +2,7 @@
 
 use std::io;
 use std::io::IsTerminal;
+use std::io::Stderr;
 use std::io::Stdout;
 use std::io::Write;
 use std::sync::Mutex;
@@ -9,8 +10,13 @@ use std::sync::MutexGuard;
 use std::sync::PoisonError;
 
 use format_bytes::Sink;
+use format_bytes::write_bytes;
 use serde_json::Value;
+use serde_json::json;
 
+use crate::error::CommandError;
+use crate::error::ErrorKind;
+use crate::error::hg_message;
 use crate::json;
 use crate::terminal::Terminal;
 
@@ -21,31 +27,34 @@ pub enum Format {
     Json,
 }
 
-/// Where commands write records, for humans or machines.
+/// Where commands write records and errors, for humans or machines.
 ///
-/// Humans get user data escaped on terminals only, so that pipes get it as-is.
+/// Records go to `output` and errors to `error`. Humans get user data escaped
+/// on terminals only, so that pipes get it as-is.
 /// Can be shared between threads, and each record is written whole.
-pub struct Output<O = Stdout> {
+pub struct Output<O = Stdout, E = Stderr> {
     format: Option<Format>,
     output: Mutex<O>,
+    error: Mutex<E>,
     escape_output: bool,
 }
 
 impl Output {
-    /// Writes to the process' stdout
+    /// Writes to the process' stdout and stderr
     pub fn std(format: Option<Format>) -> Self {
-        let stdout = io::stdout();
+        let (stdout, stderr) = (io::stdout(), io::stderr());
         Self {
             escape_output: stdout.is_terminal(),
-            ..Self::new(format, stdout)
+            ..Self::new(format, stdout, stderr)
         }
     }
 }
 
-impl<O: Write> Output<O> {
-    /// Writes to `output` as if it were a terminal
-    pub fn new(format: Option<Format>, output: O) -> Self {
-        Self { format, output: Mutex::new(output), escape_output: true }
+impl<O: Write, E: Write> Output<O, E> {
+    /// Writes to `output` and `error` as if they were terminals
+    pub fn new(format: Option<Format>, output: O, error: E) -> Self {
+        let (output, error) = (Mutex::new(output), Mutex::new(error));
+        Self { format, output, error, escape_output: true }
     }
 
     /// Writes a record of `kind` with `write`, see [`record!`](crate::record)
@@ -65,8 +74,36 @@ impl<O: Write> Output<O> {
         }
     }
 
-    pub fn into_inner(self) -> O {
-        into_inner(self.output)
+    /// Writes `error`. Failing to write is ignored, since the command is
+    /// failing already.
+    pub fn error(&self, error: &CommandError) {
+        if self.format == Some(Format::Json) {
+            // A list in an object, to make room for output and more errors
+            let errors = json!({ "errors": [json::error(error)] });
+            let _ = writeln!(lock(&self.error), "{errors}");
+            return;
+        }
+        let mut out = lock(&self.error);
+        let message = match &error.kind {
+            ErrorKind::Abort(message) => message,
+            ErrorKind::Hg(error) => &hg_message(error),
+        };
+        let _ = for_humans(&mut *out, true, |sink| {
+            write_bytes!(sink, "abort: ")?;
+            for context in error.context.iter().rev() {
+                write_bytes!(sink, "{context}: ")?;
+            }
+            write_bytes!(sink, "{message}\n")
+        });
+        if let Some(hint) = &error.hint {
+            let _ = for_humans(&mut *out, true, |sink| {
+                write_bytes!(sink, "({hint})\n")
+            });
+        }
+    }
+
+    pub fn into_inner(self) -> (O, E) {
+        (into_inner(self.output), into_inner(self.error))
     }
 }
 
@@ -111,10 +148,12 @@ macro_rules! record {
 
 #[cfg(test)]
 mod tests {
+    use format_bytes::message;
+
     use super::*;
 
     fn record(format: Option<Format>) -> String {
-        let output = Output::new(format, vec![]);
+        let output = Output::new(format, vec![], vec![]);
         let path = b"caf\xe9".to_vec();
         crate::record!(
             output,
@@ -124,7 +163,7 @@ mod tests {
             path = path
         )
         .expect("writing to a `Vec` cannot fail");
-        String::from_utf8(output.into_inner())
+        String::from_utf8(output.into_inner().0)
             .expect("escaping and JSON make it UTF-8")
     }
 
@@ -140,10 +179,19 @@ mod tests {
 
     #[test]
     fn as_is_when_not_a_terminal() {
-        let output =
-            Output { escape_output: false, ..Output::new(None, vec![]) };
+        let output = Output {
+            escape_output: false,
+            ..Output::new(None, vec![], vec![])
+        };
         let path = b"caf\xe9".to_vec();
         crate::record!(output, "status", "{path}\n").unwrap();
-        assert_eq!(output.into_inner(), b"caf\xe9\n");
+        assert_eq!(output.into_inner().0, b"caf\xe9\n");
+    }
+
+    #[test]
+    fn errors() {
+        let output = Output::new(None, vec![], vec![]);
+        output.error(&CommandError::abort(message!("a")));
+        assert_eq!(output.into_inner(), (vec![], b"abort: a\n".to_vec()));
     }
 }
