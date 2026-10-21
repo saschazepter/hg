@@ -19,12 +19,14 @@ use rayon::iter::IntoParallelIterator;
 use rayon::iter::ParallelIterator;
 use tracing::info;
 
+use crate::output::Output;
+use crate::record;
 use crate::utils::RepoInvocation;
 
 #[derive(clap::Args)]
 pub struct Args {}
 
-pub fn run(invocation: RepoInvocation, _args: Args) {
+pub fn run(invocation: RepoInvocation, _args: Args, output: &Output) {
     let repo = invocation.repo;
 
     let matcher = Box::new(AlwaysMatcher);
@@ -134,11 +136,11 @@ pub fn run(invocation: RepoInvocation, _args: Args) {
             }
         }
 
-        display(b"R ", ds_status.removed);
-        display(b"A ", ds_status.added);
-        display(b"! ", ds_status.deleted);
-        display(b"M ", ds_status.modified);
-        display(b"? ", ds_status.unknown);
+        display(output, b"R", ds_status.removed);
+        display(output, b"A", ds_status.added);
+        display(output, b"!", ds_status.deleted);
+        display(output, b"M", ds_status.modified);
+        display(output, b"?", ds_status.unknown);
     };
 
     dmap.with_status(
@@ -150,26 +152,19 @@ pub fn run(invocation: RepoInvocation, _args: Args) {
     );
 }
 
-fn display(status_prefix: &[u8], mut paths: Vec<StatusPath<'_>>) {
+fn display(output: &Output, status: &[u8], mut paths: Vec<StatusPath<'_>>) {
     paths.sort_unstable();
-    let mut stdout = std::io::stdout();
     for StatusPath { path, copy_source } in paths {
-        let (path, copy_source) =
-            (path.as_bytes(), copy_source.as_ref().map(|s| s.as_bytes()));
-        // TODO: Add a way to use `write_bytes!` instead of
-        // `format_bytes!` in order to stream to stdout
-        // instead of allocating an itermediate
-        // `Vec<u8>`.
-        stdout.write_all(status_prefix).expect("write_failed");
-        let linebreak = b"\n";
-        stdout
-            .write_all(&format_bytes!(b"{}{}", path, linebreak))
-            .expect("write_failed");
-        if let Some(source) = copy_source {
-            stdout
-                .write_all(&format_bytes!(b"  {}{}", source, linebreak))
-                .expect("write_failed");
+        let path = path.as_bytes();
+        match copy_source {
+            None => record!(output, "status", "{status} {path}\n"),
+            Some(source) => record!(
+                output,
+                "status",
+                "{status} {path}\n  {copy_source}\n",
+                copy_source = source.as_bytes()
+            ),
         }
+        .expect("write failed");
     }
-    stdout.flush().expect("flush failed");
 }

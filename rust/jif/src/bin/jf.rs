@@ -8,6 +8,7 @@ use jif::error::CommandError;
 use jif::error::ErrorKind;
 use jif::error::hg_message;
 use jif::output::Format;
+use jif::output::Output;
 use jif::terminal::Terminal;
 use jif::utils::RepoInvocation;
 use serde_json::json;
@@ -30,7 +31,7 @@ enum Command {
 #[derive(clap::Parser)]
 #[command(infer_subcommands = true)]
 struct Args {
-    /// Write errors in this format, for machines
+    /// Write output in this format, for machines
     /// XXX Structured output will be limited to namespaced `tool::` commands
     /// in the future, but this is useful to show the scaffolding.
     #[arg(long, global = true, value_enum)]
@@ -42,6 +43,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let format = args.do_not_use_format;
+    let output = Output::std(format);
 
     #[cfg(feature = "full-tracing")]
     let chrome_layer_guard = setup_tracing();
@@ -52,7 +54,7 @@ fn main() {
         Command::HgfsClient(args) => commands::hgfs_client::run(args),
         Command::HgfsServer(args) => commands::hgfs_server::run(args),
         Command::Status(args) => RepoInvocation::new()
-            .map(|invocation| commands::status::run(invocation, args)),
+            .map(|invocation| commands::status::run(invocation, args, &output)),
     };
 
     #[cfg(feature = "full-tracing")]

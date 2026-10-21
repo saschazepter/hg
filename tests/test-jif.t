@@ -42,3 +42,14 @@ Test some status output
   $ hg remove foo
   $ jf st
   R foo
+
+Test copies, and output for machines
+
+  $ hg copy bar baz
+  $ jf status
+  R foo
+  A baz
+    bar
+  $ jf status --do-not-use-format json
+  {"_internal_jf_kind":"status","path":"foo","status":"R"}
+  {"_internal_jf_kind":"status","copy_source":"bar","path":"baz","status":"A"}
