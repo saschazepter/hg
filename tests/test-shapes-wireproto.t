@@ -806,4 +806,72 @@ When the patterns already match the shape, we just write the file.
   0
   default
 
+Clone using narrowspec, then run `tracked` with profiles of the same shape. We write the
+file without narrowing or widening.
+
+  $ cd $TESTTMP
+  $ hg clone $remote_url narrow-to-profiles $remote_cmd --quiet --narrow \
+  >   --include path: --exclude path:secret --exclude path:foo/bar/other-secret
+  $ cd narrow-to-profiles
+  $ hg tracked
+  I path:
+  X path:foo/bar/other-secret
+  X path:secret
+  $ hg tracked --store-shape default
+  comparing with ssh://user@dummy/server
+  searching for changes (known-bad-output !)
+  looking for local changes to affected paths (known-bad-output !)
+  deleting data/dir1/file1.i (known-bad-output !)
+  deleting data/file1.i (known-bad-output !)
+  deleting data/file2.i (known-bad-output !)
+  deleting data/file3.i (known-bad-output !)
+  deleting data/foo/file1.i (known-bad-output !)
+  deleting data/foo/file2.i (known-bad-output !)
+  deleting unwanted files from working copy (known-bad-output !)
+  adding changesets (known-bad-output !)
+  adding manifests (known-bad-output !)
+  adding file changes (known-bad-output !)
+  added 0 changesets with 9 changes to 6 files (known-bad-output !)
+  nothing to widen or narrow (missing-correct-output !)
+  $ cat .hg/store/store-shape 2>/dev/null
+  0
+  default
+
+Changing the shape afterwards only fetches the difference.
+
+  $ hg tracked --store-shape default,other-secret
+  comparing with ssh://user@dummy/server
+  searching for changes
+  adding changesets
+  adding manifests
+  adding file changes
+  added 0 changesets with 5 changes to 2 files
+  $ hg tracked
+  I path:.
+  X path:secret
+
+Excluding a path under an already excluded directory is redundant. A narrowspec with such
+an exclude still covers the same files.
+
+  $ cd $TESTTMP
+  $ hg clone $remote_url nested-exclude-clone $remote_cmd --quiet --narrow \
+  >   --exclude path:secret --exclude path:secret/nested \
+  >   --exclude path:foo/bar/other-secret
+  $ cd nested-exclude-clone
+  $ hg tracked
+  I path:.
+  X path:foo/bar/other-secret
+  X path:secret
+  X path:secret/nested
+  $ hg tracked --store-shape default
+  comparing with ssh://user@dummy/server
+  searching for changes (known-bad-output !)
+  adding changesets (known-bad-output !)
+  adding manifests (known-bad-output !)
+  adding file changes (known-bad-output !)
+  nothing to widen or narrow (missing-correct-output !)
+  $ cat .hg/store/store-shape 2>/dev/null
+  0
+  default
+
 #endif
