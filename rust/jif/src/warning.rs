@@ -9,17 +9,27 @@ use hg::update::UpdateWarning;
 use hg::utils::files::get_bytes_from_path;
 use hg::warnings::HgWarning;
 
+use crate::diagnostic::Snippet;
+
 /// What users should know about, without the command failing
 #[derive(Debug)]
 pub struct Warning {
     /// What is wrong, worded for users
     pub message: Message,
+    /// The parts of its source that the warning points into
+    pub snippets: Vec<Snippet>,
 }
 
 impl Warning {
     /// A warning saying `message`
     pub fn new(message: Message) -> Self {
-        Self { message }
+        Self { message, snippets: vec![] }
+    }
+
+    /// Points into the source of the warning
+    pub fn with_snippet(mut self, snippet: Snippet) -> Self {
+        self.snippets.push(snippet);
+        self
     }
 }
 
