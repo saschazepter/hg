@@ -3,7 +3,11 @@
 use std::ops::Deref;
 
 use format_bytes::Message;
+use format_bytes::Utf8;
+use format_bytes::message;
 use hg::errors::HgBacktrace;
+use hg::errors::HgError;
+use hg::utils::files::get_bytes_from_path;
 
 /// Why a `jf` command failed.
 ///
@@ -23,6 +27,8 @@ pub struct Details {
 pub enum ErrorKind {
     /// Exit with an error message and "standard" failure exit code.
     Abort(Message),
+    /// From `hg-core`, see [`hg_message`]
+    Hg(HgError),
 }
 
 impl CommandError {
@@ -40,5 +46,77 @@ impl Deref for CommandError {
 
     fn deref(&self) -> &Details {
         &self.0
+    }
+}
+
+impl From<HgError> for CommandError {
+    fn from(error: HgError) -> Self {
+        let hint = error
+            .hint()
+            .map(|hint| message!("{hint}", hint = Utf8(hint.into_owned())));
+        Self(Box::new(Details {
+            kind: ErrorKind::Hg(error),
+            hint,
+            backtrace: HgBacktrace::capture(),
+        }))
+    }
+}
+
+/// We do our own formatting of `HgError`, since `hg-core` shouldn't care about
+/// the presentation layer.
+pub fn hg_message(error: &HgError) -> Message {
+    // `HgError` must be matched exhaustively here, we want breakage to make
+    // us think about the new error type and its implications for the end user.
+    match error {
+        HgError::CorruptedRepository(reason, _) => message!(
+            "corrupted repository: {reason}",
+            reason = Utf8(reason.clone())
+        ),
+        HgError::UnsupportedFeature(feature, _) => message!(
+            "unsupported feature: {feature}",
+            feature = Utf8(feature.clone())
+        ),
+        HgError::Abort { message, .. } => {
+            message!("{message}", message = Utf8(message.clone()))
+        }
+        HgError::RaceDetected(what) => {
+            message!("race detected: {what}", what = Utf8(what.clone()))
+        }
+        HgError::InterruptReceived => message!("interrupted"),
+        HgError::RepoNotFound { at, .. } => message!(
+            "no repository found in {path}",
+            path = get_bytes_from_path(at)
+        ),
+        // TODO render these once `hg-core` gives them structure
+        HgError::IO(_)
+        | HgError::ConfigValueParseError(_)
+        | HgError::Revlog(_)
+        | HgError::Dirstate(_)
+        | HgError::Shape(_)
+        | HgError::Pattern(_)
+        | HgError::FileIndex(_)
+        | HgError::Path(_) => {
+            message!("{error}", error = Utf8(format!("{error:?}")))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::ffi::OsStr;
+    use std::os::unix::ffi::OsStrExt;
+
+    use super::*;
+    use crate::terminal::Terminal;
+
+    #[test]
+    fn hg_message_escapes_paths() {
+        let error = HgError::RepoNotFound {
+            at: OsStr::from_bytes(b"/caf\xe9").into(),
+            backtrace: HgBacktrace::disabled(),
+        };
+        let mut terminal = Terminal(vec![]);
+        hg_message(&error).write_to(&mut terminal).unwrap();
+        assert_eq!(terminal.0, b"no repository found in /caf\\xe9");
     }
 }

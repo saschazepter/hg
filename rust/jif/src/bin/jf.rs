@@ -4,6 +4,7 @@ use hg::exit_codes;
 use jif::commands;
 use jif::error::CommandError;
 use jif::error::ErrorKind;
+use jif::error::hg_message;
 use jif::terminal::Terminal;
 use jif::utils::RepoInvocation;
 #[cfg(feature = "full-tracing")]
@@ -68,7 +69,10 @@ fn exit(result: Result<(), CommandError>) -> ! {
             // Ignore errors when writing to stderr, we’re already exiting with
             // failure code so there’s not much more we can do.
             let mut stderr = Terminal(std::io::stderr());
-            let ErrorKind::Abort(message) = &error.kind;
+            let message = match &error.kind {
+                ErrorKind::Abort(message) => message,
+                ErrorKind::Hg(error) => &hg_message(error),
+            };
             let _ = write_bytes!(&mut stderr, "abort: {message}\n");
             if let Some(hint) = &error.hint {
                 let _ = write_bytes!(&mut stderr, "({hint})\n");
