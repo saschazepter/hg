@@ -724,6 +724,9 @@ class IOutboundRevision(Protocol):
     Typically used for changegroup generation.
     """
 
+    # keep the slotted implementations free of a `__dict__`
+    __slots__ = ()
+
     node: bytes
     """20 byte node of this revision."""
 
