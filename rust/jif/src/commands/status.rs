@@ -1,9 +1,11 @@
 use std::convert::Infallible;
-use std::io::Write;
+use std::io;
 use std::mem::take;
 
-use format_bytes::format_bytes;
+use format_bytes::Utf8;
+use format_bytes::message;
 use hg::dirstate::status::BadMatch;
+use hg::dirstate::status::BadType;
 use hg::dirstate::status::DirstateStatus;
 use hg::dirstate::status::StatusError;
 use hg::dirstate::status::StatusOptions;
@@ -24,6 +26,7 @@ use tracing::info;
 use crate::output::Output;
 use crate::record;
 use crate::utils::RepoInvocation;
+use crate::warning::Warning;
 
 #[derive(clap::Args)]
 pub struct Args {}
@@ -49,8 +52,6 @@ pub fn run(invocation: RepoInvocation, _args: Args, output: &Output) {
 
     type StatusResult<'a> = Result<DirstateStatus<'a>, StatusError>;
 
-    let mut stderr = std::io::stderr();
-
     let after_status = |res: StatusResult, hg_warnings: HgWarningContext| {
         let Ok(()) = hg_warnings.finish(|warning| {
             output.warn(warning.into());
@@ -58,21 +59,28 @@ pub fn run(invocation: RepoInvocation, _args: Args, output: &Output) {
         });
         let mut ds_status = res.expect("status failed");
         for (path, error) in take(&mut ds_status.bad) {
-            let error = match error {
+            let path = path.as_bytes().to_vec();
+            let message = match error {
                 BadMatch::OsError(code) => {
-                    std::io::Error::from_raw_os_error(code).to_string()
+                    let error = Utf8(io::Error::from_raw_os_error(code));
+                    message!("{path}: {error}")
                 }
-                BadMatch::BadType(ty) => {
-                    format!("unsupported file type (type is {})", ty)
+                BadMatch::BadType(kind) => {
+                    let kind = match kind {
+                        BadType::CharacterDevice => "character device",
+                        BadType::BlockDevice => "block device",
+                        BadType::FIFO => "fifo",
+                        BadType::Socket => "socket",
+                        BadType::Directory => "directory",
+                        BadType::Unknown => "unknown",
+                    };
+                    message!(
+                        "{path}: unsupported file type (type is {kind})",
+                        kind = Utf8(kind)
+                    )
                 }
             };
-            stderr
-                .write_all(&format_bytes!(
-                    b"{}: {}\n",
-                    path.as_bytes(),
-                    error.as_bytes()
-                ))
-                .expect("bad bad");
+            output.warn(Warning::new(message));
         }
         if !ds_status.unsure.is_empty() {
             info!(
