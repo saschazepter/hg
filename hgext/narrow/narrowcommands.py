@@ -803,7 +803,17 @@ def _tracked_remote_path(
     # filter the user passed additions and deletions into actual additions and
     # deletions of excludes and includes
     if shape is not None:
-        if True:
+        old_fingerprint = shape_py.fingerprint_for_patterns(
+            oldincludes, oldexcludes
+        )
+        # Compare fingerprints instead of patterns in case there are redundant
+        # includes/excludes
+        if old_fingerprint in fingerprints:
+            addedincludes = set()
+            removedincludes = set()
+            addedexcludes = set()
+            removedexcludes = set()
+        else:
             addedincludes = shape_includes - oldincludes
             removedincludes = oldincludes - shape_includes
             addedexcludes = shape_excludes - oldexcludes
