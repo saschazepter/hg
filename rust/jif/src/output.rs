@@ -19,6 +19,7 @@ use crate::error::ErrorKind;
 use crate::error::hg_message;
 use crate::json;
 use crate::terminal::Terminal;
+use crate::warning::Warning;
 
 /// How machines get output
 #[derive(Clone, Copy, PartialEq, clap::ValueEnum)]
@@ -27,11 +28,11 @@ pub enum Format {
     Json,
 }
 
-/// Where commands write records and errors, for humans or machines.
+/// Where commands write records, warnings and errors, for humans or machines.
 ///
-/// Humans get records on `output` and errors on `error`, with user data
-/// escaped on terminals only, so that pipes get it as-is. Machines get
-/// everything on `output`, errors being records of their own.
+/// Humans get records on `output`, and warnings and errors on `error`, with
+/// user data escaped on terminals only, so that pipes get it as-is. Machines
+/// get everything on `output`, warnings and errors being records of their own.
 /// Can be shared between threads, and each record is written whole.
 pub struct Output<O = Stdout, E = Stderr> {
     format: Option<Format>,
@@ -89,6 +90,23 @@ impl<O: Write, E: Write> Output<O, E> {
             ),
             Some(Format::Json) => Ok(()),
         }
+    }
+
+    /// Writes `warning` now. Failing to write is ignored, so that warnings
+    /// do not fail commands.
+    pub fn warn(&self, warning: Warning) {
+        let _ = match self.format {
+            None => {
+                let mut buffer = vec![];
+                let message = &warning.message;
+                for_humans(&mut buffer, self.escape_error, |sink| {
+                    write_bytes!(sink, "warning: {message}\n")
+                })
+                // In one go, so that logs cannot cut in
+                .and_then(|()| lock(&self.error).write_all(&buffer))
+            }
+            Some(Format::Json) => self.json("warning", json::warning(&warning)),
+        };
     }
 
     /// Writes `error`. Failing to write is ignored, since the command is
@@ -231,6 +249,20 @@ mod tests {
         assert_eq!(record[json::KIND], "error");
     }
 
+    #[test]
+    fn warnings() {
+        let output = Output::new(None, vec![], vec![]);
+        output.warn(Warning::new(message!("a")));
+        assert_eq!(output.into_inner(), (vec![], b"warning: a\n".to_vec()));
+
+        let output = Output::new(Some(Format::Json), vec![], vec![]);
+        output.warn(Warning::new(message!("a")));
+        let (stdout, stderr) = output.into_inner();
+        assert_eq!(stderr, b"");
+        let record: Value = serde_json::from_slice(&stdout).unwrap();
+        assert_eq!(record[json::KIND], "warning");
+    }
+
     /// Keeps each write apart
     #[derive(Default)]
     struct Writes(Vec<Vec<u8>>);
@@ -249,9 +281,10 @@ mod tests {
     #[test]
     fn diagnostics_in_one_go() {
         let output = Output::new(None, vec![], Writes::default());
+        output.warn(Warning::new(message!("a")));
         let error = HgError::abort("b", ABORT, Some("c".into()));
         let error = CommandError::from(error);
         output.error(&error);
-        assert_eq!(output.into_inner().1.0.len(), 1);
+        assert_eq!(output.into_inner().1.0.len(), 2);
     }
 }
