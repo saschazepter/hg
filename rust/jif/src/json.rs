@@ -11,7 +11,26 @@ use format_bytes::Visit;
 use serde_json::Value;
 use serde_json::json;
 
+use crate::error::CommandError;
+use crate::error::ErrorKind;
+use crate::error::hg_message;
 use crate::terminal::Terminal;
+
+/// An error as `{"code", "message", "context", "hint"}`, with messages as
+/// written by [`message`], and context outermost first.
+pub fn error(error: &CommandError) -> Value {
+    let message = match &error.kind {
+        ErrorKind::Abort(message) => message,
+        ErrorKind::Hg(error) => &hg_message(error),
+    };
+    let context = error.context.iter().rev().map(self::message);
+    json!({
+        "code": error.kind.code().as_str(),
+        "message": self::message(message),
+        "context": context.collect::<Vec<_>>(),
+        "hint": error.hint.as_ref().map(self::message),
+    })
+}
 
 /// A message as `{"text", "template", "args"}`, where `text` is as on a
 /// terminal, and `args` maps names (or positions) to values: numbers,
@@ -93,7 +112,28 @@ mod tests {
     use format_bytes::message;
 
     use super::*;
+    use crate::error::ResultExt;
     use crate::terminal::tests::Failing;
+
+    #[test]
+    fn context_outermost_first() {
+        let result: Result<(), _> = Err(CommandError::abort(message!("a")));
+        let error = result
+            .with_context(|| message!("b"))
+            .with_context(|| message!("c"))
+            .unwrap_err();
+        let message =
+            |text| json!({ "text": text, "template": text, "args": {} });
+        assert_eq!(
+            super::error(&error),
+            json!({
+                "code": "abort",
+                "message": message("a"),
+                "context": [message("c"), message("b")],
+                "hint": null,
+            })
+        );
+    }
 
     #[test]
     fn typed_args() {

@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use clap::Parser;
 use format_bytes::write_bytes;
 use hg::exit_codes;
@@ -7,6 +9,7 @@ use jif::error::ErrorKind;
 use jif::error::hg_message;
 use jif::terminal::Terminal;
 use jif::utils::RepoInvocation;
+use serde_json::json;
 #[cfg(feature = "full-tracing")]
 use tracing_chrome::ChromeLayerBuilder;
 #[cfg(feature = "full-tracing")]
@@ -26,12 +29,23 @@ enum Command {
 #[derive(clap::Parser)]
 #[command(infer_subcommands = true)]
 struct Args {
+    /// Write errors in this format, for machines
+    /// XXX Structured output will be limited to namespaced `tool::` commands
+    /// in the future, but this is useful to show the scaffolding.
+    #[arg(long, global = true, value_enum)]
+    do_not_use_format: Option<Format>,
     #[command(subcommand)]
     command: Command,
 }
 
+#[derive(Clone, Copy, PartialEq, clap::ValueEnum)]
+enum Format {
+    Json,
+}
+
 fn main() {
     let args = Args::parse();
+    let format = args.do_not_use_format;
 
     #[cfg(feature = "full-tracing")]
     let chrome_layer_guard = setup_tracing();
@@ -53,14 +67,19 @@ fn main() {
     // Explicitly run `drop` here to wait for the writing thread to join
     // because `drop` may not be called when `std::process::exit` is called.
     drop(chrome_layer_guard);
-    exit(result)
+    exit(result, format)
 }
 
 /// Report `result` on stderr, if there is anything to report, and exit with the
 /// relevant exit code.
-fn exit(result: Result<(), CommandError>) -> ! {
+fn exit(result: Result<(), CommandError>, format: Option<Format>) -> ! {
     match &result {
         Ok(()) => {}
+        Err(error) if format == Some(Format::Json) => {
+            // A list in an object, to make room for output and more errors
+            let errors = json!({ "errors": [jif::json::error(error)] });
+            let _ = writeln!(std::io::stderr(), "{errors}");
+        }
         Err(error) => {
             // Ignore errors when writing to stderr, we’re already exiting with
             // failure code so there’s not much more we can do.
