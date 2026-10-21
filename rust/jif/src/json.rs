@@ -7,7 +7,9 @@ use base64::engine::general_purpose::STANDARD;
 use format_bytes::ArgName;
 use format_bytes::DisplayBytes;
 use format_bytes::Message;
+use format_bytes::Sink;
 use format_bytes::Visit;
+use serde_json::Map;
 use serde_json::Value;
 use serde_json::json;
 
@@ -48,6 +50,35 @@ pub fn message(message: &Message) -> Value {
         "template": template.source,
         "args": args.collect::<serde_json::Map<_, _>>(),
     })
+}
+
+/// The field of a record that holds its kind, named so that no argument takes
+/// it
+pub const KIND: &str = "_internal_jf_kind";
+
+/// A record as an object: its kind under [`KIND`], and its arguments as
+/// fields, as `args` in [`message`]. Literals are for humans only.
+pub struct Record(pub Map<String, Value>);
+
+impl Record {
+    pub fn new(kind: &str) -> Self {
+        Self(Map::from_iter([(KIND.into(), kind.into())]))
+    }
+}
+
+impl Sink for Record {
+    fn literal(&mut self, _text: &str) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn arg(
+        &mut self,
+        name: ArgName,
+        value: &dyn DisplayBytes,
+    ) -> io::Result<()> {
+        self.0.insert(field(&name), self::value(value));
+        Ok(())
+    }
 }
 
 /// The name of an argument as a field: its name, or its position
