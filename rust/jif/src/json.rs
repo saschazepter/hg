@@ -17,6 +17,7 @@ use crate::error::CommandError;
 use crate::error::ErrorKind;
 use crate::error::hg_message;
 use crate::terminal;
+use crate::warning::Warning;
 
 /// An error as `{"code", "message", "context", "hint"}`, with messages as
 /// written by [`message`], and context outermost first.
@@ -32,6 +33,11 @@ pub fn error(error: &CommandError) -> Value {
         "context": context.collect::<Vec<_>>(),
         "hint": error.hint.as_ref().map(self::message),
     })
+}
+
+/// A warning as `{"message"}`, as in [`error`].
+pub fn warning(warning: &Warning) -> Value {
+    json!({ "message": message(&warning.message) })
 }
 
 /// A message as `{"text", "template", "args"}`, where `text` is as on a
@@ -204,6 +210,14 @@ mod tests {
                 "template": "{value} {rev}",
                 "args": { "value": null, "rev": 42 },
             })
+        );
+    }
+
+    #[test]
+    fn warnings() {
+        assert_eq!(
+            warning(&Warning::new(message!("a"))),
+            json!({ "message": { "text": "a", "template": "a", "args": {} } })
         );
     }
 }
