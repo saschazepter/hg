@@ -98,7 +98,7 @@ class abstractvfs(i_vfs.IVfs):
     # createmode is always available on subclasses
     createmode: int | None
 
-    _chmod: bool
+    has_exec: bool
 
     base: FsPathT
 
@@ -819,11 +819,12 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
         return util.checklink(self.base)
 
     @util.propertycache
-    def _chmod(self) -> bool:
+    def has_exec(self) -> bool:
+        """True if the filesystem under `base` supports the exec bit."""
         return util.checkexec(self.base)
 
     def _fixfilemode(self, name: bytes) -> None:
-        if self.createmode is None or not self._chmod:
+        if self.createmode is None or not self.has_exec:
             return
         os.chmod(name, self.createmode & 0o666)
 
