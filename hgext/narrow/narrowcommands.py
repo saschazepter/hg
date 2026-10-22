@@ -803,10 +803,11 @@ def _tracked_remote_path(
     # filter the user passed additions and deletions into actual additions and
     # deletions of excludes and includes
     if shape is not None:
-        addedincludes = shape_includes - oldincludes
-        removedincludes = oldincludes - shape_includes
-        addedexcludes = shape_excludes - oldexcludes
-        removedexcludes = oldexcludes - shape_excludes
+        if True:
+            addedincludes = shape_includes - oldincludes
+            removedincludes = oldincludes - shape_includes
+            addedexcludes = shape_excludes - oldexcludes
+            removedexcludes = oldexcludes - shape_excludes
     else:
         addedincludes -= oldincludes
         removedincludes &= oldincludes
