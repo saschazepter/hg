@@ -2272,7 +2272,7 @@ class localrepository(_localrepo_base_classes):
         return self.dirstate.getcwd()
 
     def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
-        return self.dirstate.pathto(f, cwd)
+        return scmutil.path_to(self, f, cwd)
 
     def _loadfilter(self, filter):
         if filter not in self._filterpats:

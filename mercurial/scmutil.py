@@ -1006,6 +1006,19 @@ def meaningfulparents(repo, ctx):
     return parents
 
 
+def path_to(repo: RepoT, f: bytes, cwd: bytes | None = None) -> bytes:
+    """Return the path to the repository file `f` relative to `cwd`.
+
+    `cwd` defaults to the current working directory, as returned by
+    `repo.getcwd()`."""
+    if cwd is None:
+        cwd = repo.getcwd()
+    path = util.pathto(repo.root, cwd, f)
+    if pycompat.ossep != b'/' and repo.ui.configbool(b'ui', b'slash'):
+        return util.pconvert(path)
+    return path
+
+
 def getuipathfn(
     repo,
     legacyrelativevalue: bool = False,

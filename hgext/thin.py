@@ -40,6 +40,7 @@ from mercurial import (
     match as matchmod,
     mergestate as mergestatemod,
     requirements as req_mod,
+    scmutil,
     sparse,
     util,
     vfs as vfsmod,
@@ -365,7 +366,9 @@ class ThinRepo:
         return self.dirstate.getcwd()
 
     def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
-        return self.dirstate.pathto(f, cwd)
+        # TODO: define an interface for the common subset of IRepo and ThinRepo
+        repo = typing.cast(RepoT, self)
+        return scmutil.path_to(repo, f, cwd)
 
     def commit(
         self,
