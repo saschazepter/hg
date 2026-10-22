@@ -85,7 +85,7 @@ def _copyrevlog(tr: TransactionT, destrepo: RepoT, oldrl, entry) -> None:
     if entry.is_filelog:
         if (fileindex := destrepo.store.fileindex) is not None:
             fileindex.add(entry.target_id, tr)
-        elif (fncache := destrepo.svfs.fncache) is not None:
+        elif (fncache := destrepo.store.fncache) is not None:
             unencodedname = entry.main_file_path()
             fncache.add(unencodedname)
             if copydata:
