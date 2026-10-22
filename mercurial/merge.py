@@ -17,6 +17,10 @@ from .node import (
     wdirrev,
 )
 
+from .interfaces.types import (
+    RepoT,
+)
+
 from . import (
     copies,
     error,
@@ -2012,7 +2016,7 @@ def back_out(ctx, parent=None, wc=None):
 
 
 def purge(
-    repo,
+    repo: RepoT,
     matcher,
     unknown=True,
     ignored=False,
