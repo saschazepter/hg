@@ -863,6 +863,55 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
             return False
         return self.isfileorlink(path)
 
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            atomictemp: Literal[False] = ...,
+            notindexed: bool = ...,
+            backgroundclose: bool = ...,
+            checkambig: bool = ...,
+            auditpath: bool = ...,
+            makeparentdirs: bool = ...,
+            buffering: int = ...,
+        ) -> BinaryIO:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[True],
+            notindexed: bool = ...,
+            backgroundclose: bool = ...,
+            checkambig: bool = ...,
+            auditpath: bool = ...,
+            makeparentdirs: bool = ...,
+            buffering: int = ...,
+        ) -> i_vfs.IAtomicTempFile:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: bool,
+            notindexed: bool = ...,
+            backgroundclose: bool = ...,
+            checkambig: bool = ...,
+            auditpath: bool = ...,
+            makeparentdirs: bool = ...,
+            buffering: int = ...,
+        ) -> BinaryIO | i_vfs.IAtomicTempFile:
+            ...
+
     def __call__(
         self,
         path: HgPathT,
@@ -874,7 +923,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
         auditpath: bool = True,
         makeparentdirs: bool = True,
         buffering: int = -1,
-    ) -> Any:  # TODO: type the return with the IVfs.__call__ overloads
+    ) -> BinaryIO | i_vfs.IAtomicTempFile:
         """Open ``path`` file, which is relative to vfs root.
 
         With ``atomictemp=True``, the file is written atomically, see
@@ -986,7 +1035,8 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
                 self._backgroundfilecloser,  # pytype: disable=attribute-error
             )
 
-        return fp
+        # the close-hooking wrappers forward everything else to the file object
+        return typing.cast(BinaryIO, fp)
 
     def symlink(self, src: FsPathT, dst: HgPathT) -> None:
         """create a ``dst`` symlink pointing to ``src``
