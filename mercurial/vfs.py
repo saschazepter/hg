@@ -1156,8 +1156,48 @@ class filtervfs(proxyvfs, abstractvfs):
             name = _NAME_BY_FILTER[filter]
         self.filter_name = name
 
-    # TODO: type the return with the IVfs.__call__ overloads
-    def __call__(self, path: HgPathT, *args, **kwargs) -> Any:
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[False] = ...,
+            **kwargs,
+        ) -> BinaryIO:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[True],
+            **kwargs,
+        ) -> i_vfs.IAtomicTempFile:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: bool,
+            **kwargs,
+        ) -> BinaryIO | i_vfs.IAtomicTempFile:
+            ...
+
+    def __call__(
+        self,
+        path: HgPathT,
+        mode: bytes = b'rb',
+        atomictemp: bool = False,
+        **kwargs,
+    ) -> BinaryIO | i_vfs.IAtomicTempFile:
         """Open ``path`` file, which is relative to vfs root.
 
         With ``atomictemp=True``, the file is written atomically, see
@@ -1191,7 +1231,14 @@ class filtervfs(proxyvfs, abstractvfs):
         combination of append mode and checkambig=True only in limited
         cases (see also issue5418 and issue5584 for detail).
         """
-        return self.vfs(self._filter(path), *args, **kwargs)
+        # forward `atomictemp` explicitly so that the type checker can pick
+        # the right overload
+        return self.vfs(
+            self._filter(path),
+            mode,
+            atomictemp=atomictemp,
+            **kwargs,
+        )
 
     def join(self, path: HgPathT | None, *insidef: HgPathT) -> FsPathT:
         """return the file system path for ``path`` (joined with ``insidef``)
