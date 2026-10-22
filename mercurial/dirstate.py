@@ -509,10 +509,6 @@ class dirstate(intdirstate.IDirstate):
         return matchmod.match(self._root, b'', [], pats, warn=self._ui.warn)
 
     @propertycache
-    def _slash(self):
-        return self._ui.configbool(b'ui', b'slash') and pycompat.ossep != b'/'
-
-    @propertycache
     def _checklink(self) -> bool:
         return util.checklink(self._root)
 
