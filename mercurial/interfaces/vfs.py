@@ -10,6 +10,7 @@ from __future__ import annotations
 import abc
 import contextlib
 import os
+import typing
 
 from typing import (
     Any,
@@ -17,8 +18,10 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    Literal,
     MutableMapping,
     Protocol,
+    overload,
 )
 
 from ._basetypes import (
@@ -354,9 +357,33 @@ class IVfs(Protocol):
         file and ``path`` its path relative to the vfs base.
         """
 
-    # TODO: type the arguments and return, see abstractvfs.readdir
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def readdir(
+            self,
+            path: HgPathT | None = None,
+            stat: Literal[False] = ...,
+            skip: bytes | None = None,
+        ) -> list[tuple[bytes, int]]:
+            ...
+
+        @overload
+        def readdir(
+            self,
+            path: HgPathT | None = None,
+            stat: Literal[True] = ...,
+            skip: bytes | None = None,
+        ) -> list[tuple[bytes, int, os.stat_result]]:
+            ...
+
     @abc.abstractmethod
-    def readdir(self, path: HgPathT | None = None, stat=None, skip=None) -> Any:
+    def readdir(
+        self,
+        path: HgPathT | None = None,
+        stat: bool = False,
+        skip: bytes | None = None,
+    ) -> list[tuple[bytes, int]] | list[tuple[bytes, int, os.stat_result]]:
         """return a sorted list of (name, kind) for the entries of the
         ``path`` directory (or the vfs base)
 

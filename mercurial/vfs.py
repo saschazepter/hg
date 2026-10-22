@@ -21,10 +21,12 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    Literal,
     MutableMapping,
     Optional,
     Protocol,
     TypeVar,
+    overload,
 )
 
 from .i18n import _
@@ -333,13 +335,34 @@ class abstractvfs(i_vfs.IVfs):
         else:
             return fd, fname
 
-    # TODO: This doesn't match osutil.listdir().  stat=False in pure;
-    #  non-optional bool in cext.  'skip' is bool if we trust cext, or bytes
-    #  going by how pure uses it.  Also, cext returns a custom stat structure.
-    #  from cext.osutil.pyi:
-    #
-    #     path: bytes, st: bool, skip: Optional[bool]
-    def readdir(self, path: bytes | None = None, stat=None, skip=None) -> Any:
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def readdir(
+            self,
+            path: bytes | None = None,
+            stat: Literal[False] = ...,
+            skip: bytes | None = None,
+        ) -> list[tuple[bytes, int]]:
+            ...
+
+        @overload
+        def readdir(
+            self,
+            path: bytes | None = None,
+            stat: Literal[True] = ...,
+            skip: bytes | None = None,
+        ) -> list[tuple[bytes, int, os.stat_result]]:
+            ...
+
+    # note: the cext returns its own stat object, with a subset of the
+    # `os.stat_result` attributes.
+    def readdir(
+        self,
+        path: bytes | None = None,
+        stat: bool = False,
+        skip: bytes | None = None,
+    ) -> list[tuple[bytes, int]] | list[tuple[bytes, int, os.stat_result]]:
         return util.listdir(self.join(path), stat, skip)
 
     def readlock(self, path: bytes) -> bytes:
