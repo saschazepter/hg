@@ -32,7 +32,6 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     UiT,
     UserMsgT,
     VfsKeyT,
-    WorkingVfsT,
 )
 
 from . import (
@@ -93,6 +92,7 @@ TransactionT = transaction.ITransaction
 UnbundlePartT = bundle.IUnbundlePart
 
 VfsT = vfs.IVfs
+WorkingVfsT = vfs.IWorkingVfs
 
 WorkingCommitContextT = context.IWorkingCommitContext
 WorkingContextT = context.IWorkingContext

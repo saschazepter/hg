@@ -61,10 +61,6 @@ RevsetAliasesT = dict[bytes, bytes]
 # TODO: create a Protocol class,
 UiT = Any
 
-# TODO: make a protocol class for this
-WorkingVfsT = Any
-"""A vfs giving access to the working copy."""
-
 VfsKeyT = bytes
 """Vfs identifier, typically used in a VfsMap."""
 

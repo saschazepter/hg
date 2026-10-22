@@ -37,9 +37,11 @@ if typing.TYPE_CHECKING:
         RevnumT,
         RevsetAliasesT,
         UiT as Ui,
-        WorkingVfsT as WorkingVfs,
     )
-    from .vfs import IVfs as Vfs
+    from .vfs import (
+        IVfs as Vfs,
+        IWorkingVfs as WorkingVfs,
+    )
 
     from . import (
         compression as i_comp,

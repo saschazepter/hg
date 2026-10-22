@@ -530,7 +530,7 @@ class abstractvfs(i_vfs.IVfs):
         return real_path, mode
 
 
-class vfs(abstractvfs):
+class vfs(abstractvfs, i_vfs.IWorkingVfs):
     """Operate files relative to a base directory
 
     This class is used to hide the details of COW semantics and

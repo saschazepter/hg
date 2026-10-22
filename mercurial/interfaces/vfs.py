@@ -17,6 +17,7 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    MutableMapping,
     Protocol,
 )
 
@@ -499,4 +500,30 @@ class IVfs(Protocol):
 
             <path> is the real file system path content should be written to,
             <mode> is the file mode that need to be set if any.
+        """
+
+
+class IWorkingVfs(IVfs, Protocol):
+    """A vfs with the extra operations needed to manage a working copy"""
+
+    @abc.abstractmethod
+    def symlink(self, src: FsPathT, dst: HgPathT) -> None:
+        """create a ``dst`` symlink pointing to ``src``
+
+        If the file system does not support symlinks, ``dst`` is written as a
+        regular file containing ``src``.
+        """
+
+    @abc.abstractmethod
+    def isfileorlink_checkdir(
+        self,
+        dircache: MutableMapping[bytes, bool],
+        path: HgPathT,
+    ) -> bool:
+        """return True if the path is a regular file or a symlink and
+        the directories along the path are "normal", that is
+        not symlinks or nested hg repositories.
+
+        The directories are checked even if path auditing is disabled for this
+        vfs. `dircache` is used to cache the directory checks.
         """
