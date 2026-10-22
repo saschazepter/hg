@@ -947,6 +947,11 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
                         self._trustnlink = nlink > 1 or util.checknlink(f)
                     if nlink > 1 or not self._trustnlink:
                         util.rename(util.mktempcopy(f), f)
+        if atomictemp:
+            # an atomictemp write returned earlier, so we only get here when
+            # reading (or for a path without basename)
+            msg = b'atomictemp is only valid when writing a file'
+            raise error.ProgrammingError(msg)
         fp = util.posixfile(f, mode, buffering=buffering)
         if nlink == 0:
             self._fixfilemode(f)
