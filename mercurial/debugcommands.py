@@ -104,7 +104,10 @@ from . import (
 from .exchanges import (
     heads as exch_heads,
 )
-from .interfaces import repository
+from .interfaces import (
+    dirstate as int_dirstate,
+    repository,
+)
 from .repo import (
     factory as repo_factory,
 )
@@ -1060,7 +1063,7 @@ def debugstate(ui, repo, **opts):
     """show the contents of the current dirstate"""
 
     if opts.get("docket"):
-        if not repo.dirstate._use_dirstate_v2:
+        if repo.dirstate.version == int_dirstate.DirstateVersion.V1:
             raise error.Abort(_(b'dirstate v1 does not have a docket'))
 
         docket = repo.dirstate._map.docket
@@ -1128,7 +1131,7 @@ def debugdirstateignorepatternshash(ui, repo, **opts):
     """show the hash of ignore patterns stored in dirstate if v2,
     or nothing for dirstate-v2
     """
-    if repo.dirstate._use_dirstate_v2:
+    if repo.dirstate.version == int_dirstate.DirstateVersion.V2:
         docket = repo.dirstate._map.docket
         hash_len = 20  # 160 bits for SHA-1
         hash_bytes = docket.tree_metadata[-hash_len:]

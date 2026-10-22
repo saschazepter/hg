@@ -18,6 +18,9 @@ from ..interfaces.types import (
     UiT,
     VfsT,
 )
+from ..interfaces import (
+    dirstate as int_dirstate,
+)
 
 from .. import (
     error,
@@ -675,14 +678,18 @@ def upgrade_dirstate(
             # revision checked out
             pass
 
-    assert srcrepo.dirstate._use_dirstate_v2 == (old == b'v2')
+    old_v2 = srcrepo.dirstate.version == int_dirstate.DirstateVersion.V2
+    assert old_v2 == (old == b'v2')
     use_v2 = new == b'v2'
     if use_v2:
         # Write the requirements *before* upgrading
         scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
 
     srcrepo.dirstate._map.preload()
-    srcrepo.dirstate._use_dirstate_v2 = use_v2
+    if use_v2:
+        srcrepo.dirstate.version = int_dirstate.DirstateVersion.V2
+    else:
+        srcrepo.dirstate.version = int_dirstate.DirstateVersion.V1
     srcrepo.dirstate._map._use_dirstate_v2 = use_v2
     srcrepo.dirstate._dirty = True
     try:

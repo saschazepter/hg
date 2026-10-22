@@ -181,7 +181,10 @@ class dirstate(intdirstate.IDirstate):
         dirstate file; root is the root of the directory tracked by
         the dirstate.
         """
-        self._use_dirstate_v2 = use_dirstate_v2
+        if use_dirstate_v2:
+            self.version = intdirstate.DirstateVersion.V2
+        else:
+            self.version = intdirstate.DirstateVersion.V1
         self._use_tracked_hint = use_tracked_hint
         self._nodeconstants = nodeconstants
         self._opener = opener
@@ -455,7 +458,7 @@ class dirstate(intdirstate.IDirstate):
             self._opener,
             self._root,
             self._nodeconstants,
-            self._use_dirstate_v2,
+            self.version == intdirstate.DirstateVersion.V2,
         )
 
     @property
@@ -1834,7 +1837,7 @@ class dirstate(intdirstate.IDirstate):
         files = [b'branch']
         if self._opener.exists(self._filename):
             files.append(self._filename)
-            if self._use_dirstate_v2:
+            if self.version == intdirstate.DirstateVersion.V2:
                 files.append(self._map.docket.data_filename())
         return tuple(files)
 

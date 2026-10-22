@@ -93,6 +93,7 @@ class gitdirstate(intdirstate.IDirstate):
         # TODO: context.poststatusfixup is bad and uses this attribute
         self._dirty = False
         self._mapcls = dirstatemap.dirstatemap
+        self.version = intdirstate.DirstateVersion.GIT
         self._use_dirstate_v2 = use_dirstate_v2
 
     @propertycache

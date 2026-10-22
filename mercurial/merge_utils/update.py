@@ -21,6 +21,9 @@ if typing.TYPE_CHECKING:
 
 from ..utils import stringutil
 from ..dirstateutils import timestamp
+from ..interfaces import (
+    dirstate as int_dirstate,
+)
 from .. import (
     encoding,
     error,
@@ -418,7 +421,7 @@ def filter_ambiguous_files(repo, file_data: FileData) -> FileData:
     [3] https://lore.kernel.org/all/20241002-mgtime-v10-8-d1c4717f5284@kernel.org
     """
     ambiguous_mtime: FileData = {}
-    dirstate_v2 = repo.dirstate._use_dirstate_v2
+    dirstate_v2 = repo.dirstate.version == int_dirstate.DirstateVersion.V2
     fs_now_result = None
     fast_enough_fs = True
     if dirstate_v2:

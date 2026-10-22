@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import contextlib
+import enum
 import os
 import typing
 
@@ -12,6 +13,22 @@ from typing import (
     Optional,
     Protocol,
 )
+
+
+class DirstateVersion(enum.Enum):
+    """Identify the on-disk format of the dirstate."""
+
+    V1 = enum.auto()
+    """dirstate use v1 format storage"""
+
+    V2 = enum.auto()
+    """dirstate use v1 format storage"""
+
+    GIT = enum.auto()
+    """value for the experimental dirstate from `hgext.git`
+
+    (the working copy state is stored in git's index)"""
+
 
 if typing.TYPE_CHECKING:
     from ._basetypes import (
@@ -165,10 +182,11 @@ class IDirstate(Protocol):
     #     the dirstate.
     #     """
 
+    version: DirstateVersion
+    """The on-disk format used by this dirstate."""
+
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
-
-    _use_dirstate_v2: bool
 
     @property  # really @util.propertycache
     def _map(self) -> NeedsTypeHint:
