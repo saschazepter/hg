@@ -188,9 +188,48 @@ class IVfs(Protocol):
         cases (see also issue5418 and issue5584 for detail).
         """
 
-    # TODO: type return, which is util.posixfile wrapped by a proxy
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def open(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[False] = ...,
+            **kwargs,
+        ) -> BinaryIO:
+            ...
+
+        @overload
+        def open(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[True],
+            **kwargs,
+        ) -> IAtomicTempFile:
+            ...
+
+        @overload
+        def open(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: bool,
+            **kwargs,
+        ) -> BinaryIO | IAtomicTempFile:
+            ...
+
     @abc.abstractmethod
-    def open(self, path: HgPathT, mode: bytes = b'rb', **kwargs) -> Any:
+    def open(
+        self,
+        path: HgPathT,
+        mode: bytes = b'rb',
+        **kwargs,
+    ) -> BinaryIO | IAtomicTempFile:
         """Open ``path`` file, which is relative to vfs root.
 
         Newly created directories are marked as "not to be indexed by
