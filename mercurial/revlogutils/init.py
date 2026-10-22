@@ -15,11 +15,11 @@ from typing import Dict, Optional
 from ..thirdparty import attr
 
 from ..i18n import _
+from ..interfaces.types import VfsT
 
 from .. import (
     error,
     policy,
-    vfs as vfsmod,
 )
 
 
@@ -79,7 +79,7 @@ def default_header(
 
 
 def find_entry_point_path(
-    vfs: vfsmod.vfs,
+    vfs: VfsT,
     radix: bytes,
     *,
     postfix: bytes | None = None,
@@ -123,7 +123,7 @@ def split_index_filename(radix):
 
 
 def load_entry_point(
-    vfs: vfsmod.vfs,
+    vfs: VfsT,
     radix: bytes,
     kind: constants.Kind,
     configs: config.RevlogConfigs,
@@ -250,7 +250,7 @@ def load_entry_point(
 
 
 def use_rust_index(
-    vfs: vfsmod.vfs,
+    vfs: VfsT,
     kind: constants.Kind,
     inline: bool,
     format_version: int,

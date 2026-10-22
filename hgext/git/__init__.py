@@ -25,7 +25,6 @@ from mercurial import (
     store,
     ui as uimod,
     util,
-    vfs as vfsmod,
 )
 
 from . import (
@@ -40,6 +39,7 @@ if typing.TYPE_CHECKING:
         FileStorageT,
         FsPathT,
         HgPathT,
+        VfsT,
     )
 
 # Note for extension authors: ONLY specify testedwith = 'ships-with-hg-core' for
@@ -125,7 +125,7 @@ def _makestore(
     ui: uimod.ui,
     requirements: set[bytes],
     storebasepath: FsPathT,
-    vfstype: Callable[..., vfsmod.abstractvfs],
+    vfstype: Callable[..., VfsT],
     try_pending: bool,
 ):
     if b'git' in requirements:

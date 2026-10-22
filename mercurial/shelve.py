@@ -35,6 +35,7 @@ from typing import (
 )
 
 from .i18n import _
+from .interfaces.types import VfsT
 from .node import (
     bin,
     hex,
@@ -128,7 +129,7 @@ class Shelf:
     differences and lets you work with the shelf as a whole.
     """
 
-    def __init__(self, vfs: vfsmod.vfs, name: bytes) -> None:
+    def __init__(self, vfs: VfsT, name: bytes) -> None:
         self.vfs = vfs
         self.name = name
 
@@ -231,7 +232,7 @@ class Shelf:
         except (FileNotFoundError, error.RepoLookupError):
             return self.open_patch()
 
-    def _backupfilename(self, backupvfs: vfsmod.vfs, filename: bytes) -> bytes:
+    def _backupfilename(self, backupvfs: VfsT, filename: bytes) -> bytes:
         def gennames(base: bytes):
             yield base
             base, ext = base.rsplit(b'.', 1)
@@ -245,7 +246,7 @@ class Shelf:
         # Help pytype- gennames() yields infinitely
         raise error.ProgrammingError("unreachable")
 
-    def movetobackup(self, backupvfs: vfsmod.vfs) -> None:
+    def movetobackup(self, backupvfs: VfsT) -> None:
         if not backupvfs.isdir():
             backupvfs.makedir()
         for suffix in shelvefileextensions:

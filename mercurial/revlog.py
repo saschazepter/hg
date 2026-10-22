@@ -44,6 +44,7 @@ from .interfaces.types import (
     NodeIdT,
     OutboundRevisionT,
     RevnumT,
+    VfsT,
 )
 from .revlogutils.constants import (
     ALL_KINDS,
@@ -116,7 +117,6 @@ from . import (
     revlogutils,
     templatefilters,
     util,
-    vfs as vfsmod,
 )
 from .interfaces import (
     repository,
@@ -481,7 +481,7 @@ class revlog:
     # We should fix that instead
     may_emit_compressed = True
 
-    opener: vfsmod.vfs
+    opener: VfsT
 
     configs: revlog_config.RevlogConfigs
 
@@ -527,7 +527,7 @@ class revlog:
 
     def __init__(
         self,
-        opener: vfsmod.vfs,
+        opener: VfsT,
         target,
         radix,
         *,

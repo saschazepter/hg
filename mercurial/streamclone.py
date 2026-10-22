@@ -30,6 +30,7 @@ from .interfaces.types import (
     RepoT,
     UnbundlePartT,
     VfsKeyT,
+    VfsT,
 )
 from .interfaces import (
     exchange as i_exc,
@@ -47,7 +48,6 @@ from . import (
     store,
     transaction,
     util,
-    vfs as vfsmod,
 )
 from .exchanges import (
     bundle_caps,
@@ -824,7 +824,7 @@ class VolatileManager(store.IVolatileManager):
                 yield fp
 
 
-def _makemap(repo: RepoT) -> dict[bytes, vfsmod.vfs]:
+def _makemap(repo: RepoT) -> dict[bytes, VfsT]:
     """make a (src -> vfs) map for the repo"""
     vfsmap = {
         _srcstore: repo.svfs,
@@ -1027,7 +1027,7 @@ class CacheEntry(store.SimpleStoreEntry):
                 )
             ]
 
-    def files(self, vfs: vfsmod.vfs) -> list[store.StoreFile]:
+    def files(self, vfs: VfsT) -> list[store.StoreFile]:
         if self._files is None:
             self._files = [
                 CacheFile(

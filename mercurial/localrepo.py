@@ -888,10 +888,10 @@ def _thin_repo_hook(
 
 def loadhgrc(
     ui,
-    wdirvfs: vfsmod.vfs,
-    hgvfs: vfsmod.vfs,
+    wdirvfs: VfsT,
+    hgvfs: VfsT,
     requirements,
-    sharedvfs: vfsmod.vfs | None = None,
+    sharedvfs: VfsT | None = None,
 ):
     """Load hgrc files/content into a ui instance.
 
@@ -1047,7 +1047,7 @@ def makestore(
     ui: uimod.ui,
     requirements: set[bytes],
     path: FsPathT,
-    vfstype: Callable[..., vfsmod.abstractvfs],
+    vfstype: Callable[..., VfsT],
     try_pending: bool,
 ):
     """Construct a storage object for a repository.
@@ -1128,14 +1128,14 @@ class localrepository(_localrepo_base_classes):
         baseui,
         ui,
         origroot: bytes,
-        wdirvfs: vfsmod.vfs,
-        hgvfs: vfsmod.vfs,
+        wdirvfs: VfsT,
+        hgvfs: VfsT,
         requirements,
         supportedrequirements,
         sharedpath: bytes,
         store,
-        cachevfs: vfsmod.vfs,
-        wcachevfs: vfsmod.vfs,
+        cachevfs: VfsT,
+        wcachevfs: VfsT,
         features,
         intents=None,
     ):

@@ -162,6 +162,7 @@ from .interfaces.types import (
     FileLinkRevsT,
     RepoT,
     UnbundleOpT,
+    VfsT,
 )
 from . import (
     bundlecaches,
@@ -178,7 +179,6 @@ from . import (
     tables,
     tags,
     util,
-    vfs as vfsmod,
 )
 from .exchanges import (
     bundle_caps,
@@ -1721,7 +1721,7 @@ def write_new_stream_bundle(
     version: bytes,
     filename: bytes,
     opts,
-    vfs: vfsmod.vfs,
+    vfs: VfsT,
     shape: bytes | None = None,
 ):
     ui = repo.ui
@@ -1765,7 +1765,7 @@ def write_new_stream_bundle(
 def write_repo_sharded_stream_bundles(
     repo: RepoT,
     obsolescence: bool,
-    target_vfs: vfsmod.vfs | None = None,
+    target_vfs: VfsT | None = None,
 ) -> list[bytes]:
     """Creates a streaming bundle for every shard in this repo's store, in
     lockstep.

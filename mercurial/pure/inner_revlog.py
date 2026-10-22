@@ -32,6 +32,7 @@ from ..interfaces.types import (
     NodeIdT,
     RevnumT,
     TransactionT,
+    VfsT,
 )
 from ..revlogutils.constants import (
     COMP_MODE_DEFAULT,
@@ -67,7 +68,6 @@ from .. import (
     mdiff,
     revlogutils,
     util,
-    vfs as vfsmod,
 )
 from ..revlogutils import (
     config as revlog_config,
@@ -104,7 +104,7 @@ class BaseInnerRevlog(abc.ABC):
     has_revdiff_extra = False
     """does this inner revlog support revdiff with an extra patch"""
 
-    opener: vfsmod.vfs
+    opener: VfsT
     index: BaseIndex
 
     support_extended_data: bool
@@ -112,7 +112,7 @@ class BaseInnerRevlog(abc.ABC):
 
     def __init__(
         self,
-        opener: vfsmod.vfs,
+        opener: VfsT,
         target: tuple[int, bytes],
         index,
         segment_file,
@@ -750,7 +750,7 @@ class InnerRevlogV1(BaseInnerRevlog):
 
     def __init__(
         self,
-        opener: vfsmod.vfs,
+        opener: VfsT,
         target: tuple[int, bytes],
         index_header: int,
         index_data,
@@ -1189,7 +1189,7 @@ class InnerRevlogV2(BaseInnerRevlog):
     def __init__(
         self,
         *,
-        opener: vfsmod.vfs,
+        opener: VfsT,
         radix: bytes,
         target: tuple[int, bytes],
         docket: docket_mod.RevlogDocket,

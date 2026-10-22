@@ -48,6 +48,7 @@ from .interfaces.types import (
     RevlogT,
     RevnumT,
     TransactionT,
+    VfsT,
 )
 from . import (
     changelog,
@@ -628,7 +629,7 @@ class BaseStoreEntry:
     is_manifestlog: bool = False
     is_filelog: bool = False
 
-    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
+    def files(self, vfs: VfsT) -> list[StoreFile]:
         """Return the files in vfs backing this entry.
 
         Assumes the same vfs is passed every time, so it can cache the result.
@@ -638,7 +639,7 @@ class BaseStoreEntry:
     def get_streams(
         self,
         repo: RepoT | None = None,
-        vfs: vfsmod.vfs | None = None,
+        vfs: VfsT | None = None,
         volatiles: IVolatileManager | None = None,
         max_changeset: RevnumT | None = None,
         preserve_file_count: bool = False,
@@ -651,7 +652,9 @@ class BaseStoreEntry:
         return [f.get_stream(vfs, volatiles) for f in self.files(vfs)]
 
     def preserve_volatiles(
-        self, vfs: vfsmod.vfs, volatiles: IVolatileManager
+        self,
+        vfs: VfsT,
+        volatiles: IVolatileManager,
     ) -> None:
         """Use a VolatileManager to preserve the state of any volatile file
 
@@ -687,7 +690,7 @@ class SimpleStoreEntry(BaseStoreEntry):
         self._files = None
         self.maybe_volatile = is_volatile
 
-    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
+    def files(self, vfs: VfsT) -> list[StoreFile]:
         if self._files is None:
             self._files = [
                 StoreFile(
@@ -749,7 +752,7 @@ class RevlogStoreEntry(BaseStoreEntry):
         """unencoded path of the main revlog file"""
         return self._path_prefix + b'.i'
 
-    def files(self, vfs: vfsmod.vfs) -> list[StoreFile]:
+    def files(self, vfs: VfsT) -> list[StoreFile]:
         if self._files is None:
             self._files = []
             if self._details is None:
@@ -777,7 +780,7 @@ class RevlogStoreEntry(BaseStoreEntry):
     def get_streams(
         self,
         repo: RepoT | None = None,
-        vfs: vfsmod.vfs | None = None,
+        vfs: VfsT | None = None,
         volatiles: IVolatileManager | None = None,
         max_changeset: RevnumT | None = None,
         preserve_file_count: bool = False,
