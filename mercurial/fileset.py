@@ -256,7 +256,7 @@ def hgignore(mctx, x):
     """File that matches the active .hgignore pattern."""
     # i18n: "hgignore" is a keyword
     getargs(x, 0, 0, _(b"hgignore takes no arguments"))
-    return mctx.ctx.repo().dirstate._ignore
+    return mctx.ctx.repo().dirstate.ignore_matcher
 
 
 @predicate(b'portable()', weight=_WEIGHT_CHECK_FILENAME)

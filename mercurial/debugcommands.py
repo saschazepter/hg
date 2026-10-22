@@ -1884,7 +1884,7 @@ def debugignore(ui, repo, *files, **opts):
     Given space separated file names, shows if the given file is ignored and
     if so, show the ignore rule (file and line number) that matched it.
     """
-    ignore = repo.dirstate._ignore
+    ignore = repo.dirstate.ignore_matcher
     if not files:
         # Show all the patterns
         ui.write(b"%s\n" % pycompat.byterepr(ignore))

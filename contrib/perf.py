@@ -1945,13 +1945,18 @@ def perfignore(ui, repo, **opts):
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
     dirstate = repo.dirstate
+    # check the class to avoid computing the matcher
+    if safehasattr(type(dirstate), b'ignore_matcher'):
+        ignore_attr = b'ignore_matcher'
+    else:
+        ignore_attr = b'_ignore'  # before the rename to `ignore_matcher`
 
     def setupone():
         dirstate.invalidate()
-        clearfilecache(dirstate, b'_ignore')
+        clearfilecache(dirstate, ignore_attr)
 
     def runone():
-        dirstate._ignore
+        getattr(dirstate, _sysstr(ignore_attr))
 
     timer(runone, setup=setupone, title=b"load")
     fm.end()

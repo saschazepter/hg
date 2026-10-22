@@ -191,7 +191,9 @@ def _checkunknownfiles(
                 fileconflicts.add(f)
 
         allconflicts = fileconflicts | pathconflicts
-        ignoredconflicts = {c for c in allconflicts if repo.dirstate._ignore(c)}
+        ignoredconflicts = {
+            c for c in allconflicts if repo.dirstate.ignore_matcher(c)
+        }
         unknownconflicts = allconflicts - ignoredconflicts
         collectconflicts(ignoredconflicts, ignoredconfig)
         collectconflicts(unknownconflicts, unknownconfig)
@@ -203,7 +205,7 @@ def _checkunknownfiles(
             different = _checkunknownfile(
                 dirstate, wvfs, dircache, wctx, mctx, f
             )
-            if repo.dirstate._ignore(f):
+            if repo.dirstate.ignore_matcher(f):
                 config = ignoredconfig
             else:
                 config = unknownconfig

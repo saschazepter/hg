@@ -185,17 +185,17 @@ class IDirstate(Protocol):
     version: DirstateVersion
     """The on-disk format used by this dirstate."""
 
+    # TODO: decorate with `@rootcache(b'.hgignore')` like dirstate class?
+    @property
+    def ignore_matcher(self) -> matcher.IMatcher:
+        """Matcher for ignored files."""
+
     # TODO: all these private methods and attributes should be made
     # public or removed from the interface.
 
     @property  # really @util.propertycache
     def _map(self) -> NeedsTypeHint:
         pass
-
-    # TODO: decorate with `@rootcache(b'.hgignore')` like dirstate class?
-    @property
-    def _ignore(self) -> matcher.IMatcher:
-        """Matcher for ignored files."""
 
     @property
     @abc.abstractmethod

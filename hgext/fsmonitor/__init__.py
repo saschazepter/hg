@@ -315,7 +315,7 @@ def overridewalk(orig, self, match, subrepos, unknown, ignored, full=True):
         clock = b'c:0:0'
         notefiles = []
 
-    ignore = self._ignore
+    ignore = self.ignore_matcher
     dirignore = self._dirignore
     if unknown:
         if _hashignore(ignore) != ignorehash and clock != b'c:0:0':
@@ -705,7 +705,7 @@ class poststatus:
 
     def __call__(self, wctx, status):
         clock = wctx.repo()._fsmonitorstate.getlastclock() or self._startclock
-        hashignore = _hashignore(wctx.repo().dirstate._ignore)
+        hashignore = _hashignore(wctx.repo().dirstate.ignore_matcher)
         notefiles = (
             status.modified
             + status.added

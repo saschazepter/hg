@@ -502,8 +502,8 @@ class dirstate(intdirstate.IDirstate):
         return self._map.hastrackeddir(d)
 
     @rootcache(b'.hgignore')
-    @util.rust_tracing_span("dirstate._ignore")
-    def _ignore(self) -> MatcherT:
+    @util.rust_tracing_span("dirstate.ignore_matcher")
+    def ignore_matcher(self) -> MatcherT:
         files = self._ignorefiles()
         if not files:
             return matchmod.never()
@@ -717,7 +717,7 @@ class dirstate(intdirstate.IDirstate):
         rereads the dirstate. Use localrepo.invalidatedirstate() if you want to
         check whether the dirstate has changed before rereading it."""
 
-        for a in ("_map", "_branch", "_ignore"):
+        for a in ("_map", "_branch", "ignore_matcher"):
             if a in self.__dict__:
                 delattr(self, a)
         self._dirty = False
@@ -1198,10 +1198,10 @@ class dirstate(intdirstate.IDirstate):
         f.write(b"1\n%s\n" % key)  # 1 is the format version
 
     def _dirignore(self, f):
-        if self._ignore(f):
+        if self.ignore_matcher(f):
             return True
         for p in pathutil.finddirs(f):
-            if self._ignore(p):
+            if self.ignore_matcher(p):
                 return True
         return False
 
@@ -1400,7 +1400,7 @@ class dirstate(intdirstate.IDirstate):
             ignore = util.never
             dirignore = util.never
         elif unknown:
-            ignore = self._ignore
+            ignore = self.ignore_matcher
             dirignore = self._dirignore
         else:
             # if not unknown and not ignored, drop dir recursion and step 2
