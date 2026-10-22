@@ -2460,6 +2460,7 @@ class IRepo(Protocol):
         clean: bool = False,
         unknown: bool = False,
         listsubrepos: bool = False,
+        empty_dirs_keep_files: bool = False,
     ) -> istatus.Status:
         """Convenience method to call repo[x].status()."""
 
