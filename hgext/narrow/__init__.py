@@ -203,7 +203,8 @@ The current (experimental!) format is the following::
         relative to the repo root.
     * ``read-write-access`` (optional): A list of opaque identifiers for who
         can read and write this shard. **Not enforced by Mercurial**, see
-        below.
+        below. If absent, the access is unspecified, An empty list means
+        nobody has access.
 
   * <profileconfig>:
 

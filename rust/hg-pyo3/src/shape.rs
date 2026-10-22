@@ -89,7 +89,7 @@ fn patterns_to_python(
 
 type PyNarrowPatterns = (Vec<Py<PyBytes>>, Vec<Py<PyBytes>>);
 /// (shard_id, read_write_access)
-type PyShardPermissions = (Vec<u8>, Vec<Py<PyBytes>>);
+type PyShardPermissions = (Vec<u8>, Option<Vec<Py<PyBytes>>>);
 
 /// A fingerprint as expected by Python: a dict of the keyword arguments for
 /// its type
@@ -185,10 +185,12 @@ impl PyStoreShards {
             .list_shards()
             .into_iter()
             .map(|(shard_id, read_write_access)| {
-                let read_write_access = read_write_access
-                    .iter()
-                    .map(|v| PyBytes::new(py, v.as_bytes()).unbind())
-                    .collect();
+                let read_write_access = read_write_access.map(|values| {
+                    values
+                        .iter()
+                        .map(|v| PyBytes::new(py, v.as_bytes()).unbind())
+                        .collect()
+                });
                 (shard_id.to_text_bytes(), read_write_access)
             })
             .collect()

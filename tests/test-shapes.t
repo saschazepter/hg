@@ -39,6 +39,7 @@ Setup the server shapes config
   > [[shards]]
   > name = "secrets"
   > paths = ["secret"]
+  > read-write-access = []
   > [[shards]]
   > name = "other-secret-files"
   > paths = ["foo/bar/other-secret"]
@@ -100,16 +101,14 @@ shards. It is listed for external systems, it is not enforced by Mercurial.
   $ hg admin::narrow-server --store-shards
   shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d
   shard00-4f0f284964a6b479f7a0063eb01b7aff9127d27c2b0a8724899ff3333fbba667
-  shard00-6edbd548038d51c90e4d3167524c82c2dff501ae3b39ab574fe26cd618a49db0
+  shard00-6edbd548038d51c90e4d3167524c82c2dff501ae3b39ab574fe26cd618a49db0 read-write-access=
   shard00-c491fc7f4780d490a8156c3888e591101acc71f30f6a0481a2e1b44b5e69ccb6 read-write-access=foo-team,security
   $ hg admin::narrow-server --store-shards -Tjson
   [
    {
-    "read_write_access": [],
     "shard_id": "shard00-1967bfea8e642011110b7717d5a68acdca46ee3db5ed65928601023d0c60cb1d"
    },
    {
-    "read_write_access": [],
     "shard_id": "shard00-4f0f284964a6b479f7a0063eb01b7aff9127d27c2b0a8724899ff3333fbba667"
    },
    {

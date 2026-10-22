@@ -298,12 +298,16 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
             for shard_id, read_write_access in shards:
                 fm.startitem()
                 fm.write(b"shard_id", b"%s", shard_id)
-                fm.condwrite(
-                    bool(read_write_access),
-                    b"read_write_access",
-                    b" read-write-access=%s",
-                    fm.formatlist(read_write_access, name=b"value", sep=b","),
-                )
+                if read_write_access is not None:
+                    fm.write(
+                        b"read_write_access",
+                        b" read-write-access=%s",
+                        fm.formatlist(
+                            read_write_access,
+                            name=b"value",
+                            sep=b",",
+                        ),
+                    )
                 fm.plain(b"\n")
             return
         elif subcommand == "shape_patterns":
