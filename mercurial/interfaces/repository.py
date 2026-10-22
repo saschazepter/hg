@@ -38,6 +38,7 @@ if typing.TYPE_CHECKING:
         RevsetAliasesT,
         UiT as Ui,
         VfsT as Vfs,
+        WorkingVfsT as WorkingVfs,
     )
 
     from . import (
@@ -1981,7 +1982,7 @@ class IRepo(Protocol):
     vfs_map: Mapping[bytes, Vfs]
     """a bytes-key → vfs mapping used by transaction and others"""
 
-    wvfs: Vfs
+    wvfs: WorkingVfs
     """VFS used to access the working directory."""
 
     vfs: Vfs

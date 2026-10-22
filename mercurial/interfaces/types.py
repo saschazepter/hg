@@ -33,6 +33,7 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     UserMsgT,
     VfsKeyT,
     VfsT,
+    WorkingVfsT,
 )
 
 from . import (

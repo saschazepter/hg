@@ -125,6 +125,7 @@ if typing.TYPE_CHECKING:
         TransactionT,
         UiT,
         VfsT,
+        WorkingVfsT,
     )
 
     _C = TypeVar('_C', bound=Callable)
@@ -877,7 +878,7 @@ def _thin_repo_hook(
     baseui: UiT,
     ui: UiT,
     origroot: HgPathT,
-    wdirvfs: VfsT,
+    wdirvfs: WorkingVfsT,
     hgvfs: VfsT,
     requirements: set[bytes],
     supportedrequirements: set[bytes],
@@ -1128,7 +1129,7 @@ class localrepository(_localrepo_base_classes):
         baseui,
         ui,
         origroot: bytes,
-        wdirvfs: VfsT,
+        wdirvfs: WorkingVfsT,
         hgvfs: VfsT,
         requirements,
         supportedrequirements,

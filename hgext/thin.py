@@ -19,6 +19,7 @@ from mercurial.interfaces.types import (
     StatusT,
     UiT,
     VfsT,
+    WorkingVfsT,
 )
 
 from mercurial.node import (
@@ -84,7 +85,7 @@ class ThinRepo:
         baseui,
         ui,
         origroot: bytes,
-        wdirvfs: VfsT,
+        wdirvfs: WorkingVfsT,
         hgvfs: VfsT,
         requirements,
         supportedrequirements,
@@ -717,7 +718,7 @@ def wrap_thin_repo_hook(
     baseui: UiT,
     ui: UiT,
     origroot: HgPathT,
-    wdirvfs: VfsT,
+    wdirvfs: WorkingVfsT,
     hgvfs: VfsT,
     requirements: set[bytes],
     supportedrequirements: set[bytes],
