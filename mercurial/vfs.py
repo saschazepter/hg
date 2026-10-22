@@ -1262,21 +1262,57 @@ class readonlyvfs(proxyvfs):
     def __init__(self, vfs: vfs) -> None:
         proxyvfs.__init__(self, vfs)
 
-    # TODO: type the return with the IVfs.__call__ overloads
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[False] = ...,
+            **kwargs,
+        ) -> BinaryIO:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[True],
+            **kwargs,
+        ) -> i_vfs.IAtomicTempFile:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: bool,
+            **kwargs,
+        ) -> BinaryIO | i_vfs.IAtomicTempFile:
+            ...
+
     def __call__(
         self,
         path: HgPathT,
         mode: bytes = b'rb',
-        *args,
+        atomictemp: bool = False,
         **kw,
-    ) -> Any:
+    ) -> BinaryIO | i_vfs.IAtomicTempFile:
         """Open ``path`` file, which is relative to vfs root.
 
         Only read modes are accepted.
         """
         if mode not in (b'r', b'rb'):
             raise error.Abort(_(b'this vfs is read only'))
-        return self.vfs(path, mode, *args, **kw)
+        # forward `atomictemp` explicitly so that the type checker can pick
+        # the right overload
+        return self.vfs(path, mode, atomictemp=atomictemp, **kw)
 
     def join(self, path: HgPathT | None, *insidef: HgPathT) -> FsPathT:
         """return the file system path for ``path`` (joined with ``insidef``)
