@@ -40,7 +40,11 @@ from . import (
 from .interfaces import vfs as i_vfs
 
 if typing.TYPE_CHECKING:
-    from .interfaces.types import UiT
+    from .interfaces.types import (
+        FsPathT,
+        HgPathT,
+        UiT,
+    )
 
     _Tbackgroundfilecloser = TypeVar(
         '_Tbackgroundfilecloser', bound='backgroundfilecloser'
@@ -89,14 +93,14 @@ class abstractvfs(i_vfs.IVfs):
 
     # Used to disable the Rust `InnerRevlog` in case the VFS is not supported
     # by the Rust code
-    rust_compatible = True
+    rust_compatible: bool = True
 
     # createmode is always available on subclasses
-    createmode: int
+    createmode: int | None
 
     _chmod: bool
 
-    base: bytes
+    base: FsPathT
 
     # Expose the read_write vs read_only status.
     #
@@ -112,20 +116,65 @@ class abstractvfs(i_vfs.IVfs):
     # This can probably be removed in the future when Rust no longer needs it.
     filter_name: str | None = None
 
-    # TODO: type return, which is util.posixfile wrapped by a proxy
+    # TODO: type the return with the IVfs.__call__ overloads
     @abc.abstractmethod
-    def __call__(self, path: bytes, mode: bytes = b'rb', **kwargs) -> Any:
-        ...
+    def __call__(
+        self,
+        path: HgPathT,
+        mode: bytes = b'rb',
+        **kwargs,
+    ) -> Any:
+        """Open ``path`` file, which is relative to vfs root.
+
+        With ``atomictemp=True``, the file is written atomically, see
+        IAtomicTempFile.
+
+        By default, parent directories are created as needed. Newly created
+        directories are marked as "not to be indexed by the content indexing
+        service", if ``notindexed`` is specified for "write" mode access.
+        Set ``makeparentdirs=False`` to not create directories implicitly.
+
+        If ``backgroundclose`` is passed, the file may be closed asynchronously.
+        It can only be used if the ``self.backgroundclosing()`` context manager
+        is active. This should only be specified if the following criteria hold:
+
+        1. There is a potential for writing thousands of files. Unless you
+           are writing thousands of files, the performance benefits of
+           asynchronously closing files is not realized.
+        2. Files are opened exactly once for the ``backgroundclosing``
+           active duration and are therefore free of race conditions between
+           closing a file on a background thread and reopening it. (If the
+           file were opened multiple times, there could be unflushed data
+           because the original file handle hasn't been flushed/closed yet.)
+
+        ``checkambig`` argument is passed to atomictempfile (valid
+        only for writing), and is useful only if target file is
+        guarded by any lock (e.g. repo.lock or repo.wlock).
+
+        To avoid file stat ambiguity forcibly, checkambig=True involves
+        copying ``path`` file opened in "append" mode (e.g. for
+        truncation), if it is owned by another. Therefore, use
+        combination of append mode and checkambig=True only in limited
+        cases (see also issue5418 and issue5584 for detail).
+        """
 
     @abc.abstractmethod
     def _auditpath(self, path: bytes, mode: bytes) -> None:
         ...
 
     @abc.abstractmethod
-    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
-        ...
+    def join(self, path: HgPathT | None, *insidef: HgPathT) -> FsPathT:
+        """return the file system path for ``path`` (joined with ``insidef``)
 
-    def tryread(self, path: bytes, mmap_threshold=None, size=None) -> bytes:
+        The vfs "base" is returned if ``path`` is empty.
+        """
+
+    def tryread(
+        self,
+        path: HgPathT,
+        mmap_threshold: int | None = None,
+        size: int | None = None,
+    ) -> bytes:
         '''gracefully return an empty string for missing files'''
         try:
             return self.read(path, mmap_threshold, size)
@@ -133,8 +182,8 @@ class abstractvfs(i_vfs.IVfs):
             pass
         return b""
 
-    def tryreadlines(self, path: bytes, mode: bytes = b'rb') -> list[bytes]:
-        '''gracefully return an empty array for missing files'''
+    def tryreadlines(self, path: HgPathT, mode: bytes = b'rb') -> list[bytes]:
+        '''gracefully return an empty list for missing files'''
         try:
             return self.readlines(path, mode=mode)
         except FileNotFoundError:
@@ -151,8 +200,8 @@ class abstractvfs(i_vfs.IVfs):
         """
         return self.__call__
 
-    def wopen(self, path, **kwargs) -> BinaryIO:
-        """Open ``path` file, relative to vfs root for writing
+    def wopen(self, path: HgPathT, **kwargs) -> BinaryIO:
+        """Open ``path`` file, relative to vfs root for writing
 
         If the file is missing, create it.
         """
@@ -161,7 +210,20 @@ class abstractvfs(i_vfs.IVfs):
         except FileNotFoundError:
             return self(path, mode=b"w+", **kwargs)
 
-    def read(self, path: bytes, mmap_threshold=None, size=None) -> bytes:
+    def read(
+        self,
+        path: HgPathT,
+        mmap_threshold: int | None = None,
+        size: int | None = None,
+    ) -> bytes:
+        """return the content of the ``path`` file
+
+        If ``size`` is set, read at most that many bytes.
+
+        If the file is at least ``mmap_threshold`` bytes long (and mmap is safe
+        for it), return a buffer over a memory map of the file instead of
+        reading it.
+        """
         with self(path, b'rb') as fp:
             if mmap_threshold is not None:
                 file_size = self.fstat(fp).st_size
@@ -180,61 +242,100 @@ class abstractvfs(i_vfs.IVfs):
             else:
                 return fp.read(size)
 
-    def readlines(self, path: bytes, mode: bytes = b'rb') -> list[bytes]:
+    def readlines(self, path: HgPathT, mode: bytes = b'rb') -> list[bytes]:
+        """return the content of the ``path`` file as a list of lines
+
+        The lines keep their end-of-line characters.
+        """
         with self(path, mode=mode) as fp:
             return fp.readlines()
 
     def write(
-        self, path: bytes, data: bytes, backgroundclose: bool = False, **kwargs
+        self,
+        path: HgPathT,
+        data: bytes,
+        backgroundclose: bool = False,
+        **kwargs,
     ) -> int:
+        """replace the content of the ``path`` file with ``data``
+
+        Return the number of bytes written.
+
+        ``backgroundclose`` and the other keyword arguments are passed to
+        ``__call__``.
+        """
         with self(path, b'wb', backgroundclose=backgroundclose, **kwargs) as fp:
             return fp.write(data)
 
     def writelines(
         self,
-        path: bytes,
+        path: HgPathT,
         data: Iterable[bytes],
         mode: bytes = b'wb',
         notindexed: bool = False,
     ) -> None:
+        """write the ``data`` lines into the ``path`` file
+
+        No end-of-line characters are added. The file is overwritten unless
+        another ``mode`` is specified (e.g. ``b'ab'`` to append).
+        """
         with self(path, mode=mode, notindexed=notindexed) as fp:
             return fp.writelines(data)
 
-    def append(self, path: bytes, data: bytes) -> int:
+    def append(self, path: HgPathT, data: bytes) -> int:
+        """add ``data`` at the end of the ``path`` file
+
+        The file is created if missing. Return the number of bytes written.
+        """
         with self(path, b'ab') as fp:
             return fp.write(data)
 
-    def basename(self, path: bytes) -> bytes:
+    def basename(self, path: HgPathT) -> HgPathT:
         """return base element of a path (as os.path.basename would do)
 
         This exists to allow handling of strange encoding if needed."""
         return os.path.basename(path)
 
-    def chmod(self, path: bytes, mode: int) -> None:
+    def chmod(self, path: HgPathT, mode: int) -> None:
+        """change the permissions of the ``path`` file (as os.chmod would do)"""
         return os.chmod(self.join(path), mode)
 
-    def dirname(self, path: bytes) -> bytes:
+    def dirname(self, path: HgPathT) -> HgPathT:
         """return dirname element of a path (as os.path.dirname would do)
 
         This exists to allow handling of strange encoding if needed."""
         return os.path.dirname(path)
 
-    def exists(self, path: bytes | None = None) -> bool:
+    def exists(self, path: HgPathT | None = None) -> bool:
+        """True if ``path`` (or the vfs base) exists
+
+        Symlinks are followed (as os.path.exists would do).
+        """
         return os.path.exists(self.join(path))
 
     def fstat(self, fp: BinaryIO) -> os.stat_result:
+        """stat an open file object, even one without a ``fileno`` method"""
         return util.fstat(fp)
 
-    def isdir(self, path: bytes | None = None) -> bool:
+    def isdir(self, path: HgPathT | None = None) -> bool:
+        """True if ``path`` (or the vfs base) is a directory
+
+        Symlinks are followed (as os.path.isdir would do).
+        """
         return os.path.isdir(self.join(path))
 
-    def isfile(self, path: bytes | None = None) -> bool:
+    def isfile(self, path: HgPathT | None = None) -> bool:
+        """True if ``path`` (or the vfs base) is a regular file
+
+        Symlinks are followed (as os.path.isfile would do).
+        """
         return os.path.isfile(self.join(path))
 
-    def islink(self, path: bytes | None = None) -> bool:
+    def islink(self, path: HgPathT | None = None) -> bool:
+        """True if ``path`` (or the vfs base) is a symlink"""
         return os.path.islink(self.join(path))
 
-    def isfileorlink(self, path: bytes | None = None) -> bool:
+    def isfileorlink(self, path: HgPathT | None = None) -> bool:
         """return whether path is a regular file or a symlink
 
         Unlike isfile, this doesn't follow symlinks."""
@@ -255,33 +356,41 @@ class abstractvfs(i_vfs.IVfs):
         paths = [p for p in paths if p]
         return self._dir_sep.join(paths)
 
-    def reljoin(self, *paths: bytes) -> bytes:
+    def reljoin(self, *paths: HgPathT) -> HgPathT:
         """join various elements of a path together (as os.path.join would do)
 
-        The vfs base is not injected so that path stay relative. This exists
+        The vfs base is not injected so that paths stay relative. This exists
         to allow handling of strange encoding if needed."""
         return self._join(*paths)
 
-    def split(self, path: bytes) -> tuple[bytes, bytes]:
+    def split(self, path: HgPathT) -> tuple[HgPathT, HgPathT]:
         """split top-most element of a path (as os.path.split would do)
 
         This exists to allow handling of strange encoding if needed."""
         return os.path.split(path)
 
-    def lexists(self, path: bytes | None = None) -> bool:
+    def lexists(self, path: HgPathT | None = None) -> bool:
+        """True if ``path`` (or the vfs base) exists
+
+        Symlinks are not followed, so a broken symlink exists (as
+        os.path.lexists would do).
+        """
         return os.path.lexists(self.join(path))
 
-    def lstat(self, path: bytes | None = None) -> os.stat_result:
+    def lstat(self, path: HgPathT | None = None) -> os.stat_result:
+        """return the stat of ``path`` (or the vfs base)
+
+        Symlinks are not followed (as os.lstat would do).
+        """
         return os.lstat(self.join(path))
 
-    def is_mmap_safe(self, path: bytes | None = None) -> bool:
+    def is_mmap_safe(self, path: HgPathT | None = None) -> bool:
         """return True if it is safe to read a file content as mmap
 
-        This focus on the file system aspect of such safety, the application
-        logic around that file is not taken into account, so caller need to
+        This focuses on the file system aspect of such safety, the application
+        logic around that file is not taken into account, so callers need to
         make sure the file won't be truncated in a way that will create SIGBUS
         on access.
-
 
         The initial motivation for this logic is that if mmap is used on NFS
         and somebody deletes the mapped file (e.g. by renaming on top of it),
@@ -294,8 +403,8 @@ class abstractvfs(i_vfs.IVfs):
         just as any other error.
 
         Note that python standard library does not offer the necessary function
-        to detect the file stem bits. So this detection rely on compiled bits
-        and is not available in pure python.
+        to detect the file system bits. So this detection relies on compiled
+        bits and is not available in pure python.
         """
         # XXX Since we already assume a vfs to address a consistent file system
         # in other location, we could determine the fstype once for the root
@@ -303,29 +412,63 @@ class abstractvfs(i_vfs.IVfs):
         fstype = util.getfstype(self.join(path))
         return fstype is not None and fstype != b'nfs'
 
-    def listdir(self, path: bytes | None = None) -> list[bytes]:
+    def listdir(self, path: HgPathT | None = None) -> list[bytes]:
+        """return the names of the entries in the ``path`` directory
+
+        When ``path`` is None, the vfs "base" is used.
+
+        This behaves as os.listdir would."""
         return os.listdir(self.join(path))
 
-    def makedir(self, path: bytes | None = None, notindexed=True) -> None:
+    def makedir(
+        self,
+        path: HgPathT | None = None,
+        notindexed: bool = True,
+    ) -> None:
+        """create the ``path`` directory (its parent must exist)
+
+        If ``notindexed`` is set, the directory is marked as "not to be indexed
+        by the content indexing service" (on platforms supporting it).
+        """
         return util.makedir(self.join(path), notindexed)
 
     def makedirs(
-        self, path: bytes | None = None, mode: int | None = None
+        self,
+        path: HgPathT | None = None,
+        mode: int | None = None,
     ) -> None:
+        """create the ``path`` directory and any missing parent directory
+
+        Does nothing if the directory already exists.
+
+        If ``mode`` is set, it is applied to the ``path`` directory.
+        """
         return util.makedirs(self.join(path), mode)
 
-    def makelock(self, info: bytes, path: bytes) -> None:
+    def makelock(self, info: bytes, path: HgPathT) -> None:
+        """atomically create the ``path`` lock file holding ``info``
+
+        The lock is a symlink pointing to ``info`` if possible, a regular file
+        containing it otherwise. Fails if ``path`` already exists.
+        """
         return util.makelock(info, self.join(path))
 
-    def mkdir(self, path: bytes | None = None) -> None:
+    def mkdir(self, path: HgPathT | None = None) -> None:
+        """create the ``path`` directory (as os.mkdir would do)"""
         return os.mkdir(self.join(path))
 
     def mkstemp(
         self,
         suffix: bytes = b'',
         prefix: bytes = b'tmp',
-        dir: bytes | None = None,
-    ) -> tuple[int, bytes]:
+        dir: HgPathT | None = None,
+    ) -> tuple[int, HgPathT]:
+        """create a new temporary file in the ``dir`` directory (or the vfs
+        base), as tempfile.mkstemp would do
+
+        Return ``(fd, path)`` where ``fd`` is an open file descriptor for the
+        file and ``path`` its path relative to the vfs base.
+        """
         fd, name = pycompat.mkstemp(
             suffix=suffix, prefix=prefix, dir=self.join(dir)
         )
@@ -340,7 +483,7 @@ class abstractvfs(i_vfs.IVfs):
         @overload
         def readdir(
             self,
-            path: bytes | None = None,
+            path: HgPathT | None = None,
             stat: Literal[False] = ...,
             skip: bytes | None = None,
         ) -> list[tuple[bytes, int]]:
@@ -349,7 +492,7 @@ class abstractvfs(i_vfs.IVfs):
         @overload
         def readdir(
             self,
-            path: bytes | None = None,
+            path: HgPathT | None = None,
             stat: Literal[True] = ...,
             skip: bytes | None = None,
         ) -> list[tuple[bytes, int, os.stat_result]]:
@@ -359,17 +502,32 @@ class abstractvfs(i_vfs.IVfs):
     # `os.stat_result` attributes.
     def readdir(
         self,
-        path: bytes | None = None,
+        path: HgPathT | None = None,
         stat: bool = False,
         skip: bytes | None = None,
     ) -> list[tuple[bytes, int]] | list[tuple[bytes, int, os.stat_result]]:
+        """return a sorted list of (name, kind) for the entries of the
+        ``path`` directory (or the vfs base)
+
+        ``kind`` is the file type, as a ``stat.S_IF*`` constant. If ``stat``
+        is True, (name, kind, stat) tuples are returned instead.
+
+        If the directory contains a ``skip`` sub-directory, an empty list is
+        returned.
+        """
         return util.listdir(self.join(path), stat, skip)
 
-    def readlock(self, path: bytes) -> bytes:
+    def readlock(self, path: HgPathT) -> bytes:
+        """return the ``info`` held by the ``path`` lock file (see makelock)"""
         return util.readlock(self.join(path))
 
-    def rename(self, src: bytes, dst: bytes, checkambig: bool = False) -> None:
-        """Rename from src to dst
+    def rename(
+        self,
+        src: HgPathT,
+        dst: HgPathT,
+        checkambig: bool = False,
+    ) -> None:
+        """rename the ``src`` file to ``dst``, replacing ``dst`` if it exists
 
         checkambig argument is used with util.filestat, and is useful
         only if destination file is guarded by any lock
@@ -390,20 +548,21 @@ class abstractvfs(i_vfs.IVfs):
         if oldstat and oldstat.stat:
             _avoidambig(dstpath, oldstat)
 
-    def readlink(self, path: bytes) -> bytes:
+    def readlink(self, path: HgPathT) -> FsPathT:
+        """return the target of the ``path`` symlink (as os.readlink would)"""
         return util.readlink(self.join(path))
 
-    def removedirs(self, path: bytes | None = None) -> None:
+    def removedirs(self, path: HgPathT | None = None) -> None:
         """Remove a leaf directory and all empty intermediate ones"""
         return util.removedirs(self.join(path))
 
-    def rmdir(self, path: bytes | None = None) -> None:
+    def rmdir(self, path: HgPathT | None = None) -> None:
         """Remove an empty directory."""
         return os.rmdir(self.join(path))
 
     def rmtree(
         self,
-        path: bytes | None = None,
+        path: HgPathT | None = None,
         ignore_errors: bool = False,
         forcibly: bool = False,
     ) -> None:
@@ -443,42 +602,66 @@ class abstractvfs(i_vfs.IVfs):
                 self.join(path), ignore_errors=ignore_errors, onerror=onexc
             )
 
-    def setflags(self, path: bytes, l: bool, x: bool) -> None:
+    def setflags(self, path: HgPathT, l: bool, x: bool) -> None:
+        """set the symlink (``l``) and executable (``x``) flags of ``path``
+
+        With ``l``, a regular file is turned into a symlink pointing to its
+        content. Without it, a symlink is turned back into a regular file and
+        the executable bit is set according to ``x``.
+        """
         return util.setflags(self.join(path), l, x)
 
-    def stat(self, path: bytes | None = None) -> os.stat_result:
+    def stat(self, path: HgPathT | None = None) -> os.stat_result:
+        """return the stat of ``path`` (or the vfs base)
+
+        Symlinks are followed (as os.stat would do).
+        """
         return os.stat(self.join(path))
 
-    def unlink(self, path: bytes | None = None) -> None:
+    def unlink(self, path: HgPathT | None = None) -> None:
+        """remove the ``path`` file (as os.unlink would do)"""
         return util.unlink(self.join(path))
 
-    def tryunlink(self, path: bytes | None = None) -> bool:
+    def tryunlink(self, path: HgPathT | None = None) -> bool:
         """Attempt to remove a file, ignoring missing file errors."""
         return util.tryunlink(self.join(path))
 
     def unlinkpath(
         self,
-        path: bytes | None = None,
+        path: HgPathT | None = None,
         ignoremissing: bool = False,
         rmdir: bool = True,
     ) -> None:
+        """remove the ``path`` file
+
+        With ``ignoremissing``, a missing file is not an error. With
+        ``rmdir``, the parent directories left empty are removed too.
+        """
         return util.unlinkpath(
             self.join(path), ignoremissing=ignoremissing, rmdir=rmdir
         )
 
     # TODO: could be Tuple[float, float] too.
     def utime(
-        self, path: bytes | None = None, t: tuple[int, int] | None = None
+        self,
+        path: HgPathT | None = None,
+        t: tuple[int, int] | None = None,
     ) -> None:
+        """set the access and modification times of ``path`` to ``t``
+
+        The current time is used if ``t`` is None (as os.utime would do).
+        """
         return os.utime(self.join(path), t)
 
     def walk(
-        self, path: bytes | None = None, onerror: _OnErrorFn | None = None
+        self,
+        path: HgPathT | None = None,
+        onerror: _OnErrorFn | None = None,
     ) -> Iterator[tuple[bytes, list[bytes], list[bytes]]]:
         """Yield (dirpath, dirs, files) tuple for each directory under path
 
         ``dirpath`` is relative one from the root of this vfs. This
-        uses ``os.sep`` as path separator, even you specify POSIX
+        uses ``os.sep`` as path separator, even if you specify POSIX
         style ``path``.
 
         "The root of this vfs" is represented as empty ``dirpath``.
@@ -492,7 +675,9 @@ class abstractvfs(i_vfs.IVfs):
 
     @contextlib.contextmanager
     def backgroundclosing(
-        self, ui: UiT, expectedcount: int = -1
+        self,
+        ui: UiT,
+        expectedcount: int = -1,
     ) -> Iterator[backgroundfilecloser | None]:
         """Allow files to be closed asynchronously.
 
@@ -523,12 +708,14 @@ class abstractvfs(i_vfs.IVfs):
                     None  # pytype: disable=attribute-error
                 )
 
-    def register_file(self, path: bytes) -> None:
+    def register_file(self, path: HgPathT) -> None:
         """generic hook point to lets fncache steer its stew"""
 
     def prepare_streamed_file(
-        self, path: bytes, known_directories: set[bytes]
-    ) -> tuple[bytes, int | None]:
+        self,
+        path: HgPathT,
+        known_directories: set[FsPathT],
+    ) -> tuple[FsPathT, int | None]:
         """make sure we are ready to write a file from a stream clone
 
         The "known_directories" variable is here to avoid trying to create the
@@ -565,7 +752,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
     """
 
     audit: pathutil.PathAuditT
-    base: bytes
+    base: FsPathT
     createmode: int | None
     options: dict[bytes, Any]
     _audit: bool
@@ -573,7 +760,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
 
     def __init__(
         self,
-        base: bytes,
+        base: FsPathT,
         audit: bool = True,
         cacheaudited: bool = False,
         expandpath: bool = False,
@@ -618,7 +805,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
     def isfileorlink_checkdir(
         self,
         dircache: MutableMapping[bytes, bool],
-        path: bytes,
+        path: HgPathT,
     ) -> bool:
         """return True if the path is a regular file or a symlink and
         the directories along the path are "normal", that is
@@ -644,7 +831,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
 
     def __call__(
         self,
-        path: bytes,
+        path: HgPathT,
         mode: bytes = b"rb",
         atomictemp: bool = False,
         notindexed: bool = False,
@@ -653,8 +840,11 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
         auditpath: bool = True,
         makeparentdirs: bool = True,
         buffering: int = -1,
-    ) -> Any:  # TODO: should be BinaryIO if util.atomictempfile can be coersed
+    ) -> Any:  # TODO: type the return with the IVfs.__call__ overloads
         """Open ``path`` file, which is relative to vfs root.
+
+        With ``atomictemp=True``, the file is written atomically, see
+        IAtomicTempFile.
 
         By default, parent directories are created as needed. Newly created
         directories are marked as "not to be indexed by the content indexing
@@ -759,7 +949,12 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
 
         return fp
 
-    def symlink(self, src: bytes, dst: bytes) -> None:
+    def symlink(self, src: FsPathT, dst: HgPathT) -> None:
+        """create a ``dst`` symlink pointing to ``src``
+
+        If the file system does not support symlinks, ``dst`` is written as a
+        regular file containing ``src``.
+        """
         self.audit(dst)
         linkname = self.join(dst)
         util.tryunlink(linkname)
@@ -779,7 +974,11 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
         else:
             self.write(dst, src)
 
-    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
+    def join(self, path: HgPathT | None, *insidef: HgPathT) -> FsPathT:
+        """return the file system path for ``path`` (joined with ``insidef``)
+
+        The vfs "base" is returned if ``path`` is empty.
+        """
         if path:
             parts = [self.base, path]
             parts.extend(insidef)
@@ -868,11 +1067,48 @@ class filtervfs(proxyvfs, abstractvfs):
             name = _NAME_BY_FILTER[filter]
         self.filter_name = name
 
-    # TODO: The return type should be BinaryIO
-    def __call__(self, path: bytes, *args, **kwargs) -> Any:
+    # TODO: type the return with the IVfs.__call__ overloads
+    def __call__(self, path: HgPathT, *args, **kwargs) -> Any:
+        """Open ``path`` file, which is relative to vfs root.
+
+        With ``atomictemp=True``, the file is written atomically, see
+        IAtomicTempFile.
+
+        By default, parent directories are created as needed. Newly created
+        directories are marked as "not to be indexed by the content indexing
+        service", if ``notindexed`` is specified for "write" mode access.
+        Set ``makeparentdirs=False`` to not create directories implicitly.
+
+        If ``backgroundclose`` is passed, the file may be closed asynchronously.
+        It can only be used if the ``self.backgroundclosing()`` context manager
+        is active. This should only be specified if the following criteria hold:
+
+        1. There is a potential for writing thousands of files. Unless you
+           are writing thousands of files, the performance benefits of
+           asynchronously closing files is not realized.
+        2. Files are opened exactly once for the ``backgroundclosing``
+           active duration and are therefore free of race conditions between
+           closing a file on a background thread and reopening it. (If the
+           file were opened multiple times, there could be unflushed data
+           because the original file handle hasn't been flushed/closed yet.)
+
+        ``checkambig`` argument is passed to atomictempfile (valid
+        only for writing), and is useful only if target file is
+        guarded by any lock (e.g. repo.lock or repo.wlock).
+
+        To avoid file stat ambiguity forcibly, checkambig=True involves
+        copying ``path`` file opened in "append" mode (e.g. for
+        truncation), if it is owned by another. Therefore, use
+        combination of append mode and checkambig=True only in limited
+        cases (see also issue5418 and issue5584 for detail).
+        """
         return self.vfs(self._filter(path), *args, **kwargs)
 
-    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
+    def join(self, path: HgPathT | None, *insidef: HgPathT) -> FsPathT:
+        """return the file system path for ``path`` (joined with ``insidef``)
+
+        The vfs "base" is returned if ``path`` is empty.
+        """
         if path:
             return self.vfs.join(self._filter(self.vfs.reljoin(path, *insidef)))
         else:
@@ -890,13 +1126,27 @@ class readonlyvfs(proxyvfs):
     def __init__(self, vfs: vfs) -> None:
         proxyvfs.__init__(self, vfs)
 
-    # TODO: The return type should be BinaryIO
-    def __call__(self, path: bytes, mode: bytes = b'rb', *args, **kw) -> Any:
+    # TODO: type the return with the IVfs.__call__ overloads
+    def __call__(
+        self,
+        path: HgPathT,
+        mode: bytes = b'rb',
+        *args,
+        **kw,
+    ) -> Any:
+        """Open ``path`` file, which is relative to vfs root.
+
+        Only read modes are accepted.
+        """
         if mode not in (b'r', b'rb'):
             raise error.Abort(_(b'this vfs is read only'))
         return self.vfs(path, mode, *args, **kw)
 
-    def join(self, path: bytes | None, *insidef: bytes) -> bytes:
+    def join(self, path: HgPathT | None, *insidef: HgPathT) -> FsPathT:
+        """return the file system path for ``path`` (joined with ``insidef``)
+
+        The vfs "base" is returned if ``path`` is empty.
+        """
         return self.vfs.join(path, *insidef)
 
 
