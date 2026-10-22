@@ -40,6 +40,54 @@ class IBackgroundFileCloser(Protocol):
         """Schedule a file for closing."""
 
 
+class IAtomicTempFile(Protocol):
+    """writable file object that atomically updates a file
+
+    Compared to BinaryIO, IAtomicTempFile adds discard() and drops most of the
+    file API.
+    """
+
+    @abc.abstractmethod
+    def read(self, size: int = -1) -> bytes:
+        ...
+
+    @abc.abstractmethod
+    def write(self, data: bytes) -> int:
+        ...
+
+    @abc.abstractmethod
+    def writelines(self, lines: Iterable[bytes]) -> None:
+        ...
+
+    @abc.abstractmethod
+    def seek(self, offset: int, whence: int = 0) -> int:
+        ...
+
+    @abc.abstractmethod
+    def tell(self) -> int:
+        ...
+
+    @abc.abstractmethod
+    def fileno(self) -> int:
+        ...
+
+    @abc.abstractmethod
+    def close(self) -> None:
+        """close the file and make its new content visible"""
+
+    @abc.abstractmethod
+    def discard(self) -> None:
+        """close the file and drop the changes"""
+
+    @abc.abstractmethod
+    def __enter__(self) -> IAtomicTempFile:
+        ...
+
+    @abc.abstractmethod
+    def __exit__(self, exc_type, exc_value, exc_tb) -> None:
+        ...
+
+
 class IVfs(Protocol):
     """Operate on files relative to a base directory"""
 
@@ -64,10 +112,52 @@ class IVfs(Protocol):
     rust_compatible: bool
     """False if this vfs cannot be used by the Rust code."""
 
-    # TODO: type return, which is util.posixfile wrapped by a proxy
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[False] = ...,
+            **kwargs,
+        ) -> BinaryIO:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[True],
+            **kwargs,
+        ) -> IAtomicTempFile:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: bool,
+            **kwargs,
+        ) -> BinaryIO | IAtomicTempFile:
+            ...
+
     @abc.abstractmethod
-    def __call__(self, path: HgPathT, mode: bytes = b'rb', **kwargs) -> Any:
+    def __call__(
+        self,
+        path: HgPathT,
+        mode: bytes = b'rb',
+        **kwargs,
+    ) -> BinaryIO | IAtomicTempFile:
         """Open ``path`` file, which is relative to vfs root.
+
+        With ``atomictemp=True``, the file is written atomically, see
+        IAtomicTempFile.
 
         By default, parent directories are created as needed. Newly created
         directories are marked as "not to be indexed by the content indexing
