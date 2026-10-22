@@ -35,6 +35,7 @@ from . import (
     pycompat,
     util,
 )
+from .interfaces import vfs as i_vfs
 
 if typing.TYPE_CHECKING:
     from .interfaces.types import UiT
@@ -73,7 +74,7 @@ def _avoidambig(path: bytes, oldstat: util.filestat) -> None:
         checkandavoid()
 
 
-class abstractvfs(abc.ABC):
+class abstractvfs(i_vfs.IVfs):
     """Abstract base class; cannot be instantiated"""
 
     # default directory separator for vfs

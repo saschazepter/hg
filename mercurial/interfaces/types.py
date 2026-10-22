@@ -32,7 +32,6 @@ from ._basetypes import (  # noqa: F401 (ignore imported but not used)
     UiT,
     UserMsgT,
     VfsKeyT,
-    VfsT,
     WorkingVfsT,
 )
 
@@ -47,6 +46,7 @@ from . import (
     status,
     transaction,
     ui as uimod,
+    vfs,
 )
 
 ChangeContextT = context.IChangeContext
@@ -91,6 +91,8 @@ SubrepoT = misc.ISubRepo
 TransactionT = transaction.ITransaction
 
 UnbundlePartT = bundle.IUnbundlePart
+
+VfsT = vfs.IVfs
 
 WorkingCommitContextT = context.IWorkingCommitContext
 WorkingContextT = context.IWorkingContext
