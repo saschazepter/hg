@@ -870,6 +870,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
             self,
             path: HgPathT,
             mode: bytes = ...,
+            *,
             atomictemp: Literal[False] = ...,
             notindexed: bool = ...,
             backgroundclose: bool = ...,
@@ -916,6 +917,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
         self,
         path: HgPathT,
         mode: bytes = b"rb",
+        *,
         atomictemp: bool = False,
         notindexed: bool = False,
         backgroundclose: bool = False,
@@ -1195,6 +1197,7 @@ class filtervfs(proxyvfs, abstractvfs):
         self,
         path: HgPathT,
         mode: bytes = b'rb',
+        *,
         atomictemp: bool = False,
         **kwargs,
     ) -> BinaryIO | i_vfs.IAtomicTempFile:
@@ -1301,6 +1304,7 @@ class readonlyvfs(proxyvfs):
         self,
         path: HgPathT,
         mode: bytes = b'rb',
+        *,
         atomictemp: bool = False,
         **kw,
     ) -> BinaryIO | i_vfs.IAtomicTempFile:
