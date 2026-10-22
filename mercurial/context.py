@@ -1799,11 +1799,11 @@ class workingctx(committablectx, i_context.IWorkingContext):
     def add(self, list, prefix: bytes = b""):
         with self._repo.wlock():
             ui, ds = self._repo.ui, self._repo.dirstate
-            uipath = lambda f: ds.pathto(pathutil.join(prefix, f))
+            uipath = lambda f: self._repo.pathto(pathutil.join(prefix, f))
             rejected = []
             lstat = self._repo.wvfs.lstat
             for f in list:
-                # ds.pathto() returns an absolute file when this is invoked from
+                # pathto() returns an absolute file when this is invoked from
                 # the keyword extension.  That gets flagged as non-portable on
                 # Windows, since it contains the drive letter and colon.
                 scmutil.checkportable(ui, os.path.join(prefix, f))
@@ -1840,7 +1840,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
     def forget(self, files: Iterable[bytes], prefix: bytes = b""):
         with self._repo.wlock():
             ds = self._repo.dirstate
-            uipath = lambda f: ds.pathto(pathutil.join(prefix, f))
+            uipath = lambda f: self._repo.pathto(pathutil.join(prefix, f))
             rejected = []
             for f in files:
                 if not ds.set_untracked(f):
@@ -1853,13 +1853,13 @@ class workingctx(committablectx, i_context.IWorkingContext):
             st = self._repo.wvfs.lstat(dest)
         except FileNotFoundError:
             self._repo.ui.warn(
-                _(b"%s does not exist!\n") % self._repo.dirstate.pathto(dest)
+                _(b"%s does not exist!\n") % self._repo.pathto(dest)
             )
             return
         if not (stat.S_ISREG(st.st_mode) or stat.S_ISLNK(st.st_mode)):
             self._repo.ui.warn(
                 _(b"copy failed: %s is not a file or a symbolic link\n")
-                % self._repo.dirstate.pathto(dest)
+                % self._repo.pathto(dest)
             )
         else:
             with self._repo.wlock():
@@ -2171,7 +2171,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
                 # so 'f not in ctx1' is not enough
                 if f not in other and not other.hasdir(f):
                     self._repo.ui.warn(
-                        b'%s: %s\n' % (self._repo.dirstate.pathto(f), msg)
+                        b'%s: %s\n' % (self._repo.pathto(f), msg)
                     )
 
             match.bad = bad
