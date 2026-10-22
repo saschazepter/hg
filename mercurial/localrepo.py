@@ -3597,12 +3597,13 @@ class localrepository(_localrepo_base_classes):
         )
 
     def savecommitmessage(self, text):
-        fp = self.vfs(b'last-message.txt', b'wb')
+        path = self.vfs.join(b'last-message.txt')
+        fp = self.vfs(path, b'wb')
         try:
             fp.write(text)
         finally:
             fp.close()
-        return self.pathto(fp.name[len(self.root) + 1 :])
+        return self.pathto(path[len(self.root) + 1 :])
 
     def register_wanted_sidedata(self, category):
         if repository.REPO_FEATURE_SIDE_DATA not in self.features:
