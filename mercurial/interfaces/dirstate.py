@@ -411,13 +411,6 @@ class IDirstate(Protocol):
 
         """
 
-    def use_rust_status(
-        self,
-        subrepos: bool,
-    ) -> bool:
-        """True if the method status will be computed using rust code."""
-        return False
-
     @abc.abstractmethod
     def status(
         self,
