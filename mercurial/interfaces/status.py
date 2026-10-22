@@ -44,6 +44,12 @@ class Status(Protocol):
     clean: list[bytes]
     """The list of files that are not in any other state."""
 
+    empty_dirs: list[bytes] | None
+    """The list of empty directories found while walking the working directory.
+
+    Set to None when the data wasn't gathered.
+    """
+
     @abc.abstractmethod
     def __iter__(self) -> Iterator[list[bytes]]:
         """Iterates over each of the categories of file lists."""

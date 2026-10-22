@@ -24,6 +24,7 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    Optional,
 )
 
 from .i18n import _
@@ -125,7 +126,7 @@ class status(istatus.Status):
     unknown = attr.ib(default=attr.Factory(list), type=list[bytes])
     ignored = attr.ib(default=attr.Factory(list), type=list[bytes])
     clean = attr.ib(default=attr.Factory(list), type=list[bytes])
-    empty_dirs = attr.ib(default=attr.Factory(list), type=list[bytes])
+    empty_dirs = attr.ib(default=None, type=Optional[list[bytes]])
 
     def __iter__(self) -> Iterator[list[bytes]]:
         yield self.modified
