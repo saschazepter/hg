@@ -1651,7 +1651,7 @@ class dirstate(intdirstate.IDirstate):
         )
         return (lookup, status)
 
-    def use_rust_status(
+    def _use_rust_status(
         self,
         subrepos: bool,
     ) -> bool:
@@ -1707,7 +1707,7 @@ class dirstate(intdirstate.IDirstate):
             # In largefiles or readonly context
             mtime_boundary = None
 
-        if self.use_rust_status(subrepos):
+        if self._use_rust_status(subrepos):
             try:
                 res = self._rust_status(
                     match,
