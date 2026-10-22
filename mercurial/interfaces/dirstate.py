@@ -256,10 +256,6 @@ class IDirstate(Protocol):
         """
 
     @abc.abstractmethod
-    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
-        pass
-
-    @abc.abstractmethod
     def get_entry(self, path: bytes) -> IDirstateItem:
         """return a DirstateItem for the associated path"""
 

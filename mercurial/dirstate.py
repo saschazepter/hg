@@ -614,14 +614,6 @@ class dirstate(intdirstate.IDirstate):
             # we're outside the repo. return an absolute path.
             return cwd
 
-    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
-        if cwd is None:
-            cwd = self.getcwd()
-        path = util.pathto(self._root, cwd, f)
-        if self._slash:
-            return util.pconvert(path)
-        return path
-
     def get_entry(self, path: bytes) -> intdirstate.IDirstateItem:
         """return a DirstateItem for the associated path"""
         entry = self._map.get(path)

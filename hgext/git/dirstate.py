@@ -331,14 +331,6 @@ class gitdirstate(intdirstate.IDirstate):
         else:
             self.git.index.write()
 
-    def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
-        if cwd is None:
-            cwd = self.getcwd()
-        # TODO core dirstate does something about slashes here
-        assert isinstance(f, bytes)
-        r = util.pathto(self._root, cwd, f)
-        return r
-
     def matches(self, match: MatcherT) -> Iterable[bytes]:
         for x in self.git.index:
             p = pycompat.fsencode(x.path)
