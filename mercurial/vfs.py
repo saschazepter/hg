@@ -116,14 +116,48 @@ class abstractvfs(i_vfs.IVfs):
     # This can probably be removed in the future when Rust no longer needs it.
     filter_name: str | None = None
 
-    # TODO: type the return with the IVfs.__call__ overloads
+    if typing.TYPE_CHECKING:
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[False] = ...,
+            **kwargs,
+        ) -> BinaryIO:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: Literal[True],
+            **kwargs,
+        ) -> i_vfs.IAtomicTempFile:
+            ...
+
+        @overload
+        def __call__(
+            self,
+            path: HgPathT,
+            mode: bytes = ...,
+            *,
+            atomictemp: bool,
+            **kwargs,
+        ) -> BinaryIO | i_vfs.IAtomicTempFile:
+            ...
+
     @abc.abstractmethod
     def __call__(
         self,
         path: HgPathT,
         mode: bytes = b'rb',
         **kwargs,
-    ) -> Any:
+    ) -> BinaryIO | i_vfs.IAtomicTempFile:
         """Open ``path`` file, which is relative to vfs root.
 
         With ``atomictemp=True``, the file is written atomically, see
