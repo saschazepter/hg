@@ -29,6 +29,14 @@ from ._basetypes import (
 )
 
 
+class IBackgroundFileCloser(Protocol):
+    """Coordinates background closing of file handles on multiple threads."""
+
+    @abc.abstractmethod
+    def close(self, fh) -> None:
+        """Schedule a file for closing."""
+
+
 class IVfs(Protocol):
     """Operate on files relative to a base directory"""
 
@@ -465,14 +473,13 @@ class IVfs(Protocol):
         "The root of this vfs" is represented as empty ``dirpath``.
         """
 
-    # TODO: type the yielded value (a mercurial.vfs.backgroundfilecloser)
     @contextlib.contextmanager
     @abc.abstractmethod
     def backgroundclosing(
         self,
         ui: UiT,
         expectedcount: int = -1,
-    ) -> Iterator[NeedsTypeHint]:
+    ) -> Iterator[IBackgroundFileCloser | None]:
         """Allow files to be closed asynchronously.
 
         When this context manager is active, ``backgroundclose`` can be passed

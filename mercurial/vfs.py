@@ -925,7 +925,7 @@ class delayclosedfile(closewrapbase):
         self._closer.close(self._origfh)
 
 
-class backgroundfilecloser:
+class backgroundfilecloser(i_vfs.IBackgroundFileCloser):
     """Coordinates background closing of file handles on multiple threads."""
 
     def __init__(self, ui: UiT, expectedcount: int = -1) -> None:
