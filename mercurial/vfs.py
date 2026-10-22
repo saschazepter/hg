@@ -815,7 +815,8 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
         self.options = {}
 
     @util.propertycache
-    def _cansymlink(self) -> bool:
+    def has_link(self) -> bool:
+        """True if the filesystem under `base` supports symlinks."""
         return util.checklink(self.base)
 
     @util.propertycache
@@ -1053,7 +1054,7 @@ class vfs(abstractvfs, i_vfs.IWorkingVfs):
 
         util.makedirs(os.path.dirname(linkname), self.createmode)
 
-        if self._cansymlink:
+        if self.has_link:
             try:
                 os.symlink(src, linkname)
             except OSError as err:
