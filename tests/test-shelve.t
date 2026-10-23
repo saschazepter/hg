@@ -95,6 +95,7 @@ shelve has a help message
                             arguments)
    -I --include PATTERN [+] include names matching the given patterns
    -X --exclude PATTERN [+] exclude names matching the given patterns
+   -T --template TEMPLATE   display with template
       --mq                  operate on patch repository
   
   (some details hidden, use --verbose to show complete help)
@@ -219,6 +220,26 @@ ensure that our shelved changes exist
 
   $ hg shelve --list --addremove
   abort: options '--list' and '--addremove' may not be used together
+  [10]
+
+  $ hg shelve -l -T '{name}\n'
+  default-01
+  default
+  $ hg shelve -l -T '{name}: {description}\n' default
+  default: changes to: [mq]: second.patch
+  $ hg shelve -l -Tjson default
+  [
+   {
+    "date": [*, 0], (glob)
+    "description": "changes to: [mq]: second.patch",
+    "name": "default"
+   }
+  ]
+  $ hg shelve -l -p -T '{name}\n'
+  abort: cannot specify both --template and --patch
+  [10]
+  $ hg shelve -l --stat -Tjson
+  abort: cannot specify both --template and --stat
   [10]
 
 delete our older shelved change

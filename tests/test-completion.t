@@ -556,7 +556,7 @@ Show all commands + options
   script::merge: dry-run, message, logfile, date, user, tool, template
   script::revs: exists, count, style, template
   serve: accesslog, daemon, daemon-postexec, errorlog, port, address, prefix, name, web-conf, webdir-conf, pid-file, stdio, cmdserver, templates, style, ipv6, certificate, certificate-key, print-url, subrepos
-  shelve: addremove, unknown, cleanup, date, delete, edit, keep, list, message, name, patch, interactive, stat, include, exclude
+  shelve: addremove, unknown, cleanup, date, delete, edit, keep, list, message, name, patch, interactive, stat, include, exclude, template
   status: all, modified, added, removed, deleted, clean, unknown, ignored, no-status, terse, copies, print0, rev, from, to, change, include, exclude, subrepos, template
   summary: remote
   tag: force, local, rev, remove, edit, message, date, user

@@ -748,21 +748,25 @@ def listcmd(ui, repo, pats: Iterable[bytes], opts) -> None:
         width = ui.termwidth()
     namelabel = b'shelve.newest'
     ui.pager(b'shelve')
+    fm = ui.formatter(b'shelve', opts)
     shelf_dir = ShelfDir(repo)
     for mtime, name in shelf_dir.listshelves():
         if pats and name not in pats:
             continue
-        ui.write(name, label=namelabel)
+        fm.startitem()
+        fm.write(b'name', b'%s', name, label=namelabel)
         namelabel = b'shelve.name'
         if ui.quiet:
-            ui.write(b'\n')
+            fm.plain(b'\n')
             continue
-        ui.write(b' ' * (16 - len(name)))
+        fm.plain(b' ' * (16 - len(name)))
         used = 16
         date = dateutil.makedate(mtime)
+        fm.data(date=fm.formatdate(date))
         age = b'(%s)' % templatefilters.age(date, abbrev=True)
-        ui.write(age, label=b'shelve.age')
-        ui.write(b' ' * (12 - len(age)))
+        # We use `plain` since templates can get this with {date|age}.
+        fm.plain(age, label=b'shelve.age')
+        fm.plain(b' ' * (12 - len(age)))
         used += 12
         with shelf_dir.get(name).load_patch(repo) as fp:
             while True:
@@ -771,20 +775,22 @@ def listcmd(ui, repo, pats: Iterable[bytes], opts) -> None:
                     break
                 if not line.startswith(b'#'):
                     desc = line.rstrip()
+                    fm.data(description=desc)
                     if ui.formatted():
                         desc = stringutil.ellipsis(desc, width - used)
-                    ui.write(desc)
+                    fm.plain(desc)
                     break
-            ui.write(b'\n')
+            fm.plain(b'\n')
             if not (opts[b'patch'] or opts[b'stat']):
                 continue
             difflines = fp.readlines()
             if opts[b'patch']:
                 for chunk, label in patch.difflabel(iter, difflines):
-                    ui.write(chunk, label=label)
+                    fm.plain(chunk, label=label)
             if opts[b'stat']:
                 for chunk, label in patch.diffstatui(difflines, width=width):
-                    ui.write(chunk, label=label)
+                    fm.plain(chunk, label=label)
+    fm.end()
 
 
 def patchcmds(ui, repo, pats: Sequence[bytes], opts) -> None:

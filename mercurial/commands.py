@@ -6348,7 +6348,8 @@ def serve(ui, repo: RepoT | None, __dispatch__, **opts):
             ),
         ),
     ]
-    + cmdutil.walkopts,
+    + cmdutil.walkopts
+    + cmdutil.formatteropts,
     _(b'hg shelve [OPTION]... [FILE]...'),
     helpcategory=command.CATEGORY_WORKING_DIRECTORY,
 )
@@ -6398,6 +6399,7 @@ def shelve(ui, repo, *pats, **opts):
         (b'name', {b'create'}),
         (b'patch', {b'patch', b'list'}),
         (b'stat', {b'stat', b'list'}),
+        (b'template', {b'list'}),
     ]
 
     def checkopt(opt):
@@ -6412,6 +6414,9 @@ def shelve(ui, repo, *pats, **opts):
                         % (opt, i)
                     )
             return True
+
+    # TODO: Consider supporting these combinations, like hg log does.
+    cmdutil.check_incompatible_arguments(opts, b'template', [b'patch', b'stat'])
 
     if checkopt(b'cleanup'):
         if pats:
