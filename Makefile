@@ -357,6 +357,23 @@ pyoxidizer-macos-tests: pyoxidizer
 	rm -rf $(PYOX_DIR)/doc
 	cp -a doc $(PYOX_DIR)/doc
 
+.PHONY: setup-pytype
+setup-pytype: .hg/dev-tools/bin/pytype .hg/dev-tools/bin/importlab
+
+.hg/dev-tools/bin/pytype: contrib/setup-pytype.sh
+	./contrib/setup-pytype.sh
+
+# importlab is linked by the same script run that installs pytype
+.hg/dev-tools/bin/importlab: .hg/dev-tools/bin/pytype
+
+.PHONY: pytype
+pytype: .hg/dev-tools/bin/pytype
+	PATH="$(HGROOT)/.hg/dev-tools/bin:$$PATH" contrib/check-pytype.sh
+
+.PHONY: pytype-graph
+pytype-graph: .hg/dev-tools/bin/importlab
+	PATH="$(HGROOT)/.hg/dev-tools/bin:$$PATH" contrib/check-pytype.sh --import-graph
+
 .PHONY: pytype-docker
 pytype-docker:
 	contrib/docker/pytype/recipe.sh
