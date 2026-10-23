@@ -73,6 +73,14 @@ fi
 # eventually created problem)
 touch --no-create --date '2005-05-03 13:16:10' mercurial/__version__.py
 
+# pytype runs its checks through ninja, which strips the color escape codes
+# from their output unless it writes to a terminal. Since we pipe its output
+# through `ts`, it never does, so we force the colors when our own output
+# goes to a terminal.
+if [[ -t 1 ]]; then
+    export CLICOLOR_FORCE=1
+fi
+
 pytype --keep-going --jobs auto \
     doc/check-seclevel.py hgdemandimport hgext mercurial \
     contrib/import-checker.py \
