@@ -1811,7 +1811,10 @@ class dirstate(intdirstate.IDirstate):
                     elif t.mtime_likely_equal_to(timestamp.mtime_of(st)):
                         # We can't compute the current fs time, so we're in
                         # a readonly fs or a LFS context.
-                        cadd(fn)
+                        if t.expected_state_is_modified:
+                            madd(fn)
+                        else:
+                            cadd(fn)
                         continue
 
                     if reliable is None or not t.mtime_likely_equal_to(
@@ -1822,6 +1825,8 @@ class dirstate(intdirstate.IDirstate):
                         # the issues the user would face would be a lot worse
                         # and there is nothing we can really do.
                         ladd(fn)
+                    elif t.expected_state_is_modified:
+                        madd(fn)
                     elif listclean:
                         cadd(fn)
         status = scmutil.status(

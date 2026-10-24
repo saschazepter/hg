@@ -982,7 +982,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
         {
             self.push_outcome(Outcome::Modified, dirstate_node)?
         } else {
-            let mtime_looks_clean = if let Some(dirstate_mtime) =
+            let mtime_matches = if let Some(dirstate_mtime) =
                 entry.truncated_mtime()
             {
                 let fs_mtime = TruncatedTimestamp::for_mtime_of(&fs_metadata)
@@ -997,8 +997,10 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
                 // No mtime in the dirstate entry
                 false
             };
-            if !mtime_looks_clean {
+            if !mtime_matches {
                 self.push_outcome(Outcome::Unsure, dirstate_node)?
+            } else if entry.expected_state_is_modified() {
+                self.push_outcome(Outcome::Modified, dirstate_node)?
             } else if self.options.list_clean {
                 self.push_outcome(Outcome::Clean, dirstate_node)?
             }
