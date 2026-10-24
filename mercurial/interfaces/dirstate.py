@@ -58,6 +58,10 @@ if typing.TYPE_CHECKING:
     FlagFuncReturnT = Callable[[bytes], bytes]
     """The return type of dirstate.flagfunc()."""
 
+    ParentFileDataT = tuple[int, int, Optional["TimestampT"]]
+    """The ``(mode, size, mtime)`` of a file matching its parent content, as
+    passed to dirstate.update_file()."""
+
     StatusReturnT = tuple[list[HgPathT], istatus.Status, Optional["TimestampT"]]
     """The return type of dirstate.status()."""
 
@@ -381,6 +385,24 @@ class IDirstate(Protocol):
         changedfiles: Collection[HgPathT] | None = None,
     ) -> None:
         pass
+
+    @abc.abstractmethod
+    def update_file(
+        self,
+        filename: HgPathT,
+        wc_tracked: bool,
+        p1_tracked: bool,
+        p2_info: bool = False,
+        possibly_dirty: bool = False,
+        parentfiledata: ParentFileDataT | None = None,
+    ) -> None:
+        """update the information about a file in the dirstate
+
+        This is to be called when the dirstate parents change, to keep track of
+        the file situation regarding the working copy and its parents.
+
+        This must be called within a `changing_parents` context.
+        """
 
     @abc.abstractmethod
     def write(self, tr: TransactionT | None) -> None:

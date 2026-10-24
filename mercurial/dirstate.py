@@ -857,12 +857,12 @@ class dirstate(intdirstate.IDirstate):
     @requires_changing_parents
     def update_file(
         self,
-        filename: bytes,
-        wc_tracked,
-        p1_tracked,
+        filename: HgPathT,
+        wc_tracked: bool,
+        p1_tracked: bool,
         p2_info: bool = False,
         possibly_dirty: bool = False,
-        parentfiledata=None,
+        parentfiledata: intdirstate.ParentFileDataT | None = None,
     ) -> None:
         """update the information about a file in the dirstate
 
