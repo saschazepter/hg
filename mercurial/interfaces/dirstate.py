@@ -33,7 +33,9 @@ class DirstateVersion(enum.Enum):
 if typing.TYPE_CHECKING:
     from ._basetypes import (
         HgPathT,
+        LockT,
         NodeIdT,
+        UiT,
     )
 
     # Almost all mercurial modules are only imported in the type checking phase
@@ -156,6 +158,24 @@ class IDirstateItem(Protocol):
         """True if the file has been removed"""
 
 
+class IChangingContextRepo(Protocol):
+    """The part of a repository a dirstate changing context needs
+
+    We cannot use RepoT or it would create an import cycle and pytype would
+    stop typing one of the two files.
+    """
+
+    ui: UiT
+
+    @abc.abstractmethod
+    def currentwlock(self) -> LockT | None:
+        """Return the wlock if it's held or None."""
+
+    @abc.abstractmethod
+    def currenttransaction(self) -> TransactionT | None:
+        """Obtain the current transaction instance or None."""
+
+
 class IDirstate(Protocol):
     # TODO: convert these constructor args to fields?
     # def __init__(
@@ -201,7 +221,7 @@ class IDirstate(Protocol):
 
     @contextlib.contextmanager
     @abc.abstractmethod
-    def changing_parents(self, repo) -> Iterator:  # TODO: typehint this
+    def changing_parents(self, repo: IChangingContextRepo) -> Iterator[None]:
         """Context manager for handling dirstate parents.
 
         If an exception occurs in the scope of the context manager,

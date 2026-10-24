@@ -427,7 +427,10 @@ class gitdirstate(intdirstate.IDirstate):
         pass
 
     @contextlib.contextmanager
-    def changing_parents(self, repo):
+    def changing_parents(
+        self,
+        repo: intdirstate.IChangingContextRepo,
+    ) -> Iterator[None]:
         # TODO: track this maybe?
         yield
 

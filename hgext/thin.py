@@ -626,6 +626,9 @@ class LocalBackend:
 class _FakeRepo:
     """Awful hack to get to a minimal version faster"""
 
+    def __init__(self, ui):
+        self.ui = ui
+
     def currentwlock(self):
         return self  # anything but None
 
@@ -673,7 +676,7 @@ def create_thin_wc(ui, repo, root):
     )
 
     target_rev = repo[b'.']
-    with dirstate.changing_parents(_FakeRepo()):
+    with dirstate.changing_parents(_FakeRepo(ui)):
         for filename in target_rev:
             if sparsematchfn is None or sparsematchfn().matchfn(filename):
                 file_dir = wvfs.dirname(filename)

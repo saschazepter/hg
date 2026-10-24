@@ -365,7 +365,10 @@ class dirstate(intdirstate.IDirstate):
             self.write(tr)
 
     @contextlib.contextmanager
-    def changing_parents(self, repo):
+    def changing_parents(
+        self,
+        repo: intdirstate.IChangingContextRepo,
+    ) -> Iterator[None]:
         """Wrap a dirstate change related to a change of working copy parents
 
         This context scopes a series of dirstate modifications that match an
