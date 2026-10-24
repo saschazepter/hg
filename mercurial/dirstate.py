@@ -825,6 +825,16 @@ class dirstate(intdirstate.IDirstate):
         self._dirty = True
         self._map.set_possibly_dirty(filename)
 
+    @requires_changing_files_or_status
+    def drop_cache_info(self, filename: bytes) -> None:
+        """drop the mode, size and mtime cached for a tracked file
+
+        The next status call will have to check the content of the file, even
+        if its size changed.
+        """
+        self._dirty = True
+        self._map.drop_cache_info(filename)
+
     @requires_changing_parents
     def update_file_p1(
         self,

@@ -210,6 +210,11 @@ impl DirstateItem {
         Ok(())
     }
 
+    fn drop_cache_info(&self) -> PyResult<()> {
+        self.write()?.drop_cache_info();
+        Ok(())
+    }
+
     fn set_tracked(&self) -> PyResult<()> {
         self.write()?.set_tracked();
         Ok(())

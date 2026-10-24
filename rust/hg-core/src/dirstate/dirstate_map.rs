@@ -959,6 +959,25 @@ impl<'on_disk> DirstateMap<'on_disk> {
         Ok(())
     }
 
+    /// Drop the mode, size and mtime cached for a node in the dirstate.
+    ///
+    /// Returns an error if the path has no entry.
+    fn drop_cache_info(
+        &mut self,
+        filename: &HgPath,
+    ) -> Result<(), DirstateError> {
+        let node = self
+            .get_node_mut(filename, |_ancestor| {})?
+            .ok_or_else(|| DirstateError::path_not_found(filename))?;
+        let entry = node
+            .data
+            .as_entry_mut()
+            .ok_or_else(|| DirstateError::path_not_found(filename))?;
+        entry.drop_cache_info();
+        node.data = NodeData::Entry(*entry);
+        Ok(())
+    }
+
     /// Clears the cached mtime for the (potential) folder at `path`.
     pub(super) fn clear_cached_mtime(
         &mut self,
@@ -1317,6 +1336,13 @@ impl OwningDirstateMap {
             return Err(DirstateError::path_not_found(filename));
         }
         self.with_dmap_mut(|map| map.set_possibly_dirty(filename))
+    }
+
+    pub fn drop_cache_info(
+        &mut self,
+        filename: &HgPath,
+    ) -> Result<(), DirstateError> {
+        self.with_dmap_mut(|map| map.drop_cache_info(filename))
     }
 
     pub fn reset_state(

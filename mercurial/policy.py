@@ -83,7 +83,7 @@ _cextversions: dict[tuple[str, str], int] = {
     ('cext', 'bdiff'): 3,
     ('cext', 'mpatch'): 1,
     ('cext', 'osutil'): 5,
-    ('cext', 'parsers'): 21,
+    ('cext', 'parsers'): 22,
 }
 
 # map import request to other package or module

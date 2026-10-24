@@ -267,6 +267,17 @@ class DirstateItem(int_dirstate.IDirstateItem):
         self._mtime_s = None
         self._mtime_ns = None
 
+    def drop_cache_info(self):
+        """drop the mode, size and mtime cached for the file
+
+        The next status call will have to check its content, without being
+        able to rule out a modification from the size alone.
+        """
+        self._mode = None
+        self._size = None
+        self._mtime_s = None
+        self._mtime_ns = None
+
     def set_clean(self, mode, size, mtime):
         """mark a file as "clean" cancelling potential "possibly dirty call"
 

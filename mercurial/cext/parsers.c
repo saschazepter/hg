@@ -424,6 +424,18 @@ static PyObject *dirstate_item_set_possibly_dirty(dirstateItemObject *self)
 }
 
 /* See docstring of the python implementation for details */
+static PyObject *dirstate_item_drop_cache_info(dirstateItemObject *self)
+{
+	self->flags &=
+	    ~(dirstate_flag_has_meaningful_data | dirstate_flag_has_mtime);
+	self->mode = 0;
+	self->size = 0;
+	self->mtime_s = 0;
+	self->mtime_ns = 0;
+	Py_RETURN_NONE;
+}
+
+/* See docstring of the python implementation for details */
 static PyObject *dirstate_item_set_clean(dirstateItemObject *self,
                                          PyObject *args)
 {
@@ -497,6 +509,8 @@ static PyMethodDef dirstate_item_methods[] = {
      METH_VARARGS | METH_CLASS, "build a new DirstateItem object from V2 data"},
     {"set_possibly_dirty", (PyCFunction)dirstate_item_set_possibly_dirty,
      METH_NOARGS, "mark a file as \"possibly dirty\""},
+    {"drop_cache_info", (PyCFunction)dirstate_item_drop_cache_info, METH_NOARGS,
+     "drop the mode, size and mtime cached for the file"},
     {"set_clean", (PyCFunction)dirstate_item_set_clean, METH_VARARGS,
      "mark a file as \"clean\""},
     {"set_tracked", (PyCFunction)dirstate_item_set_tracked, METH_NOARGS,
@@ -1187,7 +1201,7 @@ void dirs_module_init(PyObject *mod);
 void manifest_module_init(PyObject *mod);
 void revlog_module_init(PyObject *mod);
 
-static const int version = 21;
+static const int version = 22;
 
 static void module_init(PyObject *mod)
 {

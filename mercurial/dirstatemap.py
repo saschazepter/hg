@@ -673,6 +673,12 @@ class dirstatemap(_dirstatemapcommon):
         entry.set_possibly_dirty()
         self._refresh_entry(filename, entry)
 
+    def drop_cache_info(self, filename):
+        """drop the mode, size and mtime cached for a file"""
+        entry = self[filename]
+        entry.drop_cache_info()
+        self._refresh_entry(filename, entry)
+
     def _refresh_entry(self, f, entry):
         """record updated state of an entry"""
         if not entry.any_tracked:
@@ -900,6 +906,9 @@ if rustmod is not None:
 
         def set_possibly_dirty(self, f):
             self._map.set_possibly_dirty(f)
+
+        def drop_cache_info(self, f):
+            self._map.drop_cache_info(f)
 
         def reset_state(
             self,

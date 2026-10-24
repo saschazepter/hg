@@ -191,6 +191,17 @@ impl DirstateMap {
         })
     }
 
+    fn drop_cache_info(
+        slf: &Bound<'_, Self>,
+        f: &Bound<'_, PyBytes>,
+    ) -> PyResult<()> {
+        Self::with_inner_write(slf, |_self_ref, mut inner| {
+            inner
+                .drop_cache_info(HgPath::new(f.as_bytes()))
+                .map_err(|e| dirstate_error(slf.py(), e))
+        })
+    }
+
     #[pyo3(signature = (f,
                         wc_tracked=false,
                         p1_tracked=false,

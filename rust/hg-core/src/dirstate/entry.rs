@@ -608,6 +608,15 @@ impl DirstateEntry {
         self.mtime = None
     }
 
+    /// Drop the mode, size and mtime cached for the file.
+    ///
+    /// The next status will have to check its content, without being able to
+    /// rule out a modification from the size alone.
+    pub fn drop_cache_info(&mut self) {
+        self.mode_size = None;
+        self.mtime = None;
+    }
+
     pub fn set_clean(
         &mut self,
         mode: u32,

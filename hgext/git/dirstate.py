@@ -364,6 +364,11 @@ class gitdirstate(intdirstate.IDirstate):
         # TODO: for now we just let libgit2 re-stat the file. We can
         # clearly do better.
 
+    def drop_cache_info(self, f):
+        """Drop the mode, size and mtime cached for a file."""
+        # TODO: for now we just let libgit2 re-stat the file. We can
+        # clearly do better.
+
     def walk(
         self,
         match: MatcherT,
