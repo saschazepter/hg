@@ -1088,3 +1088,171 @@ Copy source is not shown when --no-status is passed.
   $ hg st --config ui.statuscopies=true --no-status
   foo/bar/copy
   foo/bar/file
+
+Dirstate caching and status lookups
+===================================
+
+The dirstate caches the mode, size and mtime a clean file is expected to have,
+so that `hg status` can avoid comparing file contents (a "lookup"). The
+following sections check what gets cached after the various operations that
+touch the dirstate.
+
+Make `hg status` report the files it has to look up:
+
+  $ cd "$TESTTMP"
+  $ cat >> $HGRCPATH << EOF
+  > [devel]
+  > status.debug-lookup = yes
+  > EOF
+
+  $ hg init lookup-repo
+  $ cd lookup-repo
+  $ echo babar > babar
+  $ echo celeste > celeste
+  $ touch -t 200001010000 babar celeste
+  $ hg commit -Aqm 'initial'
+
+Modified file without expected size in the dirstate
+---------------------------------------------------
+
+Drop the file data recorded for both files, to get entries without any mode,
+size or mtime:
+
+  $ hg debug::dirstate-drop-cache-info babar celeste
+  $ hg debugdirstate --no-dates
+  n   0         -1 unset               babar
+  n   0         -1 unset               celeste
+
+Status has to look all files up. The clean file gets its information cached,
+but nothing is recorded for the modified one:
+
+  $ echo more >> celeste
+  $ hg status
+  lookup: babar
+  lookup: celeste
+  M celeste
+  $ hg debugdirstate --no-dates
+  n 644          6 set                 babar
+  n   0         -1 unset               celeste (known-bad-output !)
+  n 644          8 unset               celeste (missing-correct-output !)
+
+So the next status has to look it up again, even though its size differs from
+the one in the parent:
+
+  $ hg status
+  lookup: celeste (known-bad-output !)
+  M celeste
+
+When the size matches the one in the parent, the content has to be checked
+each time, as the dirstate does not record yet that a file with this mtime is
+modified:
+
+  $ echo CELESTE > celeste
+  $ hg status
+  lookup: celeste
+  M celeste
+  $ hg debugdirstate --no-dates
+  n 644          6 set                 babar
+  n   0         -1 unset               celeste (known-bad-output !)
+  n 644          8 unset               celeste (missing-correct-output !)
+  $ hg status
+  lookup: celeste
+  M celeste
+
+Restoring the parent content makes the file clean again:
+
+  $ echo celeste > celeste
+  $ touch -t 200001010000 celeste
+  $ hg status
+  lookup: celeste
+  $ hg debugdirstate --no-dates
+  n 644          6 set                 babar
+  n 644          8 set                 celeste
+
+#if execbit
+
+Modified executable file without expected size in the dirstate
+--------------------------------------------------------------
+
+Add an executable file and drop its cache information:
+
+  $ echo zephir > zephir
+  $ chmod +x zephir
+  $ hg commit -Aqm 'add zephir'
+  $ hg debug::dirstate-drop-cache-info zephir
+
+The modified file is looked up, nothing gets recorded for it, so the next
+status has to look it up again:
+
+  $ echo more >> zephir
+  $ hg status
+  lookup: zephir
+  M zephir
+  $ hg debugdirstate --no-dates | grep zephir
+  n   0         -1 unset               zephir (known-bad-output !)
+  n 755          7 unset               zephir (missing-correct-output !)
+  $ hg status
+  lookup: zephir (known-bad-output !)
+  M zephir
+
+With the same size as in the parent, the content has to be checked:
+
+  $ echo ZEPHIR > zephir
+  $ hg status
+  lookup: zephir
+  M zephir
+
+Restoring the parent content makes the file clean again, with its mode cached:
+
+  $ echo zephir > zephir
+  $ touch -t 200001010000 zephir
+  $ hg status
+  lookup: zephir
+  $ hg debugdirstate --no-dates | grep zephir
+  n 755          7 set                 zephir
+
+#endif
+
+#if symlink
+
+Modified symlink without expected size in the dirstate
+------------------------------------------------------
+
+Add a symlink and drop its cache information:
+
+  $ ln -s babar arthur
+  $ hg commit -Aqm 'add arthur'
+  $ hg debug::dirstate-drop-cache-info arthur
+
+The symlink pointing elsewhere is looked up, nothing gets recorded for it:
+
+  $ rm arthur
+  $ ln -s celeste arthur
+  $ hg status
+  lookup: arthur
+  M arthur
+  $ hg debugdirstate --no-dates | grep arthur
+  n   0         -1 unset               arthur (known-bad-output !)
+  n lnk          5 unset               arthur (missing-correct-output !)
+
+The size of a symlink is not trusted (see issue6456), so the content still has
+to be checked:
+
+  $ hg status
+  lookup: arthur
+  M arthur
+
+Restoring the parent target makes the symlink clean again:
+
+  $ rm arthur
+  $ ln -s babar arthur
+(make sure the status doesn't see an ambiguous mtime.)
+  $ sleep 1
+  $ hg status
+  lookup: arthur
+  $ hg debugdirstate --no-dates | grep arthur
+  n lnk          5 set                 arthur
+
+#endif
+
+  $ cd ..
