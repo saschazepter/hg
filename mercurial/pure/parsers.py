@@ -278,6 +278,12 @@ class DirstateItem(int_dirstate.IDirstateItem):
         self._mtime_s = None
         self._mtime_ns = None
 
+    def set_state(self, mode, size, mtime):
+        """record the expected mode, size and mtime of the file"""
+        self._mode = mode
+        self._size = size
+        self._mtime_s, self._mtime_ns, self._mtime_second_ambiguous = mtime
+
     def set_clean(self, mode, size, mtime):
         """mark a file as "clean" cancelling potential "possibly dirty call"
 
@@ -288,9 +294,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
         """
         self._wc_tracked = True
         self._p1_tracked = True
-        self._mode = mode
-        self._size = size
-        self._mtime_s, self._mtime_ns, self._mtime_second_ambiguous = mtime
+        self.set_state(mode, size, mtime)
 
     def set_tracked(self):
         """mark a file as tracked in the working copy

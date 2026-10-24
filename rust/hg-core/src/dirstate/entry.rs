@@ -617,16 +617,26 @@ impl DirstateEntry {
         self.mtime = None;
     }
 
-    pub fn set_clean(
+    /// Record the expected mode, size and mtime of the file.
+    pub fn set_state(
         &mut self,
         mode: u32,
         size: u32,
         mtime: TruncatedTimestamp,
     ) {
         let size = size & RANGE_MASK_31BIT;
-        self.flags.insert(Flags::WDIR_TRACKED | Flags::P1_TRACKED);
         self.mode_size = Some((mode, size));
         self.mtime = Some(mtime);
+    }
+
+    pub fn set_clean(
+        &mut self,
+        mode: u32,
+        size: u32,
+        mtime: TruncatedTimestamp,
+    ) {
+        self.flags.insert(Flags::WDIR_TRACKED | Flags::P1_TRACKED);
+        self.set_state(mode, size, mtime);
     }
 
     pub fn set_tracked(&mut self) {

@@ -195,6 +195,16 @@ impl DirstateItem {
         Ok(())
     }
 
+    fn set_state(
+        &self,
+        mode: u32,
+        size: u32,
+        mtime: (u32, u32, bool),
+    ) -> PyResult<()> {
+        self.write()?.set_state(mode, size, timestamp(mtime)?);
+        Ok(())
+    }
+
     fn set_clean(
         &self,
         mode: u32,
