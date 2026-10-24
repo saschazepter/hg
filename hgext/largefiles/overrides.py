@@ -1657,7 +1657,7 @@ def overridesummary(orig, ui, repo, *pats, **opts):
 @eh.wrapfunction(scmutil, 'addremove')
 def scmutiladdremove(
     orig,
-    repo,
+    repo: RepoT,
     matcher,
     prefix,
     uipathfn,
