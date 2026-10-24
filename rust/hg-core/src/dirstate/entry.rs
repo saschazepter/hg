@@ -38,6 +38,9 @@ bitflags! {
         const FALLBACK_EXEC = 1 << 4;
         const HAS_FALLBACK_SYMLINK = 1 << 5;
         const FALLBACK_SYMLINK = 1 << 6;
+        /// A file still matching the mode and size of its clean version and
+        /// the mtime seen on disk is modified, not clean
+        const EXPECTED_STATE_IS_MODIFIED = 1 << 7;
     }
 }
 
@@ -257,6 +260,9 @@ pub struct DirstateV2Data {
     pub mtime: Option<TruncatedTimestamp>,
     pub fallback_exec: Option<bool>,
     pub fallback_symlink: Option<bool>,
+    /// A file still matching `mode_size` (from its clean version) and `mtime`
+    /// (seen on disk) is modified, not clean
+    pub expected_state_is_modified: bool,
 }
 
 #[derive(Debug, Default, Copy, Clone)]
@@ -275,6 +281,7 @@ impl DirstateEntry {
             mtime,
             fallback_exec,
             fallback_symlink,
+            expected_state_is_modified,
         } = v2_data;
         if let Some((mode, size)) = mode_size {
             // TODO: return an error for out of range values?
@@ -285,6 +292,13 @@ impl DirstateEntry {
         flags.set(Flags::WDIR_TRACKED, wc_tracked);
         flags.set(Flags::P1_TRACKED, p1_tracked);
         flags.set(Flags::P2_INFO, p2_info);
+        // the flag only means something along a mode, size and mtime to match
+        flags.set(
+            Flags::EXPECTED_STATE_IS_MODIFIED,
+            expected_state_is_modified
+                && mode_size.is_some()
+                && mtime.is_some(),
+        );
         if let Some(exec) = fallback_exec {
             flags.insert(Flags::HAS_FALLBACK_EXEC);
             if exec {
@@ -453,7 +467,15 @@ impl DirstateEntry {
             mtime,
             fallback_exec: self.get_fallback_exec(),
             fallback_symlink: self.get_fallback_symlink(),
+            expected_state_is_modified: self.expected_state_is_modified(),
         }
+    }
+
+    /// Whether a file still matching the cached mode, size and mtime is
+    /// modified: the mode and size are then the ones of its clean version,
+    /// the mtime the one seen on disk when it was found modified.
+    pub fn expected_state_is_modified(&self) -> bool {
+        self.flags.contains(Flags::EXPECTED_STATE_IS_MODIFIED)
     }
 
     fn v1_state(&self) -> EntryState {
@@ -514,6 +536,9 @@ impl DirstateEntry {
         } else if self.flags.contains(Flags::P2_INFO) {
             MTIME_UNSET
         } else if !self.flags.contains(Flags::P1_TRACKED) {
+            MTIME_UNSET
+        } else if self.expected_state_is_modified() {
+            // v1 cannot record that a matching mtime means "modified"
             MTIME_UNSET
         } else if let Some(mtime) = self.mtime {
             if mtime.second_ambiguous {
@@ -598,13 +623,15 @@ impl DirstateEntry {
 
     pub fn drop_merge_data(&mut self) {
         if self.flags.contains(Flags::P2_INFO) {
-            self.flags.remove(Flags::P2_INFO);
+            self.flags
+                .remove(Flags::P2_INFO | Flags::EXPECTED_STATE_IS_MODIFIED);
             self.mode_size = None;
             self.mtime = None;
         }
     }
 
     pub fn set_possibly_dirty(&mut self) {
+        self.flags.remove(Flags::EXPECTED_STATE_IS_MODIFIED);
         self.mtime = None
     }
 
@@ -613,6 +640,7 @@ impl DirstateEntry {
     /// The next status will have to check its content, without being able to
     /// rule out a modification from the size alone.
     pub fn drop_cache_info(&mut self) {
+        self.flags.remove(Flags::EXPECTED_STATE_IS_MODIFIED);
         self.mode_size = None;
         self.mtime = None;
     }
@@ -633,6 +661,7 @@ impl DirstateEntry {
         let size = size & RANGE_MASK_31BIT;
         self.mode_size = Some((mode, size));
         self.mtime = if modified { None } else { mtime };
+        self.flags.remove(Flags::EXPECTED_STATE_IS_MODIFIED);
     }
 
     pub fn set_clean(
@@ -652,11 +681,13 @@ impl DirstateEntry {
         //
         // Consider dropping this in the future in favor of something less
         // broad.
+        self.flags.remove(Flags::EXPECTED_STATE_IS_MODIFIED);
         self.mtime = None;
     }
 
     pub fn set_untracked(&mut self) {
-        self.flags.remove(Flags::WDIR_TRACKED);
+        self.flags
+            .remove(Flags::WDIR_TRACKED | Flags::EXPECTED_STATE_IS_MODIFIED);
         self.mode_size = None;
         self.mtime = None;
     }

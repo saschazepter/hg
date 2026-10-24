@@ -519,6 +519,9 @@ impl Node {
             mtime,
             fallback_exec,
             fallback_symlink,
+            // the cached data of flagged entries is dropped above, so the
+            // item cannot carry the flag yet
+            expected_state_is_modified: false,
         }))
     }
 
@@ -565,12 +568,15 @@ impl Node {
             mtime: mtime_opt,
             fallback_exec,
             fallback_symlink,
+            expected_state_is_modified,
         } = entry.v2_data();
         // TODO: convert through raw flag bits instead?
         let mut flags = Flags::empty();
         flags.set(Flags::WDIR_TRACKED, wc_tracked);
         flags.set(Flags::P1_TRACKED, p1_tracked);
         flags.set(Flags::P2_INFO, p2_info);
+        flags
+            .set(Flags::EXPECTED_STATE_IS_MODIFIED, expected_state_is_modified);
         // Some platforms' libc don't have the same type (MacOS uses i32 here)
         #[allow(clippy::unnecessary_cast)]
         let size = if let Some((m, s)) = mode_size_opt {

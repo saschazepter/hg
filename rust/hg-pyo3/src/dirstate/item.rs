@@ -39,7 +39,8 @@ impl DirstateItem {
                         has_meaningful_mtime=true,
                         parentfiledata=None,
                         fallback_exec=None,
-                        fallback_symlink=None))]
+                        fallback_symlink=None,
+                        expected_state_is_modified=false))]
     fn new(
         wc_tracked: bool,
         p1_tracked: bool,
@@ -49,6 +50,7 @@ impl DirstateItem {
         parentfiledata: Option<(u32, u32, UncheckedTruncatedTimeStamp)>,
         fallback_exec: Option<bool>,
         fallback_symlink: Option<bool>,
+        expected_state_is_modified: bool,
     ) -> PyResult<Self> {
         let mut mode_size_opt = None;
         let mut mtime_opt = None;
@@ -69,9 +71,15 @@ impl DirstateItem {
                 mtime: mtime_opt,
                 fallback_exec,
                 fallback_symlink,
+                expected_state_is_modified,
             })
             .into(),
         })
+    }
+
+    #[getter]
+    fn expected_state_is_modified(&self) -> PyResult<bool> {
+        Ok(self.read()?.expected_state_is_modified())
     }
 
     #[getter]

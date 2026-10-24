@@ -120,6 +120,12 @@ class DirstateItem(int_dirstate.IDirstateItem):
     This value can be set to None if no cachable state exist. Either because we
     do not care (see previous section) or because we could not cache something
     yet.
+
+    # about what the cached mode, size and mtime mean:
+    - expected_state_is_modified: the cached mode and size are the ones of the
+      clean version of the file while the cached mtime is the one seen on disk
+      when the file was found modified. A file still matching them is modified,
+      so `status` can skip reading it.
     """
 
     _wc_tracked = attr.ib()
@@ -132,6 +138,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
     _fallback_exec = attr.ib()
     _fallback_symlink = attr.ib()
     _mtime_second_ambiguous = attr.ib()
+    _expected_state_is_modified = attr.ib()
 
     def __init__(
         self,
@@ -143,6 +150,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
         parentfiledata=None,
         fallback_exec=None,
         fallback_symlink=None,
+        expected_state_is_modified=False,
     ):
         self._wc_tracked = wc_tracked
         self._p1_tracked = p1_tracked
@@ -170,6 +178,12 @@ class DirstateItem(int_dirstate.IDirstateItem):
                 self._mtime_ns,
                 self._mtime_second_ambiguous,
             ) = parentfiledata[2]
+        # the flag only means something along a mode, size and mtime to match
+        self._expected_state_is_modified = bool(
+            expected_state_is_modified
+            and has_meaningful_data
+            and has_meaningful_mtime
+        )
 
     @classmethod
     def from_v2_data(cls, flags, size, mtime_s, mtime_ns):
@@ -266,6 +280,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
         """
         self._mtime_s = None
         self._mtime_ns = None
+        self._expected_state_is_modified = False
 
     def drop_cache_info(self):
         """drop the mode, size and mtime cached for the file
@@ -277,6 +292,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
         self._size = None
         self._mtime_s = None
         self._mtime_ns = None
+        self._expected_state_is_modified = False
 
     def set_state(self, mode, size, mtime, modified=False):
         """record the expected mode, size and mtime of the file
@@ -294,6 +310,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
             self._mtime_second_ambiguous = False
         else:
             self._mtime_s, self._mtime_ns, self._mtime_second_ambiguous = mtime
+        self._expected_state_is_modified = False
 
     def set_clean(self, mode, size, mtime):
         """mark a file as "clean" cancelling potential "possibly dirty call"
@@ -319,6 +336,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
         # Consider dropping this in the future in favor of something less broad.
         self._mtime_s = None
         self._mtime_ns = None
+        self._expected_state_is_modified = False
 
     def set_untracked(self):
         """mark a file as untracked in the working copy
@@ -330,6 +348,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
         self._size = None
         self._mtime_s = None
         self._mtime_ns = None
+        self._expected_state_is_modified = False
 
     def drop_merge_data(self):
         """remove all "merge-only" information from a DirstateItem
@@ -342,6 +361,7 @@ class DirstateItem(int_dirstate.IDirstateItem):
             self._size = None
             self._mtime_s = None
             self._mtime_ns = None
+            self._expected_state_is_modified = False
 
     @property
     def mode(self):
@@ -522,6 +542,16 @@ class DirstateItem(int_dirstate.IDirstateItem):
         """True if the file has been removed"""
         return not self._wc_tracked and (self._p1_tracked or self._p2_info)
 
+    @property
+    def expected_state_is_modified(self):
+        """True if a file still matching the cached mode, size and mtime is
+        modified
+
+        The cached mode and size are then the ones of the clean version of the
+        file, the cached mtime the one seen on disk when it was found modified.
+        """
+        return self._expected_state_is_modified
+
     def v2_data(self):
         """Returns (flags, mode, size, mtime) for v2 serialization"""
         flags = 0
@@ -541,6 +571,8 @@ class DirstateItem(int_dirstate.IDirstateItem):
             flags |= DIRSTATE_V2_HAS_MTIME
         if self._mtime_second_ambiguous:
             flags |= DIRSTATE_V2_MTIME_SECOND_AMBIGUOUS
+        if self._expected_state_is_modified:
+            flags |= DIRSTATE_V2_EXPECTED_STATE_IS_MODIFIED
 
         if self._fallback_exec is not None:
             flags |= DIRSTATE_V2_HAS_FALLBACK_EXEC
@@ -610,6 +642,9 @@ class DirstateItem(int_dirstate.IDirstateItem):
         elif not self._p1_tracked:
             return AMBIGUOUS_TIME
         elif self._mtime_second_ambiguous:
+            return AMBIGUOUS_TIME
+        elif self._expected_state_is_modified:
+            # v1 cannot record that a matching mtime means "modified"
             return AMBIGUOUS_TIME
         else:
             return self._mtime_s

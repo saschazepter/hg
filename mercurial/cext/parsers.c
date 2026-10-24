@@ -46,6 +46,7 @@ static PyObject *dirstate_item_new(PyTypeObject *subtype, PyObject *args,
 	int has_meaningful_data;
 	int has_meaningful_mtime;
 	int mtime_second_ambiguous;
+	int expected_state_is_modified;
 	int mode;
 	int size;
 	int mtime_s;
@@ -55,9 +56,16 @@ static PyObject *dirstate_item_new(PyTypeObject *subtype, PyObject *args,
 	PyObject *fallback_exec;
 	PyObject *fallback_symlink;
 	static char *keywords_name[] = {
-	    "wc_tracked",          "p1_tracked",           "p2_info",
-	    "has_meaningful_data", "has_meaningful_mtime", "parentfiledata",
-	    "fallback_exec",       "fallback_symlink",     NULL,
+	    "wc_tracked",
+	    "p1_tracked",
+	    "p2_info",
+	    "has_meaningful_data",
+	    "has_meaningful_mtime",
+	    "parentfiledata",
+	    "fallback_exec",
+	    "fallback_symlink",
+	    "expected_state_is_modified",
+	    NULL,
 	};
 	wc_tracked = 0;
 	p1_tracked = 0;
@@ -65,14 +73,15 @@ static PyObject *dirstate_item_new(PyTypeObject *subtype, PyObject *args,
 	has_meaningful_mtime = 1;
 	has_meaningful_data = 1;
 	mtime_second_ambiguous = 0;
+	expected_state_is_modified = 0;
 	parentfiledata = Py_None;
 	fallback_exec = Py_None;
 	fallback_symlink = Py_None;
-	if (!PyArg_ParseTupleAndKeywords(args, kwds, "|iiiiiOOO", keywords_name,
-	                                 &wc_tracked, &p1_tracked, &p2_info,
-	                                 &has_meaningful_data,
-	                                 &has_meaningful_mtime, &parentfiledata,
-	                                 &fallback_exec, &fallback_symlink)) {
+	if (!PyArg_ParseTupleAndKeywords(
+	        args, kwds, "|iiiiiOOOi", keywords_name, &wc_tracked,
+	        &p1_tracked, &p2_info, &has_meaningful_data,
+	        &has_meaningful_mtime, &parentfiledata, &fallback_exec,
+	        &fallback_symlink, &expected_state_is_modified)) {
 		return NULL;
 	}
 	t = (dirstateItemObject *)subtype->tp_alloc(subtype, 1);
@@ -139,6 +148,12 @@ static PyObject *dirstate_item_new(PyTypeObject *subtype, PyObject *args,
 	} else {
 		t->mtime_s = 0;
 		t->mtime_ns = 0;
+	}
+	/* the flag only means something along a mode, size and mtime to match
+	 */
+	if (expected_state_is_modified && has_meaningful_data &&
+	    has_meaningful_mtime) {
+		t->flags |= dirstate_flag_expected_state_is_modified;
 	}
 	return (PyObject *)t;
 }
@@ -254,7 +269,9 @@ static inline int dirstate_item_c_v1_mtime(dirstateItemObject *self)
 	           !(self->flags & dirstate_flag_p1_tracked) ||
 	           !(self->flags & dirstate_flag_wc_tracked) ||
 	           (self->flags & dirstate_flag_p2_info) ||
-	           (self->flags & dirstate_flag_mtime_second_ambiguous)) {
+	           (self->flags & dirstate_flag_mtime_second_ambiguous) ||
+	           /* v1 cannot record that a matching mtime means "modified" */
+	           (self->flags & dirstate_flag_expected_state_is_modified)) {
 		return ambiguous_time;
 	} else {
 		return self->mtime_s;
@@ -419,7 +436,8 @@ static PyObject *dirstate_item_from_v2_meth(PyTypeObject *subtype,
    to make sure it is correct. */
 static PyObject *dirstate_item_set_possibly_dirty(dirstateItemObject *self)
 {
-	self->flags &= ~dirstate_flag_has_mtime;
+	self->flags &= ~(dirstate_flag_has_mtime |
+	                 dirstate_flag_expected_state_is_modified);
 	Py_RETURN_NONE;
 }
 
@@ -427,7 +445,8 @@ static PyObject *dirstate_item_set_possibly_dirty(dirstateItemObject *self)
 static PyObject *dirstate_item_drop_cache_info(dirstateItemObject *self)
 {
 	self->flags &=
-	    ~(dirstate_flag_has_meaningful_data | dirstate_flag_has_mtime);
+	    ~(dirstate_flag_has_meaningful_data | dirstate_flag_has_mtime |
+	      dirstate_flag_expected_state_is_modified);
 	self->mode = 0;
 	self->size = 0;
 	self->mtime_s = 0;
@@ -455,6 +474,7 @@ static void dirstate_item_c_set_state(dirstateItemObject *self, int mode,
 			self->flags |= dirstate_flag_mtime_second_ambiguous;
 		}
 	}
+	self->flags &= ~dirstate_flag_expected_state_is_modified;
 	self->mode = mode;
 	self->size = size;
 	self->mtime_s = mtime_s;
@@ -503,7 +523,8 @@ static PyObject *dirstate_item_set_clean(dirstateItemObject *self,
 static PyObject *dirstate_item_set_tracked(dirstateItemObject *self)
 {
 	self->flags |= dirstate_flag_wc_tracked;
-	self->flags &= ~dirstate_flag_has_mtime;
+	self->flags &= ~(dirstate_flag_has_mtime |
+	                 dirstate_flag_expected_state_is_modified);
 	Py_RETURN_NONE;
 }
 
@@ -512,6 +533,7 @@ static PyObject *dirstate_item_set_untracked(dirstateItemObject *self)
 	self->flags &= ~dirstate_flag_wc_tracked;
 	self->flags &= ~dirstate_flag_has_meaningful_data;
 	self->flags &= ~dirstate_flag_has_mtime;
+	self->flags &= ~dirstate_flag_expected_state_is_modified;
 	self->mode = 0;
 	self->size = 0;
 	self->mtime_s = 0;
@@ -524,7 +546,8 @@ static PyObject *dirstate_item_drop_merge_data(dirstateItemObject *self)
 	if (self->flags & dirstate_flag_p2_info) {
 		self->flags &= ~(dirstate_flag_p2_info |
 		                 dirstate_flag_has_meaningful_data |
-		                 dirstate_flag_has_mtime);
+		                 dirstate_flag_has_mtime |
+		                 dirstate_flag_expected_state_is_modified);
 		self->mode = 0;
 		self->size = 0;
 		self->mtime_s = 0;
@@ -690,6 +713,16 @@ static PyObject *dirstate_item_get_p2_info(dirstateItemObject *self)
 	}
 }
 
+static PyObject *
+dirstate_item_get_expected_state_is_modified(dirstateItemObject *self)
+{
+	if (self->flags & dirstate_flag_expected_state_is_modified) {
+		Py_RETURN_TRUE;
+	} else {
+		Py_RETURN_FALSE;
+	}
+}
+
 static PyObject *dirstate_item_get_modified(dirstateItemObject *self)
 {
 	if (dirstate_item_c_modified(self)) {
@@ -757,6 +790,9 @@ static PyGetSetDef dirstate_item_getset[] = {
      NULL},
     {"added", (getter)dirstate_item_get_added, NULL, "added", NULL},
     {"p2_info", (getter)dirstate_item_get_p2_info, NULL, "p2_info", NULL},
+    {"expected_state_is_modified",
+     (getter)dirstate_item_get_expected_state_is_modified, NULL,
+     "expected_state_is_modified", NULL},
     {"modified", (getter)dirstate_item_get_modified, NULL, "modified", NULL},
     {"from_p2", (getter)dirstate_item_get_from_p2, NULL, "from_p2", NULL},
     {"maybe_clean", (getter)dirstate_item_get_maybe_clean, NULL, "maybe_clean",
