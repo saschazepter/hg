@@ -276,7 +276,7 @@ def recordfilter(ui, originalhunks, match, operation=None):
 
 def _record(
     ui,
-    repo,
+    repo: RepoT,
     message,
     match,
     opts,
