@@ -277,6 +277,12 @@ class IDirstate(Protocol):
         """
 
     @abc.abstractmethod
+    def invalidate_cwd(self) -> None:
+        """invalidate the cached read of the current working directory
+
+        The next `getcwd` call reads it again."""
+
+    @abc.abstractmethod
     def get_entry(self, path: bytes) -> IDirstateItem:
         """return a DirstateItem for the associated path"""
 

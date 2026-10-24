@@ -265,6 +265,10 @@ class gitdirstate(intdirstate.IDirstate):
             os.path.dirname(pycompat.fsencode(self.git.path))
         )
 
+    def invalidate_cwd(self) -> None:
+        # nothing is cached
+        pass
+
     def get_entry(self, path: bytes) -> intdirstate.IDirstateItem:
         """return a DirstateItem for the associated path"""
         entry = self._map.get(path)
