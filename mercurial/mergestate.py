@@ -5,6 +5,9 @@ import shutil
 import struct
 
 from .i18n import _
+from .interfaces.types import (
+    RepoT,
+)
 from .node import (
     bin,
     hex,
@@ -713,7 +716,7 @@ class memmergestate(_mergestate_base):
         fctx.write(self._backups[localkey], flags)
 
 
-def recordupdates(repo, actions, branchmerge, getfiledata):
+def recordupdates(repo: RepoT, actions, branchmerge, getfiledata):
     """record merge actions to the dirstate"""
     if repo.ui.configbool(b"devel", b"update.abort-on-dirstate-change"):
         raise error.Abort(b"simulated error while recording dirstate updates")
