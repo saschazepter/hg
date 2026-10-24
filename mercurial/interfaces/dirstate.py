@@ -33,7 +33,6 @@ class DirstateVersion(enum.Enum):
 if typing.TYPE_CHECKING:
     from ._basetypes import (
         HgPathT,
-        NeedsTypeHint,
         NodeIdT,
     )
 
@@ -184,13 +183,6 @@ class IDirstate(Protocol):
     @property
     def ignore_matcher(self) -> matcher.IMatcher:
         """Matcher for ignored files."""
-
-    # TODO: all these private methods and attributes should be made
-    # public or removed from the interface.
-
-    @property  # really @util.propertycache
-    def _map(self) -> NeedsTypeHint:
-        pass
 
     @property
     @abc.abstractmethod
