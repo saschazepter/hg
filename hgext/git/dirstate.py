@@ -350,6 +350,11 @@ class gitdirstate(intdirstate.IDirstate):
             if match(p):
                 yield p  # TODO: return list instead of yielding?
 
+    def set_state(self, f, parentfiledata, modified=False):
+        """Record the expected mode, size and mtime of a file."""
+        # TODO: for now we just let libgit2 re-stat the file. We can
+        # clearly do better.
+
     def set_clean(
         self,
         f: HgPathT,

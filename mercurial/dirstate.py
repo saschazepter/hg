@@ -807,6 +807,23 @@ class dirstate(intdirstate.IDirstate):
         return ret
 
     @requires_changing_files_or_status
+    def set_state(
+        self,
+        filename: bytes,
+        parentfiledata,
+        modified: bool = False,
+    ) -> None:
+        """record the expected mode, size and mtime of a tracked file
+
+        With `modified`, the mode and size are the ones of the clean version
+        of the file, and the mtime is not recorded: the next status call has
+        to check the content of a file still matching them.
+        """
+        self._dirty = True
+        (mode, size, mtime) = parentfiledata
+        self._map.set_state(filename, mode, size, mtime, modified)
+
+    @requires_changing_files_or_status
     def set_clean(
         self,
         filename: HgPathT,

@@ -180,6 +180,34 @@ impl DirstateMap {
         })
     }
 
+    fn set_state(
+        slf: &Bound<'_, Self>,
+        f: &Bound<'_, PyBytes>,
+        mode: u32,
+        size: u32,
+        mtime: (i64, u32, bool),
+        modified: bool,
+    ) -> PyResult<()> {
+        let (mtime_s, mtime_ns, second_ambiguous) = mtime;
+        let mtime = TruncatedTimestamp::new_truncate(
+            mtime_s,
+            mtime_ns,
+            second_ambiguous,
+        );
+
+        Self::with_inner_write(slf, |_self_ref, mut inner| {
+            inner
+                .set_state(
+                    HgPath::new(f.as_bytes()),
+                    mode,
+                    size,
+                    mtime,
+                    modified,
+                )
+                .map_err(|e| dirstate_error(slf.py(), e))
+        })
+    }
+
     fn set_possibly_dirty(
         slf: &Bound<'_, Self>,
         f: &Bound<'_, PyBytes>,

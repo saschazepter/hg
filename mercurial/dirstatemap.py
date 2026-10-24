@@ -659,6 +659,16 @@ class dirstatemap(_dirstatemapcommon):
             self._refresh_entry(f, entry)
             return True
 
+    def set_state(self, filename, mode, size, mtime, modified):
+        """record the expected mode and size of a file, and its mtime
+
+        See `DirstateItem.set_state` for details.
+        """
+        entry = self[filename]
+        size = size & rangemask
+        entry.set_state(mode, size, mtime, modified)
+        self._refresh_entry(filename, entry)
+
     def set_clean(self, filename, mode, size, mtime):
         """mark a file as back to a clean state"""
         entry = self[filename]
@@ -900,6 +910,9 @@ if rustmod is not None:
 
         def set_untracked(self, f):
             return self._map.set_untracked(f)
+
+        def set_state(self, filename, mode, size, mtime, modified):
+            self._map.set_state(filename, mode, size, mtime, modified)
 
         def set_clean(self, filename, mode, size, mtime):
             self._map.set_clean(filename, mode, size, mtime)

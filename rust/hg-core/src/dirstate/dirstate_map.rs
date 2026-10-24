@@ -941,6 +941,29 @@ impl<'on_disk> DirstateMap<'on_disk> {
         Ok(())
     }
 
+    /// Record the expected mode, size and mtime of a node in the dirstate.
+    ///
+    /// Returns an error if the path has no entry.
+    fn set_state(
+        &mut self,
+        filename: &HgPath,
+        mode: u32,
+        size: u32,
+        mtime: TruncatedTimestamp,
+        modified: bool,
+    ) -> Result<(), DirstateError> {
+        let node = self
+            .get_node_mut(filename, |_ancestor| {})?
+            .ok_or_else(|| DirstateError::path_not_found(filename))?;
+        let entry = node
+            .data
+            .as_entry_mut()
+            .ok_or_else(|| DirstateError::path_not_found(filename))?;
+        entry.set_state(mode, size, mtime, modified);
+        node.data = NodeData::Entry(*entry);
+        Ok(())
+    }
+
     /// Set a node as possibly dirty in the dirstate.
     ///
     /// # Panics
@@ -1325,6 +1348,19 @@ impl OwningDirstateMap {
         self.copy_map_remove(filename)?;
         self.with_dmap_mut(|map| {
             map.set_clean(filename, old_entry, mode, size, mtime)
+        })
+    }
+
+    pub fn set_state(
+        &mut self,
+        filename: &HgPath,
+        mode: u32,
+        size: u32,
+        mtime: TruncatedTimestamp,
+        modified: bool,
+    ) -> Result<(), DirstateError> {
+        self.with_dmap_mut(|map| {
+            map.set_state(filename, mode, size, mtime, modified)
         })
     }
 
