@@ -420,6 +420,22 @@ class IDirstate(Protocol):
         """
 
     @abc.abstractmethod
+    def set_tracked(
+        self,
+        filename: HgPathT,
+        reset_copy: bool = False,
+    ) -> bool:
+        """mark a file as tracked in the working copy
+
+        This is to be called outside of the update/merge cases, for example by
+        a command like `hg add X`, within a `changing_files` context.
+
+        If `reset_copy` is set, any existing copy information is dropped.
+
+        Return True if the file was previously untracked, False otherwise.
+        """
+
+    @abc.abstractmethod
     def set_untracked(self, filename: HgPathT) -> bool:
         """mark a file as untracked in the working copy
 

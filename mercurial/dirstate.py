@@ -763,7 +763,11 @@ class dirstate(intdirstate.IDirstate):
         return self._map.copymap
 
     @requires_changing_files
-    def set_tracked(self, filename, reset_copy=False):
+    def set_tracked(
+        self,
+        filename: HgPathT,
+        reset_copy: bool = False,
+    ) -> bool:
         """a "public" method for generic code to mark a file as tracked
 
         This function is to be called outside of "update/merge" case. For

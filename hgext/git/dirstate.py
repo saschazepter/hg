@@ -384,7 +384,11 @@ class gitdirstate(intdirstate.IDirstate):
             r[path] = s
         return r
 
-    def set_tracked(self, f, reset_copy=False):
+    def set_tracked(
+        self,
+        f: HgPathT,
+        reset_copy: bool = False,
+    ) -> bool:
         # TODO: support copies and reset_copy=True
         uf = pycompat.fsdecode(f)
         if uf in self.git.index:
