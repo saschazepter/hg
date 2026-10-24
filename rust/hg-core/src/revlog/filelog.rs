@@ -491,8 +491,8 @@ impl Filelog {
 pub enum FileCompOutcome {
     /// The file is actually clean
     Clean,
-    /// The file has been modified
-    Modified,
+    /// The file has been modified, with what the dirstate should expect
+    Modified(ExpectedFileState),
     /// The file was deleted on disk (or became another type of fs entry)
     Deleted,
 }
@@ -536,26 +536,31 @@ pub fn is_file_modified(
         entry.flags
     };
 
-    if entry_flags != fs_flags {
-        return Ok(FileCompOutcome::Modified);
-    }
     let filelog = Filelog::open_vfs(store_vfs, hg_path, revlog_open_options)?;
-    let fs_len = fs_metadata.len();
     let file_node = entry.node_id()?;
     let filelog_entry = filelog.entry_for_node(file_node)?;
+    let p1_rev = filelog_entry.0.revision();
+
+    if entry_flags != fs_flags {
+        let expected = filelog.expected_fs_state(p1_rev, entry.flags)?;
+        return Ok(FileCompOutcome::Modified(expected));
+    }
+    let fs_len = fs_metadata.len();
     if filelog_entry.file_data_len_not_equal_to(fs_len) {
         // No need to read file contents:
         // it cannot be equal if it has a different length.
-        return Ok(FileCompOutcome::Modified);
+        let expected = filelog.expected_fs_state(p1_rev, entry.flags)?;
+        return Ok(FileCompOutcome::Modified(expected));
     }
 
     let p1_filelog_data = filelog_entry.data()?;
     let p1_contents = p1_filelog_data.file_data()?;
     let p1_len = p1_contents.len();
+    let expected = ExpectedFileState::new(entry.flags, p1_len);
     if u_u64(p1_len) != fs_len {
         // No need to read file contents:
         // it cannot be equal if it has a different length.
-        return Ok(FileCompOutcome::Modified);
+        return Ok(FileCompOutcome::Modified(expected));
     }
 
     let fs_contents = if is_symlink {
@@ -565,7 +570,7 @@ pub fn is_file_modified(
     };
 
     Ok(if p1_contents != &*fs_contents {
-        FileCompOutcome::Modified
+        FileCompOutcome::Modified(expected)
     } else {
         FileCompOutcome::Clean
     })

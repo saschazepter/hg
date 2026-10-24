@@ -494,7 +494,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         }
                         fixup.push(status_path.path.into_owned())
                     }
-                    FileCompOutcome::Modified => {
+                    FileCompOutcome::Modified(_) => {
                         if display_states.modified {
                             ds_status.modified.push(status_path);
                         }
