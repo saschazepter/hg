@@ -1745,7 +1745,7 @@ class queue:
 
     def pop(
         self,
-        repo,
+        repo: RepoT,
         patch=None,
         force=False,
         update=True,
