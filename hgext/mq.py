@@ -69,6 +69,9 @@ import re
 import shutil
 import sys
 from mercurial.i18n import _
+from mercurial.interfaces.types import (
+    RepoT,
+)
 from mercurial.node import (
     bin,
     hex,
@@ -1026,7 +1029,7 @@ class queue:
 
     def _apply(
         self,
-        repo,
+        repo: RepoT,
         series,
         list=False,
         update_status=True,
