@@ -280,10 +280,6 @@ class gitdirstate(intdirstate.IDirstate):
     def _ignorefileandline(self, f: bytes) -> intdirstate.IgnoreFileAndLineT:
         raise NotImplementedError
 
-    @property
-    def _checklink(self) -> bool:
-        return util.checklink(os.path.dirname(pycompat.fsencode(self.git.path)))
-
     def invalidate(self) -> None:
         raise NotImplementedError
 
