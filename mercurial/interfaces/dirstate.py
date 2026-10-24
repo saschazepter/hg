@@ -420,6 +420,16 @@ class IDirstate(Protocol):
         """
 
     @abc.abstractmethod
+    def set_untracked(self, filename: HgPathT) -> bool:
+        """mark a file as untracked in the working copy
+
+        This is to be called outside of the update/merge cases, for example by
+        a command like `hg remove X`, within a `changing_files` context.
+
+        Return True if the file was previously tracked, False otherwise.
+        """
+
+    @abc.abstractmethod
     def write(self, tr: TransactionT | None) -> None:
         pass
 

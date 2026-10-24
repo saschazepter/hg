@@ -409,7 +409,7 @@ class gitdirstate(intdirstate.IDirstate):
             index.remove(fs)
             index.write()
 
-    def set_untracked(self, f):
+    def set_untracked(self, f: HgPathT) -> bool:
         index = self.git.index
         index.read()
         fs = pycompat.fsdecode(f)

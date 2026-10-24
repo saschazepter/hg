@@ -785,7 +785,7 @@ class dirstate(intdirstate.IDirstate):
         return pre_tracked
 
     @requires_changing_files
-    def set_untracked(self, filename):
+    def set_untracked(self, filename: HgPathT) -> bool:
         """a "public" method for generic code to mark a file as untracked
 
         This function is to be called outside of "update/merge" case. For
