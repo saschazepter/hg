@@ -990,7 +990,7 @@ def overridecopy(orig, ui, repo: RepoT, pats, opts, rename=False):
 # the matcher to hit standins instead of largefiles. Based on the
 # resulting standins update the largefiles.
 @eh.wrapfunction(cmdutil, 'revert')
-def overriderevert(orig, ui, repo, ctx, *pats, **opts):
+def overriderevert(orig, ui, repo: RepoT, ctx, *pats, **opts):
     # Because we put the standins in a bad state (by updating them)
     # and then return them to a correct state we need to lock to
     # prevent others from changing them in their incorrect state.
