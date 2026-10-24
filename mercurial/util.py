@@ -44,6 +44,7 @@ from typing import (
     AnyStr,
     BinaryIO,
     Callable,
+    Generic,
     Iterable,
     Iterator,
     TypeVar,
@@ -108,6 +109,9 @@ _KT = TypeVar("_KT")
 
 _VT = TypeVar("_VT")
 """An unconstrained value type for container classes (see typing.VT)."""
+
+_CachedT = TypeVar("_CachedT")
+"""An unconstrained type for the value cached by a `propertycache`."""
 
 base85: intmod.Base85 = policy.importmod('base85')
 osutil = policy.importmod('osutil')
@@ -1850,17 +1854,17 @@ def lrucachefunc(func: _C) -> _C:
     return f
 
 
-class propertycache:
-    def __init__(self, func):
+class propertycache(Generic[_CachedT]):
+    def __init__(self, func: Callable[[Any], _CachedT]) -> None:
         self.func = func
         self.name = func.__name__
 
-    def __get__(self, obj, type=None):
+    def __get__(self, obj, type=None) -> _CachedT:
         result = self.func(obj)
         self.cachevalue(obj, result)
         return result
 
-    def cachevalue(self, obj, value):
+    def cachevalue(self, obj, value: _CachedT) -> None:
         # __dict__ assignment required to bypass __setattr__ (eg: repoview)
         obj.__dict__[self.name] = value
 
