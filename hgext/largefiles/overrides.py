@@ -732,7 +732,7 @@ def overridecalculateupdates(
 
 
 @eh.wrapfunction(mergestatemod, 'recordupdates')
-def mergerecordupdates(orig, repo, actions, branchmerge, getfiledata):
+def mergerecordupdates(orig, repo: RepoT, actions, branchmerge, getfiledata):
     if MERGE_ACTION_LARGEFILE_MARK_REMOVED in actions:
         lfdirstate = lfutil.openlfdirstate(repo.ui, repo)
         for lfile, args, msg in actions[MERGE_ACTION_LARGEFILE_MARK_REMOVED]:
