@@ -429,9 +429,6 @@ class gitdirstate(intdirstate.IDirstate):
         # TODO
         pass
 
-    def _checkexec(self) -> bool:
-        raise NotImplementedError
-
     @contextlib.contextmanager
     def changing_parents(self, repo):
         # TODO: track this maybe?

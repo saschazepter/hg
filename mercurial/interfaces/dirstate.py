@@ -223,13 +223,6 @@ class IDirstate(Protocol):
     def _checklink(self) -> bool:
         """Callable for checking symlinks."""  # TODO: this comment looks stale
 
-    # TODO: decorate with `@util.propertycache` like dirstate class?
-    #  (can't because circular import)
-    @property
-    @abc.abstractmethod
-    def _checkexec(self) -> bool:
-        """Callable for checking exec bits."""  # TODO: this comment looks stale
-
     @contextlib.contextmanager
     @abc.abstractmethod
     def changing_parents(self, repo) -> Iterator:  # TODO: typehint this
