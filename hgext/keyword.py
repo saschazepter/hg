@@ -793,6 +793,15 @@ def kwfilectx_cmp(orig, self, fctx):
     return True
 
 
+def kwfilectx_has_content_filter(orig, self):
+    kwt = getattr(self._repo, '_keywordkwt', None)
+    if kwt is not None and kwt.match(self.path()):
+        # keyword expansion makes the content on disk differ from the stored
+        # one
+        return True
+    return orig(self)
+
+
 def uisetup(ui):
     """Monkeypatches dispatch._parse to retrieve user command.
     Overrides file method to return kwfilelog instead of filelog
@@ -810,6 +819,9 @@ def uisetup(ui):
     extensions.wrapfunction(dispatch, '_parse', kwdispatch_parse)
 
     extensions.wrapfunction(context.filectx, 'cmp', kwfilectx_cmp)
+    extensions.wrapfunction(
+        context.basefilectx, 'has_content_filter', kwfilectx_has_content_filter
+    )
     extensions.wrapfunction(patch.patchfile, '__init__', kwpatchfile_init)
     extensions.wrapfunction(patch, 'diff', kwdiff)
     extensions.wrapfunction(cmdutil, 'amend', kw_amend)

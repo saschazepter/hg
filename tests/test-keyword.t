@@ -325,6 +325,19 @@ Touch files and check with status
   $ touch a b
   $ hg status
 
+The dirstate must not expect the stored size for a modified keyword file, since
+expansion changes the size on disk, unlike for a file without keywords:
+
+  $ hg debugrebuilddirstate
+  $ echo foo >> a
+  $ echo foo >> b
+  $ hg status
+  M a
+  M b
+  $ hg debugdirstate --no-dates | grep ' [ab]$'
+  w1- c      - --          - -     a
+  w1- c    644 --         12 -     b
+
 Update and expand
 
   $ rm sym a b
