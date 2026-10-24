@@ -254,20 +254,24 @@ def isfilecached(repo, name):
     return cacheentry.obj, True
 
 
-class unfilteredpropertycache(util.propertycache):
+_CachedT = typing.TypeVar("_CachedT")
+"""An unconstrained type for the value cached by a `propertycache`."""
+
+
+class unfilteredpropertycache(util.propertycache[_CachedT]):
     """propertycache that apply to unfiltered repo only"""
 
-    def __get__(self, repo, type=None):
+    def __get__(self, repo, type=None) -> _CachedT:
         unfi = repo.unfiltered()
         if unfi is repo:
             return super().__get__(unfi)
         return getattr(unfi, self.name)
 
 
-class filteredpropertycache(util.propertycache):
+class filteredpropertycache(util.propertycache[_CachedT]):
     """propertycache that must take filtering in account"""
 
-    def cachevalue(self, obj, value):
+    def cachevalue(self, obj, value: _CachedT) -> None:
         object.__setattr__(obj, self.name, value)
 
 
