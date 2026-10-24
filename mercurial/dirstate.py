@@ -235,7 +235,7 @@ class dirstate(intdirstate.IDirstate):
         if '_map' in vars(self) and self._map.may_need_refresh():
             self.invalidate()
 
-    def prefetch_parents(self):
+    def prefetch_parents(self) -> None:
         """make sure the parents are loaded
 
         Used to avoid a race condition.

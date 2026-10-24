@@ -308,6 +308,12 @@ class IDirstate(Protocol):
         pass
 
     @abc.abstractmethod
+    def prefetch_parents(self) -> None:
+        """make sure the parents are loaded
+
+        Used to avoid a race condition."""
+
+    @abc.abstractmethod
     def p1(self) -> bytes:
         pass
 

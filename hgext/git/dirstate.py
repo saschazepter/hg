@@ -441,7 +441,7 @@ class gitdirstate(intdirstate.IDirstate):
         # TODO: track copies?
         return None
 
-    def prefetch_parents(self):
+    def prefetch_parents(self) -> None:
         # TODO
         pass
 
