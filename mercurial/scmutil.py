@@ -1487,7 +1487,7 @@ def getcopiesfn(repo, endrev=None):
 
 def dirstatecopy(
     ui: UiT,
-    repo,
+    repo: RepoT,
     wctx,
     src,
     dst,
