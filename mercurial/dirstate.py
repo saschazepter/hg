@@ -804,7 +804,11 @@ class dirstate(intdirstate.IDirstate):
         return ret
 
     @requires_changing_files_or_status
-    def set_clean(self, filename: bytes, parentfiledata) -> None:
+    def set_clean(
+        self,
+        filename: HgPathT,
+        parentfiledata: intdirstate.ParentFileDataT,
+    ) -> None:
         """record that the current state of the file on disk is known to be clean"""
         self._dirty = True
         if not self._map[filename].tracked:

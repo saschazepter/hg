@@ -346,7 +346,11 @@ class gitdirstate(intdirstate.IDirstate):
             if match(p):
                 yield p  # TODO: return list instead of yielding?
 
-    def set_clean(self, f, parentfiledata):
+    def set_clean(
+        self,
+        f: HgPathT,
+        parentfiledata: intdirstate.ParentFileDataT,
+    ) -> None:
         """Mark a file normal and clean."""
         # TODO: for now we just let libgit2 re-stat the file. We can
         # clearly do better.

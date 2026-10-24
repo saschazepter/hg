@@ -436,6 +436,19 @@ class IDirstate(Protocol):
         """
 
     @abc.abstractmethod
+    def set_clean(
+        self,
+        filename: HgPathT,
+        parentfiledata: ParentFileDataT,
+    ) -> None:
+        """record that the current state of the file on disk is known to be
+        clean
+
+        This must be called within a `changing_files` or `running_status`
+        context.
+        """
+
+    @abc.abstractmethod
     def set_untracked(self, filename: HgPathT) -> bool:
         """mark a file as untracked in the working copy
 
