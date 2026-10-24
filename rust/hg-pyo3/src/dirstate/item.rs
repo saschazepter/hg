@@ -195,13 +195,15 @@ impl DirstateItem {
         Ok(())
     }
 
+    #[pyo3(signature = (mode, size, mtime, modified=false))]
     fn set_state(
         &self,
         mode: u32,
         size: u32,
         mtime: (u32, u32, bool),
+        modified: bool,
     ) -> PyResult<()> {
-        self.write()?.set_state(mode, size, timestamp(mtime)?);
+        self.write()?.set_state(mode, size, timestamp(mtime)?, modified);
         Ok(())
     }
 
