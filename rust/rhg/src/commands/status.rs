@@ -406,6 +406,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         print0,
     };
 
+    let debug_lookup = config.get_bool(b"devel", b"status.debug-lookup")?;
     let after_status = |res: StatusResult,
                         warnings|
      -> Result<_, CommandError> {
@@ -433,6 +434,14 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                 "Must recheck {} files by retrieval from filelog",
                 ds_status.unsure.len()
             );
+        }
+        if debug_lookup {
+            let mut unsure: Vec<_> =
+                ds_status.unsure.iter().map(|sp| sp.path.as_bytes()).collect();
+            unsure.sort_unstable();
+            for path in unsure {
+                ui.write_stdout(&format_bytes!(b"lookup: {}\n", path))?;
+            }
         }
         let mut fixup = Vec::new();
         if !ds_status.unsure.is_empty()

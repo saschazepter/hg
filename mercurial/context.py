@@ -1930,6 +1930,11 @@ class workingctx(committablectx, i_context.IWorkingContext):
         if not files:
             return [], [], [], []
 
+        ui = self._repo.ui
+        if ui.configbool(b'devel', b'status.debug-lookup'):
+            for f in sorted(files):
+                ui.writenoi18n(b'lookup: %s\n' % f)
+
         modified = []
         deleted = []
         clean = []

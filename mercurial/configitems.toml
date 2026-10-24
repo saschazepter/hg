@@ -731,6 +731,15 @@ default = false
 
 [[items]]
 section = "devel"
+name = "status.debug-lookup"
+default = false
+documentation = """Make ``hg status`` write a ``lookup: FILE`` line for each
+file whose content has to be compared with the parent, because the mode, size
+and mtime cached in the dirstate could not settle its state.
+"""
+
+[[items]]
+section = "devel"
 name = "strip-obsmarkers"
 default = true
 
