@@ -277,9 +277,6 @@ class gitdirstate(intdirstate.IDirstate):
     def is_changing_files(self) -> bool:
         raise NotImplementedError
 
-    def _ignorefileandline(self, f: bytes) -> intdirstate.IgnoreFileAndLineT:
-        raise NotImplementedError
-
     def invalidate(self) -> None:
         raise NotImplementedError
 

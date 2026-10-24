@@ -50,11 +50,6 @@ if typing.TYPE_CHECKING:
     ]
     """The callback type for dirstate.addparentchangecallback()."""
 
-    IgnoreFileAndLineT = tuple[Optional[bytes], int, bytes]
-    """The return type of dirstate._ignorefileandline(), which holds
-    ``(file, lineno, originalline)``.
-    """
-
     FlagFuncFallbackT = Callable[[], "FlagFuncReturnT"]
     """The type for the dirstate.flagfunc() fallback function."""
 
@@ -211,10 +206,6 @@ class IDirstate(Protocol):
     @abc.abstractmethod
     def is_changing_files(self) -> bool:
         """True if file tracking changes in progress."""
-
-    @abc.abstractmethod
-    def _ignorefileandline(self, f: bytes) -> IgnoreFileAndLineT:
-        """Given a file `f`, return the ignore file and line that ignores it."""
 
     @contextlib.contextmanager
     @abc.abstractmethod

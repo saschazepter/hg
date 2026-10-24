@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import bisect
+import collections
 import copy
 import itertools
 import os
@@ -47,6 +48,7 @@ if typing.TYPE_CHECKING:
         MatcherKindPatT,
         MatcherT,
         MatcherTraverseDirFuncT,
+        UiT,
         UserMsgT,
     )
 
@@ -1977,3 +1979,46 @@ def readpatternfile(filepath, warn, sourceinfo=False):
                 patterns.append(linesyntax + line)
 
     return patterns
+
+
+def ignore_files(ui: UiT, root: bytes) -> list[bytes]:
+    """return the ignore files applying to the working copy at `root`
+
+    This is the `.hgignore` file at the root (if it exists) and the files
+    listed in the `ui.ignore` and `ui.ignore.*` config."""
+    rootdir = pathutil.normasprefix(root)
+    files = []
+    hgignore = rootdir + b'.hgignore'
+    if os.path.exists(hgignore):
+        files.append(hgignore)
+    for name, path in ui.configitems(b"ui"):
+        if name == b'ignore' or name.startswith(b'ignore.'):
+            # we need to use os.path.join here because path is arbitrary and
+            # user-specified
+            files.append(os.path.join(rootdir, util.expandpath(path)))
+    return files
+
+
+def ignore_file_and_line(
+    ui: UiT, root: bytes, f: bytes
+) -> tuple[bytes | None, int, bytes]:
+    """find the ignore rule matching `f` in the ignore files
+
+    Return `(file, lineno, originalline)` for the first matching pattern, or
+    `(None, -1, b"")` if no pattern matches."""
+    files = collections.deque(ignore_files(ui, root))
+    visited = set()
+    while files:
+        ignore_file = files.popleft()
+        patterns = readpatternfile(ignore_file, ui.warn, sourceinfo=True)
+        for pattern, lineno, line in patterns:
+            kind, sub_path = _patsplit(pattern, b'glob')
+            if kind == b"subinclude":
+                if sub_path not in visited:
+                    files.append(sub_path)
+                continue
+            pattern_matcher = match(root, b'', [], [pattern], warn=ui.warn)
+            if pattern_matcher(f):
+                return (ignore_file, lineno, line)
+        visited.add(ignore_file)
+    return (None, -1, b"")

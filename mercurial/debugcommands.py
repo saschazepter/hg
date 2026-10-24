@@ -65,6 +65,7 @@ from . import (
     lock as lockmod,
     logcmdutil,
     manifest,
+    match as match_mod,
     mergestate as mergestatemod,
     metadata,
     node as nodemod,
@@ -1898,12 +1899,16 @@ def debugignore(ui, repo, *files, **opts):
             if nf != b'.':
                 if ignore(nf):
                     ignored = nf
-                    ignoredata = repo.dirstate._ignorefileandline(nf)
+                    ignoredata = match_mod.ignore_file_and_line(
+                        repo.ui, repo.root, nf
+                    )
                 else:
                     for p in pathutil.finddirs(nf):
                         if ignore(p):
                             ignored = p
-                            ignoredata = repo.dirstate._ignorefileandline(p)
+                            ignoredata = match_mod.ignore_file_and_line(
+                                repo.ui, repo.root, p
+                            )
                             break
             if ignored:
                 if ignored == nf:

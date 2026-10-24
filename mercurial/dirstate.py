@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import collections
 import contextlib
 import os
 import stat
@@ -504,7 +503,7 @@ class dirstate(intdirstate.IDirstate):
     @rootcache(b'.hgignore')
     @util.rust_tracing_span("dirstate.ignore_matcher")
     def ignore_matcher(self) -> MatcherT:
-        files = self._ignorefiles()
+        files = matchmod.ignore_files(self._ui, self._root)
         if not files:
             return matchmod.never()
 
@@ -1205,39 +1204,6 @@ class dirstate(intdirstate.IDirstate):
                 return True
         return False
 
-    def _ignorefiles(self) -> list[bytes]:
-        files = []
-        if os.path.exists(self._join(b'.hgignore')):
-            files.append(self._join(b'.hgignore'))
-        for name, path in self._ui.configitems(b"ui"):
-            if name == b'ignore' or name.startswith(b'ignore.'):
-                # we need to use os.path.join here rather than self._join
-                # because path is arbitrary and user-specified
-                files.append(os.path.join(self._rootdir, util.expandpath(path)))
-        return files
-
-    def _ignorefileandline(self, f: bytes) -> intdirstate.IgnoreFileAndLineT:
-        files = collections.deque(self._ignorefiles())
-        visited = set()
-        while files:
-            i = files.popleft()
-            patterns = matchmod.readpatternfile(
-                i, self._ui.warn, sourceinfo=True
-            )
-            for pattern, lineno, line in patterns:
-                kind, p = matchmod._patsplit(pattern, b'glob')
-                if kind == b"subinclude":
-                    if p not in visited:
-                        files.append(p)
-                    continue
-                m = matchmod.match(
-                    self._root, b'', [], [pattern], warn=self._ui.warn
-                )
-                if m(f):
-                    return (i, lineno, line)
-            visited.add(i)
-        return (None, -1, b"")
-
     def _walkexplicit(self, match, subrepos):
         """Get stat data about the files explicitly specified by match.
 
@@ -1610,7 +1576,7 @@ class dirstate(intdirstate.IDirstate):
             self._map._map,
             matcher,
             self._rootdir,
-            self._ignorefiles(),
+            matchmod.ignore_files(self._ui, self._root),
             self._checkexec,
             bool(list_clean),
             bool(list_ignored),
