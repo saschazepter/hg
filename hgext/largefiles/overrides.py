@@ -190,7 +190,15 @@ def addlargefiles(ui, repo: RepoT, isaddremove, matcher, uipathfn, **opts):
     return added, bad
 
 
-def removelargefiles(ui, repo, isaddremove, matcher, uipathfn, dryrun, **opts):
+def removelargefiles(
+    ui,
+    repo: RepoT,
+    isaddremove,
+    matcher,
+    uipathfn,
+    dryrun,
+    **opts,
+):
     after = opts.get('after')
     m = composelargefilematcher(matcher, repo[None].manifest())
     with lfstatus(repo):
