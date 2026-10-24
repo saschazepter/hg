@@ -352,7 +352,7 @@ class ShardTreeNode:
         path = self.path
         return zero_path(path)
 
-    def _sub_path_of(self, other: ShardTreeNode) -> bytes:
+    def _sub_path_of(self, other: ShardTreeNode) -> bool:
         """True if `self` is a sub-path of `other`"""
         return self._zero_path.startswith(other._zero_path)
 
