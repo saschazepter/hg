@@ -590,6 +590,9 @@ class dirstate(intdirstate.IDirstate):
     def parents(self) -> list[bytes]:
         return [self._validate(p) for p in self._pl]
 
+    def raw_parents(self) -> tuple[NodeIdT, NodeIdT]:
+        return self._pl
+
     def p1(self) -> bytes:
         return self._validate(self._pl[0])
 

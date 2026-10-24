@@ -323,6 +323,13 @@ class IDirstate(Protocol):
         pass
 
     @abc.abstractmethod
+    def raw_parents(self) -> tuple[NodeIdT, NodeIdT]:
+        """The parents as stored in the dirstate
+
+        Unlike `parents`, they are not validated: unknown nodes are returned
+        as is instead of being replaced by the null node."""
+
+    @abc.abstractmethod
     def prefetch_parents(self) -> None:
         """make sure the parents are loaded
 

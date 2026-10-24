@@ -2771,7 +2771,7 @@ class localrepository(_localrepo_base_classes):
         if parentgone:
             # replace this with some explicit parent update in the future.
             has_node = self.changelog.index.has_node
-            if not all(has_node(p) for p in self.dirstate._pl):
+            if not all(has_node(p) for p in self.dirstate.raw_parents()):
                 # There was no dirstate to backup initially, we need to drop
                 # the existing one.
                 with self.dirstate.changing_parents(self):
