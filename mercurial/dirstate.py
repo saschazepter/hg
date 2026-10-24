@@ -817,8 +817,8 @@ class dirstate(intdirstate.IDirstate):
     @requires_changing_parents
     def update_file_p1(
         self,
-        filename: bytes,
-        p1_tracked,
+        filename: HgPathT,
+        p1_tracked: bool,
     ) -> None:
         """Set a file as tracked in the parent (or not)
 

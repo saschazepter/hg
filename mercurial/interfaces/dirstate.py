@@ -405,6 +405,21 @@ class IDirstate(Protocol):
         """
 
     @abc.abstractmethod
+    def update_file_p1(
+        self,
+        filename: HgPathT,
+        p1_tracked: bool,
+    ) -> None:
+        """Set a file as tracked in the parent (or not)
+
+        This is to be called when adjusting the dirstate to a new parent after
+        a history rewriting operation.
+
+        It must not be called during a merge, and only within a
+        `changing_parents` context.
+        """
+
+    @abc.abstractmethod
     def write(self, tr: TransactionT | None) -> None:
         pass
 

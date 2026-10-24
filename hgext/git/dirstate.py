@@ -434,6 +434,13 @@ class gitdirstate(intdirstate.IDirstate):
         # TODO
         pass
 
+    def update_file_p1(
+        self,
+        filename: HgPathT,
+        p1_tracked: bool,
+    ) -> None:
+        raise NotImplementedError
+
     @contextlib.contextmanager
     def changing_parents(
         self,
