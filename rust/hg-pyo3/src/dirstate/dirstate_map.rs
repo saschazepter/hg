@@ -497,6 +497,16 @@ impl DirstateMap {
         f(&self_ref, guard)
     }
 
+    /// Return the Rust dirstate map backing a Python `dirstate` object
+    ///
+    /// This reaches into the private attributes of the Python dirstate, so
+    /// that Python callers can pass the dirstate itself.
+    pub fn from_py_dirstate<'py>(
+        dirstate: &Bound<'py, PyAny>,
+    ) -> PyResult<Bound<'py, Self>> {
+        Ok(dirstate.getattr("_map")?.getattr("_map")?.cast_into::<Self>()?)
+    }
+
     pub fn with_inner_write<'py, T>(
         slf: &Bound<'py, Self>,
         f: impl FnOnce(

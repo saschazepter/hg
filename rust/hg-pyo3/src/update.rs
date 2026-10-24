@@ -46,7 +46,7 @@ use crate::utils::with_sigint_wrapper;
 pub fn update_from_null(
     repo_path: &Bound<'_, PyBytes>,
     to: BaseRevision,
-    dirstate: &Bound<'_, DirstateMap>,
+    dirstate: &Bound<'_, PyAny>,
     num_cpus: Option<usize>,
     on_warnings: Py<PyAny>,
     devel_abort_dirstate: bool,
@@ -79,7 +79,8 @@ pub fn update_from_null(
     };
 
     let warning_context = HgWarningContext::new();
-    DirstateMap::with_inner_write(dirstate, |_inner, mut dirstate| {
+    let dirstate_map = DirstateMap::from_py_dirstate(dirstate)?;
+    DirstateMap::with_inner_write(&dirstate_map, |_inner, mut dirstate| {
         let res = with_sigint_wrapper(py, || {
             core_update_from_null(
                 &repo,
@@ -124,7 +125,7 @@ pub fn update_from_null(
 ))]
 pub fn update_from_clean(
     repo_path: &Bound<'_, PyBytes>,
-    dirstate: &Bound<'_, DirstateMap>,
+    dirstate: &Bound<'_, PyAny>,
     wc_manifest: &Bound<'_, PyAny>,
     target_rev: BaseRevision,
     target_manifest: &Bound<'_, PyAny>,
@@ -168,7 +169,8 @@ pub fn update_from_clean(
     let target_manifest_bytes =
         target_manifest.call_method0("text")?.extract::<Py<PyBytes>>()?;
 
-    DirstateMap::with_inner_write(dirstate, |_inner, mut dirstate| {
+    let dirstate_map = DirstateMap::from_py_dirstate(dirstate)?;
+    DirstateMap::with_inner_write(&dirstate_map, |_inner, mut dirstate| {
         let res = with_sigint_wrapper(py, || {
             core_update_from_clean(
                 &repo,

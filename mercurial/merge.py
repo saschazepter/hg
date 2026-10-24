@@ -1723,7 +1723,7 @@ def _update_rust_fast_path(
                 updated_count = rust_update_mod.update_from_null(
                     repo_path=repo.root,
                     to=p2.rev(),
-                    dirstate=dirstate._map._map,
+                    dirstate=dirstate,
                     num_cpus=num_cpus,
                     on_warnings=on_rust_warnings,
                     devel_abort_dirstate=devel_abort_dirstate,
@@ -1803,7 +1803,7 @@ def _update_rust_fast_path(
                         dirstate.setbranch(p2.branch(), tr)
                         update_stats = rust_update_mod.update_from_clean(
                             repo_path=repo.root,
-                            dirstate=dirstate._map._map,
+                            dirstate=dirstate,
                             wc_manifest=p1_manifest,
                             target_rev=p2.rev(),
                             target_manifest=p2_manifest,
