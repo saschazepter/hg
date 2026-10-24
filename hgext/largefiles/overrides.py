@@ -113,7 +113,7 @@ def composenormalfilematcher(match, manifest, exclude=None):
     return m
 
 
-def addlargefiles(ui, repo, isaddremove, matcher, uipathfn, **opts):
+def addlargefiles(ui, repo: RepoT, isaddremove, matcher, uipathfn, **opts):
     large = opts.get('large')
     lfsize = lfutil.getminsize(
         ui, lfutil.islfilesrepo(repo), opts.get('lfsize')
