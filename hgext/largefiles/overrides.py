@@ -1479,7 +1479,15 @@ def postcommitstatus(orig, repo, *args, **kwargs):
 
 @eh.wrapfunction(cmdutil, 'forget')
 def cmdutilforget(
-    orig, ui, repo, match, prefix, uipathfn, explicitonly, dryrun, interactive
+    orig,
+    ui,
+    repo: RepoT,
+    match,
+    prefix,
+    uipathfn,
+    explicitonly,
+    dryrun,
+    interactive,
 ):
     normalmatcher = composenormalfilematcher(match, repo[None].manifest())
     bad, forgot = orig(
