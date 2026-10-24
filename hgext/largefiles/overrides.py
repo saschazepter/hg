@@ -796,7 +796,7 @@ def copiespathcopies(orig, ctx1, ctx2, match=None):
 # list of copied files so that the largefiles can be copied and the
 # dirstate updated.
 @eh.wrapfunction(cmdutil, 'copy')
-def overridecopy(orig, ui, repo, pats, opts, rename=False):
+def overridecopy(orig, ui, repo: RepoT, pats, opts, rename=False):
     # doesn't remove largefile on rename
     if len(pats) < 2:
         # this isn't legal, let the original function deal with it
