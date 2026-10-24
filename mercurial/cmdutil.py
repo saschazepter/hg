@@ -3719,7 +3719,7 @@ def revert(ui, repo, ctx, *pats, **opts):
 
 
 def _performrevert(
-    repo,
+    repo: RepoT,
     ctx,
     names,
     uipathfn,
