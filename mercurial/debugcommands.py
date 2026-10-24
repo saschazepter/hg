@@ -1141,6 +1141,27 @@ def debugdirstateignorepatternshash(ui, repo, **opts):
 
 
 @command(
+    b'debug::dirstate-drop-cache-info',
+    [],
+    _(b'FILE...'),
+)
+def debug_dirstate_drop_cache_info(ui, repo, *pats, **opts):
+    """drop the mode, size and mtime the dirstate cached for files
+
+    The next status has to check the content of these files, even if their
+    size changed.
+    """
+    if not pats:
+        raise error.InputError(_(b'no files specified'))
+    m = scmutil.match(repo[None], pats, pycompat.byteskwargs(opts))
+    dirstate = repo.dirstate
+    with repo.wlock(), dirstate.changing_files(repo):
+        for f in dirstate.matches(m):
+            if dirstate.get_entry(f).tracked:
+                dirstate.drop_cache_info(f)
+
+
+@command(
     b'debugdiscovery',
     [
         (b'', b'old', None, _(b'use old-style discovery')),

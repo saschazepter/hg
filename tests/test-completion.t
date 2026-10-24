@@ -224,6 +224,7 @@ Show debug commands if there are no other candidates
   debug::build-dag
   debug::changed-files
   debug::clonebundle-manifest
+  debug::dirstate-drop-cache-info
   debug::fast-upgrade
   debug::file-index
   debug::heads-bucket-fingerprints
@@ -442,6 +443,7 @@ Show all commands + options
   debug::build-dag: mergeable-file, overwritten-file, new-file, from-existing
   debug::changed-files: compute
   debug::clonebundle-manifest: stream, raw, legacy-client, include, exclude
+  debug::dirstate-drop-cache-info: 
   debug::fast-upgrade: 
   debug::file-index: docket, template, tree, path, token, vacuum, gc
   debug::heads-bucket-fingerprints: template

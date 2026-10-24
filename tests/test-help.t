@@ -1039,6 +1039,8 @@ Test list of internal help commands
                  list the stored files changes for a revision
    debug::clonebundle-manifest
                  fetch a display a clone bundle manifest from a peer
+   debug::dirstate-drop-cache-info
+                 drop the mode, size and mtime the dirstate cached for files
    debug::fast-upgrade
                  (no help text available)
    debug::file-index
