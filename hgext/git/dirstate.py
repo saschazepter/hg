@@ -355,7 +355,7 @@ class gitdirstate(intdirstate.IDirstate):
         # TODO: for now we just let libgit2 re-stat the file. We can
         # clearly do better.
 
-    def set_possibly_dirty(self, f):
+    def set_possibly_dirty(self, f: HgPathT) -> None:
         """Mark a file normal, but possibly dirty."""
         # TODO: for now we just let libgit2 re-stat the file. We can
         # clearly do better.

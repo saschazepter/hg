@@ -817,7 +817,7 @@ class dirstate(intdirstate.IDirstate):
         self._map.set_clean(filename, mode, size, mtime)
 
     @requires_changing_files_or_status
-    def set_possibly_dirty(self, filename: bytes) -> None:
+    def set_possibly_dirty(self, filename: HgPathT) -> None:
         """record that the current state of the file on disk is unknown"""
         self._dirty = True
         self._map.set_possibly_dirty(filename)
