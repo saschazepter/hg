@@ -563,7 +563,7 @@ class IDirstate(Protocol):
     def status(
         self,
         match: matcher.IMatcher,
-        subrepos: bool,
+        subrepos: list[HgPathT],
         ignored: bool,
         clean: bool,
         unknown: bool,

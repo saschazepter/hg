@@ -1615,7 +1615,7 @@ class dirstate(intdirstate.IDirstate):
 
     def _use_rust_status(
         self,
-        subrepos: bool,
+        subrepos: list[HgPathT],
     ) -> bool:
         if rustmod is None:
             return False
@@ -1630,7 +1630,7 @@ class dirstate(intdirstate.IDirstate):
     def status(
         self,
         match: MatcherT,
-        subrepos: bool,
+        subrepos: list[HgPathT],
         ignored: bool,
         clean: bool,
         unknown: bool,

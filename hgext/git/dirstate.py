@@ -179,7 +179,7 @@ class gitdirstate(intdirstate.IDirstate):
     def status(
         self,
         match: MatcherT,
-        subrepos: bool,
+        subrepos: list[HgPathT],
         ignored: bool,
         clean: bool,
         unknown: bool,
