@@ -1518,7 +1518,7 @@ def dirstatecopy(
             wctx.copy(origsrc, dst)
 
 
-def movedirstate(repo, newctx, match=None) -> None:
+def movedirstate(repo: RepoT, newctx, match=None) -> None:
     """Move the dirstate to newctx and adjust it as necessary.
 
     A matcher can be provided as an optimization. It is probably a bug to pass
@@ -1549,7 +1549,8 @@ def movedirstate(repo, newctx, match=None) -> None:
         if src not in newctx or dst in newctx or not ds.get_entry(dst).added:
             src = None
         ds.copy(src, dst)
-    repo._quick_access_changeid_invalidate()
+    # a localrepo implementation detail, not part of the repository interface
+    getattr(repo, '_quick_access_changeid_invalidate')()
 
 
 def filterrequirements(requirements):
