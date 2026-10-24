@@ -811,6 +811,25 @@ def clearfilecache(obj, attrname):
     obj._filecache.pop(attrname, None)
 
 
+def dirstate_cache_clearer(dirstate, map_attrs):
+    """return a function dropping the in-memory caches of the dirstate
+
+    `map_attrs` are the `dirstate._map` attributes to drop on versions
+    without `dirstate.clear_caches`."""
+    clear_caches = getattr(dirstate, 'clear_caches', None)
+    if clear_caches is not None:
+        return clear_caches
+
+    def clear():
+        for attr in map_attrs:
+            try:
+                delattr(dirstate._map, attr)
+            except AttributeError:
+                pass
+
+    return clear
+
+
 def clearchangelog(repo):
     if repo is not repo.unfiltered():
         object.__setattr__(repo, '_clcachekey', None)
@@ -1532,14 +1551,12 @@ def perfdirs(ui, repo, **opts):
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
     dirstate = repo.dirstate
+    clear_caches = dirstate_cache_clearer(dirstate, ['_dirs'])
     b'a' in dirstate
 
     def d():
         dirstate.hasdir(b'a')
-        try:
-            del dirstate._map._dirs
-        except AttributeError:
-            pass
+        clear_caches()
 
     timer(d)
     fm.end()
@@ -1614,13 +1631,11 @@ def perfdirstatedirs(ui, repo, **opts):
     """benchmap a 'dirstate.hasdir' call from an empty `dirs` cache"""
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
+    clear_caches = dirstate_cache_clearer(repo.dirstate, ['_dirs'])
     repo.dirstate.hasdir(b"a")
 
     def setup():
-        try:
-            del repo.dirstate._map._dirs
-        except AttributeError:
-            pass
+        clear_caches()
 
     def d():
         repo.dirstate.hasdir(b"a")
@@ -1638,10 +1653,11 @@ def perfdirstatefoldmap(ui, repo, **opts):
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
     dirstate = repo.dirstate
+    clear_caches = dirstate_cache_clearer(dirstate, ['filefoldmap'])
     dirstate._map.filefoldmap.get(b'a')
 
     def setup():
-        del dirstate._map.filefoldmap
+        clear_caches()
 
     def d():
         dirstate._map.filefoldmap.get(b'a')
@@ -1659,14 +1675,11 @@ def perfdirfoldmap(ui, repo, **opts):
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
     dirstate = repo.dirstate
+    clear_caches = dirstate_cache_clearer(dirstate, ['dirfoldmap', '_dirs'])
     dirstate._map.dirfoldmap.get(b'a')
 
     def setup():
-        del dirstate._map.dirfoldmap
-        try:
-            del dirstate._map._dirs
-        except AttributeError:
-            pass
+        clear_caches()
 
     def d():
         dirstate._map.dirfoldmap.get(b'a')

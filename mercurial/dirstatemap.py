@@ -110,6 +110,15 @@ class _dirstatemapcommon:
         # for consistent view between _pl() and _read() invocations
         self._pendingmode = None
 
+    def clear_caches(self) -> None:
+        """drop the in-memory caches derived from the map content
+
+        They are recomputed on next access."""
+        util.clearcachedproperty(self, b"_dirs")
+        util.clearcachedproperty(self, b"_alldirs")
+        util.clearcachedproperty(self, b"filefoldmap")
+        util.clearcachedproperty(self, b"dirfoldmap")
+
     def _get_current_identity(self) -> int_misc.ICacheStat | None:
         # TODO have a cleaner approach on httpstaticrepo side
         path = self._opener.join(self._filename)

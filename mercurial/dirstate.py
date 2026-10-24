@@ -728,6 +728,10 @@ class dirstate(intdirstate.IDirstate):
         )
         self._origpl = None
 
+    def clear_caches(self) -> None:
+        if '_map' in vars(self):
+            self._map.clear_caches()
+
     @requires_changing_any
     def copy(self, source: bytes | None, dest: bytes) -> None:
         """Mark dest as a copy of source. Unmark dest if source is None."""

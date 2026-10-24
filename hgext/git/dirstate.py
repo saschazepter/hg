@@ -280,6 +280,10 @@ class gitdirstate(intdirstate.IDirstate):
     def invalidate(self) -> None:
         raise NotImplementedError
 
+    def clear_caches(self) -> None:
+        if '_map' in vars(self):
+            self._map.clear_caches()
+
     def copy(self, source: bytes | None, dest: bytes) -> None:
         raise NotImplementedError
 

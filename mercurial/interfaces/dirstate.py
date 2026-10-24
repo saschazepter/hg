@@ -306,6 +306,13 @@ class IDirstate(Protocol):
         check whether the dirstate has changed before rereading it."""
 
     @abc.abstractmethod
+    def clear_caches(self) -> None:
+        """Drop the in-memory caches derived from the dirstate content.
+
+        They are recomputed on next access. Unlike `invalidate`, this does not
+        reread the dirstate. This is mostly useful for benchmarking."""
+
+    @abc.abstractmethod
     def copy(self, source: bytes | None, dest: bytes) -> None:
         """Mark dest as a copy of source. Unmark dest if source is None."""
 
