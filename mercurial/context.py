@@ -1900,7 +1900,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
         )
 
     def _filtersuspectsymlink(self, files: list[bytes]) -> list[bytes]:
-        if not files or self._repo.dirstate._checklink:
+        if not files or self._repo.wvfs.has_link:
             return files
 
         # Symlink placeholders may get non-symlink-like contents
