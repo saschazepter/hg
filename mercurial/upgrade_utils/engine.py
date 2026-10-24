@@ -23,6 +23,7 @@ from ..interfaces import (
 )
 
 from .. import (
+    dirstate as dirstate_mod,
     error,
     pycompat,
     requirements as requirementsmod,
@@ -678,20 +679,24 @@ def upgrade_dirstate(
             # revision checked out
             pass
 
-    old_v2 = srcrepo.dirstate.version == int_dirstate.DirstateVersion.V2
+    dirstate = srcrepo.dirstate
+    # the upgrade alters the internals of the core dirstate
+    assert isinstance(dirstate, dirstate_mod.dirstate)
+
+    old_v2 = dirstate.version == int_dirstate.DirstateVersion.V2
     assert old_v2 == (old == b'v2')
     use_v2 = new == b'v2'
     if use_v2:
         # Write the requirements *before* upgrading
         scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
 
-    srcrepo.dirstate._map.preload()
+    dirstate._map.preload()
     if use_v2:
-        srcrepo.dirstate.version = int_dirstate.DirstateVersion.V2
+        dirstate.version = int_dirstate.DirstateVersion.V2
     else:
-        srcrepo.dirstate.version = int_dirstate.DirstateVersion.V1
-    srcrepo.dirstate._map._use_dirstate_v2 = use_v2
-    srcrepo.dirstate._dirty = True
+        dirstate.version = int_dirstate.DirstateVersion.V1
+    dirstate._map._use_dirstate_v2 = use_v2
+    dirstate._dirty = True
     try:
         srcrepo.vfs.unlink(b'dirstate')
     except FileNotFoundError:
@@ -699,7 +704,7 @@ def upgrade_dirstate(
         # revision checked out
         pass
 
-    srcrepo.dirstate.write(None)
+    dirstate.write(None)
     if not use_v2:
         # Remove the v2 requirement *after* downgrading
         scmutil.writereporequirements(srcrepo, upgrade_op.new_requirements)
