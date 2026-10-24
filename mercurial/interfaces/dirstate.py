@@ -8,6 +8,7 @@ import typing
 
 from typing import (
     Callable,
+    Collection,
     Iterable,
     Iterator,
     Optional,
@@ -375,9 +376,9 @@ class IDirstate(Protocol):
     @abc.abstractmethod
     def rebuild(
         self,
-        parent: bytes,
-        allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
-        changedfiles: Iterable[bytes] | None = None,
+        parent: NodeIdT,
+        allfiles: Collection[HgPathT],
+        changedfiles: Collection[HgPathT] | None = None,
     ) -> None:
         pass
 

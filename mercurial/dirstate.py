@@ -14,6 +14,7 @@ import typing
 import uuid
 
 from typing import (
+    Collection,
     Iterable,
     Iterator,
 )
@@ -1059,9 +1060,9 @@ class dirstate(intdirstate.IDirstate):
     @requires_changing_parents
     def rebuild(
         self,
-        parent: bytes,
-        allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
-        changedfiles: Iterable[bytes] | None = None,
+        parent: NodeIdT,
+        allfiles: Collection[HgPathT],
+        changedfiles: Collection[HgPathT] | None = None,
     ) -> None:
         matcher = self._sparsematcher
         if matcher is not None and not matcher.always():

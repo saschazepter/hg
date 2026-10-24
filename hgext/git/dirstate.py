@@ -4,6 +4,7 @@ import contextlib
 import os
 
 from typing import (
+    Collection,
     Iterable,
     Iterator,
     cast,
@@ -318,9 +319,9 @@ class gitdirstate(intdirstate.IDirstate):
 
     def rebuild(
         self,
-        parent: bytes,
-        allfiles: Iterable[bytes],  # TODO: more than iterable? (uses len())
-        changedfiles: Iterable[bytes] | None = None,
+        parent: NodeIdT,
+        allfiles: Collection[HgPathT],
+        changedfiles: Collection[HgPathT] | None = None,
     ) -> None:
         raise NotImplementedError
 
