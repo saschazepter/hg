@@ -18,10 +18,11 @@ from ..interfaces.types import (
     UiT,
     VfsT,
 )
+from ..node import nullrev
+
 from ..interfaces import (
     dirstate as int_dirstate,
 )
-
 from .. import (
     dirstate as dirstate_mod,
     error,
@@ -34,7 +35,9 @@ from .. import (
     vfs as vfsmod,
 )
 from ..revlogutils import (
+    constants as revlog_constants,
     nodemap,
+    rewrite,
     sidedata as sidedatamod,
 )
 from ..store_utils import file_index as file_index_mod
@@ -120,6 +123,28 @@ def matchrevlog(revlogfilter, entry) -> bool:
     return UPGRADE_FILELOGS in revlogfilter
 
 
+def _misread_meta_revisions(old_filelog, new_filelog):
+    """revisions whose metadata the old filelog format could not tell apart
+
+    Without explicit "hasmeta" flags, metadata was only expected along a null
+    first parent, which some old merges broke (issue6528). Once the flags are
+    there, such revisions read correctly.
+    """
+    old_flags = old_filelog._revlog._format_flags
+    new_flags = new_filelog._revlog._format_flags
+    meta_flag = revlog_constants.FLAG_FILELOG_META
+    if old_flags & meta_flag or not new_flags & meta_flag:
+        return set()
+    old_rl = old_filelog._revlog
+    new_rl = new_filelog._revlog
+    return {
+        rev
+        for rev in new_rl
+        if new_rl.flags(rev) & revlog_constants.REVIDX_HASMETA
+        and old_rl.parentrevs(rev)[0] != nullrev
+    }
+
+
 def _perform_clone(
     ui: UiT,
     dstrepo: RepoT,
@@ -147,6 +172,10 @@ def _perform_clone(
             forcedeltabothparents=upgrade_op.force_re_delta_both_parents,
             sidedata_helpers=sidedata_helpers,
         )
+        if entry.is_filelog:
+            fixed = _misread_meta_revisions(old_revlog, newrl)
+            if fixed:
+                upgrade_op.fixed_filelog_revs[entry.target_id] = fixed
     else:
         msg = _(b'blindly copying %s containing %i revisions\n')
         ui.note(msg % (revlog_path, len(old_revlog)))
@@ -575,6 +604,8 @@ def upgrade(
                 tr,
                 upgrade_op,
             )
+        # the revision numbers are the same in both repositories
+        rewrite.drop_dirstate_cache_info(srcrepo, upgrade_op.fixed_filelog_revs)
 
         # Now copy other files in the store directory.
         for p in _files_to_copy_post_revlog_clone(srcrepo):

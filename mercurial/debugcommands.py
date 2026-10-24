@@ -5465,14 +5465,18 @@ def fast_upgrade(ui, repo, *patterns, **opts):
         all_revlog = [
             e for e in repo.store.walk() if e.is_revlog and not e.is_changelog
         ]
+        fixed_revs = {}
         with ui.makeprogress(
             b"upgrade", unit=_(b'revlog'), total=len(all_revlog)
         ) as p:
             for entry in all_revlog:
                 rl = entry.get_revlog_instance(repo)._revlog
-                rewrite.quick_upgrade(rl)
+                misread = rewrite.quick_upgrade(rl)
+                if misread and entry.is_filelog:
+                    fixed_revs[entry.target_id] = misread
                 count += 1
                 p.increment()
+        rewrite.drop_dirstate_cache_info(repo, fixed_revs)
     ui.statusnoi18n(b"upgraded %d filelog\n" % count)
 
 

@@ -572,6 +572,7 @@ def _from_report(ui, repo, context, from_report, dry_run):
     """
     ui.write(_(b"loading report file '%s'\n") % from_report)
 
+    fixed_revs = {}
     with context(), open(from_report, mode='rb') as f:
         for line in f.read().split(b'\n'):
             if not line:
@@ -600,6 +601,9 @@ def _from_report(ui, repo, context, from_report, dry_run):
                 continue
             if not dry_run:
                 _reorder_filelog_parents(repo, fl, sorted(to_fix))
+                fixed_revs[filename] = to_fix
+        if not dry_run:
+            drop_dirstate_cache_info(repo, fixed_revs)
 
 
 def filter_delta_issue6528(revlog, deltas_iter):
@@ -655,6 +659,29 @@ def filter_delta_issue6528(revlog, deltas_iter):
         yield d
 
 
+def drop_dirstate_cache_info(repo, fixed_revs):
+    """forget what the dirstate cached about checked out files that got fixed
+
+    `fixed_revs` maps file names to the set of their repaired filelog
+    revisions. A status run might have cached the size such a file is expected
+    to have while its revision was misread; that must not outlive the repair.
+    Only the files checked out at a repaired revision are affected.
+    """
+    if not fixed_revs:
+        return
+    dirstate = repo.dirstate
+    manifest = repo[dirstate.p1()].manifest()
+    with dirstate.changing_files(repo):
+        for filename, filerevs in fixed_revs.items():
+            if not dirstate.get_entry(filename).tracked:
+                continue
+            filenode = manifest.get(filename)
+            if filenode is None:
+                continue
+            if repo.file(filename).rev(filenode) in filerevs:
+                dirstate.drop_cache_info(filename)
+
+
 def repair_issue6528(
     ui, repo, dry_run=False, to_report=None, from_report=None, paranoid=False
 ):
@@ -672,6 +699,7 @@ def repair_issue6528(
         return _from_report(ui, repo, context, from_report, dry_run)
 
     report_entries = []
+    fixed_revs = {}
 
     with context():
         files = list(
@@ -719,6 +747,7 @@ def repair_issue6528(
                     report_entries.append((filename, to_fix))
                 else:
                     _reorder_filelog_parents(repo, fl, to_fix)
+                    fixed_revs[filename] = set(to_fix)
 
         if found_nothing:
             ui.write(_(b"no affected revisions were found\n"))
@@ -729,6 +758,7 @@ def repair_issue6528(
                     f.write(b"%s %s\n" % (b",".join(to_fix), path))
 
         progress.complete()
+        drop_dirstate_cache_info(repo, fixed_revs)
 
 
 def _find_all_revs_with_meta(rl):
@@ -778,6 +808,11 @@ def _find_all_snapshots(rl):
 
 
 def quick_upgrade(rl):
+    """add the "hasmeta" and "delta-info" flags to a revlog in place
+
+    Return the set of revisions whose metadata could not be told apart before
+    (issue6528), and that reads correctly from now on.
+    """
     assert rl._format_flags & constants.FLAG_GENERALDELTA
 
     upgrade_meta = True
@@ -795,7 +830,7 @@ def quick_upgrade(rl):
         upgrade_delta_info = False
 
     if not (upgrade_meta or upgrade_delta_info):
-        return
+        return set()
 
     new_flags = 0
 
@@ -804,6 +839,8 @@ def quick_upgrade(rl):
         new_flags |= constants.FLAG_FILELOG_META
     else:
         revs_with_meta = set()
+    # without the flag, metadata was only expected along a null first parent
+    misread = {r for r in revs_with_meta if rl.parentrevs(r)[0] != nullrev}
 
     if upgrade_delta_info:
         revs_with_snapshot = _find_all_snapshots(rl)
@@ -824,7 +861,7 @@ def quick_upgrade(rl):
             header = rl.index.pack_header(header)
             first_entry = header + first_entry
             n.write(first_entry)
-        return
+        return misread
 
     index = rl.index
     new_index = rl._parse_index(
@@ -892,3 +929,4 @@ def quick_upgrade(rl):
             n.write(idx)
             if rl._inline:
                 n.write(rl._inner.get_segment_for_revs(rev, rev)[1])
+    return misread

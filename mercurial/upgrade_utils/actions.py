@@ -869,6 +869,9 @@ class UpgradeOperation(BaseOperation):
         self.upgrade_actions = upgrade_actions
         self.removed_actions = removed_actions
         self.revlogs_to_process = revlogs_to_process
+        # filelog revisions that the upgrade fixed (issue6528), per file name,
+        # so that the dirstate cache of the checked out ones can be dropped
+        self.fixed_filelog_revs = {}
         # requirements which will be added by the operation
         self._added_requirements = (
             self.new_requirements - self.current_requirements
