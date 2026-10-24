@@ -261,7 +261,7 @@ def reposetup(ui, repo):
                     else:
                         tocheck = unsure + modified + added + clean
                         modified, added, clean = [], [], []
-                        checkexec = self.dirstate._checkexec
+                        checkexec = self.wvfs.has_exec
 
                         for lfile in tocheck:
                             standin = lfutil.standin(lfile)
