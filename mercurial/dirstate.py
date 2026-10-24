@@ -393,7 +393,10 @@ class dirstate(intdirstate.IDirstate):
             yield c
 
     @contextlib.contextmanager
-    def changing_files(self, repo):
+    def changing_files(
+        self,
+        repo: intdirstate.IChangingContextRepo,
+    ) -> Iterator[None]:
         """Wrap a dirstate change related to the set of tracked files
 
         This context scopes a series of dirstate modifications that change the

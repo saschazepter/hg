@@ -435,7 +435,10 @@ class gitdirstate(intdirstate.IDirstate):
         yield
 
     @contextlib.contextmanager
-    def changing_files(self, repo) -> Iterator:  # TODO: typehint this
+    def changing_files(
+        self,
+        repo: intdirstate.IChangingContextRepo,
+    ) -> Iterator[None]:
         raise NotImplementedError
 
     def hasdir(self, d: bytes) -> bool:

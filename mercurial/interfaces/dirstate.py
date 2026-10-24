@@ -231,7 +231,7 @@ class IDirstate(Protocol):
 
     @contextlib.contextmanager
     @abc.abstractmethod
-    def changing_files(self, repo) -> Iterator:  # TODO: typehint this
+    def changing_files(self, repo: IChangingContextRepo) -> Iterator[None]:
         """Context manager for handling dirstate files.
 
         If an exception occurs in the scope of the context manager,
