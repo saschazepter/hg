@@ -1811,7 +1811,7 @@ class dirstate(intdirstate.IDirstate):
             return list(files)
         return [f for f in dmap if match(f)]
 
-    def all_file_names(self):
+    def all_file_names(self) -> tuple[bytes, ...]:
         """list all filename currently used by this dirstate
 
         This is only used to do `hg rollback` related backup in the transaction

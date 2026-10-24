@@ -337,6 +337,9 @@ class gitdirstate(intdirstate.IDirstate):
         else:
             self.git.index.write()
 
+    def all_file_names(self) -> tuple[bytes, ...]:
+        raise NotImplementedError
+
     def matches(self, match: MatcherT) -> Iterable[bytes]:
         for x in self.git.index:
             p = pycompat.fsencode(x.path)

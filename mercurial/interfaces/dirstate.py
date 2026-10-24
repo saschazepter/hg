@@ -424,6 +424,13 @@ class IDirstate(Protocol):
         pass
 
     @abc.abstractmethod
+    def all_file_names(self) -> tuple[bytes, ...]:
+        """list all the files currently used by this dirstate
+
+        The names are relative to the `.hg` directory. This is used to back
+        them up in the transaction for `hg rollback`."""
+
+    @abc.abstractmethod
     def delete_tracked_hint(self) -> None:
         """remove the tracked_hint file
 
