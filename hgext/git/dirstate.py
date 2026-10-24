@@ -492,7 +492,11 @@ class gitdirstate(intdirstate.IDirstate):
     ) -> Iterator[bytes]:
         raise NotImplementedError
 
-    def running_status(self, repo):
+    @contextlib.contextmanager
+    def running_status(
+        self,
+        repo: intdirstate.IChangingContextRepo,
+    ) -> Iterator[None]:
         raise NotImplementedError
 
     def refresh(self):

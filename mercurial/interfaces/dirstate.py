@@ -244,6 +244,15 @@ class IDirstate(Protocol):
         released.
         """
 
+    @contextlib.contextmanager
+    @abc.abstractmethod
+    def running_status(self, repo: IChangingContextRepo) -> Iterator[None]:
+        """Context manager wrapping a status operation
+
+        This context is not mutually exclusive with the `changing_*` ones, and
+        does not require the wlock.
+        """
+
     @abc.abstractmethod
     def hasdir(self, d: bytes) -> bool:
         pass

@@ -244,7 +244,10 @@ class dirstate(intdirstate.IDirstate):
 
     @contextlib.contextmanager
     @check_invalidated
-    def running_status(self, repo):
+    def running_status(
+        self,
+        repo: intdirstate.IChangingContextRepo,
+    ) -> Iterator[None]:
         """Wrap a status operation
 
         This context is not mutally exclusive with the `changing_*` context. It
