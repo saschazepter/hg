@@ -1879,7 +1879,7 @@ class queue:
         diffopts = self.diffopts(opts, patch)
         self.printdiff(repo, diffopts, node1, node2, files=pats, opts=opts)
 
-    def refresh(self, repo, pats=None, **opts):
+    def refresh(self, repo: RepoT, pats=None, **opts):
         opts = pycompat.byteskwargs(opts)
         if not self.applied:
             self.ui.write(_(b"no patches applied\n"))
