@@ -1884,7 +1884,7 @@ def overridecat(orig, ui, repo, file1, *pats, **opts):
 
 
 @eh.wrapfunction(merge, '_update')
-def mergeupdate(orig, repo, node, branchmerge, force, *args, **kwargs):
+def mergeupdate(orig, repo: RepoT, node, branchmerge, force, *args, **kwargs):
     matcher = kwargs.get('matcher', None)
     # note if this is a partial update
     partial = matcher and not matcher.always()
