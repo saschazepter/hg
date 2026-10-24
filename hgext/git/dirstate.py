@@ -12,6 +12,7 @@ from typing import (
 from mercurial.interfaces.types import (
     HgPathT,
     MatcherT,
+    NodeIdT,
     TransactionT,
 )
 from mercurial.node import sha1nodeconstants
@@ -120,11 +121,17 @@ class gitdirstate(intdirstate.IDirstate):
         # TODO: MERGE_HEAD? something like that, right?
         return sha1nodeconstants.nullid
 
-    def setparents(self, p1: bytes, p2: bytes | None = None):
+    def setparents(
+        self,
+        p1: NodeIdT,
+        p2: NodeIdT | None = None,
+    ) -> dict[HgPathT, HgPathT]:
         if p2 is None:
             p2 = sha1nodeconstants.nullid
         assert p2 == sha1nodeconstants.nullid, b'TODO merging support'
         self.git.head.set_target(gitutil.togitnode(p1))
+        # no merge support, so no copy record to drop
+        return {}
 
     @util.propertycache
     def identity(self):

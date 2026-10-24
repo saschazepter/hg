@@ -299,9 +299,12 @@ class IDirstate(Protocol):
     def branch(self) -> bytes:
         pass
 
-    # TODO: typehint the return.  It's a copies Map of some sort.
     @abc.abstractmethod
-    def setparents(self, p1: bytes, p2: bytes | None = None):
+    def setparents(
+        self,
+        p1: NodeIdT,
+        p2: NodeIdT | None = None,
+    ) -> dict[HgPathT, HgPathT]:
         """Set dirstate parents to p1 and p2.
 
         When moving from two parents to one, "merged" entries a

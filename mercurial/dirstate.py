@@ -22,6 +22,7 @@ from .i18n import _
 from .interfaces.types import (
     HgPathT,
     MatcherT,
+    NodeIdT,
     TransactionT,
 )
 
@@ -654,7 +655,11 @@ class dirstate(intdirstate.IDirstate):
         return encoding.tolocal(self._branch)
 
     @requires_changing_parents
-    def setparents(self, p1: bytes, p2: bytes | None = None):
+    def setparents(
+        self,
+        p1: NodeIdT,
+        p2: NodeIdT | None = None,
+    ) -> dict[HgPathT, HgPathT]:
         """Set dirstate parents to p1 and p2.
 
         When moving from two parents to one, "merged" entries a
