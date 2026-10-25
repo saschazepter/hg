@@ -120,8 +120,14 @@ impl Filelog {
         &self,
         file_node: impl Into<NodePrefix>,
     ) -> Result<usize, RevlogError> {
+        let rev = self.revlog.rev_from_node(file_node.into())?;
+        self.contents_size(rev)
+    }
+
+    /// Return the size of the uncompressed contents of this file, **stripped
+    /// of its potential metadata** (like copy information)
+    pub fn contents_size(&self, rev: Revision) -> Result<usize, RevlogError> {
         let revlog = &self.revlog;
-        let rev = revlog.rev_from_node(file_node.into())?;
         let revlog_entry = revlog.get_entry(rev)?;
 
         if !revlog.inner.ignore_filelog_censored_revisions()
