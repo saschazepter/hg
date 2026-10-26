@@ -2791,4 +2791,37 @@ pub(crate) mod tests {
         assert!(matcher.matches(HgPath::new("rootfile")));
         assert!(matcher.matches(HgPath::new("otherdir/file")));
     }
+
+    #[test]
+    fn test_shape_matcher_intersection() {
+        // A narrow shape with an exclude, intersected with a sparse-like
+        // matcher, as in `rhg status`.
+        let path =
+            |p: &[u8]| FilePattern::new(PatternSyntax::Path, p, Path::new(""));
+        let shape =
+            Shape::from_patterns(&[path(b".")], &[path(b"d1/secret")]).unwrap();
+        let sparse = IncludeMatcher::new(vec![path(b"d2/sub")]).unwrap();
+        let matcher =
+            IntersectionMatcher::new(ShapeMatcher::new(shape), sparse);
+        let set = |name: &[u8]| {
+            VisitChildrenSet::Set(FastHashSet::from_iter([
+                HgPathBuf::from_bytes(name),
+            ]))
+        };
+
+        // BUG: should be `set(b"d2")`, only `d2` can contain matches
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"")),
+            VisitChildrenSet::This
+        );
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"d1")),
+            VisitChildrenSet::Empty
+        );
+        assert_eq!(matcher.visit_children_set(HgPath::new(b"d2")), set(b"sub"));
+        assert_eq!(
+            matcher.visit_children_set(HgPath::new(b"d2/sub")),
+            VisitChildrenSet::AllMatch
+        );
+    }
 }
