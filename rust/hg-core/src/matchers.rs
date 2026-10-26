@@ -1374,7 +1374,7 @@ impl Display for IncludeMatcher<'_> {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use std::collections::BTreeMap;
     use std::collections::BTreeSet;
     use std::fmt::Debug;
@@ -2394,7 +2394,7 @@ mod tests {
         );
     }
 
-    mod invariants {
+    pub(crate) mod invariants {
         pub mod visit_children_set {
 
             use std::collections::BTreeMap;
@@ -2405,6 +2405,18 @@ mod tests {
             use crate::matchers::tests::Tree;
             use crate::utils::hg_path::HgPath;
             use crate::utils::hg_path::HgPathBuf;
+
+            /// Test `visit_children_set` on all directories and files
+            /// of `tree`, and return the detected invariant violations.
+            pub fn violations<M: Matcher>(
+                matcher: &M,
+                tree: &Tree,
+            ) -> Vec<(HgPathBuf, VisitChildrenSet)> {
+                let mut violations = vec![];
+                split(matcher, tree, HgPath::new(""), &mut violations);
+                violations.sort_by(|a, b| a.0.cmp(&b.0));
+                violations
+            }
 
             /// Splits `tree`, rooted at `path`, into the files that `matcher`
             /// matches and those it doesn't, and records the violations
@@ -2536,6 +2548,29 @@ mod tests {
                     res.0.len(),
                     m
                 );
+            }
+        }
+
+        /// Builds a tree that holds exactly `files`.
+        pub(crate) fn from_files(files: &[&str]) -> Self {
+            let mut tree =
+                Self { files: BTreeSet::new(), dirs: BTreeMap::new() };
+            for file in files {
+                tree.insert(file.as_bytes());
+            }
+            tree
+        }
+
+        fn insert(&mut self, path: &[u8]) {
+            match path.iter().position(|&b| b == b'/') {
+                None => {
+                    self.files.insert(HgPathBuf::from_bytes(path));
+                }
+                Some(i) => self
+                    .dirs
+                    .entry(HgPathBuf::from_bytes(&path[..i]))
+                    .or_insert_with(|| Self::from_files(&[]))
+                    .insert(&path[i + 1..]),
             }
         }
     }

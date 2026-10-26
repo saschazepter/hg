@@ -1416,6 +1416,8 @@ mod tests {
     use super::*;
     use crate::matchers::Matcher;
     use crate::matchers::VisitChildrenSet;
+    use crate::matchers::tests::Tree;
+    use crate::matchers::tests::invariants::visit_children_set;
 
     /// produce a valid store sharding
     ///
@@ -2411,6 +2413,111 @@ mod tests {
             matcher.visit_children_set(HgPath::new(b"bar/baz/ik")),
             VisitChildrenSet::AllMatch
         );
+    }
+
+    #[test]
+    fn test_matcher_visit_children_set_nested() {
+        let set = |names: &[&str]| {
+            VisitChildrenSet::Set(
+                names
+                    .iter()
+                    .map(|n| HgPathBuf::from_bytes(n.as_bytes()))
+                    .collect(),
+            )
+        };
+        // Builds the matcher, and returns the directories where
+        // `visit_children_set` contradicts `matches` on `files`, with the
+        // wrong answer.
+        let matcher = |includes: &[&str], excludes: &[&str], files: &[&str]| {
+            let includes: Vec<_> =
+                includes.iter().map(|p| path_pattern(p)).collect();
+            let excludes: Vec<_> =
+                excludes.iter().map(|p| path_pattern(p)).collect();
+            let m =
+                Shape::from_patterns(&includes, &excludes).unwrap().matcher();
+            let violations =
+                visit_children_set::violations(&m, &Tree::from_files(files));
+            (m, violations)
+        };
+        let p = |path: &str| HgPathBuf::from_bytes(path.as_bytes());
+        let vcs = |m: &ShapeMatcher, dir: &str| {
+            m.visit_children_set(HgPath::new(dir.as_bytes()))
+        };
+
+        // An include several levels deep
+        let (m, violations) = matcher(
+            &["na/rr/ow"],
+            &[],
+            &[
+                "f",
+                "other/f",
+                "na/f",
+                "na/other/f",
+                "na/rr/f",
+                "na/rr/ow/f",
+                "na/rr/ow/sub/f",
+                "na/rr/owl/f",
+            ],
+        );
+        // BUG: should be empty
+        assert_eq!(
+            violations,
+            [
+                (p(""), set(&["na/rr/ow"])),
+                (p("na"), VisitChildrenSet::Empty),
+                (p("na/rr"), VisitChildrenSet::Empty),
+            ]
+        );
+        assert!(m.matches(HgPath::new(b"na/rr/ow/file")));
+        // Each parent of `na/rr/ow` leads only to it
+        // BUG: should be `set(&["na"])`
+        assert_eq!(vcs(&m, ""), set(&["na/rr/ow"]));
+        // BUG: should be `set(&["rr"])`
+        assert_eq!(vcs(&m, "na"), VisitChildrenSet::Empty);
+        // BUG: should be `set(&["ow"])`
+        assert_eq!(vcs(&m, "na/rr"), VisitChildrenSet::Empty);
+        // Everything in `na/rr/ow` is included
+        assert_eq!(vcs(&m, "na/rr/ow"), VisitChildrenSet::AllMatch);
+        assert_eq!(vcs(&m, "na/rr/ow/sub"), VisitChildrenSet::AllMatch);
+        // Nothing else is included
+        assert_eq!(vcs(&m, "na/other"), VisitChildrenSet::Empty);
+        assert_eq!(vcs(&m, "other"), VisitChildrenSet::Empty);
+
+        // An include several levels below an exclude
+        let (m, violations) = matcher(
+            &[".", "d1/d2/d3"],
+            &["d1"],
+            &[
+                "f",
+                "other/f",
+                "d1/f",
+                "d1/other/f",
+                "d1/d2/f",
+                "d1/d2/d3/f",
+                "d1/d2/d3/sub/f",
+                "d1/d2/d3x/f",
+            ],
+        );
+        // BUG: should be empty
+        assert_eq!(
+            violations,
+            [
+                (p(""), VisitChildrenSet::AllMatch),
+                (p("d1"), set(&["d1/d2/d3"])),
+                (p("d1/d2"), VisitChildrenSet::Empty),
+            ]
+        );
+        assert!(m.matches(HgPath::new(b"d1/d2/d3/file")));
+        // Inside the excluded `d1`, each parent of `d1/d2/d3` leads only
+        // to it
+        // BUG: should be `set(&["d2"])`
+        assert_eq!(vcs(&m, "d1"), set(&["d1/d2/d3"]));
+        // BUG: should be `set(&["d3"])`
+        assert_eq!(vcs(&m, "d1/d2"), VisitChildrenSet::Empty);
+        // Everything in `d1/d2/d3` is included
+        assert_eq!(vcs(&m, "d1/d2/d3"), VisitChildrenSet::AllMatch);
+        // The rest of `d1` is excluded
+        assert_eq!(vcs(&m, "d1/other"), VisitChildrenSet::Empty);
     }
 
     #[test]

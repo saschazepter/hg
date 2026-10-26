@@ -210,3 +210,30 @@ included.
   $ "$real_hg" files
   dir1/x
   dir1/y
+
+Narrow clone with a nested include
+----------------------------------
+
+Only `d1/d2` is included, so `status` must walk through `d1` to find the
+changes in `d1/d2`.
+
+  $ cd "$TESTTMP"
+  $ hg init repo-nested
+  $ mkdir -p repo-nested/d1/d2
+  $ echo c1 > repo-nested/d1/d2/f1
+  $ echo c1 > repo-nested/d1/f2
+  $ hg -R repo-nested commit -Aqm 0
+  $ hg clone -q --narrow repo-nested repo-nested-narrow --include d1/d2
+  $ cd repo-nested-narrow
+  $ echo c2 > d1/d2/f1
+  $ echo c2 > d1/d2/f3
+
+Python `hg status` gives the expected output.
+
+  $ "$real_hg" status
+  M d1/d2/f1
+  ? d1/d2/f3
+
+`rhg status` misses the changes.
+
+  $ $NO_FALLBACK rhg --config rhg.status=true status
