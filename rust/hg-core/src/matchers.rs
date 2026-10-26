@@ -2397,18 +2397,51 @@ mod tests {
     mod invariants {
         pub mod visit_children_set {
 
+            use std::collections::BTreeMap;
+            use std::collections::BTreeSet;
+
             use crate::matchers::Matcher;
             use crate::matchers::VisitChildrenSet;
             use crate::matchers::tests::Tree;
             use crate::utils::hg_path::HgPath;
+            use crate::utils::hg_path::HgPathBuf;
 
-            #[allow(dead_code)]
-            #[derive(Debug)]
-            struct Error<'a, M> {
-                matcher: &'a M,
-                path: &'a HgPath,
-                matching: &'a Tree,
-                visit_children_set: &'a VisitChildrenSet,
+            /// Splits `tree`, rooted at `path`, into the files that `matcher`
+            /// matches and those it doesn't, and records the violations
+            /// found along the way.
+            pub fn split<M: Matcher>(
+                matcher: &M,
+                tree: &Tree,
+                path: &HgPath,
+                violations: &mut Vec<(HgPathBuf, VisitChildrenSet)>,
+            ) -> (Tree, Tree) {
+                let (files1, files2): (
+                    BTreeSet<HgPathBuf>,
+                    BTreeSet<HgPathBuf>,
+                ) = tree
+                    .files
+                    .iter()
+                    .map(|v| v.to_owned())
+                    .partition(|v| matcher.matches(&path.join(v)));
+                let (dirs1, dirs2): (
+                    BTreeMap<HgPathBuf, Tree>,
+                    BTreeMap<HgPathBuf, Tree>,
+                ) = tree
+                    .dirs
+                    .iter()
+                    .map(|(k, v)| {
+                        let (t1, t2) =
+                            split(matcher, v, &path.join(k), violations);
+                        ((k.clone(), t1), (k.clone(), t2))
+                    })
+                    .unzip();
+                let matching = Tree::make(files1, dirs1);
+                let not_matching = Tree::make(files2, dirs2);
+                let vcs = matcher.visit_children_set(path);
+                if !holds(&matching, &not_matching, &vcs) {
+                    violations.push((path.to_owned(), vcs));
+                }
+                (matching, not_matching)
             }
 
             fn holds(
@@ -2447,21 +2480,6 @@ mod tests {
                     }
                 }
             }
-
-            pub fn check<M: Matcher + std::fmt::Debug>(
-                matcher: &M,
-                path: &HgPath,
-                matching: &Tree,
-                not_matching: &Tree,
-                visit_children_set: &VisitChildrenSet,
-            ) {
-                if !holds(matching, not_matching, visit_children_set) {
-                    panic!(
-                        "{:#?}",
-                        Error { matcher, path, visit_children_set, matching }
-                    )
-                }
-            }
         }
     }
 
@@ -2498,47 +2516,19 @@ mod tests {
             }
         }
 
-        fn filter_and_check<M: Matcher + Debug>(
-            &self,
-            m: &M,
-            path: &HgPath,
-        ) -> (Self, Self) {
-            let (files1, files2): (BTreeSet<HgPathBuf>, BTreeSet<HgPathBuf>) =
-                self.files
-                    .iter()
-                    .map(|v| v.to_owned())
-                    .partition(|v| m.matches(&path.join(v)));
-            let (dirs1, dirs2): (
-                BTreeMap<HgPathBuf, Tree>,
-                BTreeMap<HgPathBuf, Tree>,
-            ) = self
-                .dirs
-                .iter()
-                .map(|(k, v)| {
-                    let path = path.join(k);
-                    let (t1, t2) = v.filter_and_check(m, &path);
-                    ((k.clone(), t1), (k.clone(), t2))
-                })
-                .unzip();
-            let matching = Self::make(files1, dirs1);
-            let not_matching = Self::make(files2, dirs2);
-            let vcs = m.visit_children_set(path);
-            invariants::visit_children_set::check(
-                m,
-                path,
-                &matching,
-                &not_matching,
-                &vcs,
-            );
-            (matching, not_matching)
-        }
-
         fn check_matcher<M: Matcher + Debug>(
             &self,
             m: &M,
             expect_count: usize,
         ) {
-            let res = self.filter_and_check(m, &HgPathBuf::new());
+            let mut violations = vec![];
+            let res = invariants::visit_children_set::split(
+                m,
+                self,
+                HgPath::new(""),
+                &mut violations,
+            );
+            assert!(violations.is_empty(), "{m:#?}\n{violations:#?}");
             if expect_count != res.0.len() {
                 eprintln!(
                     "warning: expected {} matches, got {} for {:#?}",
