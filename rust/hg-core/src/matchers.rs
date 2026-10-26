@@ -2751,6 +2751,28 @@ pub(crate) mod tests {
         tree.check_matcher(&more_includematchers[0], 17);
         tree.check_matcher(&more_includematchers[1], 25);
         tree.check_matcher(&more_includematchers[2], 35);
+
+        let shape = |includes: &[&[u8]], excludes: &[&[u8]]| {
+            let path = |p: &&[u8]| {
+                FilePattern::new(PatternSyntax::Path, p, Path::new(""))
+            };
+            let includes: Vec<_> = includes.iter().map(path).collect();
+            let excludes: Vec<_> = excludes.iter().map(path).collect();
+            ShapeMatcher::new(
+                Shape::from_patterns(&includes, &excludes).unwrap(),
+            )
+        };
+        tree.check_matcher(&shape(&[b"a/b/c"], &[]), 16);
+        tree.check_matcher(&shape(&[b"dir1/subdir", b"a/b/c/d"], &[]), 17);
+        tree.check_matcher(&shape(&[b"."], &[b"dir/subdir", b"a/b"]), 79);
+        tree.check_matcher(&shape(&[b".", b"a/b/c"], &[b"a"]), 95);
+        tree.check_matcher(
+            &IntersectionMatcher::new(
+                shape(&[b"."], &[b"dir1/subdir"]),
+                pattern_dir1(),
+            ),
+            16,
+        );
     }
 
     #[test]
