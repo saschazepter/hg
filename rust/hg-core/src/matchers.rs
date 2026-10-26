@@ -60,10 +60,12 @@ pub enum VisitChildrenSet {
     This,
     /// Only visit the children (both files and directories) if they
     /// are mentioned in this set. (empty set corresponds to [`Self::Empty`])
+    /// The entries are names relative to the directory (single path
+    /// components), not full paths.
     /// TODO Should we implement a `NonEmptyHashSet`?
     Set(FastHashSet<HgPathBuf>),
-    /// Visit this directory and all subdirectories
-    /// (you can stop asking about the children set)
+    /// Every file in this directory and all its subdirectories matches
+    /// (you can stop asking about the children set, and about `matches`)
     AllMatch,
 }
 

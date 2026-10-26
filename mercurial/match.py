@@ -617,9 +617,9 @@ class basematcher(int_matcher.IMatcher):
         has potential matches in it or one of its subdirectories. This is
         based on the match's primary, included, and excluded patterns.
 
-        Returns the string 'all' if the given directory and all subdirectories
-        should be visited. Otherwise returns True or False indicating whether
-        the given directory should be visited.
+        Returns the string 'all' if every file in the given directory and all
+        its subdirectories matches. Otherwise returns True or False indicating
+        whether the given directory should be visited.
         """
         return True
 
