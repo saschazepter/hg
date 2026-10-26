@@ -27,6 +27,7 @@ use crate::utils::files::get_path_from_bytes;
 use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::strings::SliceExt;
+use crate::utils::u_u32;
 use crate::vfs::VfsImpl;
 
 /// A specialized `Revlog` to work with file data logs.
@@ -438,6 +439,49 @@ impl<'a> FilelogRevisionMetadata<'a> {
             }
         }
         Ok(fields)
+    }
+}
+
+/// The file-system mode and size expected for the clean version of a file,
+/// as found in the first parent of the working directory.
+///
+/// This is the ideal mode and size, regardless of which modes the file system
+/// supports.
+///
+/// (see `DirstateEntry::set_state`).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct ExpectedFileState {
+    pub mode: u32,
+    pub size: u32,
+}
+
+impl ExpectedFileState {
+    /// Build the expectation from the manifest flags and the length of the
+    /// file contents (stripped of their potential metadata).
+    pub fn new(flags: ManifestFlags, contents_size: usize) -> Self {
+        // Same mapping as the Python side (`workingctx._expected_fs_state`).
+        // Some platforms' libc don't have the same type (MacOS uses i32 here)
+        #[allow(clippy::unnecessary_cast)]
+        let mode = if flags.is_link() {
+            libc::S_IFLNK as u32 | 0o777
+        } else if flags.is_exec() {
+            libc::S_IFREG as u32 | 0o755
+        } else {
+            libc::S_IFREG as u32 | 0o644
+        };
+        Self { mode, size: u_u32(contents_size & 0x7FFF_FFFF) }
+    }
+}
+
+impl Filelog {
+    /// Return the mode and size the dirstate should expect for the given
+    /// revision of this file, checked out with `flags`.
+    pub fn expected_fs_state(
+        &self,
+        rev: Revision,
+        flags: ManifestFlags,
+    ) -> Result<ExpectedFileState, RevlogError> {
+        Ok(ExpectedFileState::new(flags, self.contents_size(rev)?))
     }
 }
 
