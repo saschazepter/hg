@@ -829,29 +829,28 @@ impl Matcher for ShapeMatcher {
 
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
         let node = deepest_prefix_node(&self.shape.tree, directory);
-        let exact_match = node.path.as_ref() == directory;
         if node.included {
             // Regardless of whether it's an exact or only a prefix match,
             // we've matched the best node and it's included
             VisitChildrenSet::AllMatch
-        } else if exact_match {
+        } else {
             // This node is excluded
-            if node.children.is_empty() {
+            let children: FastHashSet<HgPathBuf> = node
+                .children
+                .iter()
+                .filter_map(|child| {
+                    first_component_under(directory, &child.path)
+                })
+                .map(ToOwned::to_owned)
+                .collect();
+            if children.is_empty() {
                 // ... and has no relevant children
                 VisitChildrenSet::Empty
             } else {
                 // ... and has these children, which could be relevant, we
                 // don't know yet
-                VisitChildrenSet::Set(
-                    node.children
-                        .iter()
-                        .map(|child| child.path.to_owned())
-                        .collect(),
-                )
+                VisitChildrenSet::Set(children)
             }
-        } else {
-            // This prefix node is excluded
-            VisitChildrenSet::Empty
         }
     }
 
@@ -862,6 +861,25 @@ impl Matcher for ShapeMatcher {
     fn is_exact(&self) -> bool {
         false
     }
+}
+
+/// Returns the first component of `path` relative to `directory`, if `path` is
+/// strictly under `directory`.
+fn first_component_under<'a>(
+    directory: &HgPath,
+    path: &'a HgPath,
+) -> Option<&'a HgPath> {
+    let rest = if directory.is_empty() {
+        path.as_bytes()
+    } else {
+        path.as_bytes()
+            .strip_prefix(directory.as_bytes())?
+            .strip_prefix(b"/")?
+    };
+    if rest.is_empty() {
+        return None;
+    }
+    Some(HgPath::new(rest).split_first_component().0)
 }
 
 #[derive(Debug)]

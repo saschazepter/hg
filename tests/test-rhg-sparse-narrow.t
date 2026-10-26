@@ -234,6 +234,6 @@ Python `hg status` gives the expected output.
   M d1/d2/f1
   ? d1/d2/f3
 
-`rhg status` misses the changes.
-
   $ $NO_FALLBACK rhg --config rhg.status=true status
+  M d1/d2/f1
+  ? d1/d2/f3

@@ -2405,7 +2405,7 @@ mod tests {
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar/baz")),
             VisitChildrenSet::Set(FastHashSet::from_iter([
-                HgPathBuf::from_bytes(b"bar/baz/ik")
+                HgPathBuf::from_bytes(b"ik")
             ]))
         );
         // Test a nested exact match
@@ -2459,23 +2459,12 @@ mod tests {
                 "na/rr/owl/f",
             ],
         );
-        // BUG: should be empty
-        assert_eq!(
-            violations,
-            [
-                (p(""), set(&["na/rr/ow"])),
-                (p("na"), VisitChildrenSet::Empty),
-                (p("na/rr"), VisitChildrenSet::Empty),
-            ]
-        );
+        assert_eq!(violations, []);
         assert!(m.matches(HgPath::new(b"na/rr/ow/file")));
         // Each parent of `na/rr/ow` leads only to it
-        // BUG: should be `set(&["na"])`
-        assert_eq!(vcs(&m, ""), set(&["na/rr/ow"]));
-        // BUG: should be `set(&["rr"])`
-        assert_eq!(vcs(&m, "na"), VisitChildrenSet::Empty);
-        // BUG: should be `set(&["ow"])`
-        assert_eq!(vcs(&m, "na/rr"), VisitChildrenSet::Empty);
+        assert_eq!(vcs(&m, ""), set(&["na"]));
+        assert_eq!(vcs(&m, "na"), set(&["rr"]));
+        assert_eq!(vcs(&m, "na/rr"), set(&["ow"]));
         // Everything in `na/rr/ow` is included
         assert_eq!(vcs(&m, "na/rr/ow"), VisitChildrenSet::AllMatch);
         assert_eq!(vcs(&m, "na/rr/ow/sub"), VisitChildrenSet::AllMatch);
@@ -2499,21 +2488,13 @@ mod tests {
             ],
         );
         // BUG: should be empty
-        assert_eq!(
-            violations,
-            [
-                (p(""), VisitChildrenSet::AllMatch),
-                (p("d1"), set(&["d1/d2/d3"])),
-                (p("d1/d2"), VisitChildrenSet::Empty),
-            ]
-        );
+        // (`d1` is excluded, so the root can't be `AllMatch`)
+        assert_eq!(violations, [(p(""), VisitChildrenSet::AllMatch)]);
         assert!(m.matches(HgPath::new(b"d1/d2/d3/file")));
         // Inside the excluded `d1`, each parent of `d1/d2/d3` leads only
         // to it
-        // BUG: should be `set(&["d2"])`
-        assert_eq!(vcs(&m, "d1"), set(&["d1/d2/d3"]));
-        // BUG: should be `set(&["d3"])`
-        assert_eq!(vcs(&m, "d1/d2"), VisitChildrenSet::Empty);
+        assert_eq!(vcs(&m, "d1"), set(&["d2"]));
+        assert_eq!(vcs(&m, "d1/d2"), set(&["d3"]));
         // Everything in `d1/d2/d3` is included
         assert_eq!(vcs(&m, "d1/d2/d3"), VisitChildrenSet::AllMatch);
         // The rest of `d1` is excluded
