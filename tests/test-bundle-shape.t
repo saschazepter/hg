@@ -68,7 +68,7 @@ Test without any shaping (sanity check)
 Create shapes config
 
   $ cat << EOF >> $TESTTMP/source-shapes
-  > version = 0
+  > version = 1
   > [[shards]]
   > name = "excluded1"
   > paths = ["excluded"]

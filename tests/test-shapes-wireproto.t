@@ -14,7 +14,7 @@ Setup the repo
 
 Setup the server shapes config
   $ cat > $TESTTMP/starting-shapes <<EOF
-  > version = 0
+  > version = 1
   > [[shards]]
   > name = "secrets"
   > paths = ["secret"]
@@ -475,7 +475,7 @@ Check that a pattern only mismatch is detected
 
 Update the server shapes to change the fingerprint of this shape
   $ cat > $TESTTMP/new-shapes <<EOF
-  > version = 0
+  > version = 1
   > [[shards]]
   > name = "secrets"
   > paths = ["secret"]
@@ -522,7 +522,7 @@ Check that a shape being removed is detected
 
 Update the server shapes to remove the shape
   $ cat > $TESTTMP/new-shapes <<EOF
-  > version = 0
+  > version = 1
   > [[shards]]
   > name = "dir1"
   > paths = ["dir1"]
@@ -565,7 +565,7 @@ Check that a pattern only mismatch is detected
 
 Update the server shapes to change the fingerprint of this shape
   $ cat > $TESTTMP/new-shapes <<EOF
-  > version = 0
+  > version = 1
   > [[shards]]
   > name = "secrets"
   > paths = ["secret"]
@@ -612,7 +612,7 @@ Check that a shape being removed is detected
 
 Update the server shapes to remove the shape
   $ cat > $TESTTMP/new-shapes <<EOF
-  > version = 0
+  > version = 1
   > [[shards]]
   > name = "dir1"
   > paths = ["dir1"]

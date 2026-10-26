@@ -848,7 +848,7 @@ struct ProfilesEntry {
 #[serde(deny_unknown_fields)]
 pub struct ShapesConfig {
     // XXX should there be a `[meta]` section?
-    /// The version of this config. For now only version `0` exists.
+    /// The version of this config. For now only versions `0` and `1` exist.
     version: u32,
     /// The shards defined by the repo's admins.
     shards: Vec<ShardsEntry>,
@@ -859,7 +859,7 @@ pub struct ShapesConfig {
 
 impl ShapesConfig {
     fn is_known_version(version: u32) -> bool {
-        version == 0
+        version == 0 || version == 1
     }
 }
 
@@ -1418,7 +1418,7 @@ mod tests {
         // Leading whitespace does not matter in TOML, I think this is more
         // readable
         let valid_config = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo-files"
@@ -2425,7 +2425,7 @@ mod tests {
         let pairs = &[
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="full"
                 paths=[""]
@@ -2434,7 +2434,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="base"
                 paths=[""]
@@ -2443,7 +2443,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name=".hg-files"
                 paths=[""]
@@ -2461,7 +2461,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="Babar"
                 paths=["babar"]
@@ -2470,7 +2470,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name=""
                 paths=["babar"]
@@ -2479,7 +2479,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="."
                 paths=["babar"]
@@ -2488,7 +2488,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="-"
                 paths=["babar"]
@@ -2497,7 +2497,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="-.-"
                 paths=["babar"]
@@ -2506,7 +2506,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="duplicate"
                 paths=["babar"]
@@ -2520,7 +2520,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name="too-little"
                 paths=[]
@@ -2529,7 +2529,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 shards=[]
                 [[profiles]]
                 name="too-little"
@@ -2539,7 +2539,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name = "myshard"
                 paths = ["secret"]
@@ -2552,7 +2552,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name = "myshard"
                 paths = ["secret"]
@@ -2566,7 +2566,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name = "myshard"
                 # Needs two slashes because we allow one trailing slash that
@@ -2582,7 +2582,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 [[shards]]
                 name = "myshard"
                 paths = ["badpath//bad"]
@@ -2597,7 +2597,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 shards=[]
                 [[profiles]]
                 name="private"
@@ -2610,7 +2610,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 shards=[]
                 [[profiles]]
                 name="recursive"
@@ -2623,7 +2623,7 @@ mod tests {
             ),
             (
                 r#"
-                version=0
+                version=1
                 shards=[]
                 [[profiles]]
                 name="cyclic1"
@@ -2658,7 +2658,7 @@ mod tests {
     }
 
     const SIMPLE_CONFIG: &str = r#"
-        version = 0
+        version = 1
 
         [[shards]]
         name = "foo"
@@ -2701,7 +2701,7 @@ mod tests {
         // Comments, whitespace, and the order of shards are not meaningful
         // changes
         let reformatted = r#"
-            version = 0
+            version = 1
             # this is the default shape
             [[profiles]]
             name = "default"
@@ -2716,7 +2716,7 @@ mod tests {
 
         // Order of paths is not a meaningful change
         let old = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo-files"
@@ -2728,7 +2728,7 @@ mod tests {
             public = true
         "#;
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo-files"
@@ -2746,7 +2746,7 @@ mod tests {
     #[test]
     fn test_adding_shape() {
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2767,7 +2767,7 @@ mod tests {
 
         // A non-public shape is not user-accessible, so not a change
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2790,7 +2790,7 @@ mod tests {
     fn test_adding_shard() {
         // Simply adding a shard can affect shapes
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2811,7 +2811,7 @@ mod tests {
 
         // If we adjust the shape as well, we can prevent it from changing
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2834,7 +2834,7 @@ mod tests {
     fn test_removing_shard() {
         // A config needs at least one shard, so keep `bar` around
         let old = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2851,7 +2851,7 @@ mod tests {
         "#;
         // Removing a shard can also affect shapes
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "bar"
@@ -2868,7 +2868,7 @@ mod tests {
 
         // We must first remove the shape, and only then can we remove the shard
         let remove_shape = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2882,7 +2882,7 @@ mod tests {
         assert_eq!(changed_shards(old, remove_shape), NO_CHANGE);
 
         let remove_shard = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "bar"
@@ -2898,7 +2898,7 @@ mod tests {
     #[test]
     fn test_no_shards() {
         let config = r#"
-            version = 0
+            version = 1
             shards = []
 
             [[profiles]]
@@ -2916,7 +2916,7 @@ mod tests {
     #[test]
     fn test_changing_existing_shard() {
         let old = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2927,7 +2927,7 @@ mod tests {
             paths = ["baz"]
         "#;
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2943,7 +2943,7 @@ mod tests {
     #[test]
     fn test_read_write_access() {
         let old = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2959,7 +2959,7 @@ mod tests {
 
         // Changing who can write a shard does not change the shard itself
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
@@ -2974,14 +2974,14 @@ mod tests {
         // The name of a (non-shape) shard is an internal detail. A pure rename
         // does not count as resharding.
         let old = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "foo"
             paths = ["foo"]
         "#;
         let new = r#"
-            version = 0
+            version = 1
 
             [[shards]]
             name = "renamed"

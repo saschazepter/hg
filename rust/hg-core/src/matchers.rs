@@ -2693,7 +2693,7 @@ mod tests {
         // when writing the matcher. More complex cases can be found in the
         // `shape` module.
         let config = r#"
-        version = 0
+        version = 1
         [[shards]]
         name = "a"
         paths = ["a"]

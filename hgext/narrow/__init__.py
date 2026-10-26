@@ -209,9 +209,10 @@ which checks that the update is safe (see
 ``Updating the store sharding configuration`` below). Editing the file by hand
 is unsupported and will likely result in unexpected client breakage.
 
-The current (experimental!) format is the following::
+The format is the following::
 
-  * ``version`` (required): its value must be ``0``
+  * ``version`` (required): its value must be ``1``. Version ``0`` is still
+      accepted and read the same way.
   * ``[[shards]]`` (required): a list of <shardconfig>
   * ``[[profiles]]`` (optional): a list of <profileconfig>
   * <shardconfig>:
@@ -254,7 +255,7 @@ Constraints::
 
 Example::
 
-    version = 0
+    version = 1
 
     [[shards]]
     name = "foo-files"
