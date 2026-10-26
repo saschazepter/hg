@@ -741,9 +741,10 @@ impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
         match (&m1_set, &m2_set) {
             (VisitChildrenSet::AllMatch, _) => m2_set,
             (_, VisitChildrenSet::AllMatch) => m1_set,
-            (VisitChildrenSet::This, _) | (_, VisitChildrenSet::This) => {
-                VisitChildrenSet::This
-            }
+            // Only the paths that `m2` might match can be in the
+            // intersection, and conversely
+            (VisitChildrenSet::This, _) => m2_set,
+            (_, VisitChildrenSet::This) => m1_set,
             (VisitChildrenSet::Set(m1), VisitChildrenSet::Set(m2)) => {
                 let set: FastHashSet<_> =
                     m1.intersection(m2).cloned().collect();
@@ -2138,9 +2139,11 @@ pub(crate) mod tests {
             matcher.visit_children_set(HgPath::new(b"")),
             VisitChildrenSet::Set(set)
         );
+        let mut set = FastHashSet::default();
+        set.insert(HgPathBuf::from_bytes(b"subdir"));
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir")),
-            VisitChildrenSet::This
+            VisitChildrenSet::Set(set)
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir")),
@@ -2809,11 +2812,8 @@ pub(crate) mod tests {
             ]))
         };
 
-        // BUG: should be `set(b"d2")`, only `d2` can contain matches
-        assert_eq!(
-            matcher.visit_children_set(HgPath::new(b"")),
-            VisitChildrenSet::This
-        );
+        // Only `d2` can contain files that `sparse` matches
+        assert_eq!(matcher.visit_children_set(HgPath::new(b"")), set(b"d2"));
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"d1")),
             VisitChildrenSet::Empty
