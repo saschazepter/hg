@@ -536,7 +536,7 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
 
     fn should_visit(set: &VisitChildrenSet, basename: &HgPath) -> bool {
         match set {
-            VisitChildrenSet::This | VisitChildrenSet::Recursive => true,
+            VisitChildrenSet::This | VisitChildrenSet::AllMatch => true,
             VisitChildrenSet::Empty => false,
             VisitChildrenSet::Set(children_to_visit) => {
                 children_to_visit.contains(basename)

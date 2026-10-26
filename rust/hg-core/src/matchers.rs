@@ -64,7 +64,7 @@ pub enum VisitChildrenSet {
     Set(FastHashSet<HgPathBuf>),
     /// Visit this directory and all subdirectories
     /// (you can stop asking about the children set)
-    Recursive,
+    AllMatch,
 }
 
 pub trait Matcher: core::fmt::Debug + Sync {
@@ -92,7 +92,7 @@ pub trait Matcher: core::fmt::Debug + Sync {
     /// '' -> {'foo', 'qux'}
     /// 'baz' -> set()
     /// 'foo' -> {'bar'}
-    /// // Ideally this would be `Recursive`, but since the prefix nature of
+    /// // Ideally this would be `AllMatch`, but since the prefix nature of
     /// // matchers is applied to the entire matcher, we have to downgrade this
     /// // to `This` due to the (yet to be implemented in Rust) non-prefix
     /// // `RootFilesIn'-kind matcher being mixed in.
@@ -197,7 +197,7 @@ impl Matcher for AlwaysMatcher {
         true
     }
     fn visit_children_set(&self, _directory: &HgPath) -> VisitChildrenSet {
-        VisitChildrenSet::Recursive
+        VisitChildrenSet::AllMatch
     }
     fn matches_everything(&self) -> bool {
         true
@@ -479,7 +479,7 @@ impl Matcher for PatternMatcher<'_> {
 
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
         if self.prefix && self.files.contains(directory) {
-            return VisitChildrenSet::Recursive;
+            return VisitChildrenSet::AllMatch;
         }
         if self.dirs.contains(directory) {
             return VisitChildrenSet::This;
@@ -594,7 +594,7 @@ impl Matcher for IncludeMatcher<'_> {
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
         let dir = directory;
         if self.prefix && self.roots.contains(dir) {
-            return VisitChildrenSet::Recursive;
+            return VisitChildrenSet::AllMatch;
         }
         if self.roots.contains(HgPath::new(b""))
             || self.roots.contains(dir)
@@ -658,7 +658,7 @@ impl<M: Matcher> Matcher for UnionMatcher<M> {
                 VisitChildrenSet::Set(set) => {
                     result.extend(set);
                 }
-                VisitChildrenSet::Recursive => {
+                VisitChildrenSet::AllMatch => {
                     return visit;
                 }
             }
@@ -719,15 +719,15 @@ impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
             return VisitChildrenSet::Empty;
         }
 
-        if m1_set == VisitChildrenSet::Recursive {
+        if m1_set == VisitChildrenSet::AllMatch {
             return m2_set;
-        } else if m2_set == VisitChildrenSet::Recursive {
+        } else if m2_set == VisitChildrenSet::AllMatch {
             return m1_set;
         }
 
         match (&m1_set, &m2_set) {
-            (VisitChildrenSet::Recursive, _) => m2_set,
-            (_, VisitChildrenSet::Recursive) => m1_set,
+            (VisitChildrenSet::AllMatch, _) => m2_set,
+            (_, VisitChildrenSet::AllMatch) => m1_set,
             (VisitChildrenSet::This, _) | (_, VisitChildrenSet::This) => {
                 VisitChildrenSet::This
             }
@@ -820,7 +820,7 @@ impl Matcher for ShapeMatcher {
         if node.included {
             // Regardless of whether it's an exact or only a prefix match,
             // we've matched the best node and it's included
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         } else if exact_match {
             // This node is excluded
             if node.children.is_empty() {
@@ -873,7 +873,7 @@ impl<M1: Matcher, M2: Matcher> Matcher for DifferenceMatcher<M1, M2> {
 
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet {
         let excluded_set = self.excluded.visit_children_set(directory);
-        if excluded_set == VisitChildrenSet::Recursive {
+        if excluded_set == VisitChildrenSet::AllMatch {
             return VisitChildrenSet::Empty;
         }
         let base_set = self.base.visit_children_set(directory);
@@ -885,7 +885,7 @@ impl<M1: Matcher, M2: Matcher> Matcher for DifferenceMatcher<M1, M2> {
             return base_set;
         }
         match base_set {
-            VisitChildrenSet::This | VisitChildrenSet::Recursive => {
+            VisitChildrenSet::This | VisitChildrenSet::AllMatch => {
                 // Never return 'recursive' here if excluded_set is any kind of
                 // non-empty (either 'this' or set(foo)), since excluded might
                 // return set() for a subdirectory.
@@ -1537,9 +1537,9 @@ mod tests {
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
-        // OPT: This should probably be Recursive if its parent is?
+        // OPT: This should probably be AllMatch if its parent is?
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir/x")),
             VisitChildrenSet::This
@@ -1566,9 +1566,9 @@ mod tests {
         );
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
-        // OPT: This should probably be Recursive if its parent is?
+        // OPT: This should probably be AllMatch if its parent is?
         assert_eq!(
             m.visit_children_set(HgPath::new(b"dir/subdir/x")),
             VisitChildrenSet::This
@@ -1776,7 +1776,7 @@ mod tests {
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
         // OPT: This should probably be 'all' if its parent is?
         assert_eq!(
@@ -1944,7 +1944,7 @@ mod tests {
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/foo")),
@@ -2000,7 +2000,7 @@ mod tests {
 
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/foo")),
@@ -2009,7 +2009,7 @@ mod tests {
 
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"folder")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
         // OPT: These next two could be 'all' instead of 'this'.
         assert_eq!(
@@ -2051,7 +2051,7 @@ mod tests {
 
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/foo")),
@@ -2064,7 +2064,7 @@ mod tests {
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir/x")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
         // OPT: this should probably be 'all' not 'this'.
         assert_eq!(
@@ -2322,7 +2322,7 @@ mod tests {
         ] {
             assert_eq!(
                 matcher.visit_children_set(HgPath::new(case)),
-                VisitChildrenSet::Recursive
+                VisitChildrenSet::AllMatch
             );
         }
 
@@ -2361,7 +2361,7 @@ mod tests {
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/subdir")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"dir/foo")),
@@ -2409,8 +2409,8 @@ mod tests {
                         // `This` does not come with any obligations.
                         true
                     }
-                    VisitChildrenSet::Recursive => {
-                        // `Recursive` requires that *everything* in the
+                    VisitChildrenSet::AllMatch => {
+                        // `AllMatch` requires that *everything* in the
                         // subtree matches. This
                         // requirement is relied on for example in
                         // DifferenceMatcher implementation.

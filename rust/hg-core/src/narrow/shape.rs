@@ -2360,12 +2360,12 @@ mod tests {
         // Test an exact match on an included node
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar")),
-            VisitChildrenSet::Recursive,
+            VisitChildrenSet::AllMatch,
         );
         // Test a prefix match on an included node
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar/file")),
-            VisitChildrenSet::Recursive,
+            VisitChildrenSet::AllMatch,
         );
         // Test a no match
         assert_eq!(
@@ -2409,7 +2409,7 @@ mod tests {
         // Test a nested exact match
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar/baz/ik")),
-            VisitChildrenSet::Recursive
+            VisitChildrenSet::AllMatch
         );
     }
 
