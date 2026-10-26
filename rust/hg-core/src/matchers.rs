@@ -832,7 +832,14 @@ impl Matcher for ShapeMatcher {
         if node.included {
             // Regardless of whether it's an exact or only a prefix match,
             // we've matched the best node and it's included
-            VisitChildrenSet::AllMatch
+            if node.children.iter().any(|child| {
+                first_component_under(directory, &child.path).is_some()
+            }) {
+                // ... but has excluded children under `directory`
+                VisitChildrenSet::This
+            } else {
+                VisitChildrenSet::AllMatch
+            }
         } else {
             // This node is excluded
             let children: FastHashSet<HgPathBuf> = node

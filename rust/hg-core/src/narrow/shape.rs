@@ -2359,11 +2359,11 @@ mod tests {
                 .collect()
             )
         );
-        // Test an exact match on an included node
-        // BUG: should be `This`, since `bar/baz` is excluded
+        // Test an exact match on an included node. It contains the
+        // excluded `bar/baz`, so it can't be `AllMatch`.
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar")),
-            VisitChildrenSet::AllMatch,
+            VisitChildrenSet::This,
         );
         // Test a prefix match on an included node
         assert_eq!(
@@ -2409,11 +2409,11 @@ mod tests {
                 HgPathBuf::from_bytes(b"ik")
             ]))
         );
-        // Test a nested exact match
-        // BUG: should be `This`, since `bar/baz/ik/u` is excluded
+        // Test a nested exact match. It contains the excluded
+        // `bar/baz/ik/u`, so it can't be `AllMatch`.
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar/baz/ik")),
-            VisitChildrenSet::AllMatch
+            VisitChildrenSet::This
         );
     }
 
@@ -2441,7 +2441,6 @@ mod tests {
                 visit_children_set::violations(&m, &Tree::from_files(files));
             (m, violations)
         };
-        let p = |path: &str| HgPathBuf::from_bytes(path.as_bytes());
         let vcs = |m: &ShapeMatcher, dir: &str| {
             m.visit_children_set(HgPath::new(dir.as_bytes()))
         };
@@ -2489,9 +2488,7 @@ mod tests {
                 "d1/d2/d3x/f",
             ],
         );
-        // BUG: should be empty
-        // (`d1` is excluded, so the root can't be `AllMatch`)
-        assert_eq!(violations, [(p(""), VisitChildrenSet::AllMatch)]);
+        assert_eq!(violations, []);
         assert!(m.matches(HgPath::new(b"d1/d2/d3/file")));
         // Inside the excluded `d1`, each parent of `d1/d2/d3` leads only
         // to it
@@ -2517,23 +2514,14 @@ mod tests {
                 "d1/d2/secrets/f",
             ],
         );
-        // BUG: should be empty
-        assert_eq!(
-            violations,
-            [
-                (p(""), VisitChildrenSet::AllMatch),
-                (p("d1"), VisitChildrenSet::AllMatch),
-                (p("d1/d2"), VisitChildrenSet::AllMatch),
-            ]
-        );
+        assert_eq!(violations, []);
         assert!(!m.matches(HgPath::new(b"d1/d2/secret")));
         // The parents of `d1/d2/secret` hold both matching and excluded
         // files, and "everything but `secret`" can't be written as a
         // `Set`
-        // BUG: the next three should be `This`
-        assert_eq!(vcs(&m, ""), VisitChildrenSet::AllMatch);
-        assert_eq!(vcs(&m, "d1"), VisitChildrenSet::AllMatch);
-        assert_eq!(vcs(&m, "d1/d2"), VisitChildrenSet::AllMatch);
+        assert_eq!(vcs(&m, ""), VisitChildrenSet::This);
+        assert_eq!(vcs(&m, "d1"), VisitChildrenSet::This);
+        assert_eq!(vcs(&m, "d1/d2"), VisitChildrenSet::This);
         // Everything in `d1/d2/secret` is excluded
         assert_eq!(vcs(&m, "d1/d2/secret"), VisitChildrenSet::Empty);
         // Directories that don't contain `d1/d2/secret` are fully included
