@@ -37,11 +37,11 @@ Patterns already covered by a parent one do not change the fingerprint.
   > EOF
 
   $ hg debug::narrow-fingerprint < narrowspec
-  shape00-418205b43a896cb47131afe42632fefa1749826d3d2420125ea96403f1cb8fa9
+  shape01-418205b43a896cb47131afe42632fefa1749826d3d2420125ea96403f1cb8fa9
   $ hg debug::narrow-fingerprint < narrowspec-same
-  shape00-418205b43a896cb47131afe42632fefa1749826d3d2420125ea96403f1cb8fa9
+  shape01-418205b43a896cb47131afe42632fefa1749826d3d2420125ea96403f1cb8fa9
   $ hg debug::narrow-fingerprint < narrowspec-different
-  shape00-7fb93baea025185c47c2a460552b057db0057ea13f2cda69274758aa2b1d4125
+  shape01-7fb93baea025185c47c2a460552b057db0057ea13f2cda69274758aa2b1d4125
 
 Excludes take precedence over includes
 --------------------------------------
@@ -62,9 +62,9 @@ excluded: the fingerprint is the one of the narrowspec without that path.
   > EOF
 
   $ hg debug::narrow-fingerprint < bar-only
-  shape00-b109b406b6216c0cadca1000b63cccdcef441c6f88a5a0c2c529bb4376a809ca
+  shape01-b109b406b6216c0cadca1000b63cccdcef441c6f88a5a0c2c529bb4376a809ca
   $ hg debug::narrow-fingerprint < foo-bar-minus-foo
-  shape00-b109b406b6216c0cadca1000b63cccdcef441c6f88a5a0c2c529bb4376a809ca
+  shape01-b109b406b6216c0cadca1000b63cccdcef441c6f88a5a0c2c529bb4376a809ca
 
 Excluding everything that is included gives the fingerprint of an empty shape,
 whether through a path or through the root itself.
@@ -83,9 +83,9 @@ whether through a path or through the root itself.
   > EOF
 
   $ hg debug::narrow-fingerprint < foo-minus-foo
-  shape00-10487d86ce3584e156874ed9b2650e8d772a8d1fdbb1c9111bf7e2fbcab18ccb
+  shape01-10487d86ce3584e156874ed9b2650e8d772a8d1fdbb1c9111bf7e2fbcab18ccb
   $ hg debug::narrow-fingerprint < root-minus-root
-  shape00-10487d86ce3584e156874ed9b2650e8d772a8d1fdbb1c9111bf7e2fbcab18ccb
+  shape01-10487d86ce3584e156874ed9b2650e8d772a8d1fdbb1c9111bf7e2fbcab18ccb
 
 The "path:" prefix is stripped only once
 ----------------------------------------
@@ -103,9 +103,9 @@ pattern prefix.
   > EOF
 
   $ hg debug::narrow-fingerprint < path-path-foo
-  shape00-1218a8880c98b085bc983b5736eb4c1d70878e0b0f94e6f7794c30dee8541df4
+  shape01-1218a8880c98b085bc983b5736eb4c1d70878e0b0f94e6f7794c30dee8541df4
   $ hg debug::narrow-fingerprint < path-glob-foo
-  shape00-22510134c2e59c0b8fa8cb4fdffbfcbd704606b5590be3d676bc56cbc972bd4a
+  shape01-22510134c2e59c0b8fa8cb4fdffbfcbd704606b5590be3d676bc56cbc972bd4a
 
 Narrowspecs that cannot be fingerprinted
 ----------------------------------------

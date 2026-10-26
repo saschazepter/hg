@@ -914,7 +914,7 @@ impl TempShardTreeNode {
 }
 
 /// The version of the fingerprint computation that we currently produce
-pub const FINGERPRINT_VERSION: u8 = 0;
+pub const FINGERPRINT_VERSION: u8 = 1;
 
 /// What is identified by a given [`Fingerprint`]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -1197,7 +1197,7 @@ impl ShardTreeNode {
     /// Get the fingerprint for this node. It will return a different hash for
     /// a semantically different node, allowing for a quick comparison.
     ///
-    /// The digest of a version 0 fingerprint is the SHA-256 of the patterns
+    /// The digest of a version 1 fingerprint is the SHA-256 of the patterns
     /// block (see [`Self::serialize_patterns`]).
     pub fn fingerprint(&self) -> Fingerprint {
         let mut hasher = Sha256::new();
@@ -1645,7 +1645,7 @@ mod tests {
         assert_eq!(
             tree.fingerprint().to_string(),
             concat!(
-                "shape00-",
+                "shape01-",
                 "c1e75c57728686409c683838de48531c7705eeca5e8bb8d14fe8f9f7cbd0888b"
             )
         );

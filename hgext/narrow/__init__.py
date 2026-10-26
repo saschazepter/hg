@@ -40,7 +40,7 @@ digest. Shards (see below) have fingerprints too, displayed as
 distinct objects, so the prefix makes it explicit which one a fingerprint
 identifies.
 
-We guarantee no stability of version ``00`` fingerprints.
+We guarantee the stability of fingerprint versions ``01`` and above.
 
 Profile
 .......
