@@ -153,16 +153,6 @@ class IMatcher(Protocol):
           # in.
           'foo/bar' -> 'this'
           'qux' -> 'this'
-
-        Important:
-          Most matchers do not know if they're representing files or
-          directories. They see ['path:dir/f'] and don't know whether 'f' is a
-          file or a directory, so visitchildrenset('dir') for most matchers will
-          return {'f'}, but if the matcher knows it's a file (like exactmatcher
-          does), it may return 'this'. Do not rely on the return being a set
-          indicating that there are no files in this dir to investigate (or
-          equivalently that if there are files to investigate in 'dir' that it
-          will always return 'this').
         """
 
     @abc.abstractmethod

@@ -124,18 +124,6 @@ pub trait Matcher: core::fmt::Debug + Sync {
     /// 'foo/bar' -> This
     /// 'qux' -> This
     /// ```
-    /// # Important
-    ///
-    /// Most matchers do not know if they're representing files or
-    /// directories. They see `['path:dir/f']` and don't know whether `f` is a
-    /// file or a directory, so `visit_children_set('dir')` for most matchers
-    /// will return `HashSet{ HgPath { "f" } }`, but if the matcher knows it's
-    /// a file (like the yet to be implemented in Rust `ExactMatcher` does),
-    /// it may return `VisitChildrenSet::This`.
-    /// Do not rely on the return being a `HashSet` indicating that there are
-    /// no files in this dir to investigate (or equivalently that if there are
-    /// files to investigate in 'dir' that it will always return
-    /// `VisitChildrenSet::This`).
     fn visit_children_set(&self, directory: &HgPath) -> VisitChildrenSet;
     /// Matcher will match everything and `files_set()` will be empty:
     /// optimization might be possible.
