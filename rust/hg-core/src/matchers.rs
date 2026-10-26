@@ -52,20 +52,46 @@ use crate::utils::hg_path::HgPathError;
 use crate::utils::strings::Escaped;
 use crate::warnings::HgWarningSender;
 
+/// The answer of [`Matcher::visit_children_set`] for a directory `dir`.
+///
+/// Callers use the answer to skip parts of the tree that contain no matching
+/// file. Each answer says what the caller can safely conclude about the files
+/// under `dir` (not including `dir` itself).
+///
+/// The answer does not have to be as precise as possible, but it must never
+/// be wrong. A matcher that can't tell can always answer [`Self::This`].
 #[derive(Debug, PartialEq)]
 pub enum VisitChildrenSet {
-    /// Don't visit anything
+    /// No file under `dir` matches. The caller can skip `dir`.
+    ///
+    /// Python equivalent: `set()`.
     Empty,
-    /// Visit this directory and probably its children
+    /// The matcher can't tell which files under `dir` match. The caller has
+    /// to look at every child of `dir`.
+    ///
+    /// Python equivalent: `'this'`.
     This,
-    /// Only visit the children (both files and directories) if they
-    /// are mentioned in this set. (empty set corresponds to [`Self::Empty`])
-    /// The entries are names relative to the directory (single path
-    /// components), not full paths.
+    /// Only the listed children of `dir` can contain matches. The caller can
+    /// skip every other child.
+    ///
+    /// For example, `Set({"a", "b"})` means that a file under `dir` can only
+    /// match if it is `dir/a`, `dir/b`, or inside one of them.
+    ///
+    /// The entries are names (like `a`), not full paths (like `dir/a`). An
+    /// entry may be a file, a directory, or a name that does not exist. The
+    /// caller still has to check the files inside the listed children.
+    ///
+    /// The set is never empty: [`Self::Empty`] is used instead.
+    ///
+    /// Python equivalent: a non-empty set of names.
     /// TODO Should we implement a `NonEmptyHashSet`?
     Set(FastHashSet<HgPathBuf>),
-    /// Every file in this directory and all its subdirectories matches
-    /// (you can stop asking about the children set, and about `matches`)
+    /// Every file under `dir` matches. The caller does not need to call
+    /// [`Matcher::matches`] or [`Matcher::visit_children_set`] for anything
+    /// under `dir`. For example, [`DifferenceMatcher`] returns
+    /// [`Self::Empty`] when the excluded matcher returns this.
+    ///
+    /// Python equivalent: `'all'`.
     AllMatch,
 }
 
@@ -76,11 +102,9 @@ pub trait Matcher: core::fmt::Debug + Sync {
     fn exact_match(&self, filename: &HgPath) -> bool;
     /// Returns whether `filename` is matched by this matcher
     fn matches(&self, filename: &HgPath) -> bool;
-    /// Decides whether a directory should be visited based on whether it
-    /// has potential matches in it or one of its subdirectories, and
-    /// potentially lists which subdirectories of that directory should be
-    /// visited. This is based on the match's primary, included, and excluded
-    /// patterns.
+    /// Tells the caller which files under `directory` can match, so that it
+    /// can skip the parts of the tree that contain no match. See
+    /// [`VisitChildrenSet`] for the meaning of each answer.
     ///
     /// # Example
     ///
@@ -90,16 +114,15 @@ pub trait Matcher: core::fmt::Debug + Sync {
     /// are not).
     ///
     /// ```text
-    /// ```ignore
-    /// '' -> {'foo', 'qux'}
-    /// 'baz' -> set()
-    /// 'foo' -> {'bar'}
+    /// '' -> Set({'foo', 'qux'})
+    /// 'baz' -> Empty
+    /// 'foo' -> Set({'bar'})
     /// // Ideally this would be `AllMatch`, but since the prefix nature of
     /// // matchers is applied to the entire matcher, we have to downgrade this
-    /// // to `This` due to the (yet to be implemented in Rust) non-prefix
-    /// // `RootFilesIn'-kind matcher being mixed in.
-    /// 'foo/bar' -> 'this'
-    /// 'qux' -> 'this'
+    /// // to `This` due to the non-prefix `RootFilesIn`-kind matcher being
+    /// // mixed in.
+    /// 'foo/bar' -> This
+    /// 'qux' -> This
     /// ```
     /// # Important
     ///

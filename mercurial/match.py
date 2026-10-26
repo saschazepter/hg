@@ -613,31 +613,50 @@ class basematcher(int_matcher.IMatcher):
         return False
 
     def visitdir(self, dir: HgPathT) -> bool | bytes:
-        """Decides whether a directory should be visited based on whether it
-        has potential matches in it or one of its subdirectories. This is
-        based on the match's primary, included, and excluded patterns.
+        """Tells the caller whether files under `dir` (not including `dir`
+        itself) can match, so that it can skip the parts of the tree that
+        contain no match.
 
-        Returns the string 'all' if every file in the given directory and all
-        its subdirectories matches. Otherwise returns True or False indicating
-        whether the given directory should be visited.
+        Returns False if no file under `dir` matches; the caller can skip
+        `dir`. Returns 'all' if every file under `dir` matches. Returns True if
+        the matcher can't tell; the caller has to look inside `dir`.
         """
         return True
 
     def visitchildrenset(self, dir: HgPathT) -> bytes | set[HgPathT]:
-        """Decides whether a directory should be visited based on whether it
-        has potential matches in it or one of its subdirectories, and
-        potentially lists which subdirectories of that directory should be
-        visited. This is based on the match's primary, included, and excluded
-        patterns.
+        """Tells the caller which files under `dir` (not including `dir`
+        itself) can match, so that it can skip the parts of the tree that
+        contain no match.
+
+        The return value is one of:
+
+          set()
+            No file under `dir` matches. The caller can skip `dir`.
+          a non-empty set of names, such as {'a', 'b'}
+            Only the listed children of `dir` can contain matches: a file
+            under `dir` can only match if it is `dir/a`, `dir/b`, or inside
+            one of them. The caller can skip every other child. The entries
+            are names (like 'a'), not full paths (like 'dir/a'). An entry may
+            be a file, a directory, or a name that does not exist. The caller
+            still has to check the files inside the listed children.
+          'this'
+            The matcher can't tell which files under `dir` match. The caller
+            has to look at every child of `dir`.
+          'all'
+            Every file under `dir` matches. The caller does not need to call
+            the matcher for anything under `dir`.
+
+        The answer does not have to be as precise as possible, but it must
+        never be wrong. A matcher that can't tell can always return 'this'.
 
         This function is very similar to 'visitdir', and the following mapping
         can be applied:
 
-             visitdir | visitchildrenlist
+             visitdir | visitchildrenset
             ----------+-------------------
              False    | set()
              'all'    | 'all'
-             True     | 'this' OR non-empty set of subdirs -or files- to visit
+             True     | 'this' OR non-empty set of names
 
         Example:
           Assume matchers ['path:foo/bar', 'rootfilesin:qux'], we would return
