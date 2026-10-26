@@ -1139,13 +1139,13 @@ class differencematcher(basematcher):
         if not m2_set:
             return m1_set
         if m1_set in [b'all', b'this']:
-            # Never return 'all' here if m2_set is any kind of non-empty (either
-            # 'this' or set(foo)), since m2 might return set() for a
-            # subdirectory.
+            # m2 may match some files under `dir`, and those are not in the
+            # difference, so we can't claim 'all' even if m1 does.
             return b'this'
         # Possible values for m1:         set(...), set()
         # Possible values for m2: 'this', set(...)
-        # We ignore m2's set results. They're possibly incorrect:
+        # We ignore m2's set results. A set only says where m2 may match, not
+        # that everything there is excluded, so subtracting it would be wrong:
         #  m1 = path:dir/subdir, m2=rootfilesin:dir, visitchildrenset(''):
         #    m1 returns {'dir'}, m2 returns {'dir'}, if we subtracted we'd
         #    return set(), which is *not* correct, we still need to visit 'dir'!

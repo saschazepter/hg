@@ -916,24 +916,26 @@ impl<M1: Matcher, M2: Matcher> Matcher for DifferenceMatcher<M1, M2> {
             return VisitChildrenSet::Empty;
         }
         let base_set = self.base.visit_children_set(directory);
-        // Possible values for base: 'recursive', 'this', set(...), set()
-        // Possible values for excluded:          'this', set(...), set()
+        // Possible values for base: AllMatch, This, Set(...), Empty
+        // Possible values for excluded:       This, Set(...), Empty
         // If excluded has nothing under here that we care about, return base,
-        // even if it's 'recursive'.
+        // even if it's AllMatch.
         if excluded_set == VisitChildrenSet::Empty {
             return base_set;
         }
         match base_set {
             VisitChildrenSet::This | VisitChildrenSet::AllMatch => {
-                // Never return 'recursive' here if excluded_set is any kind of
-                // non-empty (either 'this' or set(foo)), since excluded might
-                // return set() for a subdirectory.
+                // `excluded` may match some files under `directory`, and those
+                // are not in the difference, so we can't claim `AllMatch` even
+                // if `base` does.
                 VisitChildrenSet::This
             }
             set => {
-                // Possible values for base:         set(...), set()
-                // Possible values for excluded: 'this', set(...)
-                // We ignore excluded set results. They're possibly incorrect:
+                // Possible values for base:           Set(...), Empty
+                // Possible values for excluded: This, Set(...)
+                // We ignore excluded set results. A set only says where
+                // excluded may match, not that everything there is excluded,
+                // so subtracting it would be wrong:
                 //  base = path:dir/subdir
                 //  excluded=rootfilesin:dir,
                 //  visit_children_set(''):
