@@ -2360,6 +2360,7 @@ mod tests {
             )
         );
         // Test an exact match on an included node
+        // BUG: should be `This`, since `bar/baz` is excluded
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar")),
             VisitChildrenSet::AllMatch,
@@ -2409,6 +2410,7 @@ mod tests {
             ]))
         );
         // Test a nested exact match
+        // BUG: should be `This`, since `bar/baz/ik/u` is excluded
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"bar/baz/ik")),
             VisitChildrenSet::AllMatch
@@ -2499,6 +2501,44 @@ mod tests {
         assert_eq!(vcs(&m, "d1/d2/d3"), VisitChildrenSet::AllMatch);
         // The rest of `d1` is excluded
         assert_eq!(vcs(&m, "d1/other"), VisitChildrenSet::Empty);
+
+        // An exclude several levels below an include
+        let (m, violations) = matcher(
+            &["."],
+            &["d1/d2/secret"],
+            &[
+                "f",
+                "other/f",
+                "d1/f",
+                "d1/other/f",
+                "d1/d2/f",
+                "d1/d2/secret/f",
+                "d1/d2/secret/sub/f",
+                "d1/d2/secrets/f",
+            ],
+        );
+        // BUG: should be empty
+        assert_eq!(
+            violations,
+            [
+                (p(""), VisitChildrenSet::AllMatch),
+                (p("d1"), VisitChildrenSet::AllMatch),
+                (p("d1/d2"), VisitChildrenSet::AllMatch),
+            ]
+        );
+        assert!(!m.matches(HgPath::new(b"d1/d2/secret")));
+        // The parents of `d1/d2/secret` hold both matching and excluded
+        // files, and "everything but `secret`" can't be written as a
+        // `Set`
+        // BUG: the next three should be `This`
+        assert_eq!(vcs(&m, ""), VisitChildrenSet::AllMatch);
+        assert_eq!(vcs(&m, "d1"), VisitChildrenSet::AllMatch);
+        assert_eq!(vcs(&m, "d1/d2"), VisitChildrenSet::AllMatch);
+        // Everything in `d1/d2/secret` is excluded
+        assert_eq!(vcs(&m, "d1/d2/secret"), VisitChildrenSet::Empty);
+        // Directories that don't contain `d1/d2/secret` are fully included
+        assert_eq!(vcs(&m, "d1/other"), VisitChildrenSet::AllMatch);
+        assert_eq!(vcs(&m, "other"), VisitChildrenSet::AllMatch);
     }
 
     #[test]
