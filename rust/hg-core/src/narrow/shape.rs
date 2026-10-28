@@ -296,15 +296,18 @@ impl StoreShards {
                 // different version that also turns out to be incompatible
                 // with this deserialization.
                 // It's a little fragile, but it's better than nothing.
-                let re = regex::bytes::Regex::new(r"^version\s*=\s*(\d+)$")
+                let re = regex::bytes::Regex::new(r"(?m)^version\s*=\s*(\d+)$")
                     .expect("valid regex");
                 if let Some(captures) = re.captures(data)
                     && let Some(version) = captures.get(1)
                 {
                     let version = String::from_utf8_lossy(version.as_bytes())
-                        .parse::<usize>()
+                        .parse::<u32>()
                         .expect("parsing an integer from a regex");
-                    return ErrorKind::UnknownVersion(version).into();
+                    if !ShapesConfig::is_known_version(version) {
+                        return ErrorKind::UnknownVersion(version as usize)
+                            .into();
+                    }
                 }
                 ErrorKind::ParseError(e).into()
             })?;
@@ -321,7 +324,7 @@ impl StoreShards {
 
     pub(crate) fn from_config(config: ShapesConfig) -> Result<Self, Error> {
         let ShapesConfig { version, shards, profiles: shapes } = config;
-        if version != 0 {
+        if !ShapesConfig::is_known_version(version) {
             return Err(ErrorKind::UnknownVersion(version as usize))?;
         }
         let mut shards: Vec<ShardConfig> = shards
@@ -849,6 +852,12 @@ pub struct ShapesConfig {
     /// The profiles defined by the repo's admins.
     #[serde(default)]
     profiles: Vec<ProfilesEntry>,
+}
+
+impl ShapesConfig {
+    fn is_known_version(version: u32) -> bool {
+        version == 0
+    }
 }
 
 /// A temporary structure useful to create a [`ShardTreeNode`], since it
