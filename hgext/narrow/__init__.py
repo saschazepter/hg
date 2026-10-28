@@ -183,6 +183,21 @@ Usage
 Server configuration
 ....................
 
+Serving store shapes requires a Mercurial built with Rust support, and the
+following server configuration::
+
+  [extensions]
+  narrow =
+  # needed to serve the clonebundles described below
+  clonebundles =
+
+  [experimental]
+  # needed to generate the streaming clonebundles described below
+  server.stream-narrow-clones = yes
+
+The server then advertises store shape support to clients, unless
+``experimental.advertise-store-shapes`` is disabled.
+
 The ``.hg/store/server-sharding`` file is a TOML file, maintained by the
 narrow server's administrators.
 
