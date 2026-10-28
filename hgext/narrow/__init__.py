@@ -127,6 +127,7 @@ In addition to the implicit ``base`` shard, there is also the implicit
     * ``.hgtags``
     * ``.hgsub``
     * ``.hgsubstate``
+    * ``.hglfs``
 
 This shard will be automatically included in every shape to make sure
 Mercurial has the data it needs to operate on each revision.

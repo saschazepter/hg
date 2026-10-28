@@ -44,6 +44,7 @@ lazy_static! {
         ".hgtags".to_string(),
         ".hgsub".to_string(),
         ".hgsubstate".to_string(),
+        ".hglfs".to_string(),
     ];
 }
 
@@ -1934,7 +1935,14 @@ mod tests {
             (
                 "bar",
                 (
-                    &[".hgignore", ".hgsub", ".hgsubstate", ".hgtags", "bar"],
+                    &[
+                        ".hgignore",
+                        ".hglfs",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "bar",
+                    ],
                     &["", "bar/baz"],
                 ),
             ),
@@ -1943,6 +1951,7 @@ mod tests {
                 (
                     &[
                         ".hgignore",
+                        ".hglfs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -1957,6 +1966,7 @@ mod tests {
                 (
                     &[
                         ".hgignore",
+                        ".hglfs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -1976,7 +1986,14 @@ mod tests {
             (
                 "stone",
                 (
-                    &[".hgignore", ".hgsub", ".hgsubstate", ".hgtags", "stone"],
+                    &[
+                        ".hgignore",
+                        ".hglfs",
+                        ".hgsub",
+                        ".hgsubstate",
+                        ".hgtags",
+                        "stone",
+                    ],
                     &["", "stone/liz/ard", "stone/liz/zie", "stone/mummy"],
                 ),
             ),
@@ -1985,6 +2002,7 @@ mod tests {
                 (
                     &[
                         ".hgignore",
+                        ".hglfs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -1999,6 +2017,7 @@ mod tests {
                 (
                     &[
                         ".hgignore",
+                        ".hglfs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2012,6 +2031,7 @@ mod tests {
                 (
                     &[
                         ".hgignore",
+                        ".hglfs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2032,6 +2052,7 @@ mod tests {
                 (
                     &[
                         ".hgignore",
+                        ".hglfs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2072,6 +2093,7 @@ mod tests {
         let files_to_shape: &[(&str, &[&str])] = &[
             // the core mercurial file shoudl always be included
             (".hgignore", &all_shape_names),
+            (".hglfs", &all_shape_names),
             (".hgsub", &all_shape_names),
             (".hgsubstate", &all_shape_names),
             (".hgtags", &all_shape_names),
@@ -2289,10 +2311,17 @@ mod tests {
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"")),
             VisitChildrenSet::Set(
-                ["bar", ".hgignore", ".hgsubstate", ".hgtags", ".hgsub"]
-                    .iter()
-                    .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
-                    .collect()
+                [
+                    "bar",
+                    ".hgignore",
+                    ".hgsubstate",
+                    ".hgtags",
+                    ".hgsub",
+                    ".hglfs"
+                ]
+                .iter()
+                .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
+                .collect()
             )
         );
         // Test an exact match on an included node
@@ -2317,10 +2346,17 @@ mod tests {
         assert_eq!(
             matcher.visit_children_set(HgPath::new(b"")),
             VisitChildrenSet::Set(
-                ["bar", ".hgignore", ".hgsubstate", ".hgtags", ".hgsub"]
-                    .iter()
-                    .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
-                    .collect()
+                [
+                    "bar",
+                    ".hgignore",
+                    ".hgsubstate",
+                    ".hgtags",
+                    ".hgsub",
+                    ".hglfs"
+                ]
+                .iter()
+                .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
+                .collect()
             )
         );
         // Test a nested no-match
