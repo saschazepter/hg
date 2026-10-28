@@ -30,6 +30,38 @@ Check that server shapes config errors display correctly
   config error: profile 'typo' includes unknown name 'fooo'
   [30]
 
+An unknown version is reported as unknown
+
+  $ cat > .hg/store/server-sharding <<EOF
+  > version = 99
+  > [[shards]]
+  > name = "foo"
+  > paths = ["foo"]
+  > EOF
+  $ hg admin::narrow-server --store-profile-fingerprints
+  config error: unknown `server-sharding` version '99'
+  [30]
+
+An unknown version with unknown fields is reported as unknown
+TODO fix this in child commit
+
+  $ cat > .hg/store/server-sharding <<EOF
+  > version = 99
+  > new-field = true
+  > [[shards]]
+  > name = "foo"
+  > paths = ["foo"]
+  > EOF
+  $ hg admin::narrow-server --store-profile-fingerprints
+  config error: error parsing `server-sharding`:
+  TOML parse error at line 2, column 1
+    |
+  2 | new-field = true
+    | ^^^^^^^^^
+  unknown field `new-field`, expected one of `version`, `shards`, `profiles`
+  
+  [30]
+
 Normal cases
 ------------
 

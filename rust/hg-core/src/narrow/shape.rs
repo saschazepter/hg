@@ -839,6 +839,7 @@ struct ProfilesEntry {
 /// Matches the on-disk format for admins to define their repo's shards and
 /// profiles
 #[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ShapesConfig {
     // XXX should there be a `[meta]` section?
     /// The version of this config. For now only version `0` exists.
@@ -2330,6 +2331,19 @@ mod tests {
             matcher.visit_children_set(HgPath::new(b"bar/baz/ik")),
             VisitChildrenSet::Recursive
         );
+    }
+
+    #[test]
+    fn test_config_unknown_field() {
+        let config = r#"
+            version = 1
+            unknown = true
+            [[shards]]
+            name = "foo"
+            paths = ["foo"]
+        "#;
+        let err = toml::from_str::<ShapesConfig>(config).unwrap_err();
+        assert!(err.to_string().contains("unknown field `unknown`"), "{err}");
     }
 
     #[test]
