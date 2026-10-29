@@ -292,7 +292,7 @@ Updating the store sharding configuration
 Use :hg:`admin::narrow-server --shape-update` to replace the config. The
 command refuses updates that violate any of the invariants described below.
 
-(1) Shape fingerprints should not change
+(1) Profile fingerprints should not change
 
 A profile should keep the same fingerprint for as long as there are clones using
 it. Clients pin themselves to the fingerprint of the profile they cloned, so
@@ -305,7 +305,7 @@ Instead of changing the profile directly, do the following::
 
 Passing ``--override-fingerprint-change-check`` skips this check. You should
 rarely want this: it is the update that forces every client cloned at that
-shape to re-sync at once.
+profile to re-sync at once.
 
 (2) Resharding OR reshaping
 
@@ -364,9 +364,9 @@ Bundle generation
 .................
 
 Server administrators manually (and likely frequently) create streaming
-clonebundles for every shape and expose them in the server clonebundle manifest
-with their fingerprint. In future versions, non-streaming clonebundles will
-be supported and their generations more automated.
+clonebundles for every profile and expose them in the server clonebundle
+manifest with their fingerprint. In future versions, non-streaming clonebundles
+will be supported and their generations more automated.
 
 You may generate the bundles with the following::
 
@@ -407,7 +407,7 @@ matches the fingerprint from the patterns with that of the server clonebundles::
 Client
 ......
 
-Clients clone a shape by name::
+Clients clone the shape of one or more profiles by name::
 
   $ hg clone --store-shape my-profile ssh://server/repo
 
