@@ -370,7 +370,7 @@ be supported and their generations more automated.
 
 You may generate the bundles with the following::
 
-  $ hg bundle --all --type"none-v2;stream-v2;shape=my-shape" ../bundle.hg
+  $ hg bundle --all --type"none-v2;stream-v2;store-shape=my-profile" ../bundle.hg
   $ bundlespec="$(hg debugbundle --spec ../bundle.hg)"
   $ # [move bundle to static server or to `.hg/bundle-cache` for inline serving]
   $ bundleentry="https://static.com/bundle.hg BUNDLESPEC=$bundlespec"
@@ -379,10 +379,10 @@ You may generate the bundles with the following::
   $ echo $bundleentry >> .hg/clonebundles.manifest
 
 Several profile names separated by commas, as in
-``shape=my-profile,other-profile``, produce a bundle for their composite shape,
-which clients tracking these profiles together will use. Sharded bundles serve
-such clients as well, since the shards of a composite shape are those of its
-profiles.
+``store-shape=my-profile,other-profile``, produce a bundle for their
+composite shape, which clients tracking these profiles together will use.
+Sharded bundles serve such clients as well, since the shards of a composite
+shape are those of its profiles.
 
 You can export the includes and exclude patterns for every profile and give
 them manually to clients::

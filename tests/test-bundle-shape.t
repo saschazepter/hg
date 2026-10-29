@@ -49,13 +49,13 @@ Test errors
 ===========
 
 Make sure we complain if not using Rust when generating a shape bundle
-  $ HGMODULEPOLICY=c hg bundle -R source -a -t"none-v2;stream=v2;shape=foo" --config storage.all-slow-path=allow outfile.hg
-  abort: shape bundlespec option is only available with the Rust extensions
+  $ HGMODULEPOLICY=c hg bundle -R source -a -t"none-v2;stream=v2;store-shape=foo" --config storage.all-slow-path=allow outfile.hg
+  abort: store-shape bundlespec option is only available with the Rust extensions
   [10]
 
 Make sure we complain if not using stream bundles when generating a shape bundle
-  $ hg bundle -R source -a -t"none-v2;shape=foo" outfile.hg
-  abort: shape bundlespec option is only implemented for stream bundles
+  $ hg bundle -R source -a -t"none-v2;store-shape=foo" outfile.hg
+  abort: store-shape bundlespec option is only implemented for stream bundles
   [10]
 
 Test without any shaping (sanity check)
@@ -95,12 +95,12 @@ Create shapes config
   $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes --override-reshape-and-reshard-check
 
 Test with an unknown profile
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foo" outfile-shaped.hg
+  $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foo" outfile-shaped.hg
   abort: unknown store profile: 'foo'
   [10]
 
 Test with the default shape
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default" outfile-shape-default.hg
+  $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=default" outfile-shape-default.hg
 
   $ hg debugbundle outfile-shape-default.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
   stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-a3b2e41b54f4a21de99700ae576c0f6b59b493a6f3dead7d8e9a8ef4b0779542} (mandatory: True) (glob)
@@ -114,12 +114,12 @@ Add a full non-fingerprinted streaming clone for reference and fallback testing
 
 
 Test with a known shape
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobar" outfile-shape-foobar.hg
+  $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foobar" outfile-shape-foobar.hg
 
   $ hg debugbundle outfile-shape-foobar.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
   stream2 -- {bytecount: *, filecount: 10, requirements: *, store-fingerprint: shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1} (mandatory: True) (glob)
 
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobaz" outfile-shape-foobaz.hg
+  $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foobaz" outfile-shape-foobaz.hg
 
   $ hg debugbundle outfile-shape-foobaz.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
   stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1} (mandatory: True) (glob)
@@ -908,25 +908,25 @@ but a different fingerprint
 Bundles for a composite shape
 =============================
 
-Comma-separated names in the `shape` of a bundlespec produce a bundle for their
-composite shape, which carries the fingerprint that clients tracking these
-shapes together compute.
+Comma-separated names in the `store-shape` of a bundlespec produce a bundle
+for their composite shape, which carries the fingerprint that clients tracking
+these profiles together compute.
 
 Unknown and empty names are reported
 ------------------------------------
 
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default,zz" composite.hg
+  $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=default,zz" composite.hg
   abort: unknown store profile: 'zz'
   [10]
 
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default,,foobar" composite.hg
+  $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=default,,foobar" composite.hg
   config error: shard names must not be empty
   [30]
 
 The bundle carries the fingerprint of the composite shape
 ---------------------------------------------------------
 
-  $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foobar,default" composite.hg
+  $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foobar,default" composite.hg
 
   $ hg debugbundle composite.hg | grep -o 'store-fingerprint: shape00-[0-9a-f]*'
   store-fingerprint: shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a

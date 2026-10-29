@@ -53,11 +53,11 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
             msg = _(b'unknown bundle specification parameter: %s')
             raise error.InputError(msg % name, hint=spec_hint)
 
-    if bundlespec.params.get(bundlecaches.BUNDLESPEC_SHAPE) is not None:
+    if bundlespec.params.get(bundlecaches.BUNDLESPEC_STORE_SHAPE) is not None:
         if shape_mod is None:
             raise error.InputError(
                 _(
-                    b"shape bundlespec option is only available"
+                    b"store-shape bundlespec option is only available"
                     b" with the Rust extensions"
                 ),
             )
@@ -65,7 +65,7 @@ def bundle(ui: UiT, repo: RepoT, fname: bytes, *dests, **opts):
         if bundlespec.params.get(bundlecaches.BUNDLESPEC_STREAM) is None:
             raise error.InputError(
                 _(
-                    b"shape bundlespec option is only implemented"
+                    b"store-shape bundlespec option is only implemented"
                     b" for stream bundles"
                 ),
             )

@@ -1705,7 +1705,7 @@ def writenewbundle(
             filename=filename,
             opts=opts,
             vfs=vfs,
-            shape=opts.get(bundlecaches.BUNDLESPEC_SHAPE),
+            shape=opts.get(bundlecaches.BUNDLESPEC_STORE_SHAPE),
         )
     else:
         bundle = bundle20(ui, caps)
