@@ -128,35 +128,35 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
     [
         (
             b'',
-            b'shape-fingerprints',
+            b'store-profile-fingerprints',
             None,
-            _(b'list the fingerprint for each shape'),
+            _(b'list the fingerprint for each store profile'),
         ),
         (
             b'',
-            b'shape-patterns',
+            b'store-shape-patterns',
             b'',
-            _(b'list the path patterns for the given shape'),
-            _(b'SHAPE-PATTERNS'),
+            _(b'list the path patterns for the given store shape'),
+            _(b'STORE-SHAPE-PATTERNS'),
         ),
         (
             b'',
-            b'shape-narrow-patterns',
+            b'store-shape-narrow-patterns',
             b'',
-            _(b'list the legacy narrow-style patterns for the given shape'),
-            _(b'SHAPE-NARROW-PATTERNS'),
+            _(b'list the legacy narrow patterns of the given store shape'),
+            _(b'STORE-SHAPE-NARROW-PATTERNS'),
         ),
         (
             b'',
-            b'shape-files',
+            b'store-shape-files',
             b'',
-            _(b'list the files covered by the given shape'),
+            _(b'list the files covered by the given store shape'),
         ),
         (
             b'',
-            b'shape-files-hidden',
+            b'store-shape-files-hidden',
             b'',
-            _(b"list this shape's files that are not in the working copy"),
+            _(b"list the store shape's files absent from the working copy"),
         ),
         (
             b'',
@@ -228,11 +228,11 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
 
     subcommand = cmdutil.check_at_most_one_arg(
         opts,
-        "shape_fingerprints",
-        "shape_patterns",
-        "shape_narrow_patterns",
-        "shape_files",
-        "shape_files_hidden",
+        "store_profile_fingerprints",
+        "store_shape_patterns",
+        "store_shape_narrow_patterns",
+        "store_shape_files",
+        "store_shape_files_hidden",
         "store_shards",
         "shape_update",
         "shape_clear_previous",
@@ -268,10 +268,10 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
     store_shards = shapemod.get_store_shards(repo.root)
 
     shape_commands = (
-        "shape_patterns",
-        "shape_narrow_patterns",
-        "shape_files",
-        "shape_files_hidden",
+        "store_shape_patterns",
+        "store_shape_narrow_patterns",
+        "store_shape_files",
+        "store_shape_files_hidden",
     )
     if subcommand in shape_commands:
         names = shape_py.parse_shape_names(opts[subcommand])
@@ -283,7 +283,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
     ui.pager(b"admin::narrow-server")
     fm_ctx = ui.formatter(b"admin::narrow-server", pycompat.byteskwargs(opts))
     with fm_ctx as fm:
-        if subcommand == "shape_fingerprints":
+        if subcommand == "store_profile_fingerprints":
             all_shapes = store_shards.all_shapes()
             for shape in all_shapes:
                 fm.startitem()
@@ -310,7 +310,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                     )
                 fm.plain(b"\n")
             return
-        elif subcommand == "shape_patterns":
+        elif subcommand == "store_shape_patterns":
             # TODO formatter?
             includes, excludes = shape.patterns()
             include_tuples = zip(includes, itertools.repeat(True))
@@ -326,7 +326,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                 fm.plain(b"%s:/%s\n" % (prefix, path))
 
             return
-        elif subcommand == "shape_narrow_patterns":
+        elif subcommand == "store_shape_narrow_patterns":
             # TODO formatter?
             includes, excludes = shape.patterns()
             includes = [i for i in includes if i]
@@ -344,9 +344,9 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
                     fm.data(included=False, path=exclude)
                     fm.plain(b"path:%s\n" % exclude)
             return
-        elif subcommand in ("shape_files", "shape_files_hidden"):
+        elif subcommand in ("store_shape_files", "store_shape_files_hidden"):
             # TODO formatter?
-            list_hidden = subcommand == "shape_files_hidden"
+            list_hidden = subcommand == "store_shape_files_hidden"
             matcher = shape.matcher()
             files = []
             known = set(repo[None].matches(matcher))

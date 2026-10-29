@@ -501,7 +501,7 @@ Try a full stream clone
   applying clone bundle from peer-bundle-cache://hg-sharded-05a21d65-shard00-5eb2fc572ad8bc29606cba42d5447bc6f7b9ab3b974d94fb3c20e470eb5ebc95.hg
   finished applying clone bundle [5/5]
   finished applying 5 clone bundles
-  $ hg -R source admin::narrow-server --shape-fingerprint | grep " full"
+  $ hg -R source admin::narrow-server --store-profile-fingerprints | grep " full"
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
   $ hg -R target admin::narrow-client --store-fingerprint
@@ -859,7 +859,7 @@ Cloning "excluded-shape" works
 Split "excluded2" by adding a shard nested inside it, and add that shard to
 "excluded-shape" so it keeps covering the same files and this is a pure resharding
 
-  $ hg -R source admin::narrow-server --shape-fingerprints | grep excluded-shape
+  $ hg -R source admin::narrow-server --store-profile-fingerprints | grep excluded-shape
   shape00-ad94b60172f9f42f582e5464968508918fbd0a630a2b5c13db1a5508cec181be excluded-shape
   $ cat $TESTTMP/source-shapes > $TESTTMP/source-shapes-split
   $ cat << EOF >> $TESTTMP/source-shapes-split
@@ -875,7 +875,7 @@ Split "excluded2" by adding a shard nested inside it, and add that shard to
 
 The shape still covers the same files, so its fingerprint is unchanged
 
-  $ hg -R source admin::narrow-server --shape-fingerprints | grep excluded-shape
+  $ hg -R source admin::narrow-server --store-profile-fingerprints | grep excluded-shape
   shape00-ad94b60172f9f42f582e5464968508918fbd0a630a2b5c13db1a5508cec181be excluded-shape
 
 "excluded-shape" can still be cloned because the previous config with the old
@@ -930,7 +930,7 @@ The bundle carries the fingerprint of the composite shape
 
   $ hg debugbundle composite.hg | grep -o 'store-fingerprint: shape00-[0-9a-f]*'
   store-fingerprint: shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
-  $ hg -R source admin::narrow-server --shape-patterns default,foobar
+  $ hg -R source admin::narrow-server --store-shape-patterns default,foobar
   inc:/
   exc:/dir1/excluded
   exc:/excluded

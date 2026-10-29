@@ -13,7 +13,7 @@ Check that server shapes config errors display correctly
   > name = "base"
   > paths = ["secret"]
   > EOF
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   config error: shard name 'base' is reserved
   [30]
 
@@ -26,7 +26,7 @@ Check that server shapes config errors display correctly
   > name = "typo"
   > includes = ["fooo"]
   > EOF
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   config error: profile 'typo' includes unknown name 'fooo'
   [30]
 
@@ -65,13 +65,13 @@ Setup the server shapes config
 Check that the fingerprints match between semantically identical shapes and
 that shards not declared as shapes (here "secret") is not listed
 
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512 default
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full-manual
   shape00-398b2940ef4c78cea52809be4bcd610b6f1cf3908870a3264c024ea8f0bb97d6 other-secret
 
-  $ hg admin::narrow-server --shape-fingerprints -Tjson
+  $ hg admin::narrow-server --store-profile-fingerprints -Tjson
   [
    {
     "fingerprint": "shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512",
@@ -123,22 +123,22 @@ shards. It is listed for external systems, it is not enforced by Mercurial.
 
 Check that we generate the correct narrow patterns for every shape
 
-  $ hg admin::narrow-server --shape-patterns default
+  $ hg admin::narrow-server --store-shape-patterns default
   inc:/
   exc:/foo/bar/other-secret
   exc:/secret
-  $ hg admin::narrow-server --shape-patterns full
+  $ hg admin::narrow-server --store-shape-patterns full
   inc:/
-  $ hg admin::narrow-server --shape-patterns full-manual
+  $ hg admin::narrow-server --store-shape-patterns full-manual
   inc:/
-  $ hg admin::narrow-server --shape-patterns other-secret
+  $ hg admin::narrow-server --store-shape-patterns other-secret
   exc:/
   inc:/.hgignore
   inc:/.hgsub
   inc:/.hgsubstate
   inc:/.hgtags
   inc:/foo/bar/other-secret
-  $ hg admin::narrow-server --shape-patterns other-secret -Tjson
+  $ hg admin::narrow-server --store-shape-patterns other-secret -Tjson
   [
    {
     "included": false,
@@ -169,39 +169,39 @@ Check that we generate the correct narrow patterns for every shape
 Comma-separated names designate their composite shape
 -----------------------------------------------------
 
-  $ hg admin::narrow-server --shape-patterns other-secret,default
+  $ hg admin::narrow-server --store-shape-patterns other-secret,default
   inc:/
   exc:/secret
 
-  $ hg admin::narrow-server --shape-patterns default,zz
+  $ hg admin::narrow-server --store-shape-patterns default,zz
   abort: store profile 'zz' not found
   [255]
 
-  $ hg admin::narrow-server --shape-patterns default,Babar
+  $ hg admin::narrow-server --store-shape-patterns default,Babar
   abort: invalid store profile name 'Babar'
   (only lowercase alphanumeric, hyphen or dot are accepted)
   [10]
 
-  $ hg admin::narrow-server --shape-patterns default,
+  $ hg admin::narrow-server --store-shape-patterns default,
   abort: store profile names must not be empty
   [10]
 
 Test the legacy narrow patterns option
 
-  $ hg admin::narrow-server --shape-narrow-patterns default
+  $ hg admin::narrow-server --store-shape-narrow-patterns default
   [exclude]
   path:foo/bar/other-secret
   path:secret
-  $ hg admin::narrow-server --shape-narrow-patterns full
-  $ hg admin::narrow-server --shape-narrow-patterns full-manual
-  $ hg admin::narrow-server --shape-narrow-patterns other-secret
+  $ hg admin::narrow-server --store-shape-narrow-patterns full
+  $ hg admin::narrow-server --store-shape-narrow-patterns full-manual
+  $ hg admin::narrow-server --store-shape-narrow-patterns other-secret
   [include]
   path:.hgignore
   path:.hgsub
   path:.hgsubstate
   path:.hgtags
   path:foo/bar/other-secret
-  $ hg admin::narrow-server --shape-narrow-patterns other-secret -Tjson
+  $ hg admin::narrow-server --store-shape-narrow-patterns other-secret -Tjson
   [
    {
     "included": true,
@@ -231,9 +231,9 @@ Test that the generated narrow patterns actually work
 
 One including the root
 
-  $ hg admin::narrow-server --shape-fingerprints | grep default
+  $ hg admin::narrow-server --store-profile-fingerprints | grep default
   shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512 default
-  $ hg admin::narrow-server --shape-narrow-patterns default > ../shape.npt
+  $ hg admin::narrow-server --store-shape-narrow-patterns default > ../shape.npt
   $ hg --config extensions.narrow= clone --narrow --narrowspec ../shape.npt . ../clone-test-1
   reading narrowspec from '$TESTTMP/server/../shape.npt'
   no changes found
@@ -244,9 +244,9 @@ One including the root
 
 One excluding the root
 
-  $ hg admin::narrow-server --shape-fingerprints | grep other-secret
+  $ hg admin::narrow-server --store-profile-fingerprints | grep other-secret
   shape00-398b2940ef4c78cea52809be4bcd610b6f1cf3908870a3264c024ea8f0bb97d6 other-secret
-  $ hg admin::narrow-server --shape-narrow-patterns other-secret > ../shape.npt
+  $ hg admin::narrow-server --store-shape-narrow-patterns other-secret > ../shape.npt
   $ hg --config extensions.narrow= clone --narrow --narrowspec ../shape.npt . ../clone-test-2
   reading narrowspec from '$TESTTMP/server/../shape.npt'
   no changes found
@@ -260,7 +260,7 @@ Test listing files
 ------------------
 
 We don't have files yet
-  $ hg admin::narrow-server --shape-files default
+  $ hg admin::narrow-server --store-shape-files default
 
 Add files
   $ mkdir -p foo/bar/other-secret secret dir1
@@ -268,36 +268,25 @@ Add files
   $ hg commit -Aqm0
 
 Test that only matching files are listed
-  $ hg admin::narrow-server --shape-files default
+  $ hg admin::narrow-server --store-shape-files default
   dir1/file1
   file1
   file2
   file3
   foo/file1
   foo/file2
-  $ hg admin::narrow-server --shape-files other-secret
+  $ hg admin::narrow-server --store-shape-files other-secret
   foo/bar/other-secret/secret-file
   foo/bar/other-secret/secret-file2
 
-  $ hg admin::narrow-server --shape-files default
+  $ hg admin::narrow-server --store-shape-files default
   dir1/file1
   file1
   file2
   file3
   foo/file1
   foo/file2
-  $ hg admin::narrow-server --shape-files full
-  dir1/file1
-  file1
-  file2
-  file3
-  foo/bar/other-secret/secret-file
-  foo/bar/other-secret/secret-file2
-  foo/file1
-  foo/file2
-  secret/secret-file
-  secret/secret-file2
-  $ hg admin::narrow-server --shape-files full-manual
+  $ hg admin::narrow-server --store-shape-files full
   dir1/file1
   file1
   file2
@@ -308,7 +297,18 @@ Test that only matching files are listed
   foo/file2
   secret/secret-file
   secret/secret-file2
-  $ hg admin::narrow-server --shape-files other-secret
+  $ hg admin::narrow-server --store-shape-files full-manual
+  dir1/file1
+  file1
+  file2
+  file3
+  foo/bar/other-secret/secret-file
+  foo/bar/other-secret/secret-file2
+  foo/file1
+  foo/file2
+  secret/secret-file
+  secret/secret-file2
+  $ hg admin::narrow-server --store-shape-files other-secret
   foo/bar/other-secret/secret-file
   foo/bar/other-secret/secret-file2
 
@@ -317,15 +317,15 @@ Test hidden files (warning about files not in the working copy anymore)
   removing secret/secret-file
   removing secret/secret-file2
   $ hg commit -Aqm1
-  $ hg admin::narrow-server --shape-files-hidden full
+  $ hg admin::narrow-server --store-shape-files-hidden full
   secret/secret-file
   secret/secret-file2
-  $ hg admin::narrow-server --shape-files-hidden full-manual
+  $ hg admin::narrow-server --store-shape-files-hidden full-manual
   secret/secret-file
   secret/secret-file2
 
-We also list hidden files in `--shape-files` (and test color output)
-  $ hg admin::narrow-server --shape-files full --color=debug
+We also list hidden files in `--store-shape-files` (and test color output)
+  $ hg admin::narrow-server --store-shape-files full --color=debug
   [narrow-server.known-path|dir1/file1]
   [narrow-server.known-path|file1]
   [narrow-server.known-path|file2]
@@ -336,7 +336,7 @@ We also list hidden files in `--shape-files` (and test color output)
   [narrow-server.known-path|foo/file2]
   [narrow-server.hidden-path|secret/secret-file]
   [narrow-server.hidden-path|secret/secret-file2]
-  $ hg admin::narrow-server --shape-files full-manual
+  $ hg admin::narrow-server --store-shape-files full-manual
   dir1/file1
   file1
   file2
@@ -348,7 +348,7 @@ We also list hidden files in `--shape-files` (and test color output)
   secret/secret-file
   secret/secret-file2
 
-  $ hg admin::narrow-server --shape-files full -Tjson
+  $ hg admin::narrow-server --store-shape-files full -Tjson
   [
    {
     "is_hidden": false,
@@ -424,7 +424,7 @@ Update from file, adding a new shape that depends on the existing shard
   name = "from-file"
   includes = ["foo"]
   public = true
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 from-file
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
@@ -462,7 +462,7 @@ Updating to invalid contents is not allowed
   
   [30]
 
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 from-file
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
@@ -499,7 +499,7 @@ bundles need to be generated from the new shards before we are ready to add the 
 Passing `--override-reshape-and-reshard-check` allows the update anyways
 
   $ hg admin::narrow-server --shape-update -f ../new-shapes --override-reshape-and-reshard-check
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
   shape00-915fb4fd005f64b11bef25cc281caf5b97e05db84a6a66bc6fb4b590233c6f3f new-shape
 
@@ -544,7 +544,7 @@ Reshaping is refused while a previous config is still saved
 Passing `--override-saved-configs-check` allows the update anyways
 
   $ hg admin::narrow-server --shape-update -f ../added-shape --override-saved-configs-check
-  $ hg admin::narrow-server --shape-fingerprints | grep foo-shape
+  $ hg admin::narrow-server --store-profile-fingerprints | grep foo-shape
   shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 foo-shape
 
 Clear the config saved by the resharding above, so that the reshaping below is
@@ -556,7 +556,7 @@ only exercising the fingerprint check
 Passing `--override-fingerprint-change-check` allows the update anyways
 
   $ hg admin::narrow-server --shape-update -f ../new-shapes --override-fingerprint-change-check
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
   shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 new-shape
 
@@ -664,7 +664,7 @@ The shapes lock is held for the whole update, so a second update fails
   [20]
 
 Read-only commands emit a warning
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   warning: store shapes are currently being updated (lock held by *) (glob)
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
@@ -697,6 +697,6 @@ Letting the first update finish applies it
 The lock is released afterwards, so now another update can now go through
 
   $ hg admin::narrow-server --shape-update -f ../concurrent-update
-  $ hg admin::narrow-server --shape-fingerprints
+  $ hg admin::narrow-server --store-profile-fingerprints
   shape00-57e61fcecbbe6e57f1e82bc4af0c67ac812960d1bd9cec4158beb1f4c3757ab6 concurrent
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full

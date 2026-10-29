@@ -387,7 +387,7 @@ profiles.
 You can export the includes and exclude patterns for every profile and give
 them manually to clients::
 
-  $ hg admin::narrow-server --shape-narrow-patterns my-profile
+  $ hg admin::narrow-server --store-shape-narrow-patterns my-profile
   [exclude]
   path:foo
   path:bar
@@ -395,7 +395,7 @@ them manually to clients::
 Comma-separated profile names designate their composite shape, which covers
 every file that any of them covers::
 
-  $ hg admin::narrow-server --shape-narrow-patterns my-profile,other-profile
+  $ hg admin::narrow-server --store-shape-narrow-patterns my-profile,other-profile
   [exclude]
   path:foo
 
