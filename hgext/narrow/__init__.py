@@ -17,9 +17,9 @@ The narrow extension introduces a number of concepts that are detailed below.
 Shape (experimental)
 ....................
 
-The shape is the set of paths to consider for clients of the narrow server.
-It does so through the entire history, regardless the state of these
-files in the heads of the repository (deleted, for example).
+The shape is the set of paths to consider for clients of the narrow server,
+through the entire history, regardless of the state of these files in the heads
+of the repository (deleted, for example).
 
 Fingerprint
 ...........
@@ -48,7 +48,7 @@ Profile
 A profile is a preset of a shape created by server administrators. It allows
 clients to select one or more of these profiles for their repo's shape. For
 example, one clone can have a shape combining two profiles, with the name for
-such a shape being `profile-1,profile-2`.
+such a shape being ``profile-1,profile-2``.
 
 Shards
 ......
@@ -95,9 +95,9 @@ And shard ``foo.confidential`` contains::
 In this example, ``file1`` and ``file2`` are not contained in any explicitly
 defined shard. As a result, they are contained by the implicit ``base`` shard.
 
-It is important to note that adding a new shard (e.g. that includes `file1` and
-``file2``) would remove its paths from any shard that previously contained them
-(in this case, only ``base``).
+It is important to note that adding a new shard (e.g. that includes ``file1``
+and ``file2``) would remove its paths from any shard that previously contained
+them (in this case, only ``base``).
 
 Server-side, shards are used to define profiles, which are sets of shards. Each
 profile defines the shards it includes, hence excluding the contents of all
@@ -116,7 +116,7 @@ Only *public* profiles can be used on their own, private profiles are only
 building blocks for other profiles.
 
 Note that the set of paths in the current working copy may only be a subset of
-the the store. In our example, we can imagine that
+the store. In our example, we can imagine that
 ``foo/bar/confidential-module`` has been split into the files in
 ``foo/bar/confidential`` and removed from the working copy.
 
@@ -128,7 +128,7 @@ In addition to the implicit ``base`` shard, there is also the implicit
     * ``.hgsub``
     * ``.hgsubstate``
 
-This shard will be automatically included in every ``Shape`` to make sure
+This shard will be automatically included in every shape to make sure
 Mercurial has the data it needs to operate on each revision.
 
 Finally, there is the implicit public ``full`` profile, which includes every
@@ -137,9 +137,9 @@ shard.
 Narrowspec (legacy)
 ...................
 
-Note: the narrowspec in its current form will be phased out in favor of the
-``Shape`` system within the next few versions of Mercurial, as of Mercurial 7.2.
-See the ``Shapes vs narrowspec`` section below.
+Note: the narrowspec in its current form will be phased out in favor of shapes
+within the next few versions of Mercurial, as of Mercurial 7.2. See the
+``Shapes vs narrowspec`` section below.
 
 The ``narrowspec`` is a client-side configuration that consists of expressions
 to match remote files and/or directories that should be pulled
@@ -149,8 +149,8 @@ expression, it will be excluded even if it also matches an include expression.
 Excluding files that were never included has no effect.
 
 Each included or excluded entry is in the format described by
-:hg:`help patterns`, but can only use ``path:`` or ``rootfilesin:``, except
-when using ``Shard`` and ``Shape`` where you can only use ``path:``.
+:hg:`help patterns`, but can only use ``path:`` or ``rootfilesin:``. Shards
+and shapes can only use ``path:``.
 
 Shapes vs narrowspec
 ....................
@@ -370,7 +370,7 @@ be supported and their generations more automated.
 
 You may generate the bundles with the following::
 
-  $ hg bundle --all --type"none-v2;stream-v2;store-shape=my-profile" ../bundle.hg
+  $ hg bundle --all --type "none-v2;stream=v2;store-shape=my-profile" ../bundle.hg
   $ bundlespec="$(hg debugbundle --spec ../bundle.hg)"
   $ # [move bundle to static server or to `.hg/bundle-cache` for inline serving]
   $ bundleentry="https://static.com/bundle.hg BUNDLESPEC=$bundlespec"
