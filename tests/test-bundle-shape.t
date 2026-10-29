@@ -794,11 +794,12 @@ store-fingerprint
 Malformed fingerprints, fingerprints without a version, or fingerprints of the
 wrong kind (here a shard fingerprint used as a store fingerprint), are invalid
 and dropped when parsing the manifest. The ones with a version other than the
-one we requested cannot match.
+one we requested cannot match, whatever the size of their digest.
 
   $ echo "$bundlespec" > bundlespec.txt
   $ bundlespec_no_version=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape-/' bundlespec.txt`
   $ bundlespec_other_version=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape99-/' bundlespec.txt`
+  $ bundlespec_other_size=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape99-abab/' bundlespec.txt`
   $ bundlespec_malformed=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape00-zz/' bundlespec.txt`
   $ bundlespec_shard_kind=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shard00-/' bundlespec.txt`
   $ cat > source/.hg/clonebundles.manifest << EOF
@@ -806,6 +807,7 @@ one we requested cannot match.
   > peer-bundle-cache://shape-dir2-shard-kind.hg BUNDLESPEC=$bundlespec_shard_kind
   > peer-bundle-cache://shape-dir2-no-version.hg BUNDLESPEC=$bundlespec_no_version
   > peer-bundle-cache://shape-dir2-other-version.hg BUNDLESPEC=$bundlespec_other_version
+  > peer-bundle-cache://shape-dir2-other-size.hg BUNDLESPEC=$bundlespec_other_size
   > peer-bundle-cache://shape-dir2.hg BUNDLESPEC=$bundlespec
   > EOF
 
@@ -814,6 +816,7 @@ one we requested cannot match.
   parameter store-fingerprint should be a shape fingerprint ('shard00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
   parameter store-fingerprint should be a shape fingerprint ('shape-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
   filtering peer-bundle-cache://shape-dir2-other-version.hg because its store-shape is not the requested one; shape99-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 not in (shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1)
+  filtering peer-bundle-cache://shape-dir2-other-size.hg because its store-shape is not the requested one; shape99-abab662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 not in (shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1)
     URL: peer-bundle-cache://shape-dir2.hg
 
 Resharding before new bundles exist

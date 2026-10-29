@@ -197,7 +197,7 @@ class FingerprintT(abc.ABC):
     """The version of the computation that produced `digest`"""
 
     digest: bytes
-    """The hash of the normalized shape"""
+    """The hash of the normalized shape, whose size depends on `version`"""
 
     @abc.abstractmethod
     def to_bytes(self) -> bytes:

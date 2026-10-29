@@ -1177,12 +1177,20 @@ returned, but each fingerprint version should only have one fingerprint.
 * [u8]: array of fingerprint size (as many entry as the number of fingerprints)
 * [bytes]: each fingerprints (according to the size in the previous field)
 
+A fingerprint is a u8 for its version followed by its digest, whose size
+depends on the version (32 bytes for version 0). Clients must accept
+fingerprints of a version they do not know whatever their size: such
+fingerprints simply never match.
+
 Shard sets block:
 ~~~~~~~~~~~~~~~~~
 
 * u8: number of shards set
 * [[u8, u16]] array (shard-id size, number of ids in the set)
 * [[bytes]] block of shard-ids
+
+Shard-ids are shard fingerprints, in the same form as above. All the
+shard-ids of a set are of the same version, hence of the same size.
 
 Pattern block:
 ~~~~~~~~~~~~~~

@@ -38,17 +38,22 @@ rustmod = policy.importrust("shape")
 
 # The version of the fingerprint computation that we currently produce
 FINGERPRINT_VERSION = 0
-# Size in bytes of the digest of a fingerprint
-FINGERPRINT_DIGEST_SIZE = 32
-# Validator regex for a text representation of a fingerprint
+# Size in bytes of the digest of a fingerprint, for each version we know
+_FINGERPRINT_DIGEST_SIZES = {0: 32}
+# Validator regex for a text representation of a fingerprint, the size of the
+# digest is checked against its version separately
 _FINGERPRINT_TEXT_RE = re.compile(
-    br'(shape|shard)([0-9]{2,3})-([0-9a-f]{%d})' % (2 * FINGERPRINT_DIGEST_SIZE)
+    br'(shape|shard)([0-9]{2,3})-((?:[0-9a-f]{2})+)'
 )
 
 
 def _check_digest(inst, attr, value: bytes):
-    if len(value) != FINGERPRINT_DIGEST_SIZE:
-        raise ValueError("invalid fingerprint digest: %r" % value)
+    """Check the digest size against the fingerprint version, any non-empty
+    digest being valid for a version we do not know about"""
+    expected = _FINGERPRINT_DIGEST_SIZES.get(inst.version)
+    if not value or (expected is not None and len(value) != expected):
+        msg = "invalid version %d fingerprint digest: %r"
+        raise ValueError(msg % (inst.version, value))
 
 
 @attr.s(frozen=True, slots=True)
@@ -57,8 +62,10 @@ class Fingerprint(FingerprintT):
     equivalent shapes (or shards) have the same fingerprint.
 
     Fingerprinting can be evolved over time, so it is tagged with the version
-    of the computation that produced it. A fingerprint with a version that we
-    do not know about is valid, it simply cannot match anything we compute.
+    of the computation that produced it, which also determines the size of
+    the digest. A fingerprint with a version that we do not know about is
+    valid whatever the size of its digest, it simply cannot match anything we
+    compute.
 
     The text form (see `to_text`) is only used for user-facing things."""
 
@@ -73,7 +80,7 @@ class Fingerprint(FingerprintT):
     """The version of the computation that produced `digest`"""
 
     digest = attr.ib(type=bytes, validator=_check_digest)
-    """The hash of the normalized shape"""
+    """The hash of the normalized shape, whose size depends on `version`"""
 
     def to_bytes(self) -> bytes:
         """The binary form of this fingerprint: one byte for the version,
@@ -82,13 +89,29 @@ class Fingerprint(FingerprintT):
 
     @classmethod
     def from_bytes(cls, data: bytes) -> typing.Self:
-        """Parse the binary form of a fingerprint of the given `kind`"""
+        r"""Parse the binary form of a fingerprint of the given `kind`
+
+        Raises `ValueError` if the size of the digest is invalid for that
+        version.
+
+        >>> fp = ShapeFingerprint(42, b'\xab' * 48)
+        >>> ShapeFingerprint.from_bytes(fp.to_bytes()) == fp
+        True
+        >>> for invalid in [b'', b'\x2a', b'\x00' + b'\xab' * 48]:
+        ...     try:
+        ...         ShapeFingerprint.from_bytes(invalid)
+        ...     except ValueError:
+        ...         pass
+        ...     else:
+        ...         raise AssertionError(invalid)
+        """
         return cls(b2u(data[:1]), data[1:])
 
     def to_text(self) -> bytes:
         r"""The textual form of this fingerprint: `shapeXY-<hex>` for a shape
         and `shardXY-<hex>` for a shard, with `XY` the version as a decimal
-        number padded to two digits and `<hex>` the hexadecimal digest
+        number padded to two digits and `<hex>` the hexadecimal digest, whose
+        length depends on the version
 
         >>> ShapeFingerprint(0, b'\xab' * 32).to_text()
         b'shape00-abababababababababababababababababababababababababababababababab'
@@ -98,6 +121,8 @@ class Fingerprint(FingerprintT):
         b'shape12-0101010101010101010101010101010101010101010101010101010101010101'
         >>> ShapeFingerprint(255, b'\x01' * 32).to_text()
         b'shape255-0101010101010101010101010101010101010101010101010101010101010101'
+        >>> ShapeFingerprint(42, b'\x01' * 4).to_text()
+        b'shape42-01010101'
         """
         prefix = self.TEXT_PREFIX
         return b'%s%02d-%s' % (prefix, self.version, hex(self.digest))
@@ -115,8 +140,12 @@ class Fingerprint(FingerprintT):
         >>> fp = ShapeFingerprint.from_text(b'shape255-' + b'01' * 32)
         >>> fp == ShapeFingerprint(255, b'\x01' * 32)
         True
+        >>> fp = ShapeFingerprint.from_text(b'shape42-' + b'ab' * 48)
+        >>> fp == ShapeFingerprint(42, b'\xab' * 48)
+        True
         >>> for invalid in [b'', b'abab', b'shape00-', b'shape00-' + b'ab' * 31,
         ...                 b'shape00-' + b'ab' * 33, b'shape00-' + b'AB' * 32,
+        ...                 b'shape42-', b'shape42-abc',
         ...                 b'shape00-' + b'ab' * 32 + b' ',
         ...                 b'shape00:' + b'ab' * 32, b'shape-' + b'ab' * 32,
         ...                 b'shape0-' + b'ab' * 32, b'shape256-' + b'ab' * 32,
@@ -138,7 +167,10 @@ class Fingerprint(FingerprintT):
             raw_version = m.group(2)
             version = int(raw_version)
             if version <= 255 and raw_version == b'%02d' % version:
-                return cls(version, bin(m.group(3)))
+                try:
+                    return cls(version, bin(m.group(3)))
+                except ValueError:
+                    pass
         msg = "not a %s fingerprint: %r"
         raise ValueError(msg % (cls.TARGET, text))
 
