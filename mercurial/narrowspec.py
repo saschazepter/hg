@@ -261,16 +261,16 @@ def parse_shape(contents: bytes) -> list[str]:
     See the format in `write_shape`"""
     lines = contents.splitlines()
     if not lines:
-        raise error.CorruptedFormat(_(b"empty store-hape file"))
+        raise error.CorruptedFormat(_(b"empty store-shape file"))
     try:
         version = int(lines[0])
     except ValueError:
-        raise error.CorruptedFormat(_(b"invalid store-hape version line"))
+        raise error.CorruptedFormat(_(b"invalid store-shape version line"))
     if version != 0:
-        msg = _(b"unknown store-hape version number: %d")
+        msg = _(b"unknown store-shape version number: %d")
         raise error.CorruptedFormat(msg % version)
     if len(lines) != 2:
-        msg = _(b"too many lines in store-hape: expected 2, got %d")
+        msg = _(b"invalid number of lines in store-shape: expected 2, got %d")
         raise error.CorruptedFormat(msg % len(lines))
     shape = _decode_shape(lines[1])
     return shape.split(',')
