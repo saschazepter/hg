@@ -656,11 +656,24 @@ A server without the Rust extensions cannot compute store shapes.
   $ hg pull --remotecmd $TESTTMP/pure-server-hg.sh
   pulling from ssh://user@dummy/server
   searching for changes
-  remote: abort: server does not support store shapes
-  abort: pull failed on remote
-  (lacking Rust extensions)
+  abort: server does not support store shapes
+  (this repository has the store shape of 'default')
   [100]
 #endif
+
+A server can also choose not to advertise store shapes.
+
+  $ cat > $TESTTMP/no-store-shapes.rc << EOF
+  > [experimental]
+  > advertise-store-shapes=no
+  > EOF
+  $ HGRCPATH="$HGRCPATH:$TESTTMP/no-store-shapes.rc" hg pull
+  pulling from $TESTTMP/server (local !)
+  pulling from ssh://user@dummy/server (no-local !)
+  searching for changes
+  abort: server does not support store shapes
+  (this repository has the store shape of 'default')
+  [100]
 
 
 Test widening/narrowing

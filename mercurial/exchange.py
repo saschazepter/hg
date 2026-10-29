@@ -1948,6 +1948,21 @@ def _pulldiscoverychangegroup(pullop):
     pullop.rheads = rheads
 
 
+def _use_remote_store_shape(repo, remote) -> bool:
+    """Whether to exchange the store shape of `repo` with `remote`
+
+    Abort if `repo` has a store shape that `remote` does not support."""
+    shape = repo.store_shape
+    if shape is None:
+        return False
+    if not remote.capable(wireprototypes.SHAPECAP):
+        msg = _(b"server does not support store shapes")
+        hint = _(b"this repository has the store shape of '%s'")
+        hint %= b",".join(name.encode() for name in shape)
+        raise error.RemoteError(msg, hint=hint)
+    return True
+
+
 def _pullbundle2(pullop: pulloperation):
     """pull data using bundle2
 
@@ -1976,7 +1991,7 @@ def _pullbundle2(pullop: pulloperation):
             _(b"server does not support narrow, but client has a store shape")
         )
     elif servernarrow:
-        if shape is not None:
+        if _use_remote_store_shape(pullop.repo, pullop.remote):
             names_and_fingerprint = narrowspec.store_shape_with_fingerprint(
                 pullop.repo
             )
