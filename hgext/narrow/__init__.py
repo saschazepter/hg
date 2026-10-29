@@ -187,9 +187,9 @@ For Mercurial 7.2, the ``.hg/store/server-shapes`` file is a TOML file,
 maintained by the narrow server's administrators.
 
 **Warning**: modify it with :hg:`admin::narrow-server --shape-update`, which
-checks that the update is safe (see ``Updating the shapes config`` below).
-Editing the file by hand is unsupported and will likely result in unexpected
-client breakage.
+checks that the update is safe (see
+``Updating the store sharding configuration`` below). Editing the file by hand
+is unsupported and will likely result in unexpected client breakage.
 
 The current (experimental!) format is the following::
 
@@ -286,8 +286,8 @@ in sharded bundles) with::
 
   $ hg admin::narrow-server --store-shards -Tjson
 
-Updating the profiles config
-............................
+Updating the store sharding configuration
+.........................................
 
 Use :hg:`admin::narrow-server --shape-update` to replace the config. The
 command refuses updates that violate any of the invariants described below.

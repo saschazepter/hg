@@ -391,8 +391,9 @@ def _validate_shape_update(
                 b"won't change the fingerprint of existing store profiles: %s"
             )
             hint = _(
-                b"see 'hg help \"narrow.updating the shapes config\"' for"
-                b" how to publish this as a new store profile"
+                b"see 'hg help"
+                b" \"narrow.updating the store sharding configuration\"'"
+                b" for how to publish this as a new store profile"
             )
             raise error.InputError(msg % _quote_names(redefined), hint=hint)
 
@@ -407,8 +408,9 @@ def _validate_shape_update(
                 b"shards changed: %s"
             )
             hint = _(
-                b"see 'hg help \"narrow.updating the shapes config\"' for"
-                b" how to split this in two updates"
+                b"see 'hg help"
+                b" \"narrow.updating the store sharding configuration\"'"
+                b" for how to split this in two updates"
             )
             raise error.InputError(
                 msg % (_quote_names(shapes), _quote_names(shards)), hint=hint
@@ -425,8 +427,9 @@ def _validate_shape_update(
                 b"store profiles changed: %s"
             ) % (len(saved_configs), _quote_names(shapes))
             hint = _(
-                b"see 'hg help \"narrow.updating the shapes config\"' for"
-                b" how to clear the saved configs"
+                b"see 'hg help"
+                b" \"narrow.updating the store sharding configuration\"'"
+                b" for how to clear the saved configs"
             )
             raise error.InputError(msg, hint=hint)
 

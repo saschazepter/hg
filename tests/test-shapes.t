@@ -493,7 +493,7 @@ bundles need to be generated from the new shards before we are ready to add the 
   abort: cannot reshape and reshard in the same update
   store profiles changed: "new-shape"
   shards changed: "base", "dir1"
-  (see 'hg help "narrow.updating the shapes config"' for how to split this in two updates)
+  (see 'hg help "narrow.updating the store sharding configuration"' for how to split this in two updates)
   [10]
 
 Passing `--override-reshape-and-reshard-check` allows the update anyways
@@ -523,7 +523,7 @@ Attempting to change `new-shape` fails because its fingerprint would change
   > EOF
   $ hg admin::narrow-server --shape-update -f ../new-shapes
   abort: won't change the fingerprint of existing store profiles: "new-shape"
-  (see 'hg help "narrow.updating the shapes config"' for how to publish this as a new store profile)
+  (see 'hg help "narrow.updating the store sharding configuration"' for how to publish this as a new store profile)
   [10]
 
 Reshaping is refused while a previous config is still saved
@@ -538,7 +538,7 @@ Reshaping is refused while a previous config is still saved
   $ hg admin::narrow-server --shape-update -f ../added-shape
   abort: cannot reshape yet: 1 previous server-shapes still saved
   store profiles changed: "foo-shape"
-  (see 'hg help "narrow.updating the shapes config"' for how to clear the saved configs)
+  (see 'hg help "narrow.updating the store sharding configuration"' for how to clear the saved configs)
   [10]
 
 Passing `--override-saved-configs-check` allows the update anyways
