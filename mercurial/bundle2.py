@@ -2055,9 +2055,8 @@ def addpartbundlestream2(
                     mandatory=True,
                 )
         elif narrow_info.fingerprint is not None:
-            # XXX should be called store-shape-fingerprint
             part.addparam(
-                b'store-fingerprint',
+                b'store-shape-fingerprint',
                 narrow_info.fingerprint.to_bytes(),
                 mandatory=False,
             )

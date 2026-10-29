@@ -64,15 +64,15 @@ BUNDLESPEC_PHASES = b"phases"
 BUNDLESPEC_REQUIREMENTS = b"requirements"
 BUNDLESPEC_REVBRANCHCACHE = b"revbranchcache"
 BUNDLESPEC_SHARD_ID = b"shard-id"
-BUNDLESPEC_STORE_FINGERPRINT = b"store-fingerprint"
 BUNDLESPEC_STORE_SHAPE = b"store-shape"
+BUNDLESPEC_STORE_SHAPE_FINGERPRINT = b"store-shape-fingerprint"
 BUNDLESPEC_STREAM = b"stream"
 BUNDLESPEC_TAGSFNODESCACHE = b"tagsfnodescache"
 
 # Bundlespec parameters a client must understand to safely use the bundle.
 MANDATORY_BUNDLE_SPEC_PARAMS: set[bytes] = {
     BUNDLESPEC_REQUIREMENTS,
-    BUNDLESPEC_STORE_FINGERPRINT,
+    BUNDLESPEC_STORE_SHAPE_FINGERPRINT,
     BUNDLESPEC_STREAM,
     BUNDLESPEC_SHARD_ID,
     BUNDLESPEC_BUNDLE_GROUP_ID,
@@ -212,7 +212,7 @@ def param_shard_id(key, value) -> bytes:
 # mapping of known parameter name need their value processed
 bundle_spec_param_processing = {
     BUNDLESPEC_SHARD_ID: param_shard_id,
-    BUNDLESPEC_STORE_FINGERPRINT: param_store_fingerprint,
+    BUNDLESPEC_STORE_SHAPE_FINGERPRINT: param_store_fingerprint,
     BUNDLESPEC_OBSOLESCENCE: param_bool,
     BUNDLESPEC_OBSOLESCENCE_MANDATORY: param_bool,
     BUNDLESPEC_PHASES: param_bool,
@@ -505,7 +505,7 @@ def parseclonebundlesmanifest(repo: RepoT, s: bytes) -> list[EntryT]:
 # whole line is dropped on its behalf.
 LEGACY_CLIENT_MANDATORY_PARAMS: set[bytes] = {
     BUNDLESPEC_REQUIREMENTS,
-    BUNDLESPEC_STORE_FINGERPRINT,
+    BUNDLESPEC_STORE_SHAPE_FINGERPRINT,
     BUNDLESPEC_STREAM,
 }
 
@@ -537,15 +537,15 @@ def manifest_line_has_param(line: bytes, name: bytes) -> bool:
     whatever its case, separator or value, without validating the bundlespec.
 
     >>> has = manifest_line_has_param
-    >>> has(b'http://a BUNDLESPEC=none-v2;store-fingerprint=zz', b'store-fingerprint')
+    >>> has(b'http://a BUNDLESPEC=none-v2;store-shape-fingerprint=zz', b'store-shape-fingerprint')
     True
-    >>> has(b'http://a BUNDLESPEC=none-v2;STORE-FINGERPRINT%3Dzz', b'store-fingerprint')
+    >>> has(b'http://a BUNDLESPEC=none-v2;STORE-SHAPE-FINGERPRINT%3Dzz', b'store-shape-fingerprint')
     True
-    >>> has(b'http://a BUNDLESPEC=none-v2;stream=v2 x=store-fingerprint', b'store-fingerprint')
+    >>> has(b'http://a BUNDLESPEC=none-v2;stream=v2 x=store-shape-fingerprint', b'store-shape-fingerprint')
     False
-    >>> has(b'http://a BUNDLESPEC=none-v2', b'store-fingerprint')
+    >>> has(b'http://a BUNDLESPEC=none-v2', b'store-shape-fingerprint')
     False
-    >>> has(b'http://a', b'store-fingerprint')
+    >>> has(b'http://a', b'store-shape-fingerprint')
     False
     """
     for field in line.split()[1:]:
@@ -749,7 +749,9 @@ def filterclonebundleentries(
             repo.ui.debug(msg % (url, unknown_compression))
             continue
 
-        entry_store_fp = entry.bundlespec_param(BUNDLESPEC_STORE_FINGERPRINT)
+        entry_store_fp = entry.bundlespec_param(
+            BUNDLESPEC_STORE_SHAPE_FINGERPRINT
+        )
         shard_id = entry.bundlespec_param(BUNDLESPEC_SHARD_ID)
         # bundle with shard id need to be filtered later, when we know which
         # group id have the complete set of shards we needs.

@@ -690,7 +690,7 @@ Filtering unsupported delta-compression away
       DELTA-COMPRESSION: none,zlib,zstd (zstd !)
       VERSION: v2 (zstd !)
 
-Omitting store-fingerprint bundles
+Omitting store-shape-fingerprint bundles
 ----------------------------------
 
 Clients on or after 7.2 pass the `store_fingerprint` arg, indicating they
@@ -698,11 +698,11 @@ understand how to handle fingerprinted bundles.
 
   $ cat > server/.hg/clonebundles.manifest << EOF
   > http://full.entry BUNDLESPEC=none-v2
-  > http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=shape00-1234123412341234123412341234123412341234123412341234123412341234
+  > http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-shape-fingerprint=shape00-1234123412341234123412341234123412341234123412341234123412341234
   > EOF
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw
   http://full.entry BUNDLESPEC=none-v2
-  http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=shape00-1234123412341234123412341234123412341234123412341234123412341234
+  http://partial.entry BUNDLESPEC=none-v2;stream=v2;store-shape-fingerprint=shape00-1234123412341234123412341234123412341234123412341234123412341234
 
 Clients before 7.2 do not pass the arg and are not offered `store_fingerprint`
 bundles.
@@ -714,12 +714,12 @@ An entry with a fingerprint the server cannot parse is still a partial bundle,
 so it is not offered to them either. Newer clients drop it themselves.
 
   $ cat >> server/.hg/clonebundles.manifest << EOF
-  > http://malformed.entry BUNDLESPEC=none-v2;stream=v2;store-fingerprint=1234
+  > http://malformed.entry BUNDLESPEC=none-v2;stream=v2;store-shape-fingerprint=1234
   > EOF
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --raw --legacy-client
   http://full.entry BUNDLESPEC=none-v2
   $ hg debug::clonebundle-manifest http://localhost:$HGPORT --debug | grep -E 'fingerprint|filtering|URL:'
-  parameter store-fingerprint should be a shape fingerprint ('1234')
+  parameter store-shape-fingerprint should be a shape fingerprint ('1234')
   filtering http://partial.entry because it uses a store-shape
     URL: http://full.entry
 

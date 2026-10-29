@@ -361,7 +361,7 @@ Both names are recorded and kept when pulling
   $ cat composite-clone/.hg/store/store-shape
   0
   default,other-secret
-  $ hg -R composite-clone admin::narrow-client --store-fingerprint
+  $ hg -R composite-clone admin::narrow-client --store-shape-fingerprint
   shape00-0ca851ef7cda7fb1824264b20ff00f51c61755bb91ee12f5f90c56386b3f99f4
 
   $ hg -R composite-clone pull

@@ -490,10 +490,10 @@ def _debugbundle2(ui, gen, all=None, **opts):
             if b"shard-id" in params:
                 fp = shape_mod.ShardFingerprint.from_bytes(params[b'shard-id'])
                 params[b'shard-id'] = fp.to_text()
-            elif b"store-fingerprint" in params:
-                store_fp = params[b'store-fingerprint']
+            elif b"store-shape-fingerprint" in params:
+                store_fp = params[b'store-shape-fingerprint']
                 fp = shape_mod.ShapeFingerprint.from_bytes(store_fp)
-                params[b'store-fingerprint'] = fp.to_text()
+                params[b'store-shape-fingerprint'] = fp.to_text()
         ui.writenoi18n(msg % (part.type, _quasirepr(params), part.mandatory))
         if part.type == b'changegroup':
             version = part.params.get(b'version', b'01')

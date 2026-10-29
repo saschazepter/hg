@@ -47,7 +47,7 @@
   2: add d2/f
   1: add d1/f
   0: add d0/f
-  $ hg admin::narrow-client --store-fingerprint
+  $ hg admin::narrow-client --store-shape-fingerprint
   abort: this command only makes sense in a narrow clone
   [255]
   $ cd ..
@@ -96,7 +96,7 @@ Test repo with local changes
   updating to branch default
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cd narrow-local-changes
-  $ hg admin::narrow-client --store-fingerprint
+  $ hg admin::narrow-client --store-shape-fingerprint
   shape00-f58973794cca8b1a2e8f46364dbd2f24a3593d4d6a5d91a94c7221c833e3ca55
   $ echo local change >> d0/f
   $ hg ci -m 'local change to d0'
@@ -116,7 +116,7 @@ Test repo with local changes
   (use --force-delete-local-changes to ignore)
   [20]
 Check that nothing was removed by the failed attempts
-  $ hg admin::narrow-client --store-fingerprint
+  $ hg admin::narrow-client --store-shape-fingerprint
   shape00-f58973794cca8b1a2e8f46364dbd2f24a3593d4d6a5d91a94c7221c833e3ca55
   $ hg tracked
   I path:d0
@@ -157,7 +157,7 @@ Force deletion of local changes
   deleting unwanted files from working copy
 
 Change that we've changed the tracked set
-  $ hg admin::narrow-client --store-fingerprint
+  $ hg admin::narrow-client --store-shape-fingerprint
   shape00-96ab52f4273dd4d1088b7ade36e5a378653031527fda10bc6fdd7bfc63875788
   $ hg log -T "{rev}: {desc} {outsidenarrow}\n"
   7: local change to d3 

@@ -320,8 +320,8 @@ def get_cached_bundle_inline(repo, proto, path):
 
 
 def _filter_storefp_lines(lines: list[bytes]) -> list[bytes]:
-    """Drop the manifest entries that have the `store-fingerprint` param,
-    meaning they only cover part of the store.
+    """Drop the manifest entries that have the `store-shape-fingerprint`
+    param, meaning they only cover part of the store.
 
     The parameter is looked for in the raw bundlespec: a value this server
     cannot parse still marks a partial bundle, and a spec this server does not
@@ -329,7 +329,7 @@ def _filter_storefp_lines(lines: list[bytes]) -> list[bytes]:
     modified_manifest = []
     for line in lines:
         if bundlecaches.manifest_line_has_param(
-            line, bundlecaches.BUNDLESPEC_STORE_FINGERPRINT
+            line, bundlecaches.BUNDLESPEC_STORE_SHAPE_FINGERPRINT
         ):
             continue
         modified_manifest.append(line)

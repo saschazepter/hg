@@ -31,7 +31,7 @@ the same set of paths.
 
 Checking the fingerprint of a narrow clone can be done by running::
 
-    $ hg admin::narrow-client --store-fingerprint
+    $ hg admin::narrow-client --store-shape-fingerprint
 
 Fingerprints are displayed as ``shapeXY-<hex>``, where ``XY`` is the version
 of the fingerprint computation and ``<hex>`` is the resulting hexadecimal

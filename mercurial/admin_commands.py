@@ -99,7 +99,7 @@ def admin_verify(ui, repo, **opts):
     [
         (
             b'',
-            b'store-fingerprint',
+            b'store-shape-fingerprint',
             None,
             _(b"get the fingerprint for this repo's store narrowspec"),
         ),
@@ -114,7 +114,7 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
     if not repo.is_narrow:
         raise error.Abort(_(b"this command only makes sense in a narrow clone"))
 
-    if opts.get("store_fingerprint"):
+    if opts.get("store_shape_fingerprint"):
         includes, excludes = repo.narrowpats
         fingerprint = shape_py.fingerprint_for_patterns(includes, excludes)
         assert fingerprint is not None

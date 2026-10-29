@@ -127,10 +127,10 @@ store-shape
     Limit a streaming bundle to a store shape, given as the name of a store
     profile defined on the narrow server. Several store profile names
     separated by commas designate their composite shape, which covers every
-    file any of them covers. The bundle then carries the ``STORE-FINGERPRINT``
-    of that shape.
+    file any of them covers. The bundle then carries the
+    ``STORE-SHAPE-FINGERPRINT`` of that shape.
 
-STORE-FINGERPRINT
+STORE-SHAPE-FINGERPRINT
     Mandatory. Include the fingerprint of the subset of the repository store a
     streaming bundle covers, in the form ``shapeXY-<hex>`` where ``XY`` is the
     version of the fingerprint and ``<hex>`` its hexadecimal digest, whose

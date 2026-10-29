@@ -189,7 +189,7 @@ def _inferbundlespec(ui, fh):
                 params = bundle2._formatrequirementsparams(splitted)
                 # These are spelled the same way in stream2 parts and the bundlespec.
                 for param in [
-                    b"store-fingerprint",
+                    b"store-shape-fingerprint",
                     b"shard-id",
                     b"bundle-group-id",
                     b"bundle-group-top-level",
@@ -199,7 +199,7 @@ def _inferbundlespec(ui, fh):
                         if param == b"shard-id":
                             fp = shape_py.ShardFingerprint.from_bytes(value)
                             value = fp.to_text()
-                        elif param == b"store-fingerprint":
+                        elif param == b"store-shape-fingerprint":
                             fp = shape_py.ShapeFingerprint.from_bytes(value)
                             value = fp.to_text()
                         params = b"%s;%s=%s" % (params, param, value)

@@ -624,8 +624,7 @@ def bundle2getvars(op: UnbundleOpT, part):
         b'requirements',
         b'filecount',
         b'bytecount',
-        # XXX should be called store-shape-fingerprint
-        b'store-fingerprint',
+        b'store-shape-fingerprint',
         b'shard-id',
         b'bundle-group-id',
         b'bundle-group-top-level',

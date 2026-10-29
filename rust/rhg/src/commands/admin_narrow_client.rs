@@ -13,8 +13,8 @@ Narrow-related administration utils (EXPERIMENTAL)
 pub fn args() -> clap::Command {
     clap::command!("admin::narrow-client")
         .arg(
-            Arg::new("store-fingerprint")
-                .long("store-fingerprint")
+            Arg::new("store-shape-fingerprint")
+                .long("store-shape-fingerprint")
                 .help("get the fingerprint for this repo's store narrospec")
                 .action(clap::ArgAction::SetTrue),
         )
@@ -28,10 +28,10 @@ pub fn args() -> clap::Command {
 )]
 pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     let args = invocation.subcommand_args;
-    let store_fingerprint = args.get_one::<bool>("store-fingerprint");
+    let store_fingerprint = args.get_one::<bool>("store-shape-fingerprint");
     if store_fingerprint.is_none() {
         return Err(CommandError::unsupported(
-            "rhg only supports --store-fingerprint",
+            "rhg only supports --store-shape-fingerprint",
         ));
     }
 

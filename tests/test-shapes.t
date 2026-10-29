@@ -239,7 +239,7 @@ One including the root
   no changes found
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg --config extensions.narrow= -R ../clone-test-1 admin::narrow-client --store-fingerprint
+  $ hg --config extensions.narrow= -R ../clone-test-1 admin::narrow-client --store-shape-fingerprint
   shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512
 
 One excluding the root
@@ -252,7 +252,7 @@ One excluding the root
   no changes found
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg --config extensions.narrow= -R ../clone-test-2 admin::narrow-client --store-fingerprint
+  $ hg --config extensions.narrow= -R ../clone-test-2 admin::narrow-client --store-shape-fingerprint
   shape00-398b2940ef4c78cea52809be4bcd610b6f1cf3908870a3264c024ea8f0bb97d6
 
 

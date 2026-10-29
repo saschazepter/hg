@@ -102,8 +102,8 @@ Test with an unknown profile
 Test with the default shape
   $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=default" outfile-shape-default.hg
 
-  $ hg debugbundle outfile-shape-default.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-a3b2e41b54f4a21de99700ae576c0f6b59b493a6f3dead7d8e9a8ef4b0779542} (mandatory: True) (glob)
+  $ hg debugbundle outfile-shape-default.hg | grep -E 'store-shape-fingerprint: shape00-[0-9a-f]{64}'
+  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-shape-fingerprint: shape00-a3b2e41b54f4a21de99700ae576c0f6b59b493a6f3dead7d8e9a8ef4b0779542} (mandatory: True) (glob)
 
 Add a full non-fingerprinted streaming clone for reference and fallback testing
   $ hg -R source bundle -a --type="none-v2;stream=v2" outfile-shape-full.hg
@@ -116,13 +116,13 @@ Add a full non-fingerprinted streaming clone for reference and fallback testing
 Test with a known shape
   $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foobar" outfile-shape-foobar.hg
 
-  $ hg debugbundle outfile-shape-foobar.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 10, requirements: *, store-fingerprint: shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1} (mandatory: True) (glob)
+  $ hg debugbundle outfile-shape-foobar.hg | grep -E 'store-shape-fingerprint: shape00-[0-9a-f]{64}'
+  stream2 -- {bytecount: *, filecount: 10, requirements: *, store-shape-fingerprint: shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1} (mandatory: True) (glob)
 
   $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foobaz" outfile-shape-foobaz.hg
 
-  $ hg debugbundle outfile-shape-foobaz.hg | grep -E 'store-fingerprint: shape00-[0-9a-f]{64}'
-  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-fingerprint: shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1} (mandatory: True) (glob)
+  $ hg debugbundle outfile-shape-foobaz.hg | grep -E 'store-shape-fingerprint: shape00-[0-9a-f]{64}'
+  stream2 -- {bytecount: *, filecount: 12, requirements: *, store-shape-fingerprint: shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1} (mandatory: True) (glob)
 
 Test cloning
 ============
@@ -140,10 +140,10 @@ Prepare inline bundles
 
   $ bundlespec="$(hg debugbundle --spec outfile-shape-foobar.hg)"
   $ echo $bundlespec
-  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
+  none-v2;STREAM=v2;REQUIREMENTS*;STORE-SHAPE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
   $ bundlespec2="$(hg debugbundle --spec outfile-shape-foobaz.hg)"
   $ echo $bundlespec2
-  none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1 (glob)
+  none-v2;STREAM=v2;REQUIREMENTS*;STORE-SHAPE-FINGERPRINT=shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1 (glob)
 
   $ bundlespecfull="$(hg debugbundle --spec outfile-shape-full.hg)"
   $ echo $bundlespecfull
@@ -166,8 +166,8 @@ Define the special set of files included in all shapes.
 
 The raw manifest looks OK
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --raw
-  peer-bundle-cache://outfile-shape-foobar.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
-  peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-FINGERPRINT=shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1 (glob)
+  peer-bundle-cache://outfile-shape-foobar.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-SHAPE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
+  peer-bundle-cache://outfile-shape-foobaz.hg BUNDLESPEC=none-v2;STREAM=v2;REQUIREMENTS*;STORE-SHAPE-FINGERPRINT=shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1 (glob)
 
 Passing in no includes or excludes shows that all entries are filtered out due to their fingerprints
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --debug | grep 'store-shape'
@@ -180,7 +180,7 @@ Passing a pattern that matches nothing filters all entries
 Passing a matching pattern works
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles
     URL: peer-bundle-cache://outfile-shape-foobar.hg
-      BUNDLESPEC: none-v2;STREAM=v2;REQUIREMENTS=*;STORE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
+      BUNDLESPEC: none-v2;STREAM=v2;REQUIREMENTS=*;STORE-SHAPE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 (glob)
       COMPRESSION: none
       VERSION: v2
 
@@ -238,7 +238,7 @@ Test matching fingerprints
 First with a Python client
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped --narrow $hgfiles --include=dir2 | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobar.hg
-  $ hg admin::narrow-client -R clone-shaped --store-fingerprint
+  $ hg admin::narrow-client -R clone-shaped --store-shape-fingerprint
   shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1
   $ rm -rf clone-shaped
 
@@ -253,7 +253,7 @@ Then with the Rust client
 
 We make sure that the client has the same fingerprint than the streamclone
 
-  $ hg admin::narrow-client --store-fingerprint
+  $ hg admin::narrow-client --store-shape-fingerprint
   shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1
 
 We make sure that the client has the expected narrowspec
@@ -287,7 +287,7 @@ First with a pure Python client
 
   $ HGMODULEPOLICY=py hg clone ssh://user@dummy/source clone-shaped2 --narrow $hgfiles --include=dir2 --include=excluded | grep "bundle from"
   applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
-  $ hg -R clone-shaped2 admin::narrow-client --store-fingerprint
+  $ hg -R clone-shaped2 admin::narrow-client --store-shape-fingerprint
   shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
   $ rm -rf clone-shaped2
 
@@ -304,7 +304,7 @@ Then with the Rust client
 
 The client has the same fingerprint than the streamclone
 
-  $ hg admin::narrow-client --store-fingerprint
+  $ hg admin::narrow-client --store-shape-fingerprint
   shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
 
 The client has the expected narrowspec
@@ -376,7 +376,7 @@ Restart the normal server
 
 The client has the same fingerprint than the streamclone
 
-  $ hg admin::narrow-client --store-fingerprint
+  $ hg admin::narrow-client --store-shape-fingerprint
   shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
 
 The client has the expected narrowspec
@@ -504,7 +504,7 @@ Try a full stream clone
   $ hg -R source admin::narrow-server --store-profile-fingerprints | grep " full"
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
-  $ hg -R target admin::narrow-client --store-fingerprint
+  $ hg -R target admin::narrow-client --store-shape-fingerprint
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545
   $ hg -R target verify
   checking changesets
@@ -527,7 +527,7 @@ Try a partial clone of a single user-defined shard
   finished applying clone bundle [2/2]
   finished applying 2 clone bundles
 
-  $ hg -R partial-foobar admin::narrow-client --store-fingerprint
+  $ hg -R partial-foobar admin::narrow-client --store-shape-fingerprint
   shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1
 
 The log is consistent
@@ -596,7 +596,7 @@ Try a partial clone of a user-defined shard with dependencies
   finished applying clone bundle [3/3]
   finished applying 3 clone bundles
 
-  $ hg -R partial-foobaz admin::narrow-client --store-fingerprint
+  $ hg -R partial-foobaz admin::narrow-client --store-shape-fingerprint
   shape00-793abd70e08b89af39560577483a150958d47ad6daa3db734ea88d527b2729b1
 
 The log is consistent
@@ -766,7 +766,7 @@ Top-level bundle listed last in the manifest is still applied first
 Entry filtering
 ===============
 
-Manifest contains a full bundle, store-fingerprint bundles, and sharded bundles.
+Manifest contains a full bundle, store-shape-fingerprint bundles, and sharded bundles.
 
   $ cd $TESTTMP
   $ cat > source/.hg/clonebundles.manifest << EOF
@@ -787,7 +787,7 @@ If the client did not request a store shape, filter out all but the full bundle
     URL: peer-bundle-cache://no-shape.hg
 
 If the client requests a store shape, filter out all but the bundle with the matching
-store-fingerprint
+store-shape-fingerprint
 
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug | grep -E 'filtering|URL:'
   filtering peer-bundle-cache://no-shape.hg because it does not use store-shape
@@ -802,11 +802,11 @@ and dropped when parsing the manifest. The ones with a version other than the
 one we requested cannot match, whatever the size of their digest.
 
   $ echo "$bundlespec" > bundlespec.txt
-  $ bundlespec_no_version=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape-/' bundlespec.txt`
-  $ bundlespec_other_version=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape99-/' bundlespec.txt`
-  $ bundlespec_other_size=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape99-abab/' bundlespec.txt`
-  $ bundlespec_malformed=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shape00-zz/' bundlespec.txt`
-  $ bundlespec_shard_kind=`sed 's/STORE-FINGERPRINT=shape00-/STORE-FINGERPRINT=shard00-/' bundlespec.txt`
+  $ bundlespec_no_version=`sed 's/STORE-SHAPE-FINGERPRINT=shape00-/STORE-SHAPE-FINGERPRINT=shape-/' bundlespec.txt`
+  $ bundlespec_other_version=`sed 's/STORE-SHAPE-FINGERPRINT=shape00-/STORE-SHAPE-FINGERPRINT=shape99-/' bundlespec.txt`
+  $ bundlespec_other_size=`sed 's/STORE-SHAPE-FINGERPRINT=shape00-/STORE-SHAPE-FINGERPRINT=shape99-abab/' bundlespec.txt`
+  $ bundlespec_malformed=`sed 's/STORE-SHAPE-FINGERPRINT=shape00-/STORE-SHAPE-FINGERPRINT=shape00-zz/' bundlespec.txt`
+  $ bundlespec_shard_kind=`sed 's/STORE-SHAPE-FINGERPRINT=shape00-/STORE-SHAPE-FINGERPRINT=shard00-/' bundlespec.txt`
   $ cat > source/.hg/clonebundles.manifest << EOF
   > peer-bundle-cache://shape-dir2-malformed.hg BUNDLESPEC=$bundlespec_malformed
   > peer-bundle-cache://shape-dir2-shard-kind.hg BUNDLESPEC=$bundlespec_shard_kind
@@ -817,9 +817,9 @@ one we requested cannot match, whatever the size of their digest.
   > EOF
 
   $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2 $hgfiles --debug | grep -E 'fingerprint|filtering|URL:'
-  parameter store-fingerprint should be a shape fingerprint ('shape00-zz662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
-  parameter store-fingerprint should be a shape fingerprint ('shard00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
-  parameter store-fingerprint should be a shape fingerprint ('shape-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
+  parameter store-shape-fingerprint should be a shape fingerprint ('shape00-zz662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
+  parameter store-shape-fingerprint should be a shape fingerprint ('shard00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
+  parameter store-shape-fingerprint should be a shape fingerprint ('shape-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1')
   filtering peer-bundle-cache://shape-dir2-other-version.hg because its store-shape is not the requested one; shape99-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 not in (shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1)
   filtering peer-bundle-cache://shape-dir2-other-size.hg because its store-shape is not the requested one; shape99-abab662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1 not in (shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1)
     URL: peer-bundle-cache://shape-dir2.hg
@@ -928,8 +928,8 @@ The bundle carries the fingerprint of the composite shape
 
   $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foobar,default" composite.hg
 
-  $ hg debugbundle composite.hg | grep -o 'store-fingerprint: shape00-[0-9a-f]*'
-  store-fingerprint: shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
+  $ hg debugbundle composite.hg | grep -o 'store-shape-fingerprint: shape00-[0-9a-f]*'
+  store-shape-fingerprint: shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
   $ hg -R source admin::narrow-server --store-shape-patterns default,foobar
   inc:/
   exc:/dir1/excluded
@@ -945,7 +945,7 @@ Clients cloning the composite shape use that bundle
   $ hg clone ssh://user@dummy/source composite --noupdate --store-shape default,foobar | grep "bundle from"
   applying clone bundle from peer-bundle-cache://composite.hg
 
-  $ hg -R composite admin::narrow-client --store-fingerprint
+  $ hg -R composite admin::narrow-client --store-shape-fingerprint
   shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
   $ hg -R composite tracked
   I path:.
@@ -970,6 +970,6 @@ Clients get the shards of both shapes.
   finished applying clone bundle [3/3]
   finished applying 3 clone bundles
 
-  $ hg -R composite admin::narrow-client --store-fingerprint
+  $ hg -R composite admin::narrow-client --store-shape-fingerprint
   shape00-6f513eae73122aee18917ce1a6a3e3782e349ca7f34e2c3c23d952f7d769520a
   $ rm -rf composite
