@@ -1976,19 +1976,12 @@ def _pullbundle2(pullop: pulloperation):
             _(b"server does not support narrow, but client has a store shape")
         )
     elif servernarrow:
-        fingerprint = None
-
         if shape is not None:
-            fingerprint = shape_py.fingerprint_for_patterns(
-                pullop.includepats, pullop.excludepats
+            names_and_fingerprint = narrowspec.store_shape_with_fingerprint(
+                pullop.repo
             )
-            if fingerprint is None:
-                # Better safe than sorry
-                raise error.Abort(
-                    _(b"cannot compute fingerprint for local narrow patterns")
-                )
-            # the names were checked to be valid UTF-8
-            names = [name.encode() for name in shape]
+            assert names_and_fingerprint is not None  # help pytype
+            names, fingerprint = names_and_fingerprint
             shape_with_fingerprint = b"%s:%s" % (
                 b",".join(names),
                 fingerprint.to_text(),

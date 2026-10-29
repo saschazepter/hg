@@ -245,6 +245,25 @@ def load_store_shape(repo: RepoT) -> list[str] | None:
     return shape
 
 
+def store_shape_with_fingerprint(
+    repo: RepoT,
+) -> tuple[list[bytes], shapemod.ShapeFingerprint] | None:
+    """Return the names and fingerprint of the store shape of `repo`, or
+    `None` if it has no store shape."""
+    shape = repo.store_shape
+    if shape is None:
+        return None
+    includes, excludes = repo.narrowpats
+    fingerprint = shapemod.fingerprint_for_patterns(includes, excludes)
+    if fingerprint is None:
+        # Better safe than sorry
+        raise error.Abort(
+            _(b"cannot compute fingerprint for local narrow patterns")
+        )
+    # the names were checked to be valid UTF-8
+    return [name.encode() for name in shape], fingerprint
+
+
 def _decode_shape(name: bytes) -> str:
     """decode and valide a shape name"""
     try:
