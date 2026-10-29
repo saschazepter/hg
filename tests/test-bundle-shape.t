@@ -94,9 +94,9 @@ Create shapes config
   > EOF
   $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes --override-reshape-and-reshard-check
 
-Test with an unknown shape
+Test with an unknown profile
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=foo" outfile-shaped.hg
-  abort: unknown shape: 'foo'
+  abort: unknown store profile: 'foo'
   [10]
 
 Test with the default shape
@@ -362,7 +362,7 @@ Restart the normal server
   $ hg serve -R source -d -p $HGPORT --pid-file hg.pid --errorlog error.log --accesslog access.log
   $ cat hg.pid >> $DAEMON_PIDS
   $ hg clone ssh://user@dummy/source clone-shaped3 --store-shape unknown-shape
-  abort: shape not found on remote: 'unknown-shape'
+  abort: store profile not found on remote: 'unknown-shape'
   [10]
 
   $ hg clone ssh://user@dummy/source clone-shaped3 --store-shape foobaz | grep "bundle from"
@@ -916,7 +916,7 @@ Unknown and empty names are reported
 ------------------------------------
 
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default,zz" composite.hg
-  abort: unknown shape: 'zz'
+  abort: unknown store profile: 'zz'
   [10]
 
   $ hg -R source bundle -a --type="none-v2;stream=v2;shape=default,,foobar" composite.hg

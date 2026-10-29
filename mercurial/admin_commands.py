@@ -278,7 +278,7 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         try:
             shape = store_shards.shape([name.decode() for name in names])
         except KeyError as e:
-            raise error.Abort(_(b"shape '%s' not found") % e.args[0])
+            raise error.Abort(_(b"store profile '%s' not found") % e.args[0])
 
     ui.pager(b"admin::narrow-server")
     fm_ctx = ui.formatter(b"admin::narrow-server", pycompat.byteskwargs(opts))
@@ -387,10 +387,12 @@ def _validate_shape_update(
     - reshapes while previous configs are still saved"""
     if not opts.get("override_fingerprint_change_check"):
         if redefined := old_store_shards.redefined_shapes(new_store_shards):
-            msg = _(b"won't change the fingerprint of existing shapes: %s")
+            msg = _(
+                b"won't change the fingerprint of existing store profiles: %s"
+            )
             hint = _(
                 b"see 'hg help \"narrow.updating the shapes config\"' for"
-                b" how to publish this as a new shape"
+                b" how to publish this as a new store profile"
             )
             raise error.InputError(msg % _quote_names(redefined), hint=hint)
 
@@ -401,7 +403,7 @@ def _validate_shape_update(
         if shapes and shards:
             msg = _(
                 b"cannot reshape and reshard in the same update\n"
-                b"shapes changed: %s\n"
+                b"store profiles changed: %s\n"
                 b"shards changed: %s"
             )
             hint = _(
@@ -420,7 +422,7 @@ def _validate_shape_update(
             # use new shards in a shape yet.
             msg = _(
                 b"cannot reshape yet: %d previous server-shapes still saved\n"
-                b"shapes changed: %s"
+                b"store profiles changed: %s"
             ) % (len(saved_configs), _quote_names(shapes))
             hint = _(
                 b"see 'hg help \"narrow.updating the shapes config\"' for"

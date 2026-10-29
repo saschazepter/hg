@@ -311,7 +311,9 @@ def patterns_for_shape(
     try:
         shape = store_shards.shape(as_str)
     except KeyError as e:
-        raise error.Abort(b"shape not found on remote: '%s'" % e.args[0])
+        raise error.Abort(
+            b"store profile not found on remote: '%s'" % e.args[0]
+        )
     if fingerprint is not None:
         server_fingerprint = shapemod.ShapeFingerprint(**shape.fingerprint())
         if fingerprint != server_fingerprint:

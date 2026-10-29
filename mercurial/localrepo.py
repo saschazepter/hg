@@ -477,7 +477,7 @@ class localpeer(peer.Peer, repository.ipeercommands):
         try:
             shape = store_shards.shape(names_str)
         except KeyError as e:
-            msg = _(b"shape not found on remote: '%s'") % e.args[0]
+            msg = _(b"store profile not found on remote: '%s'") % e.args[0]
             raise error.RepoLookupError(msg)
         includes, excludes = shape.patterns()
 

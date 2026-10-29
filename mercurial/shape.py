@@ -195,35 +195,32 @@ _SHAPE_NAME_RE = re.compile(rb'^[-.a-z0-9]+$')
 
 
 def _validate_shape_name(name: bytes) -> None:
-    """raise `InputError` if `name` cannot be the name of a shape
+    """raise `InputError` if `name` cannot be the name of a store profile
 
     >>> _validate_shape_name(b'default')
     >>> _validate_shape_name(b'')
     Traceback (most recent call last):
     ...
-    InputError: shard names must not be empty
+    InputError: store profile names must not be empty
     >>> _validate_shape_name(b'-.')
     Traceback (most recent call last):
     ...
-    InputError: invalid shard name '-.': missing lowercase alphanumeric character
+    InputError: invalid store profile name '-.'
     >>> _validate_shape_name(b'Babar')
     Traceback (most recent call last):
     ...
-    InputError: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+    InputError: invalid store profile name 'Babar'
     """
     if not name:
-        raise error.InputError(_(b"shard names must not be empty"))
+        raise error.InputError(_(b"store profile names must not be empty"))
     if name.strip(b'.-') == b'':
-        msg = _(
-            b"invalid shard name '%s': missing lowercase alphanumeric character"
-        )
-        raise error.InputError(msg % name)
+        msg = _(b"invalid store profile name '%s'")
+        hint = _(b"missing lowercase alphanumeric character")
+        raise error.InputError(msg % name, hint=hint)
     if not _SHAPE_NAME_RE.match(name):
-        msg = _(
-            b"invalid shard name '%s': "
-            b"only lowercase alphanumeric, hyphen or dot are accepted"
-        )
-        raise error.InputError(msg % name)
+        msg = _(b"invalid store profile name '%s'")
+        hint = _(b"only lowercase alphanumeric, hyphen or dot are accepted")
+        raise error.InputError(msg % name, hint=hint)
 
 
 def parse_shape_names(spec: bytes) -> list[bytes]:
@@ -239,11 +236,11 @@ def parse_shape_names(spec: bytes) -> list[bytes]:
     >>> parse_shape_names(b'babar,,celeste')
     Traceback (most recent call last):
     ...
-    InputError: shard names must not be empty
+    InputError: store profile names must not be empty
     >>> parse_shape_names(b'babar,Celeste')
     Traceback (most recent call last):
     ...
-    InputError: invalid shard name 'Celeste': only lowercase alphanumeric, hyphen or dot are accepted
+    InputError: invalid store profile name 'Celeste'
     """
     names = spec.split(b',')
     for name in names:

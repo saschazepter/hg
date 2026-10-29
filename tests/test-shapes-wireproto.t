@@ -94,7 +94,7 @@ Test error cases
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
-  abort: shape not found on remote: 'unknown-shape'
+  abort: store profile not found on remote: 'unknown-shape'
   [10]
 
   $ hg debugwireproto --localssh << EOF
@@ -104,7 +104,7 @@ Test error cases
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
-  abort: shape not found on remote: 'secrets'
+  abort: store profile not found on remote: 'secrets'
   [10]
 
 The fingerprint sent alongside a shape must be well formed
@@ -250,7 +250,7 @@ Only the name that is not found is reported
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
-  abort: shape not found on remote: 'unknown-shape'
+  abort: store profile not found on remote: 'unknown-shape'
   [10]
 
 Test narrow clone with `--store-shape`
@@ -285,7 +285,7 @@ Test narrow clone with `--store-shape`
 Test the error case
 
   $ $POLICY hg clone $remote_url narrow-clone $remote_cmd --store-shape unknown-shape
-  abort: shape not found on remote: 'unknown-shape'
+  abort: store profile not found on remote: 'unknown-shape'
   [10]
 
 Test a valid shape
@@ -332,14 +332,15 @@ An unknown name is reported by itself
 -------------------------------------
 
   $ $POLICY hg clone $remote_url composite-clone $remote_cmd --store-shape default,unknown-shape
-  abort: shape not found on remote: 'unknown-shape'
+  abort: store profile not found on remote: 'unknown-shape'
   [10]
 
 Names are checked before anything is sent
 -----------------------------------------
 
   $ $POLICY hg clone $remote_url composite-clone $remote_cmd --store-shape default,Babar
-  abort: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+  abort: invalid store profile name 'Babar'
+  (only lowercase alphanumeric, hyphen or dot are accepted)
   [10]
 
 The composite shape covers every file either shape covers
@@ -401,7 +402,7 @@ An unknown name is reported by itself
   creating ssh peer from handshake results
   sending getbundle command
   response: <mercurial.changegroup.cg1unpacker object at 0x*> (glob)
-  remote: abort: shape not found on remote: 'unknown-shape'
+  remote: abort: store profile not found on remote: 'unknown-shape'
 
 The fingerprint must be the one of the composite shape
 ------------------------------------------------------
@@ -533,13 +534,13 @@ Update the server shapes to remove the shape
   $ hg pull
   pulling from $TESTTMP/server
   searching for changes
-  abort: shape not found on remote: 'default'
+  abort: store profile not found on remote: 'default'
   [255]
 #else
   $ hg pull
   pulling from ssh://user@dummy/server
   searching for changes
-  remote: abort: shape not found on remote: 'default'
+  remote: abort: store profile not found on remote: 'default'
   abort: pull failed on remote
   [100]
 #endif
@@ -623,13 +624,13 @@ Update the server shapes to remove the shape
   $ hg pull
   pulling from $TESTTMP/server
   searching for changes
-  abort: shape not found on remote: 'default'
+  abort: store profile not found on remote: 'default'
   [255]
 #else
   $ hg pull
   pulling from ssh://user@dummy/server
   searching for changes
-  remote: abort: shape not found on remote: 'default'
+  remote: abort: store profile not found on remote: 'default'
   abort: pull failed on remote
   [100]
 #endif
@@ -667,7 +668,7 @@ Expected errors with the wrong shape name
 
   $ hg tracked --store-shape unknown-shape
   comparing with ssh://user@dummy/server
-  abort: shape not found on remote: 'unknown-shape'
+  abort: store profile not found on remote: 'unknown-shape'
   [10]
 
 Actual widening succeeds
@@ -725,7 +726,8 @@ Names of a composite shape are checked before anything is sent
 --------------------------------------------------------------
 
   $ hg tracked --store-shape default,Babar
-  abort: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+  abort: invalid store profile name 'Babar'
+  (only lowercase alphanumeric, hyphen or dot are accepted)
   [10]
 
 A composite shape tracks the union

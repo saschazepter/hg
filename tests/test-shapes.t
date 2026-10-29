@@ -174,15 +174,16 @@ Comma-separated names designate their composite shape
   exc:/secret
 
   $ hg admin::narrow-server --shape-patterns default,zz
-  abort: shape 'zz' not found
+  abort: store profile 'zz' not found
   [255]
 
   $ hg admin::narrow-server --shape-patterns default,Babar
-  abort: invalid shard name 'Babar': only lowercase alphanumeric, hyphen or dot are accepted
+  abort: invalid store profile name 'Babar'
+  (only lowercase alphanumeric, hyphen or dot are accepted)
   [10]
 
   $ hg admin::narrow-server --shape-patterns default,
-  abort: shard names must not be empty
+  abort: store profile names must not be empty
   [10]
 
 Test the legacy narrow patterns option
@@ -490,7 +491,7 @@ bundles need to be generated from the new shards before we are ready to add the 
   > EOF
   $ hg admin::narrow-server --shape-update -f ../new-shapes
   abort: cannot reshape and reshard in the same update
-  shapes changed: "new-shape"
+  store profiles changed: "new-shape"
   shards changed: "base", "dir1"
   (see 'hg help "narrow.updating the shapes config"' for how to split this in two updates)
   [10]
@@ -521,8 +522,8 @@ Attempting to change `new-shape` fails because its fingerprint would change
   > public = true
   > EOF
   $ hg admin::narrow-server --shape-update -f ../new-shapes
-  abort: won't change the fingerprint of existing shapes: "new-shape"
-  (see 'hg help "narrow.updating the shapes config"' for how to publish this as a new shape)
+  abort: won't change the fingerprint of existing store profiles: "new-shape"
+  (see 'hg help "narrow.updating the shapes config"' for how to publish this as a new store profile)
   [10]
 
 Reshaping is refused while a previous config is still saved
@@ -536,7 +537,7 @@ Reshaping is refused while a previous config is still saved
   > EOF
   $ hg admin::narrow-server --shape-update -f ../added-shape
   abort: cannot reshape yet: 1 previous server-shapes still saved
-  shapes changed: "foo-shape"
+  store profiles changed: "foo-shape"
   (see 'hg help "narrow.updating the shapes config"' for how to clear the saved configs)
   [10]
 

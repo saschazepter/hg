@@ -1738,7 +1738,7 @@ def write_new_stream_bundle(
                 [name.decode() for name in shape.split(b',')]
             )
         except KeyError as e:
-            raise error.InputError(b"unknown shape: '%s'" % e.args[0])
+            raise error.InputError(b"unknown store profile: '%s'" % e.args[0])
         matcher = shape_obj.matcher()
         fingerprint = shape_py.ShapeFingerprint(**shape_obj.fingerprint())
 

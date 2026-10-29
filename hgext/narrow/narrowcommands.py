@@ -85,7 +85,7 @@ def setup():
             b'',
             b'store-shape',
             b'',
-            _(b"fetch files and directories for this shape name"),
+            _(b"fetch the files of these comma-separated store profiles"),
         )
     )
     # TODO(durin42): unify sparse/narrow --include/--exclude logic a bit
@@ -603,7 +603,7 @@ def _compute_local_link_revs(
             b'',
             b'store-shape',
             b'',
-            _(b'the new shape to update to'),
+            _(b'the new store profiles to update to'),
         ),
     ]
     + commands.remoteopts,

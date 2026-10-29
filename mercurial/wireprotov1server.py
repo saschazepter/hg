@@ -418,7 +418,7 @@ def store_shape(repo, proto, names, args):
     try:
         groups = store_shards.shard_fingerprints_for_shape(shape_names)
     except KeyError as e:
-        msg = _(b"could not compute shard fingerprints for shape %s")
+        msg = _(b"could not compute shard fingerprints for store profile %s")
         raise error.Abort(msg % e.args[0])
     groups = shape_py.shard_fingerprints_sets(groups)
     previous = shape_py.previous_shards_sets(

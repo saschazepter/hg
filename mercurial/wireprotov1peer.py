@@ -396,7 +396,7 @@ class wirepeer(
                 # the first size is that of the "unknown names" block
                 block = data[cursor : cursor + fingerprints_size]
                 unknown_names = shape_py.wire_unknown_names_decode(block)
-                msg = _(b"shape not found on remote: '%s'")
+                msg = _(b"store profile not found on remote: '%s'")
                 msg %= b','.join(unknown_names)
                 self._abort(error.RepoLookupError(msg))
             if return_code != codes.OK:
