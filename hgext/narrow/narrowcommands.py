@@ -749,7 +749,7 @@ def trackedcmd(ui, repo, remotepath=None, *pats, **opts):
 
     if shape is None and repo.store_shape is not None:
         msg = _(b"only `--store-shape` is supported")
-        hint = _(b"this repository has a narrow shape")
+        hint = _(b"this repository has a store shape")
         raise error.StateError(msg, hint=hint)
 
     path = urlutil.get_unique_pull_path_obj(b'tracked', ui, remotepath)

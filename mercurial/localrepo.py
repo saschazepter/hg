@@ -469,7 +469,7 @@ class localpeer(peer.Peer, repository.ipeercommands):
         evolve over time, as well as provide a full shape only fingerprint."""
         if not policy.has_rust():
             raise error.Abort(
-                _(b"server has no shapes support"),
+                _(b"server does not support store shapes"),
                 hint=_(b"lacking Rust extensions"),
             )
         store_shards = shapemod.get_store_shards(self._repo.root)

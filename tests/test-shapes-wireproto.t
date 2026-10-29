@@ -148,7 +148,7 @@ bogus fingerprint.
   > EOF
   creating ssh peer from handshake results
   sending store_shape command
-  abort: fingerprint mismatch for shape 'default'
+  abort: fingerprint mismatch for the store shape of 'default'
   (server: [shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512], client: shape00-ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)
   [255]
 
@@ -415,7 +415,7 @@ The fingerprint must be the one of the composite shape
   creating ssh peer from handshake results
   sending getbundle command
   response: <mercurial.changegroup.cg1unpacker object at 0x*> (glob)
-  remote: abort: fingerprint mismatch for shape 'default,other-secret'
+  remote: abort: fingerprint mismatch for the store shape of 'default,other-secret'
   remote: (server: shape00-0ca851ef7cda7fb1824264b20ff00f51c61755bb91ee12f5f90c56386b3f99f4, client: shape00-0000000000000000000000000000000000000000000000000000000000000000)
 
 Test pull
@@ -501,14 +501,14 @@ Update the server shapes to change the fingerprint of this shape
   $ hg pull
   pulling from $TESTTMP/server
   searching for changes
-  abort: fingerprint mismatch for shape 'default'
+  abort: fingerprint mismatch for the store shape of 'default'
   (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [255]
 #else
   $ hg pull
   pulling from ssh://user@dummy/server
   searching for changes
-  remote: abort: fingerprint mismatch for shape 'default'
+  remote: abort: fingerprint mismatch for the store shape of 'default'
   abort: pull failed on remote
   (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [100]
@@ -591,14 +591,14 @@ Update the server shapes to change the fingerprint of this shape
   $ hg pull
   pulling from $TESTTMP/server
   searching for changes
-  abort: fingerprint mismatch for shape 'default'
+  abort: fingerprint mismatch for the store shape of 'default'
   (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [255]
 #else
   $ hg pull
   pulling from ssh://user@dummy/server
   searching for changes
-  remote: abort: fingerprint mismatch for shape 'default'
+  remote: abort: fingerprint mismatch for the store shape of 'default'
   abort: pull failed on remote
   (server: shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545, client: shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512)
   [100]
@@ -653,14 +653,14 @@ Cannot use other arguments than `--store-shape`
 
   $ hg tracked --addinclude foobar
   abort: only `--store-shape` is supported
-  (this repository has a narrow shape)
+  (this repository has a store shape)
   [20]
   $ hg tracked --addinclude foobar --store-shape full-manual
   abort: cannot specify both --store-shape and --addinclude
   [10]
   $ hg tracked --removeexclude foobar
   abort: only `--store-shape` is supported
-  (this repository has a narrow shape)
+  (this repository has a store shape)
   [20]
 
 Expected errors with the wrong shape name

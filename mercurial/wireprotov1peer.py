@@ -400,7 +400,7 @@ class wirepeer(
                 msg %= b','.join(unknown_names)
                 self._abort(error.RepoLookupError(msg))
             if return_code != codes.OK:
-                msg = _(b"unknown shape error code: %d") % return_code
+                msg = _(b"unknown store shape error code: %d") % return_code
                 self._abort(error.ResponseError(msg, data))
 
             assert (
@@ -435,7 +435,7 @@ class wirepeer(
             if computed_fingerprint not in fingerprints:
                 # Sanity check
                 # Should only happen if we change how fingerprints are computed
-                msg = _(b"fingerprint mismatch for shape '%s'")
+                msg = _(b"fingerprint mismatch for the store shape of '%s'")
                 msg %= b','.join(names)
                 hint = _(b"server: [%s], client: %s")
                 hint %= (

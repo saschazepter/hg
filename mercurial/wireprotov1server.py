@@ -402,7 +402,7 @@ def store_shape(repo, proto, names, args):
     if not policy.has_rust():
         # This is redundant with the capabilities check, but better than a crash
         raise error.Abort(
-            _(b"server has no shapes support"),
+            _(b"server does not support store shapes"),
             hint=_(b"lacking Rust extensions"),
         )
     shape_names = [shape_name.decode() for shape_name in names.split(b',')]

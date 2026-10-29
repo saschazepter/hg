@@ -317,7 +317,8 @@ def patterns_for_shape(
     if fingerprint is not None:
         server_fingerprint = shapemod.ShapeFingerprint(**shape.fingerprint())
         if fingerprint != server_fingerprint:
-            msg = _(b"fingerprint mismatch for shape '%s'") % b','.join(names)
+            msg = _(b"fingerprint mismatch for the store shape of '%s'")
+            msg %= b','.join(names)
             hint = _(b"server: %s, client: %s")
             hint %= (server_fingerprint.to_text(), fingerprint.to_text())
             raise error.Abort(msg, hint=hint)

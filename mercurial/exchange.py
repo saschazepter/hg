@@ -1973,7 +1973,7 @@ def _pullbundle2(pullop: pulloperation):
     shape = pullop.repo.store_shape
     if not servernarrow and shape is not None:
         raise error.Abort(
-            _(b"server does not support narrow, but client has a narrow shape")
+            _(b"server does not support narrow, but client has a store shape")
         )
     elif servernarrow:
         fingerprint = None
