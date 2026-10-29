@@ -304,7 +304,11 @@ def patterns_for_shape(
 
     `fingerprint` is the expected fingerprint to check against"""
     if shapemod_rust is None:
-        raise error.ProgrammingError("called `get_shape` without Rust support")
+        # The capabilities don't advertise shapes, but a client may still ask
+        raise error.Abort(
+            _(b"server does not support store shapes"),
+            hint=_(b"lacking Rust extensions"),
+        )
     as_str = [_decode_shape(name) for name in names]
 
     store_shards = shapemod_rust.get_store_shards(repo.root)

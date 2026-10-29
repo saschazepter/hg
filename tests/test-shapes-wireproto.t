@@ -640,6 +640,28 @@ Reset the shapes, clearing the config the resharding above saved
   cleared 1 saved server-sharding
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
+Check that a server without store shape support is refused
+----------------------------------------------------------
+
+#if no-local
+A server without the Rust extensions cannot compute store shapes.
+
+  $ cat > $TESTTMP/pure-server-hg.sh << EOF
+  > #!/bin/sh
+  > HGMODULEPOLICY=py
+  > export HGMODULEPOLICY
+  > hg "\$@"
+  > EOF
+  $ chmod +x $TESTTMP/pure-server-hg.sh
+  $ hg pull --remotecmd $TESTTMP/pure-server-hg.sh
+  pulling from ssh://user@dummy/server
+  searching for changes
+  remote: abort: server does not support store shapes
+  abort: pull failed on remote
+  (lacking Rust extensions)
+  [100]
+#endif
+
 
 Test widening/narrowing
 =======================
