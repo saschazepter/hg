@@ -447,8 +447,15 @@ that any of them covers::
 
   $ hg clone --store-shape my-profile,other-profile ssh://server/repo
 
-TODO explain current client-side config and how it might evolve (storing the
-shape, fingerprint, etc.).
+The clone stores the name of its shape in ``.hg/store/store-shape`` and the patterns of
+that shape in ``.hg/store/narrowspec``. Every pull sends the shape's name and
+fingerprint (computed from the narrowspec patterns) to the server,
+which aborts if the shape's definition no longer matches.
+
+To switch to another shape, or to update to the server's new definition of the
+current shape, use::
+
+  $ hg tracked --store-shape some-profile
 """
 
 from __future__ import annotations
