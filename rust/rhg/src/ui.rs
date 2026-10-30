@@ -214,6 +214,9 @@ fn handle_stderr_error(error: io::Error) -> Result<(), UiError> {
 /// Note: rhg does not have the formatter mechanism yet,
 /// but this is also used when deciding whether to use color.
 pub fn formatted(config: &Config) -> Result<bool, HgError> {
+    if plain(None) {
+        return Ok(false);
+    }
     if let Some(formatted) = config.get_option(b"ui", b"formatted")? {
         Ok(formatted)
     } else {

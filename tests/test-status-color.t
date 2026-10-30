@@ -63,18 +63,12 @@ HGPLAINEXCEPT=color disables auto color
   ? in_root
 HGPLAINEXCEPT=color disables auto color, even with ui.formatted=true
   $ HGPLAINEXCEPT=color hg status --color=auto --config ui.formatted=True
-  ? a/1/in_a_1 (no-rhg !)
-  \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4ma/1/in_a_1\x1b[0m (esc) (rhg known-bad-output !)
-  ? a/in_a (no-rhg !)
-  \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4ma/in_a\x1b[0m (esc) (rhg known-bad-output !)
-  ? b/1/in_b_1 (no-rhg !)
-  \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4mb/1/in_b_1\x1b[0m (esc) (rhg known-bad-output !)
-  ? b/2/in_b_2 (no-rhg !)
-  \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4mb/2/in_b_2\x1b[0m (esc) (rhg known-bad-output !)
-  ? b/in_b (no-rhg !)
-  \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4mb/in_b\x1b[0m (esc) (rhg known-bad-output !)
-  ? in_root (no-rhg !)
-  \x1b[0;35;1;4m? \x1b[0m\x1b[0;35;1;4min_root\x1b[0m (esc) (rhg known-bad-output !)
+  ? a/1/in_a_1
+  ? a/in_a
+  ? b/1/in_b_1
+  ? b/2/in_b_2
+  ? b/in_b
+  ? in_root
 
 hg status with template
   $ hg status -T "{label('red', path)}\n" --color=debug
