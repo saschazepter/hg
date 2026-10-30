@@ -184,6 +184,13 @@ Passing a matching pattern works
       COMPRESSION: none
       VERSION: v2
 
+Patterns are normalized
+  $ hg debug::clonebundle-manifest ssh://user@dummy/source --include=dir2/ $hgfiles
+    URL: peer-bundle-cache://outfile-shape-foobar.hg
+      BUNDLESPEC: none-v2;STREAM=v2;REQUIREMENTS=generaldelta,revlog-compression-zstd,revlogv1,sparserevlog;STORE-SHAPE-FINGERPRINT=shape00-662b6b7c19654b9c7fc122208b511bc08b9fde0e4b7d1e8743d67e5affcfefb1
+      COMPRESSION: none
+      VERSION: v2
+
 Non-streaming, non-narrow cloning
 ---------------------------------
 

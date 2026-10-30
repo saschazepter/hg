@@ -68,6 +68,7 @@ from . import (
     match as match_mod,
     mergestate as mergestatemod,
     metadata,
+    narrowspec,
     node as nodemod,
     obsolete,
     obsutil,
@@ -3282,8 +3283,8 @@ def debug_clonebundle_manifest(ui, repopath, **opts):
         else:
             entries = bundlecaches.parseclonebundlesmanifest(target, res)
 
-            includes = set(opts.get("include"))
-            excludes = set(opts.get("exclude"))
+            includes = narrowspec.parsepatterns(opts.get("include"))
+            excludes = narrowspec.parsepatterns(opts.get("exclude"))
             fingerprint = None
             if includes or excludes:
                 fingerprint = shape_mod.py_fingerprint_for_patterns(
