@@ -396,8 +396,24 @@ You may generate the bundles with the following::
 Several profile names separated by commas, as in
 ``store-shape=my-profile,other-profile``, produce a bundle for their
 composite shape, which clients tracking these profiles together will use.
-Sharded bundles serve such clients as well, since the shards of a composite
-shape are those of its profiles.
+
+Instead of one bundle per shape, you can generate one bundle per shard, which
+together serve every shape, including composite shapes::
+
+  $ hg debug::sharded-stream-bundles
+  Generating sharded bundles
+  Generated 3 streaming bundles
+  /path/to/repo/.hg/bundle-cache/hg-sharded-26090e53-<shard-fingerprint>.hg
+  [...]
+
+Every bundle of one run shares a bundle group id (``26090e53`` above). A client
+cloning a shape applies the bundles of every shard in that shape, all from the
+same group. Their manifest entries can be written like any other::
+
+  $ for bundle in .hg/bundle-cache/hg-sharded-26090e53-*.hg; do
+  >   bundlespec="$(hg debugbundle --spec $bundle)"
+  >   echo "peer-bundle-cache://$(basename $bundle) BUNDLESPEC=$bundlespec"
+  > done >> .hg/clonebundles.manifest
 
 You can export the includes and exclude patterns for every profile and give
 them manually to clients::
