@@ -409,9 +409,7 @@ The rest works correctly
 Cloning with --store-shape also works when the sparse extension is enabled
 
   $ hg clone --config extensions.sparse= ssh://user@dummy/source clone-shaped-sparse --store-shape foobaz | grep "bundle from"
-  hg clone: option --store-shape not recognized (known-bad-output !)
-  applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg (missing-correct-output !)
-  [1]
+  applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg
 
 
 Test sharded streamclones

@@ -80,6 +80,14 @@ def setup():
         )
     )
     entry[1].append((b'', b'narrowspec', b'', _(b"read narrowspecs from file")))
+    entry[1].append(
+        (
+            b'',
+            b'store-shape',
+            b'',
+            _(b"fetch files and directories for this shape name"),
+        )
+    )
     # TODO(durin42): unify sparse/narrow --include/--exclude logic a bit
     if b'sparse' not in extensions.enabled():
         entry[1].append(
@@ -91,14 +99,6 @@ def setup():
                 b'exclude',
                 [],
                 _(b"do not fetch this file/directory, even if included"),
-            )
-        )
-        entry[1].append(
-            (
-                b'',
-                b'store-shape',
-                b'',
-                _(b"fetch files and directories for this shape name"),
             )
         )
 
