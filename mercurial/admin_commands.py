@@ -260,9 +260,10 @@ def admin_narrow_server(ui: UiT, repo: RepoT, **opts):
         ],
     )
     try:
-        locker = repo.svfs.readlock(b'store-shapes-lock')
+        locker = repo.svfs.readlock(b'store-sharding-lock')
         msg = _(
-            b'warning: store shapes are currently being updated (lock held by %s)\n'
+            b'warning: the store sharding config is currently being updated'
+            b' (lock held by %s)\n'
         )
         ui.warn(msg % locker)
     except FileNotFoundError:
@@ -445,7 +446,7 @@ def _shape_clear_previous(ui: UiT, repo: RepoT) -> int:
 
     Always returns exit code 0; failures raise instead of returning.
     """
-    with repo.store_shapes_lock(wait=False), repo.lock():
+    with repo.store_sharding_lock(wait=False), repo.lock():
         cleared = shape_py.clear_previous_configs(repo)
     ui.status(_(b"cleared %d saved server-sharding\n") % len(cleared))
     return 0
@@ -458,7 +459,7 @@ def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
 
     Always returns exit code 0; failures raise instead of returning.
     """
-    with repo.store_shapes_lock(wait=False):
+    with repo.store_sharding_lock(wait=False):
         old_store_shards = shapemod.get_store_shards(repo.root)
         old_file_contents = repo.svfs.tryread(shapemod.SHARDING_FILE)
         if file := opts.get("file"):

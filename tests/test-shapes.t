@@ -657,15 +657,15 @@ Start an update and hold it in the editor
   > > ../editor-update.out 2>&1 &
   $ $RUNTESTDIR/testlib/wait-on-file 10 $TESTTMP/editor-waiting
 
-The shapes lock is held for the whole update, so a second update fails
+The sharding lock is held for the whole update, so a second update fails
 
   $ hg admin::narrow-server --store-sharding-update -f ../concurrent-update
-  abort: store shapes of $TESTTMP/server: timed out waiting for lock held by * (glob)
+  abort: store sharding config of $TESTTMP/server: timed out waiting for lock held by * (glob)
   [20]
 
 Read-only commands emit a warning
   $ hg admin::narrow-server --store-profile-fingerprints
-  warning: store shapes are currently being updated (lock held by *) (glob)
+  warning: the store sharding config is currently being updated (lock held by *) (glob)
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
 Nothing was written, the first update still owns the file

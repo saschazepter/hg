@@ -2403,17 +2403,17 @@ class IRepo(Protocol):
         """Return the wlock if it's held or None."""
 
     @abc.abstractmethod
-    def store_shapes_lock(self, wait: bool = True) -> LockT:
-        """Lock the store shapes of the repository.
+    def store_sharding_lock(self, wait: bool = True) -> LockT:
+        """Lock the store sharding config of the repository.
 
-        This is meant to be held for the whole of a shapes update, which
-        includes waiting for the user to edit them. The store lock is still what
-        protects the write itself.
+        This is meant to be held for the whole of a sharding config update,
+        which includes waiting for the user to edit it. The store lock is still
+        what protects the write itself.
         """
 
     @abc.abstractmethod
-    def current_store_shapes_lock(self) -> LockT | None:
-        """Return the store shapes lock if it's held or None."""
+    def current_store_sharding_lock(self) -> LockT | None:
+        """Return the store sharding lock if it's held or None."""
 
     @abc.abstractmethod
     def checkcommitpatterns(

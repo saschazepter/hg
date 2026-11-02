@@ -768,7 +768,7 @@ def previous_shards_sets(
 def save_previous_config(repo: RepoT, contents: bytes) -> bytes:
     """Save `contents` as a previous `server-sharding` config.
 
-    Must be called with the store shapes lock held, since it updates the list
+    Must be called with the store sharding lock held, since it updates the list
     of saved configs. Returns the filename it was written to."""
     digest = pycompat.sysbytes(hashlib.sha256(contents).hexdigest())
     name = b'server-sharding-previous-' + digest[:12]
@@ -783,7 +783,7 @@ def save_previous_config(repo: RepoT, contents: bytes) -> bytes:
 def clear_previous_configs(repo: RepoT) -> list[bytes]:
     """Clear every saved `server-sharding` config.
 
-    Must be called with the store shapes lock held, since it updates the list
+    Must be called with the store sharding lock held, since it updates the list
     of saved configs. Returns the filenames that were removed."""
     cleared = previous_configs(repo)
     for name in cleared:
