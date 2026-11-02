@@ -485,7 +485,7 @@ def _capabilities(repo, proto):
         if repo.ui.configbool(b'experimental', b'narrowservebrokenellipses'):
             caps.append(wireprototypes.ELLIPSESCAP)
         advertise_shapes = repo.ui.configbool(
-            b'experimental', b'advertise-shapes'
+            b'experimental', b'advertise-store-shapes'
         )
         if shapemod is not None and advertise_shapes:
             # Only advertise support for shapes if we have Rust enabled

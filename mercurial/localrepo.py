@@ -1382,7 +1382,7 @@ class localrepository(_localrepo_base_classes):
             caps.add(wireprototypes.NARROWCAP)
 
             advertise_shapes = self.ui.configbool(
-                b'experimental', b'advertise-shapes'
+                b'experimental', b'advertise-store-shapes'
             )
 
             if shapemod is not None and advertise_shapes:

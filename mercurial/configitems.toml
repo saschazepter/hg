@@ -890,7 +890,7 @@ name = "to"
 
 [[items]]
 section = "experimental"
-name = "advertise-shapes"
+name = "advertise-store-shapes"
 default = true
 documentation = """
 Server-side boolean that if true will advertise to wireproto clients that it

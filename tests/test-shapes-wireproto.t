@@ -65,7 +65,7 @@ First disable support so we test old client behavior
 
   $ cat >> $HGRCPATH << EOF
   > [experimental]
-  > advertise-shapes=no
+  > advertise-store-shapes=no
   > EOF
 
   $ hg debugwireproto --localssh << EOF
@@ -82,7 +82,7 @@ Restore support
 
   $ cat >> $HGRCPATH << EOF
   > [experimental]
-  > advertise-shapes=yes
+  > advertise-store-shapes=yes
   > EOF
 
 Test error cases

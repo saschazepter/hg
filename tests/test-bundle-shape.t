@@ -340,7 +340,7 @@ Start a narrow server that doesn't understand shapes
 
   $ cat >> $HGRCPATH << EOF
   > [experimental]
-  > advertise-shapes=no
+  > advertise-store-shapes=no
   > EOF
 
   $ hg serve -d -p $HGPORT --pid-file hg.pid
@@ -355,7 +355,7 @@ Restore the capability
 
   $ cat >> $HGRCPATH << EOF
   > [experimental]
-  > advertise-shapes=yes
+  > advertise-store-shapes=yes
   > EOF
 
 Restart the normal server
