@@ -23,7 +23,7 @@ class DirstateVersion(enum.Enum):
     """dirstate use v1 format storage"""
 
     V2 = enum.auto()
-    """dirstate use v1 format storage"""
+    """dirstate use v2 format storage"""
 
     GIT = enum.auto()
     """value for the experimental dirstate from `hgext.git`
