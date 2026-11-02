@@ -186,8 +186,8 @@ Server configuration
 For Mercurial 7.2, the ``.hg/store/server-shapes`` file is a TOML file,
 maintained by the narrow server's administrators.
 
-**Warning**: modify it with :hg:`admin::narrow-server --shape-update`, which
-checks that the update is safe (see
+**Warning**: modify it with :hg:`admin::narrow-server --store-sharding-update`,
+which checks that the update is safe (see
 ``Updating the store sharding configuration`` below). Editing the file by hand
 is unsupported and will likely result in unexpected client breakage.
 
@@ -289,8 +289,8 @@ in sharded bundles) with::
 Updating the store sharding configuration
 .........................................
 
-Use :hg:`admin::narrow-server --shape-update` to replace the config. The
-command refuses updates that violate any of the invariants described below.
+Use :hg:`admin::narrow-server --store-sharding-update` to replace the config.
+The command refuses updates that violate any of the invariants described below.
 
 (1) Profile fingerprints should not change
 
@@ -334,8 +334,8 @@ and publish a profile for it::
      bundles.
   2. Generate the new bundles and add them to the clonebundle manifest.
   3. Clear the saved configs with
-     :hg:`admin::narrow-server --shape-clear-previous`. They exist to keep old
-     bundles usable and are no longer needed after step 2.
+     :hg:`admin::narrow-server --store-sharding-clear-previous`. They exist to
+     keep old bundles usable and are no longer needed after step 2.
   4. Add the profile that includes the new shard. No shard changes, so this is a
      pure reshaping. It is allowed because the previous configs have been
      cleared, indicating that new bundles are ready and being advertised.

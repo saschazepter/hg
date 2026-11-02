@@ -38,7 +38,7 @@ Setup the server shapes config
   > includes = ["other-secret-files"]
   > public = true
   > EOF
-  $ hg admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
+  $ hg admin::narrow-server --store-sharding-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 
 Add files
@@ -493,9 +493,9 @@ Update the server shapes to change the fingerprint of this shape
   > includes = ["other-secret-files"]
   > public = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
   cleared 0 saved server-shapes
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
   $ hg pull
@@ -528,7 +528,7 @@ Update the server shapes to remove the shape
   > includes = ["dir1"]
   > public = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
 
 #if local
   $ hg pull
@@ -546,9 +546,9 @@ Update the server shapes to remove the shape
 #endif
 
 Reset the shapes, clearing the config the resharding above saved
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
   cleared 1 saved server-shapes
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 Create another commit to pull
   $ cd $TESTTMP/server
@@ -583,9 +583,9 @@ Update the server shapes to change the fingerprint of this shape
   > includes = ["other-secret-files"]
   > public = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
   cleared 1 saved server-shapes
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
   $ hg pull
@@ -618,7 +618,7 @@ Update the server shapes to remove the shape
   > includes = ["dir1"]
   > public = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/new-shapes --override-reshape-and-reshard-check
 
 #if local
   $ hg pull
@@ -636,9 +636,9 @@ Update the server shapes to remove the shape
 #endif
 
 Reset the shapes, clearing the config the resharding above saved
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
   cleared 1 saved server-shapes
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 
 Test widening/narrowing
@@ -770,9 +770,9 @@ file even though there is nothing to widen or narrow.
   > includes = ["default", "other-secret"]
   > public = true
   > EOF
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-clear-previous
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
   cleared 1 saved server-shapes
-  $ hg -R $TESTTMP/server admin::narrow-server --shape-update -f $TESTTMP/alias-shapes
+  $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/alias-shapes
 
   $ hg tracked --store-shape default-and-other-secret
   comparing with ssh://user@dummy/server

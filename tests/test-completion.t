@@ -417,7 +417,7 @@ Show all commands + options
   addremove: similarity, subrepos, include, exclude, dry-run
   admin::chainsaw-update: purge-unknown, purge-ignored, rev, source, dest, initial-clone-minimal
   admin::narrow-client: store-shape-fingerprint
-  admin::narrow-server: store-profile-fingerprints, store-shape-patterns, store-shape-narrow-patterns, store-shape-files, store-shape-files-hidden, store-shards, shape-update, shape-clear-previous, file, override-reshape-and-reshard-check, override-fingerprint-change-check, override-saved-configs-check, template
+  admin::narrow-server: store-profile-fingerprints, store-shape-patterns, store-shape-narrow-patterns, store-shape-files, store-shape-files-hidden, store-shards, store-sharding-update, store-sharding-clear-previous, file, override-reshape-and-reshard-check, override-fingerprint-change-check, override-saved-configs-check, template
   admin::setup-shell-completion: list, show-script, shell
   admin::verify: check, option
   annotate: rev, follow, no-follow, text, user, file, date, number, changeset, line-number, skip, line-range, ignore-all-space, ignore-space-change, ignore-blank-lines, ignore-space-at-eol, include, exclude, template

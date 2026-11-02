@@ -92,7 +92,7 @@ Create shapes config
   > public = true
   > includes = ["excluded1", "foobar"]
   > EOF
-  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes --override-reshape-and-reshard-check
+  $ hg -R source admin::narrow-server --store-sharding-update -f $TESTTMP/source-shapes --override-reshape-and-reshard-check
 
 Test with an unknown profile
   $ hg -R source bundle -a --type="none-v2;stream=v2;store-shape=foo" outfile-shaped.hg
@@ -842,7 +842,7 @@ Add a shape with just the "excluded2" shard
   > includes = ["excluded2"]
   > public = true
   > EOF
-  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-eshape
+  $ hg -R source admin::narrow-server --store-sharding-update -f $TESTTMP/source-shapes-eshape
 
 Cloning "excluded-shape" works
 
@@ -871,7 +871,7 @@ Split "excluded2" by adding a shard nested inside it, and add that shard to
   > includes = ["excluded2", "nested"]
   > public = true
   > EOF
-  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-split
+  $ hg -R source admin::narrow-server --store-sharding-update -f $TESTTMP/source-shapes-split
 
 The shape still covers the same files, so its fingerprint is unchanged
 
@@ -899,7 +899,7 @@ but a different fingerprint
   > includes = ["nested"]
   > public = true
   > EOF
-  $ hg -R source admin::narrow-server --shape-update -f $TESTTMP/source-shapes-redefined \
+  $ hg -R source admin::narrow-server --store-sharding-update -f $TESTTMP/source-shapes-redefined \
   >   --override-fingerprint-change-check --override-saved-configs-check
   $ hg clone ssh://user@dummy/source redefined --noupdate --store-shape excluded-shape --stream --debug 2>&1 | grep 'clone bundles'
   no compatible clone bundles available on server; falling back to regular clone
