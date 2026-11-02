@@ -7,7 +7,7 @@ use hg::file_patterns::PatternSyntax;
 use hg::file_patterns::parse_one_pattern;
 use hg::narrow::shape::ErrorKind as ShapeErrorKind;
 use hg::narrow::shape::Fingerprint;
-use hg::narrow::shape::SHAPES_FILE;
+use hg::narrow::shape::SHARDING_FILE;
 use hg::narrow::shape::Shape;
 use hg::narrow::shape::ShardName;
 use hg::narrow::shape::ShardTreeNode;
@@ -323,7 +323,7 @@ pub fn init_module<'py>(
     package: &str,
 ) -> PyResult<Bound<'py, PyModule>> {
     let m = new_submodule(py, package, "shape")?;
-    m.add("SHAPES_FILE", PyBytes::new(py, SHAPES_FILE.as_bytes()))?;
+    m.add("SHARDING_FILE", PyBytes::new(py, SHARDING_FILE.as_bytes()))?;
     m.add_class::<PyShape>()?;
     m.add_class::<PyStoreShards>()?;
     m.add_function(wrap_pyfunction!(get_store_shards, &m)?)?;

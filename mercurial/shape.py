@@ -249,7 +249,7 @@ def parse_shape_names(spec: bytes) -> list[bytes]:
 
 
 # File listing filenames of the saved `server-shapes` configs.
-PREVIOUS_SHAPES_LIST = b'server-shapes-previous-list'
+PREVIOUS_SHARDING_LIST = b'server-shapes-previous-list'
 
 
 @attr.s(hash=True)
@@ -715,7 +715,7 @@ def wire_store_shape_decode(
 
 def previous_configs(repo: RepoT) -> list[bytes]:
     """The filename of each saved `server-shapes` config, oldest first."""
-    return repo.svfs.tryread(PREVIOUS_SHAPES_LIST).splitlines()
+    return repo.svfs.tryread(PREVIOUS_SHARDING_LIST).splitlines()
 
 
 def read_previous_configs(repo: RepoT) -> list[tuple[bytes, bytes]]:
@@ -776,7 +776,7 @@ def save_previous_config(repo: RepoT, contents: bytes) -> bytes:
     saved = previous_configs(repo)
     if name not in saved:
         data = b'\n'.join(saved + [name])
-        repo.svfs.write(PREVIOUS_SHAPES_LIST, data, atomictemp=True)
+        repo.svfs.write(PREVIOUS_SHARDING_LIST, data, atomictemp=True)
     return name
 
 
@@ -788,5 +788,5 @@ def clear_previous_configs(repo: RepoT) -> list[bytes]:
     cleared = previous_configs(repo)
     for name in cleared:
         repo.svfs.tryunlink(name)
-    repo.svfs.write(PREVIOUS_SHAPES_LIST, b'', atomictemp=True)
+    repo.svfs.write(PREVIOUS_SHARDING_LIST, b'', atomictemp=True)
     return cleared

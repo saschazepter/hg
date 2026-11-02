@@ -151,7 +151,7 @@ impl From<HgPathError> for Error {
 const HG_FILES_SHARD: &str = ".hg-files";
 
 /// Store file in which a repo declares its shards and shapes
-pub const SHAPES_FILE: &str = "server-shapes";
+pub const SHARDING_FILE: &str = "server-shapes";
 
 /// Canonical name within a repo for a [`Shard`].
 /// Is restricted in which bytes can be used, see [`Self::new`].
@@ -280,7 +280,7 @@ pub struct StoreShards {
 impl StoreShards {
     #[tracing::instrument(level = "debug", skip_all)]
     pub fn from_repo_config(repo: &Repo) -> Result<Self, HgError> {
-        match repo.store_vfs().try_read(SHAPES_FILE)? {
+        match repo.store_vfs().try_read(SHARDING_FILE)? {
             Some(data) => Self::from_bytes(&data),
             None => Ok(Self::from_config(ShapesConfig::default())?),
         }
