@@ -183,8 +183,8 @@ Usage
 Server configuration
 ....................
 
-For Mercurial 7.2, the ``.hg/store/server-shapes`` file is a TOML file,
-maintained by the narrow server's administrators.
+The ``.hg/store/server-sharding`` file is a TOML file, maintained by the
+narrow server's administrators.
 
 **Warning**: modify it with :hg:`admin::narrow-server --store-sharding-update`,
 which checks that the update is safe (see
@@ -330,8 +330,8 @@ and publish a profile for it::
   1. Add the shard and add its name to the ``includes`` of every profile that
      already covered those paths. Those profiles then still cover the same files
      and keep their fingerprint, so this is a pure resharding. The previous
-     ``server-shapes`` files will be saved and used to serve existing sharded
-     bundles.
+     ``server-sharding`` files will be saved and used to serve existing
+     sharded bundles.
   2. Generate the new bundles and add them to the clonebundle manifest.
   3. Clear the saved configs with
      :hg:`admin::narrow-server --store-sharding-clear-previous`. They exist to
@@ -347,8 +347,8 @@ necessary bundles are generated.
 
 (3) No reshaping while previous configs are saved
 
-A reshaping is refused while previous ``server-shapes`` configs are still saved
-(see steps 3-4 in the example above). Saved configs are used to continue
+A reshaping is refused while previous ``server-sharding`` configs are still
+saved (see steps 3-4 in the example above). Saved configs are used to continue
 serving bundles from before a resharding, so clearing the configs indicates
 that new bundles for the resharding are ready and any reshapes will be covered.
 

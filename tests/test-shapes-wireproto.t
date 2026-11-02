@@ -494,7 +494,7 @@ Update the server shapes to change the fingerprint of this shape
   > public = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
-  cleared 0 saved server-shapes
+  cleared 0 saved server-sharding
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
@@ -547,7 +547,7 @@ Update the server shapes to remove the shape
 
 Reset the shapes, clearing the config the resharding above saved
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
-  cleared 1 saved server-shapes
+  cleared 1 saved server-sharding
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 Create another commit to pull
@@ -584,7 +584,7 @@ Update the server shapes to change the fingerprint of this shape
   > public = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
-  cleared 1 saved server-shapes
+  cleared 1 saved server-sharding
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/new-shapes --override-fingerprint-change-check
 
 #if local
@@ -637,7 +637,7 @@ Update the server shapes to remove the shape
 
 Reset the shapes, clearing the config the resharding above saved
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
-  cleared 1 saved server-shapes
+  cleared 1 saved server-sharding
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/starting-shapes --override-reshape-and-reshard-check
 
 
@@ -771,7 +771,7 @@ file even though there is nothing to widen or narrow.
   > public = true
   > EOF
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-clear-previous
-  cleared 1 saved server-shapes
+  cleared 1 saved server-sharding
   $ hg -R $TESTTMP/server admin::narrow-server --store-sharding-update -f $TESTTMP/alias-shapes
 
   $ hg tracked --store-shape default-and-other-secret

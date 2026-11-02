@@ -168,20 +168,23 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
             b'',
             b'store-sharding-update',
             None,
-            _(b"update the server-shape file for this repo"),
+            _(b"update the server-sharding file for this repo"),
         ),
         (
             b'',
             b'store-sharding-clear-previous',
             None,
-            _(b"clear the saved previous server-shapes configs for this repo"),
+            _(
+                b"clear the saved previous server-sharding configs"
+                b" for this repo"
+            ),
         ),
         (
             b'f',
             b'file',
             b'',
             _(
-                b'read the new server-shapes file from path; '
+                b'read the new server-sharding file from path; '
                 b'if not passed, opens the editor'
             ),
             _(b'FILE'),
@@ -207,7 +210,7 @@ def admin_narrow_client(ui: UiT, repo: RepoT, **opts):
             None,
             _(
                 b"override the check against reshaping while previous"
-                b" server-shapes configs are still saved"
+                b" server-sharding configs are still saved"
             ),
         ),
     ]
@@ -381,7 +384,7 @@ def _validate_shape_update(
     saved_configs: list[bytes],
     **opts,
 ) -> None:
-    """Refuse a `server-shapes` update that does any of the following:
+    """Refuse a `server-sharding` update that does any of the following:
     - redefines an existing shape
     - is both a reshaping and a resharding
     - reshapes while previous configs are still saved"""
@@ -423,7 +426,7 @@ def _validate_shape_update(
             # If there are still some configs saved, it may not be safe to
             # use new shards in a shape yet.
             msg = _(
-                b"cannot reshape yet: %d previous server-shapes still saved\n"
+                b"cannot reshape yet: %d previous server-sharding still saved\n"
                 b"store profiles changed: %s"
             ) % (len(saved_configs), _quote_names(shapes))
             hint = _(
@@ -435,7 +438,7 @@ def _validate_shape_update(
 
 
 def _shape_clear_previous(ui: UiT, repo: RepoT) -> int:
-    """Clear the saved previous `server-shapes` configs for this repo.
+    """Clear the saved previous `server-sharding` configs for this repo.
 
     This can be done once the sharded bundles for the current config are
     generated and advertised.
@@ -444,12 +447,12 @@ def _shape_clear_previous(ui: UiT, repo: RepoT) -> int:
     """
     with repo.store_shapes_lock(wait=False), repo.lock():
         cleared = shape_py.clear_previous_configs(repo)
-    ui.status(_(b"cleared %d saved server-shapes\n") % len(cleared))
+    ui.status(_(b"cleared %d saved server-sharding\n") % len(cleared))
     return 0
 
 
 def _shape_update(ui: UiT, repo: RepoT, **opts) -> int:
-    """Replace this repo's `server-shapes` file with new contents.
+    """Replace this repo's `server-sharding` file with new contents.
 
     The new contents are read from the `--file` path or from the user's editor.
 

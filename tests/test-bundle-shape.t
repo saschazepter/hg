@@ -828,7 +828,7 @@ Resharding before new bundles exist
 ===================================
 
 Previous section added fake entries to test filtering; restore manifest with
-real entries matching the server-shapes config
+real entries matching the server-sharding config
 
   $ cd $TESTTMP
   $ cp source/.hg/clonebundles.old source/.hg/clonebundles.manifest

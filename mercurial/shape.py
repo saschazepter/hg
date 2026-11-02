@@ -248,8 +248,8 @@ def parse_shape_names(spec: bytes) -> list[bytes]:
     return sorted(set(names))
 
 
-# File listing filenames of the saved `server-shapes` configs.
-PREVIOUS_SHARDING_LIST = b'server-shapes-previous-list'
+# File listing filenames of the saved `server-sharding` configs.
+PREVIOUS_SHARDING_LIST = b'server-sharding-previous-list'
 
 
 @attr.s(hash=True)
@@ -714,12 +714,12 @@ def wire_store_shape_decode(
 
 
 def previous_configs(repo: RepoT) -> list[bytes]:
-    """The filename of each saved `server-shapes` config, oldest first."""
+    """The filename of each saved `server-sharding` config, oldest first."""
     return repo.svfs.tryread(PREVIOUS_SHARDING_LIST).splitlines()
 
 
 def read_previous_configs(repo: RepoT) -> list[tuple[bytes, bytes]]:
-    """The (filename, contents) of each saved `server-shapes` config."""
+    """The (filename, contents) of each saved `server-sharding` config."""
     configs = []
     for name in previous_configs(repo):
         if contents := repo.svfs.tryread(name):
@@ -737,11 +737,11 @@ def previous_shards_sets(
     names: list[str],
     fingerprint: ShapeFingerprint,
 ) -> list[set[ShardFingerprint]]:
-    """Shard fingerprint sets from previous versions of the `server-shapes` config.
+    """Shard fingerprint sets from previous versions of the `server-sharding` config.
 
     During the period of time between an admin resharding the store and the new sharded
     bundles getting generated, clients must still be able to clone via the old bundles.
-    Saving and reading the previous versions of the `server-shapes` config allows the
+    Saving and reading the previous versions of the `server-sharding` config allows the
     old bundles to still be usable.
 
     Only configs where the (composite) shape of `names` still has `fingerprint`
@@ -766,12 +766,12 @@ def previous_shards_sets(
 
 
 def save_previous_config(repo: RepoT, contents: bytes) -> bytes:
-    """Save `contents` as a previous `server-shapes` config.
+    """Save `contents` as a previous `server-sharding` config.
 
     Must be called with the store shapes lock held, since it updates the list
     of saved configs. Returns the filename it was written to."""
     digest = pycompat.sysbytes(hashlib.sha256(contents).hexdigest())
-    name = b'server-shapes-previous-' + digest[:12]
+    name = b'server-sharding-previous-' + digest[:12]
     repo.svfs.write(name, contents, atomictemp=True)
     saved = previous_configs(repo)
     if name not in saved:
@@ -781,7 +781,7 @@ def save_previous_config(repo: RepoT, contents: bytes) -> bytes:
 
 
 def clear_previous_configs(repo: RepoT) -> list[bytes]:
-    """Clear every saved `server-shapes` config.
+    """Clear every saved `server-sharding` config.
 
     Must be called with the store shapes lock held, since it updates the list
     of saved configs. Returns the filenames that were removed."""

@@ -29,7 +29,7 @@ use crate::utils::HgPyErrExt;
 use crate::utils::new_submodule;
 
 /// A Rust-backed Shape object that corresponds to a shard marked as a shape
-/// in the `.hg/store/server-shapes` config.
+/// in the `.hg/store/server-sharding` config.
 #[pyclass(frozen, name = "Shape")]
 pub struct PyShape {
     inner: Shape,
@@ -251,7 +251,7 @@ pub fn get_store_shards(repo_path: &Bound<PyBytes>) -> PyResult<PyStoreShards> {
 }
 
 /// Same as `get_store_shards` but directly from bytes instead of from file.
-/// Used to validate a requested update to `server-shapes`.
+/// Used to validate a requested update to `server-sharding`.
 #[pyfunction]
 pub fn get_store_shards_from_bytes(
     data: &Bound<PyBytes>,

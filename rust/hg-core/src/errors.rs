@@ -597,8 +597,8 @@ impl fmt::Display for HgError {
                     }
                     ShapeErrorKind::NoShards => {
                         format!(
-                            "{backtrace}`server-shapes` must include at least \
-                            one shard"
+                            "{backtrace}`server-sharding` must include at \
+                            least one shard"
                         )
                     }
                     ShapeErrorKind::UnknownInclude { profile, include } => {
@@ -616,19 +616,21 @@ impl fmt::Display for HgError {
                         )
                     }
                     ShapeErrorKind::InvalidPath(err) => {
-                        let prefix =
-                            Some("`server-shapes` contains an invalid path: ");
+                        let prefix = Some(
+                            "`server-sharding` contains an invalid path: ",
+                        );
                         hg_path_error_to_string(err, prefix)?
                     }
                     ShapeErrorKind::UnknownVersion(version) => {
                         format!(
-                            "{backtrace}unknown `server-shapes` \
+                            "{backtrace}unknown `server-sharding` \
                             version '{version}'"
                         )
                     }
                     ShapeErrorKind::ParseError(err) => {
                         format!(
-                            "{backtrace}error parsing `server-shapes`:\n{err}"
+                            "{backtrace}error parsing \
+                            `server-sharding`:\n{err}"
                         )
                     }
                     ShapeErrorKind::PatternError(err) => {

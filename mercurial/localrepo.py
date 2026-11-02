@@ -3174,8 +3174,8 @@ class localrepository(_localrepo_base_classes):
     def store_shapes_lock(self, wait: bool = True) -> lockmod.lock:
         """Lock the store shapes and return a weak reference to the lock.
 
-        This is held for a server-shapes update so that a concurrent update cannot be
-        silently thrown away.
+        This is held for a server-sharding update so that a concurrent
+        update cannot be silently thrown away.
         """
         l = self._currentlock(self._store_shapes_lockref)
         if l is not None:

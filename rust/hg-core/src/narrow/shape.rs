@@ -151,7 +151,7 @@ impl From<HgPathError> for Error {
 const HG_FILES_SHARD: &str = ".hg-files";
 
 /// Store file in which a repo declares its shards and shapes
-pub const SHARDING_FILE: &str = "server-shapes";
+pub const SHARDING_FILE: &str = "server-sharding";
 
 /// Canonical name within a repo for a [`Shard`].
 /// Is restricted in which bytes can be used, see [`Self::new`].
