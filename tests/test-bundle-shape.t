@@ -406,6 +406,13 @@ The rest works correctly
   foobar
   $ cd ..
 
+Cloning with --store-shape also works when the sparse extension is enabled
+
+  $ hg clone --config extensions.sparse= ssh://user@dummy/source clone-shaped-sparse --store-shape foobaz | grep "bundle from"
+  hg clone: option --store-shape not recognized (known-bad-output !)
+  applying clone bundle from peer-bundle-cache://outfile-shape-foobaz.hg (missing-correct-output !)
+  [1]
+
 
 Test sharded streamclones
 =========================
