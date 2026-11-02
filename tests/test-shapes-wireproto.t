@@ -659,6 +659,25 @@ A server without the Rust extensions cannot compute store shapes.
   abort: server does not support store shapes
   (this repository has the store shape of 'default')
   [100]
+
+A server without the narrow extension does not support narrow at all.
+
+  $ cat > $TESTTMP/no-narrow.rc << EOF
+  > [extensions]
+  > narrow=!
+  > EOF
+  $ cat > $TESTTMP/no-narrow-server-hg.sh << EOF
+  > #!/bin/sh
+  > HGRCPATH="\$HGRCPATH:$TESTTMP/no-narrow.rc"
+  > export HGRCPATH
+  > hg "\$@"
+  > EOF
+  $ chmod +x $TESTTMP/no-narrow-server-hg.sh
+  $ hg pull --remotecmd $TESTTMP/no-narrow-server-hg.sh
+  pulling from ssh://user@dummy/server
+  searching for changes
+  abort: server does not support narrow, but client has a store shape
+  [100]
 #endif
 
 A server can also choose not to advertise store shapes.

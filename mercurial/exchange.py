@@ -1987,7 +1987,7 @@ def _pullbundle2(pullop: pulloperation):
     servernarrow = pullop.remote.capable(wireprototypes.NARROWCAP)
     shape = pullop.repo.store_shape
     if not servernarrow and shape is not None:
-        raise error.Abort(
+        raise error.RemoteError(
             _(b"server does not support narrow, but client has a store shape")
         )
     elif servernarrow:
