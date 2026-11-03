@@ -1955,13 +1955,13 @@ class workingctx(committablectx, i_context.IWorkingContext):
         # do a full compare of any files that might have changed
         for f in sorted(files):
             try:
+                if f not in pctx:
+                    modified.append(f)
+                    continue
+                pfctx = pctx[f]
                 # This will return True for a file that got replaced by a
                 # directory in the interim, but fixing that is pretty hard.
-                if (
-                    f not in pctx
-                    or self.flags(f) != pctx.flags(f)
-                    or pctx[f].cmp(self[f])
-                ):
+                if self.flags(f) != pfctx.flags() or pfctx.cmp(self[f]):
                     modified.append(f)
                 elif mtime_boundary is None:
                     clean.append(f)
