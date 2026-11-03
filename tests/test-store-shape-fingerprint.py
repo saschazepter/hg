@@ -1,0 +1,92 @@
+"""Compare Python and Rust fingerprint computations."""
+from __future__ import annotations
+
+import hashlib
+import unittest
+
+import silenttestrunner
+
+from mercurial import shape
+
+
+def expected_fingerprint(
+    includes: set[bytes], excludes: set[bytes]
+) -> shape.ShapeFingerprint:
+    """The fingerprint of an already normalized tree, given as the paths it
+    includes and excludes (rooted at `b''`)"""
+    patterns = shape.serialize_patterns(includes, excludes)
+    digest = hashlib.sha256(patterns).digest()
+    return shape.ShapeFingerprint(shape.FINGERPRINT_VERSION, digest)
+
+
+def py_fingerprint(
+    includes: set[bytes], excludes: set[bytes]
+) -> shape.ShapeFingerprint | None:
+    return shape.py_fingerprint_for_patterns(set(includes), set(excludes))
+
+
+def rust_fingerprint(
+    includes: set[bytes], excludes: set[bytes]
+) -> shape.ShapeFingerprint | None:
+    fp = shape.rustmod.fingerprint_for_patterns(set(includes), set(excludes))
+    return None if fp is None else shape.ShapeFingerprint(**fp)
+
+
+@unittest.skipIf(shape.rustmod is None, "Rust extensions are not available")
+class FingerprintTests(unittest.TestCase):
+    def assert_fingerprint(
+        self,
+        includes: set[bytes],
+        excludes: set[bytes],
+        expected: shape.ShapeFingerprint,
+    ) -> None:
+        """Check that both implementations give `expected` for these
+        patterns"""
+        self.assertEqual(py_fingerprint(includes, excludes), expected)
+        self.assertEqual(rust_fingerprint(includes, excludes), expected)
+
+    def test_nested(self):
+        self.assert_fingerprint(
+            {b'path:foo'},
+            {b'path:foo/bar'},
+            expected_fingerprint({b'foo'}, {b'', b'foo/bar'}),
+        )
+
+    # XXX: python and rust should behave the same
+    def test_path_is_both_included_and_excluded(self):
+        includes = {b'path:foo', b'path:bar'}
+        excludes = {b'path:foo'}
+        self.assertEqual(
+            py_fingerprint(includes, excludes),
+            expected_fingerprint({b'bar'}, {b''}),
+        )
+        self.assertEqual(
+            rust_fingerprint(includes, excludes),
+            expected_fingerprint({b'foo', b'bar'}, {b''}),
+        )
+
+        includes = {b'path:foo'}
+        excludes = {b'path:foo'}
+        self.assertEqual(
+            py_fingerprint(includes, excludes),
+            expected_fingerprint(set(), {b''}),
+        )
+        self.assertEqual(
+            rust_fingerprint(includes, excludes),
+            expected_fingerprint({b'foo'}, {b''}),
+        )
+
+        includes = {b'path:'}
+        excludes = {b'path:'}
+        self.assertEqual(
+            py_fingerprint(includes, excludes),
+            expected_fingerprint(set(), {b''}),
+        )
+        self.assertEqual(
+            rust_fingerprint(includes, excludes),
+            expected_fingerprint({b''}, set()),
+        )
+
+
+if __name__ == '__main__':
+    silenttestrunner.main(__name__)
