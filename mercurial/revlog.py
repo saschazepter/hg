@@ -3183,8 +3183,9 @@ class revlog:
                 # it is extra work to teach the cache about the hash
                 # verification state.
                 if rev is None:
-                    rev = self.index.rev(node)
-                self._inner.clear_cached_text(rev)
+                    rev = self.index.get_rev(node)
+                if rev is not None:
+                    self._inner.clear_cached_text(rev)
 
                 revornode = rev
                 if revornode is None:

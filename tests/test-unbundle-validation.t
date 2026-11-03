@@ -38,9 +38,6 @@ Test a corrupt delta
   $ hg -R dst-delta unbundle -q bad-delta.hg
   transaction abort!
   rollback completed
-  abort: None (known-bad-output rust !)
-  abort: unknown node: \xf5{\xaed\x9fn\x9b\xe3\xb9\x06;\x84\xcd\xbc\xdew\xa1\xac\xa7\x97 (esc) (known-bad-output pure !)
-  abort: RevlogError (known-bad-output no-rust no-pure !)
-  abort: integrity check failed on f:f57bae649f6e (missing-correct-output !)
+  abort: integrity check failed on f:f57bae649f6e
   [50]
   $ hg -R dst-delta log -T '{rev}\n'
