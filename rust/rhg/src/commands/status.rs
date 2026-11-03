@@ -30,12 +30,14 @@ use hg::repo::Repo;
 use hg::revlog::RevisionOrWdir;
 use hg::revlog::RevlogError;
 use hg::revlog::RevlogType;
+use hg::revlog::filelog::ExpectedFileState;
 use hg::revlog::filelog::FileCompOutcome;
 use hg::revlog::filelog::is_file_modified;
 use hg::revlog::options::default_revlog_options;
 use hg::sparse;
 use hg::utils::debug::debug_wait_for_file;
 use hg::utils::files::get_bytes_from_os_str;
+use hg::utils::hg_path::HgPathBuf;
 use hg::utils::hg_path::hg_path_to_path_buf;
 use hg::warnings::HgWarningContext;
 use hg::{self};
@@ -444,6 +446,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
         }
         let mut fixup = Vec::new();
+        let modified_fixup: Vec<(HgPathBuf, ExpectedFileState)> = Vec::new();
         if !ds_status.unsure.is_empty()
             && (display_states.modified || display_states.clean)
         {
@@ -514,7 +517,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
 
         output.output(display_states, ds_status)?;
 
-        Ok((fixup, dirstate_write_needed, filesystem_time_at_status_start))
+        Ok((
+            fixup,
+            modified_fixup,
+            dirstate_write_needed,
+            filesystem_time_at_status_start,
+        ))
     };
 
     let warning_context = HgWarningContext::new();
@@ -618,14 +626,18 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
         return Ok(());
     }
 
-    let (fixup, mut dirstate_write_needed, filesystem_time_at_status_start) =
-        dmap.with_status(
-            &matcher,
-            repo.working_directory_path().to_owned(),
-            get_ignore_files(repo),
-            options,
-            after_status,
-        )?;
+    let (
+        fixup,
+        modified_fixup,
+        mut dirstate_write_needed,
+        filesystem_time_at_status_start,
+    ) = dmap.with_status(
+        &matcher,
+        repo.working_directory_path().to_owned(),
+        get_ignore_files(repo),
+        options,
+        after_status,
+    )?;
 
     // Development config option to test write races
     if let Err(e) =
@@ -635,6 +647,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     }
 
     if (fixup.is_empty() || filesystem_time_at_status_start.is_none())
+        && modified_fixup.is_empty()
         && !dirstate_write_needed
     {
         // Nothing to update
@@ -677,6 +690,20 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         dirstate_write_needed = true
                     }
                 }
+            }
+            for (hg_path, expected) in modified_fixup {
+                // Record what the lookup learned: the mode and size to
+                // expect from the parent. The mtime of a modified file is
+                // not recorded yet, so any value will do.
+                let mtime = TruncatedTimestamp::new_truncate(0, 0, false);
+                dmap.set_state(
+                    &hg_path,
+                    expected.mode,
+                    expected.size,
+                    mtime,
+                    true,
+                )?;
+                dirstate_write_needed = true
             }
             drop(dmap); // Avoid "already mutably borrowed" RefCell panics
             if dirstate_write_needed {
