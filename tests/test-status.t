@@ -1124,7 +1124,7 @@ size or mtime:
   n   0         -1 unset               celeste
 
 Status has to look all files up. The clean file gets its information cached,
-but nothing is recorded for the modified one:
+and the modified one gets the mode and size it has in the parent:
 
   $ echo more >> celeste
   $ hg status
@@ -1133,14 +1133,11 @@ but nothing is recorded for the modified one:
   M celeste
   $ hg debugdirstate --no-dates
   n 644          6 set                 babar
-  n   0         -1 unset               celeste (known-bad-output !)
-  n 644          8 unset               celeste (missing-correct-output !)
+  n 644          8 unset               celeste
 
-So the next status has to look it up again, even though its size differs from
-the one in the parent:
+So the next status can tell it is modified from its size alone:
 
   $ hg status
-  lookup: celeste (known-bad-output !)
   M celeste
 
 When the size matches the one in the parent, the content has to be checked
@@ -1153,8 +1150,7 @@ modified:
   M celeste
   $ hg debugdirstate --no-dates
   n 644          6 set                 babar
-  n   0         -1 unset               celeste (known-bad-output !)
-  n 644          8 unset               celeste (missing-correct-output !)
+  n 644          8 unset               celeste
   $ hg status
   lookup: celeste
   M celeste
@@ -1181,18 +1177,16 @@ Add an executable file and drop its cache information:
   $ hg commit -Aqm 'add zephir'
   $ hg debug::dirstate-drop-cache-info zephir
 
-The modified file is looked up, nothing gets recorded for it, so the next
-status has to look it up again:
+The modified file is looked up and gets the mode and size it has in the parent,
+so the next status does not need to:
 
   $ echo more >> zephir
   $ hg status
   lookup: zephir
   M zephir
   $ hg debugdirstate --no-dates | grep zephir
-  n   0         -1 unset               zephir (known-bad-output !)
-  n 755          7 unset               zephir (missing-correct-output !)
+  n 755          7 unset               zephir
   $ hg status
-  lookup: zephir (known-bad-output !)
   M zephir
 
 With the same size as in the parent, the content has to be checked:
@@ -1224,7 +1218,8 @@ Add a symlink and drop its cache information:
   $ hg commit -Aqm 'add arthur'
   $ hg debug::dirstate-drop-cache-info arthur
 
-The symlink pointing elsewhere is looked up, nothing gets recorded for it:
+The symlink pointing elsewhere is looked up and gets the mode and size it has
+in the parent:
 
   $ rm arthur
   $ ln -s celeste arthur
@@ -1232,8 +1227,7 @@ The symlink pointing elsewhere is looked up, nothing gets recorded for it:
   lookup: arthur
   M arthur
   $ hg debugdirstate --no-dates | grep arthur
-  n   0         -1 unset               arthur (known-bad-output !)
-  n lnk          5 unset               arthur (missing-correct-output !)
+  n lnk          5 unset               arthur
 
 The size of a symlink is not trusted (see issue6456), so the content still has
 to be checked:

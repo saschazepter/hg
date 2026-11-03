@@ -98,9 +98,10 @@ anyway.
   $ hg debugdirstate
   n 644          2 * a (glob)
   n   0         -1 unset               b
-  n   0         -1 unset               d
+  n 644          5 unset               d
   n   0         -1 unset               dir1/c
-  n   0         -1 unset               e
+  n 755          5 unset               e (execbit !)
+  n 644          5 unset               e (no-execbit !)
 
   $ hg status
   ! b

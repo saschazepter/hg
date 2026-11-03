@@ -446,7 +446,8 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
         }
         let mut fixup = Vec::new();
-        let modified_fixup: Vec<(HgPathBuf, ExpectedFileState)> = Vec::new();
+        let mut modified_fixup: Vec<(HgPathBuf, ExpectedFileState)> =
+            Vec::new();
         if !ds_status.unsure.is_empty()
             && (display_states.modified || display_states.clean)
         {
@@ -497,10 +498,12 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         }
                         fixup.push(status_path.path.into_owned())
                     }
-                    FileCompOutcome::Modified(_) => {
+                    FileCompOutcome::Modified(expected) => {
                         if display_states.modified {
-                            ds_status.modified.push(status_path);
+                            ds_status.modified.push(status_path.clone());
                         }
+                        modified_fixup
+                            .push((status_path.path.into_owned(), expected))
                     }
                     FileCompOutcome::Deleted => {
                         if display_states.deleted {
