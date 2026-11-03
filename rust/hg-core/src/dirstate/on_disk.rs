@@ -485,16 +485,13 @@ impl Node {
         let wc_tracked = self.flags().contains(Flags::WDIR_TRACKED);
         let p1_tracked = self.flags().contains(Flags::P1_TRACKED);
         let p2_info = self.flags().contains(Flags::P2_INFO);
-        let mode_size = if self.flags().contains(Flags::HAS_MODE_AND_SIZE)
-            && !self.flags().contains(Flags::EXPECTED_STATE_IS_MODIFIED)
-        {
+        let mode_size = if self.flags().contains(Flags::HAS_MODE_AND_SIZE) {
             Some((self.synthesize_unix_mode(), self.size.into()))
         } else {
             None
         };
         let mtime = if self.flags().contains(Flags::HAS_MTIME)
             && !self.flags().contains(Flags::DIRECTORY)
-            && !self.flags().contains(Flags::EXPECTED_STATE_IS_MODIFIED)
         {
             Some(self.mtime()?)
         } else {
@@ -519,9 +516,9 @@ impl Node {
             mtime,
             fallback_exec,
             fallback_symlink,
-            // the cached data of flagged entries is dropped above, so the
-            // item cannot carry the flag yet
-            expected_state_is_modified: false,
+            expected_state_is_modified: self
+                .flags()
+                .contains(Flags::EXPECTED_STATE_IS_MODIFIED),
         }))
     }
 

@@ -192,12 +192,6 @@ class DirstateItem(int_dirstate.IDirstateItem):
         has_meaningful_mtime = bool(flags & DIRSTATE_V2_HAS_MTIME)
         mode = None
 
-        if flags & +DIRSTATE_V2_EXPECTED_STATE_IS_MODIFIED:
-            # we do not have support for this flag in the code yet,
-            # force a lookup for this file.
-            has_mode_size = False
-            has_meaningful_mtime = False
-
         fallback_exec = None
         if flags & DIRSTATE_V2_HAS_FALLBACK_EXEC:
             fallback_exec = flags & DIRSTATE_V2_FALLBACK_EXEC
@@ -227,6 +221,9 @@ class DirstateItem(int_dirstate.IDirstateItem):
             parentfiledata=(mode, size, (mtime_s, mtime_ns, second_ambiguous)),
             fallback_exec=fallback_exec,
             fallback_symlink=fallback_symlink,
+            expected_state_is_modified=bool(
+                flags & DIRSTATE_V2_EXPECTED_STATE_IS_MODIFIED
+            ),
         )
 
     @classmethod

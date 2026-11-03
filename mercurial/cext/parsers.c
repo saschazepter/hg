@@ -411,10 +411,11 @@ static PyObject *dirstate_item_from_v2_meth(PyTypeObject *subtype,
 	                      &t->mtime_ns)) {
 		return NULL;
 	}
-	if (t->flags & dirstate_flag_expected_state_is_modified) {
-		t->flags &= ~(dirstate_flag_expected_state_is_modified |
-		              dirstate_flag_has_meaningful_data |
-		              dirstate_flag_has_mtime);
+	/* the flag only means something along a mode, size and mtime to match
+	 */
+	if (!(t->flags & dirstate_flag_has_meaningful_data) ||
+	    !(t->flags & dirstate_flag_has_mtime)) {
+		t->flags &= ~dirstate_flag_expected_state_is_modified;
 	}
 	t->mode = 0;
 	if (t->flags & dirstate_flag_has_meaningful_data) {
