@@ -1141,10 +1141,12 @@ So the next status can tell it is modified from its size alone:
   M celeste
 
 When the size matches the one in the parent, the content has to be checked
-each time, as the dirstate does not record yet that a file with this mtime is
-modified:
+once. The dirstate-v2 format then records that a file with this mtime is
+modified, so the next status reports it without reading it. The v1 format
+cannot record that, and `debugdirstate` only shows the mtime v1 would keep:
 
   $ echo CELESTE > celeste
+  $ sleep 1
   $ hg status
   lookup: celeste
   M celeste
@@ -1152,7 +1154,7 @@ modified:
   n 644          6 set                 babar
   n 644          8 unset               celeste
   $ hg status
-  lookup: celeste
+  lookup: celeste (dirstate-v1 !)
   M celeste
 
 Restoring the parent content makes the file clean again:

@@ -455,9 +455,11 @@ static PyObject *dirstate_item_drop_cache_info(dirstateItemObject *self)
 	Py_RETURN_NONE;
 }
 
-/* Record the expected mode, size and mtime of a file. Without `has_mtime`, or
- * with `modified` (the mode and size are then the ones of the clean version
- * of the file), the mtime is not recorded. */
+/* Record the expected mode, size and mtime of a file. With `modified`, the
+ * mode and size are the ones of the clean version of the file and the mtime
+ * the one seen on disk when a lookup found it modified: a file still matching
+ * them is modified. Without `has_mtime`, the next status has to check the
+ * content of a file still matching the mode and size. */
 static void dirstate_item_c_set_state(dirstateItemObject *self, int mode,
                                       int size, int has_mtime, int mtime_s,
                                       int mtime_ns, int mtime_second_ambiguous,
@@ -465,8 +467,9 @@ static void dirstate_item_c_set_state(dirstateItemObject *self, int mode,
 {
 	self->flags |= dirstate_flag_has_meaningful_data;
 	self->flags &=
-	    ~(dirstate_flag_has_mtime | dirstate_flag_mtime_second_ambiguous);
-	if (modified || !has_mtime) {
+	    ~(dirstate_flag_has_mtime | dirstate_flag_mtime_second_ambiguous |
+	      dirstate_flag_expected_state_is_modified);
+	if (!has_mtime) {
 		mtime_s = 0;
 		mtime_ns = 0;
 	} else {
@@ -474,8 +477,10 @@ static void dirstate_item_c_set_state(dirstateItemObject *self, int mode,
 		if (mtime_second_ambiguous) {
 			self->flags |= dirstate_flag_mtime_second_ambiguous;
 		}
+		if (modified) {
+			self->flags |= dirstate_flag_expected_state_is_modified;
+		}
 	}
-	self->flags &= ~dirstate_flag_expected_state_is_modified;
 	self->mode = mode;
 	self->size = size;
 	self->mtime_s = mtime_s;

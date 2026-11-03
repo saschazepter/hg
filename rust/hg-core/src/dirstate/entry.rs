@@ -647,10 +647,13 @@ impl DirstateEntry {
 
     /// Record the expected mode, size and mtime of the file.
     ///
-    /// Without an mtime, or with `modified` (the mode and size are then the
-    /// ones of the clean version of the file), the mtime is not recorded: the
-    /// next status has to check the content of a file still matching the mode
-    /// and size.
+    /// With `modified`, the mode and size are the ones of the clean version
+    /// of the file and the mtime the one seen on disk when a lookup found it
+    /// modified: a file still matching them is modified, and the next status
+    /// can report it without reading it.
+    ///
+    /// Without an mtime, the next status has to check the content of a file
+    /// still matching the mode and size.
     pub fn set_state(
         &mut self,
         mode: u32,
@@ -660,8 +663,11 @@ impl DirstateEntry {
     ) {
         let size = size & RANGE_MASK_31BIT;
         self.mode_size = Some((mode, size));
-        self.mtime = if modified { None } else { mtime };
-        self.flags.remove(Flags::EXPECTED_STATE_IS_MODIFIED);
+        self.mtime = mtime;
+        self.flags.set(
+            Flags::EXPECTED_STATE_IS_MODIFIED,
+            modified && mtime.is_some(),
+        );
     }
 
     pub fn set_clean(
