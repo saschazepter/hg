@@ -413,7 +413,13 @@ def fingerprint_for_patterns(
 
 def py_fingerprint_for_patterns(
     include_pats: set[bytes], exclude_pats: set[bytes]
-) -> ShapeFingerprint:
+) -> ShapeFingerprint | None:
+    """Pure Python version of `fingerprint_for_patterns`
+
+    Only `path:` patterns can be fingerprinted"""
+    all_pats = itertools.chain(include_pats, exclude_pats)
+    if not all(p.startswith(b"path:") for p in all_pats):
+        return None
     include_pats = {p.removeprefix(b"path:") for p in include_pats}
     exclude_pats = {p.removeprefix(b"path:") for p in exclude_pats}
 

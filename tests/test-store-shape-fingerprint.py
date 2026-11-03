@@ -38,7 +38,7 @@ class FingerprintTests(unittest.TestCase):
         self,
         includes: set[bytes],
         excludes: set[bytes],
-        expected: shape.ShapeFingerprint,
+        expected: shape.ShapeFingerprint | None,
     ) -> None:
         """Check that both implementations give `expected` for these
         patterns"""
@@ -81,21 +81,9 @@ class FingerprintTests(unittest.TestCase):
             expected_fingerprint({b'glob:foo'}, {b''}),
         )
 
-    # XXX: python and rust should behave the same
     def test_non_path_patterns(self):
-        includes = {b'foo'}
-        self.assertEqual(
-            py_fingerprint(includes, set()),
-            expected_fingerprint({b'foo'}, {b''}),
-        )
-        self.assertIsNone(rust_fingerprint(includes, set()))
-
-        includes = {b'rootfilesin:foo'}
-        self.assertEqual(
-            py_fingerprint(includes, set()),
-            expected_fingerprint({b'rootfilesin:foo'}, {b''}),
-        )
-        self.assertIsNone(rust_fingerprint(includes, set()))
+        self.assert_fingerprint({b'foo'}, set(), None)
+        self.assert_fingerprint({b'rootfilesin:foo'}, set(), None)
 
 
 if __name__ == '__main__':
