@@ -1038,6 +1038,18 @@ class basefilectx(abc.ABC):
     def islink(self) -> bool:
         return b'l' in self.flags()
 
+    def has_content_filter(self) -> bool:
+        """whether an encode or decode filter applies to this file
+
+        The content on disk then differs from the stored one.
+        """
+        repo = self._repo
+        for filterpats in (repo._encodefilterpats, repo._decodefilterpats):
+            for mf, fn, cmd in filterpats:
+                if mf(self._path):
+                    return True
+        return False
+
     def isabsent(self) -> bool:
         """whether this filectx represents a file not in self._changectx
 
