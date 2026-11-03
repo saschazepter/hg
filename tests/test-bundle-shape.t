@@ -242,9 +242,8 @@ Test that if no fingerprints match, we don't clone anything
 
 Don't match any clone bundles if the pattern cannot be fingerprinted
 
-  $ HGTEST_UUIDFILE= hg clone ssh://user@dummy/source clone-shaped --narrow --include=rootfilesin:dir2 2>&1 | grep -E "falling back|Error"
-  AttributeError: 'NoneType' object has no attribute 'to_text' (known-bad-output !)
-  no compatible clone bundles available on server; falling back to regular clone (missing-correct-output !)
+  $ HGTEST_UUIDFILE= hg clone ssh://user@dummy/source clone-shaped --narrow --include=rootfilesin:dir2 2>&1 | grep -E "falling back"
+  no compatible clone bundles available on server; falling back to regular clone
   $ rm -rf clone-shaped
 
 Test matching fingerprints

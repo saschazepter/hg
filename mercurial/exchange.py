@@ -3060,7 +3060,7 @@ def _maybeapplyclonebundle(pullop: pulloperation):
             pullop.includepats,
             pullop.excludepats,
         )
-        store_fingerprints = [fp]
+        store_fingerprints = [] if fp is None else [fp]
     else:
         store_fingerprints = None
 
