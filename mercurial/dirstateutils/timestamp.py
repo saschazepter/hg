@@ -67,7 +67,7 @@ def zero() -> timestamp:
     """
     Returns the `timestamp` at the Unix epoch.
     """
-    return tuple.__new__(timestamp, (0, 0))
+    return timestamp((0, 0, False))
 
 
 def mtime_of(stat_result: os.stat_result) -> timestamp:
