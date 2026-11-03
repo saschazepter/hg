@@ -185,15 +185,16 @@ impl DirstateMap {
         f: &Bound<'_, PyBytes>,
         mode: u32,
         size: u32,
-        mtime: (i64, u32, bool),
+        mtime: Option<(i64, u32, bool)>,
         modified: bool,
     ) -> PyResult<()> {
-        let (mtime_s, mtime_ns, second_ambiguous) = mtime;
-        let mtime = TruncatedTimestamp::new_truncate(
-            mtime_s,
-            mtime_ns,
-            second_ambiguous,
-        );
+        let mtime = mtime.map(|(mtime_s, mtime_ns, second_ambiguous)| {
+            TruncatedTimestamp::new_truncate(
+                mtime_s,
+                mtime_ns,
+                second_ambiguous,
+            )
+        });
 
         Self::with_inner_write(slf, |_self_ref, mut inner| {
             inner

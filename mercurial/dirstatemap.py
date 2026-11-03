@@ -660,7 +660,7 @@ class dirstatemap(_dirstatemapcommon):
             return True
 
     def set_state(self, filename, mode, size, mtime, modified):
-        """record the expected mode and size of a file, and its mtime
+        """record the expected mode and size of a file, and its mtime if any
 
         See `DirstateItem.set_state` for details.
         """

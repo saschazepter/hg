@@ -619,19 +619,20 @@ impl DirstateEntry {
 
     /// Record the expected mode, size and mtime of the file.
     ///
-    /// With `modified`, the mode and size are the ones of the clean version
-    /// of the file, and the mtime is not recorded: the next status has to
-    /// check the content of a file still matching them.
+    /// Without an mtime, or with `modified` (the mode and size are then the
+    /// ones of the clean version of the file), the mtime is not recorded: the
+    /// next status has to check the content of a file still matching the mode
+    /// and size.
     pub fn set_state(
         &mut self,
         mode: u32,
         size: u32,
-        mtime: TruncatedTimestamp,
+        mtime: Option<TruncatedTimestamp>,
         modified: bool,
     ) {
         let size = size & RANGE_MASK_31BIT;
         self.mode_size = Some((mode, size));
-        self.mtime = if modified { None } else { Some(mtime) };
+        self.mtime = if modified { None } else { mtime };
     }
 
     pub fn set_clean(
@@ -641,7 +642,7 @@ impl DirstateEntry {
         mtime: TruncatedTimestamp,
     ) {
         self.flags.insert(Flags::WDIR_TRACKED | Flags::P1_TRACKED);
-        self.set_state(mode, size, mtime, false);
+        self.set_state(mode, size, Some(mtime), false);
     }
 
     pub fn set_tracked(&mut self) {

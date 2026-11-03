@@ -435,17 +435,18 @@ static PyObject *dirstate_item_drop_cache_info(dirstateItemObject *self)
 	Py_RETURN_NONE;
 }
 
-/* Record the expected mode, size and mtime of a file. With `modified`, the
- * mode and size are the ones of the clean version of the file and the mtime
- * is not recorded. */
+/* Record the expected mode, size and mtime of a file. Without `has_mtime`, or
+ * with `modified` (the mode and size are then the ones of the clean version
+ * of the file), the mtime is not recorded. */
 static void dirstate_item_c_set_state(dirstateItemObject *self, int mode,
-                                      int size, int mtime_s, int mtime_ns,
-                                      int mtime_second_ambiguous, int modified)
+                                      int size, int has_mtime, int mtime_s,
+                                      int mtime_ns, int mtime_second_ambiguous,
+                                      int modified)
 {
 	self->flags |= dirstate_flag_has_meaningful_data;
 	self->flags &=
 	    ~(dirstate_flag_has_mtime | dirstate_flag_mtime_second_ambiguous);
-	if (modified) {
+	if (modified || !has_mtime) {
 		mtime_s = 0;
 		mtime_ns = 0;
 	} else {
@@ -465,13 +466,22 @@ static PyObject *dirstate_item_set_state(dirstateItemObject *self,
                                          PyObject *args)
 {
 	int size, mode, mtime_s, mtime_ns, mtime_second_ambiguous, modified;
+	int has_mtime;
+	PyObject *mtime;
 	modified = 0;
-	if (!PyArg_ParseTuple(args, "ii(iii)|i", &mode, &size, &mtime_s,
-	                      &mtime_ns, &mtime_second_ambiguous, &modified)) {
+	if (!PyArg_ParseTuple(args, "iiO|i", &mode, &size, &mtime, &modified)) {
 		return NULL;
 	}
-	dirstate_item_c_set_state(self, mode, size, mtime_s, mtime_ns,
-	                          mtime_second_ambiguous, modified);
+	mtime_s = 0;
+	mtime_ns = 0;
+	mtime_second_ambiguous = 0;
+	has_mtime = (mtime != Py_None);
+	if (has_mtime && !PyArg_ParseTuple(mtime, "iii", &mtime_s, &mtime_ns,
+	                                   &mtime_second_ambiguous)) {
+		return NULL;
+	}
+	dirstate_item_c_set_state(self, mode, size, has_mtime, mtime_s,
+	                          mtime_ns, mtime_second_ambiguous, modified);
 	Py_RETURN_NONE;
 }
 
@@ -485,7 +495,7 @@ static PyObject *dirstate_item_set_clean(dirstateItemObject *self,
 		return NULL;
 	}
 	self->flags = dirstate_flag_wc_tracked | dirstate_flag_p1_tracked;
-	dirstate_item_c_set_state(self, mode, size, mtime_s, mtime_ns,
+	dirstate_item_c_set_state(self, mode, size, 1, mtime_s, mtime_ns,
 	                          mtime_second_ambiguous, 0);
 	Py_RETURN_NONE;
 }

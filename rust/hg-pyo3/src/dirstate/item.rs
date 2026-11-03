@@ -200,10 +200,11 @@ impl DirstateItem {
         &self,
         mode: u32,
         size: u32,
-        mtime: (u32, u32, bool),
+        mtime: Option<(u32, u32, bool)>,
         modified: bool,
     ) -> PyResult<()> {
-        self.write()?.set_state(mode, size, timestamp(mtime)?, modified);
+        let mtime = mtime.map(timestamp).transpose()?;
+        self.write()?.set_state(mode, size, mtime, modified);
         Ok(())
     }
 

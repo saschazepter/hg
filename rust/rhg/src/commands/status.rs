@@ -703,7 +703,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     &hg_path,
                     expected.mode,
                     expected.size,
-                    mtime,
+                    Some(mtime),
                     true,
                 )?;
                 dirstate_write_needed = true

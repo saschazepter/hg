@@ -281,13 +281,14 @@ class DirstateItem(int_dirstate.IDirstateItem):
     def set_state(self, mode, size, mtime, modified=False):
         """record the expected mode, size and mtime of the file
 
-        With `modified`, the mode and size are the ones of the clean version
-        of the file, and the mtime is not recorded: the next status call has
-        to check the content of a file still matching them.
+        Without an mtime, or with `modified` (the mode and size are then the
+        ones of the clean version of the file), the mtime is not recorded: the
+        next status call has to check the content of a file still matching
+        the mode and size.
         """
         self._mode = mode
         self._size = size
-        if modified:
+        if modified or mtime is None:
             self._mtime_s = None
             self._mtime_ns = None
             self._mtime_second_ambiguous = False

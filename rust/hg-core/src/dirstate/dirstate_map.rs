@@ -949,7 +949,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         filename: &HgPath,
         mode: u32,
         size: u32,
-        mtime: TruncatedTimestamp,
+        mtime: Option<TruncatedTimestamp>,
         modified: bool,
     ) -> Result<(), DirstateError> {
         let node = self
@@ -1356,7 +1356,7 @@ impl OwningDirstateMap {
         filename: &HgPath,
         mode: u32,
         size: u32,
-        mtime: TruncatedTimestamp,
+        mtime: Option<TruncatedTimestamp>,
         modified: bool,
     ) -> Result<(), DirstateError> {
         self.with_dmap_mut(|map| {
