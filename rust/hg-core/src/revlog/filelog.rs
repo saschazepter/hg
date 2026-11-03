@@ -487,7 +487,7 @@ impl Filelog {
 }
 
 /// Outcome of checking if a file has changed since the last commit
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub enum FileCompOutcome {
     /// The file is actually clean
     Clean,
