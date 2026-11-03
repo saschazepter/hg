@@ -69,24 +69,17 @@ class FingerprintTests(unittest.TestCase):
             expected_fingerprint(set(), {b''}),
         )
 
-    # XXX: python and rust should behave the same
     def test_path_after_path_prefix_is_literal(self):
-        includes = {b'path:path:foo'}
-        self.assertEqual(
-            py_fingerprint(includes, set()),
+        self.assert_fingerprint(
+            {b'path:path:foo'},
+            set(),
             expected_fingerprint({b'path:foo'}, {b''}),
         )
-        self.assertEqual(
-            rust_fingerprint(includes, set()),
-            expected_fingerprint({b'foo'}, {b''}),
-        )
-
-        includes = {b'path:glob:foo'}
-        self.assertEqual(
-            py_fingerprint(includes, set()),
+        self.assert_fingerprint(
+            {b'path:glob:foo'},
+            set(),
             expected_fingerprint({b'glob:foo'}, {b''}),
         )
-        self.assertIsNone(rust_fingerprint(includes, set()))
 
 
 if __name__ == '__main__':

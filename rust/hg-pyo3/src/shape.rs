@@ -4,7 +4,6 @@ use std::path::Path;
 
 use hg::file_patterns::FilePattern;
 use hg::file_patterns::PatternSyntax;
-use hg::file_patterns::parse_one_pattern;
 use hg::narrow::shape::ErrorKind as ShapeErrorKind;
 use hg::narrow::shape::Fingerprint;
 use hg::narrow::shape::SHARDING_FILE;
@@ -296,12 +295,7 @@ fn fingerprint_for_patterns(
             .expect("should be bytes")
             .strip_prefix(b"path:");
         if let Some(pat) = pat {
-            Ok(parse_one_pattern(
-                pat,
-                Path::new(""),
-                PatternSyntax::Path,
-                false,
-            ))
+            Ok(FilePattern::new(PatternSyntax::Path, pat, Path::new("")))
         } else {
             Err(())
         }
