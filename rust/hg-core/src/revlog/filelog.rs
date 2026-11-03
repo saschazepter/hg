@@ -28,6 +28,7 @@ use crate::utils::hg_path::HgPath;
 use crate::utils::hg_path::hg_path_to_path_buf;
 use crate::utils::strings::SliceExt;
 use crate::utils::u_u32;
+use crate::utils::u_u64;
 use crate::vfs::VfsImpl;
 
 /// A specialized `Revlog` to work with file data logs.
@@ -550,7 +551,8 @@ pub fn is_file_modified(
 
     let p1_filelog_data = filelog_entry.data()?;
     let p1_contents = p1_filelog_data.file_data()?;
-    if p1_contents.len() as u64 != fs_len {
+    let p1_len = p1_contents.len();
+    if u_u64(p1_len) != fs_len {
         // No need to read file contents:
         // it cannot be equal if it has a different length.
         return Ok(FileCompOutcome::Modified);
