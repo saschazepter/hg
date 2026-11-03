@@ -81,6 +81,22 @@ class FingerprintTests(unittest.TestCase):
             expected_fingerprint({b'glob:foo'}, {b''}),
         )
 
+    # XXX: python and rust should behave the same
+    def test_non_path_patterns(self):
+        includes = {b'foo'}
+        self.assertEqual(
+            py_fingerprint(includes, set()),
+            expected_fingerprint({b'foo'}, {b''}),
+        )
+        self.assertIsNone(rust_fingerprint(includes, set()))
+
+        includes = {b'rootfilesin:foo'}
+        self.assertEqual(
+            py_fingerprint(includes, set()),
+            expected_fingerprint({b'rootfilesin:foo'}, {b''}),
+        )
+        self.assertIsNone(rust_fingerprint(includes, set()))
+
 
 if __name__ == '__main__':
     silenttestrunner.main(__name__)
