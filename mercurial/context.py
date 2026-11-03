@@ -1986,6 +1986,28 @@ class workingctx(committablectx, i_context.IWorkingContext):
 
         return modified, deleted, clean, fixup
 
+    def _expected_fs_state(self, pfctx) -> tuple[int, int] | None:
+        """return the expected (mode, size) for a file on the file system
+
+        The status logic uses them to notice that the working copy version of
+        the file is modified without reading it. This information is usually
+        cached in the dirstate but can be missing sometimes.
+
+        Return None when they cannot be inferred from the stored content.
+        """
+        if pfctx.has_content_filter():
+            # The content on disk differs from the stored one, so the stored
+            # size tells nothing about the expected size on disk.
+            return None
+        flags = pfctx.flags()
+        if b'l' in flags:
+            mode = stat.S_IFLNK | 0o777
+        elif b'x' in flags:
+            mode = stat.S_IFREG | 0o755
+        else:
+            mode = stat.S_IFREG | 0o644
+        return (mode, pfctx.size())
+
     @util.rust_tracing_span("_poststatusfixup")
     def _poststatusfixup(self, status: StatusT, fixup) -> None:
         """update dirstate for files that are actually clean"""
