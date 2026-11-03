@@ -1090,6 +1090,11 @@ impl ShardTreeNode {
             vec![empty_path]
         };
 
+        // Excludes take precedence over includes (if it happens that users
+        // include and exclude the same paths, directly or through
+        // `--import-rules`)
+        let include_paths = &include_paths - &exclude_paths;
+
         Ok(Self::from_paths(
             root.into_iter().chain(include_paths.clone()).chain(exclude_paths),
             include_paths,

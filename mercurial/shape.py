@@ -287,7 +287,7 @@ class ShardTreeNode:
             includes.add(b"")
             root_path = []
 
-        # Excludes take precedence over includes (it happens that users include
+        # Excludes take precedence over includes (if it happens that users include
         # and exclude the same paths, directly or through `--import-rules`)
         includes -= excludes
 

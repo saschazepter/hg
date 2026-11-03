@@ -52,39 +52,21 @@ class FingerprintTests(unittest.TestCase):
             expected_fingerprint({b'foo'}, {b'', b'foo/bar'}),
         )
 
-    # XXX: python and rust should behave the same
     def test_path_is_both_included_and_excluded(self):
-        includes = {b'path:foo', b'path:bar'}
-        excludes = {b'path:foo'}
-        self.assertEqual(
-            py_fingerprint(includes, excludes),
+        self.assert_fingerprint(
+            {b'path:foo', b'path:bar'},
+            {b'path:foo'},
             expected_fingerprint({b'bar'}, {b''}),
         )
-        self.assertEqual(
-            rust_fingerprint(includes, excludes),
-            expected_fingerprint({b'foo', b'bar'}, {b''}),
-        )
-
-        includes = {b'path:foo'}
-        excludes = {b'path:foo'}
-        self.assertEqual(
-            py_fingerprint(includes, excludes),
+        self.assert_fingerprint(
+            {b'path:foo'},
+            {b'path:foo'},
             expected_fingerprint(set(), {b''}),
         )
-        self.assertEqual(
-            rust_fingerprint(includes, excludes),
-            expected_fingerprint({b'foo'}, {b''}),
-        )
-
-        includes = {b'path:'}
-        excludes = {b'path:'}
-        self.assertEqual(
-            py_fingerprint(includes, excludes),
+        self.assert_fingerprint(
+            {b'path:'},
+            {b'path:'},
             expected_fingerprint(set(), {b''}),
-        )
-        self.assertEqual(
-            rust_fingerprint(includes, excludes),
-            expected_fingerprint({b''}, set()),
         )
 
 
