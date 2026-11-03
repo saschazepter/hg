@@ -7,8 +7,10 @@ use crate::Graph;
 use crate::GraphError;
 use crate::Node;
 use crate::UncheckedRevision;
+use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::entry::has_exec_bit;
 use crate::errors::HgBacktrace;
+use crate::errors::IoResultExt;
 use crate::repo::Repo;
 use crate::revlog::LENGTH_NEUTRAL_FLAGS;
 use crate::revlog::NodePrefix;
@@ -491,8 +493,9 @@ impl Filelog {
 pub enum FileCompOutcome {
     /// The file is actually clean
     Clean,
-    /// The file has been modified, with what the dirstate should expect
-    Modified(ExpectedFileState),
+    /// The file has been modified, with what the dirstate should expect and
+    /// the mtime seen before reading it
+    Modified { expected: ExpectedFileState, mtime: TruncatedTimestamp },
     /// The file was deleted on disk (or became another type of fs entry)
     Deleted,
 }
@@ -514,6 +517,10 @@ pub fn is_file_modified(
         return Ok(FileCompOutcome::Deleted);
     };
     let is_symlink = fs_metadata.file_type().is_symlink();
+    // Taken before reading the file: a later write moves the mtime away from
+    // the one recorded for the compared content.
+    let mtime = TruncatedTimestamp::for_mtime_of(&fs_metadata)
+        .when_reading_file(&fs_path)?;
 
     let entry =
         manifest.find_by_path(hg_path)?.expect("ambgious file not in p1");
@@ -543,14 +550,14 @@ pub fn is_file_modified(
 
     if entry_flags != fs_flags {
         let expected = filelog.expected_fs_state(p1_rev, entry.flags)?;
-        return Ok(FileCompOutcome::Modified(expected));
+        return Ok(FileCompOutcome::Modified { expected, mtime });
     }
     let fs_len = fs_metadata.len();
     if filelog_entry.file_data_len_not_equal_to(fs_len) {
         // No need to read file contents:
         // it cannot be equal if it has a different length.
         let expected = filelog.expected_fs_state(p1_rev, entry.flags)?;
-        return Ok(FileCompOutcome::Modified(expected));
+        return Ok(FileCompOutcome::Modified { expected, mtime });
     }
 
     let p1_filelog_data = filelog_entry.data()?;
@@ -560,7 +567,7 @@ pub fn is_file_modified(
     if u_u64(p1_len) != fs_len {
         // No need to read file contents:
         // it cannot be equal if it has a different length.
-        return Ok(FileCompOutcome::Modified(expected));
+        return Ok(FileCompOutcome::Modified { expected, mtime });
     }
 
     let fs_contents = if is_symlink {
@@ -570,7 +577,7 @@ pub fn is_file_modified(
     };
 
     Ok(if p1_contents != &*fs_contents {
-        FileCompOutcome::Modified(expected)
+        FileCompOutcome::Modified { expected, mtime }
     } else {
         FileCompOutcome::Clean
     })

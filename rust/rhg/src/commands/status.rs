@@ -446,8 +446,11 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
             }
         }
         let mut fixup = Vec::new();
-        let mut modified_fixup: Vec<(HgPathBuf, ExpectedFileState)> =
-            Vec::new();
+        let mut modified_fixup: Vec<(
+            HgPathBuf,
+            ExpectedFileState,
+            TruncatedTimestamp,
+        )> = Vec::new();
         if !ds_status.unsure.is_empty()
             && (display_states.modified || display_states.clean)
         {
@@ -498,12 +501,15 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                         }
                         fixup.push(status_path.path.into_owned())
                     }
-                    FileCompOutcome::Modified(expected) => {
+                    FileCompOutcome::Modified { expected, mtime } => {
                         if display_states.modified {
                             ds_status.modified.push(status_path.clone());
                         }
-                        modified_fixup
-                            .push((status_path.path.into_owned(), expected))
+                        modified_fixup.push((
+                            status_path.path.into_owned(),
+                            expected,
+                            mtime,
+                        ))
                     }
                     FileCompOutcome::Deleted => {
                         if display_states.deleted {
@@ -694,16 +700,20 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
                     }
                 }
             }
-            for (hg_path, expected) in modified_fixup {
-                // Record what the lookup learned: the mode and size to
-                // expect from the parent. The mtime of a modified file is
-                // not recorded yet, so any value will do.
-                let mtime = TruncatedTimestamp::new_truncate(0, 0, false);
+            for (hg_path, expected, mtime) in modified_fixup {
+                // Record what the lookup learned:
+                // - the mode and size to expect from the parent,
+                // - the mtime seen before reading the file, with the same check
+                //   as for the clean fix-up above: a write too close to the
+                //   status start could share it.
+                let mtime = filesystem_time_at_status_start.as_ref().and_then(
+                    |boundary| mtime.for_reliable_mtime_of_self(boundary),
+                );
                 dmap.set_state(
                     &hg_path,
                     expected.mode,
                     expected.size,
-                    Some(mtime),
+                    mtime,
                     true,
                 )?;
                 dirstate_write_needed = true

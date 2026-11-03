@@ -1981,9 +1981,14 @@ class workingctx(committablectx, i_context.IWorkingContext):
                     modified.append(f)
                     expected = self._expected_fs_state(pfctx)
                     if expected is not None:
-                        # The mtime of a modified file is not recorded yet,
-                        # so any value will do.
-                        mtime = timestamp.zero()
+                        # same check as for the clean fix-up below: a write
+                        # too close to the status start could share the mtime
+                        if mtime_boundary is None:
+                            mtime = None
+                        else:
+                            mtime = timestamp.reliable_mtime_of(
+                                s, mtime_boundary
+                            )
                         modified_fixup.append((f, expected + (mtime,)))
                 elif mtime_boundary is None:
                     clean.append(f)

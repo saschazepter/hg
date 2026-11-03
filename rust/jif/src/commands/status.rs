@@ -126,7 +126,7 @@ pub fn run(invocation: RepoInvocation, _args: Args, output: &Output) {
                         ds_status.clean.push(status_path.clone());
                         fixup.push(status_path.path.into_owned())
                     }
-                    FileCompOutcome::Modified(_) => {
+                    FileCompOutcome::Modified { .. } => {
                         ds_status.modified.push(status_path);
                     }
                     FileCompOutcome::Deleted => {
