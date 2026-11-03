@@ -53,11 +53,19 @@ if typing.TYPE_CHECKING:
     from typing import (
         Iterable,
     )
+    from .interfaces.dirstate import (
+        ParentFileDataT,
+        TimestampT,
+    )
     from .interfaces.types import (
         LocalRepoCompleteT,
         MatcherT,
         StatusT,
     )
+
+    FixupT = list[tuple[bytes, ParentFileDataT]]
+    """The files a status lookup settled, with what the dirstate should record
+    about them."""
 
 propertycache = util.propertycache
 
@@ -1937,10 +1945,14 @@ class workingctx(committablectx, i_context.IWorkingContext):
         return sane
 
     @util.rust_tracing_span("_checklookup")
-    def _checklookup(self, files: list[bytes], mtime_boundary):
+    def _checklookup(
+        self,
+        files: list[bytes],
+        mtime_boundary: TimestampT | None,
+    ) -> tuple[list[bytes], list[bytes], list[bytes], FixupT, FixupT]:
         # check for any possibly clean files
         if not files:
-            return [], [], [], []
+            return [], [], [], [], []
 
         ui = self._repo.ui
         if ui.configbool(b'devel', b'status.debug-lookup'):
@@ -1951,6 +1963,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
         deleted = []
         clean = []
         fixup = []
+        modified_fixup = []
         pctx = self._parents[0]
         # do a full compare of any files that might have changed
         for f in sorted(files):
@@ -1984,7 +1997,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
                 # it's in the dirstate.
                 deleted.append(f)
 
-        return modified, deleted, clean, fixup
+        return modified, deleted, clean, fixup, modified_fixup
 
     def _expected_fs_state(self, pfctx) -> tuple[int, int] | None:
         """return the expected (mode, size) for a file on the file system
@@ -2009,8 +2022,13 @@ class workingctx(committablectx, i_context.IWorkingContext):
         return (mode, pfctx.size())
 
     @util.rust_tracing_span("_poststatusfixup")
-    def _poststatusfixup(self, status: StatusT, fixup) -> None:
-        """update dirstate for files that are actually clean"""
+    def _poststatusfixup(
+        self,
+        status: StatusT,
+        fixup: FixupT,
+        modified_fixup: FixupT,
+    ) -> None:
+        """update dirstate with what the lookups taught us about the files"""
         testing.wait_on_cfg(self._repo.ui, b'status.pre-dirstate-write-file')
         dirstate = self._repo.dirstate
         poststatus = self._repo.postdsstatus()
@@ -2025,6 +2043,10 @@ class workingctx(committablectx, i_context.IWorkingContext):
                 normal = dirstate.set_clean
             for f, pdf in fixup:
                 normal(f, pdf)
+        # expectations about the first parent are pointless if it is changing
+        if modified_fixup and not dirstate.is_changing_parents:
+            for f, pfd in modified_fixup:
+                dirstate.set_state(f, pfd, modified=True)
         if poststatus or self._repo.dirstate._dirty:
             try:
                 # updating the dirstate is optional
@@ -2078,10 +2100,15 @@ class workingctx(committablectx, i_context.IWorkingContext):
 
             # check for any possibly clean files
             fixup = []
+            modified_fixup = []
             if cmp:
-                modified2, deleted2, clean_set, fixup = self._checklookup(
-                    cmp, mtime_boundary
-                )
+                (
+                    modified2,
+                    deleted2,
+                    clean_set,
+                    fixup,
+                    modified_fixup,
+                ) = self._checklookup(cmp, mtime_boundary)
                 s.modified.extend(modified2)
                 s.deleted.extend(deleted2)
 
@@ -2090,7 +2117,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
                 if fixup and clean:
                     s.clean.extend((f for f, _ in fixup))
 
-            self._poststatusfixup(s, fixup)
+            self._poststatusfixup(s, fixup, modified_fixup)
 
         if match.always():
             # cache for performance

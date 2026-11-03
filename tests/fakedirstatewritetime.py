@@ -82,9 +82,12 @@ def fakewrite(ui, func):
             dirstatemapmod.dirstatemap.write = orig_dirstatemap_write
 
 
-def _poststatusfixup(orig, workingctx, status, fixup):
+def _poststatusfixup(orig, workingctx, status, fixup, modified_fixup):
     ui = workingctx.repo().ui
-    return fakewrite(ui, lambda: orig(workingctx, status, fixup))
+    return fakewrite(
+        ui,
+        lambda: orig(workingctx, status, fixup, modified_fixup),
+    )
 
 
 def markcommitted(orig, committablectx, node):
