@@ -1972,6 +1972,9 @@ class workingctx(committablectx, i_context.IWorkingContext):
                     modified.append(f)
                     continue
                 pfctx = pctx[f]
+                # Stat the file before reading it: a later write moves the
+                # mtime away from the one recorded for the compared content.
+                s = self[f].lstat()
                 # This will return True for a file that got replaced by a
                 # directory in the interim, but fixing that is pretty hard.
                 if self.flags(f) != pfctx.flags() or pfctx.cmp(self[f]):
@@ -1985,7 +1988,6 @@ class workingctx(committablectx, i_context.IWorkingContext):
                 elif mtime_boundary is None:
                     clean.append(f)
                 else:
-                    s = self[f].lstat()
                     mode = s.st_mode
                     size = s.st_size
                     file_mtime = timestamp.reliable_mtime_of(s, mtime_boundary)
