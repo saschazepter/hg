@@ -134,6 +134,5 @@ Only "path:" patterns have a shape.
   > EOF
 
   $ hg debug::narrow-fingerprint < rootfilesin
-  abort: only "path:" patterns can be fingerprinted (no-rhg !)
-  abort:  unsupported narrow pattern 'RootFilesIn' (rhg !)
+  abort: only "path:" patterns can be fingerprinted
   [255]

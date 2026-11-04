@@ -833,8 +833,8 @@ fn format_pattern_error(
                 String::from_utf8_lossy(pattern)
             )
         }
-        PatternError::UnsupportedSyntaxNarrow(syntax, backtrace) => {
-            write!(f, "{backtrace} unsupported narrow pattern '{syntax:?}'")
+        PatternError::UnsupportedSyntaxNarrow(_, backtrace) => {
+            write!(f, "{backtrace}only \"path:\" patterns can be fingerprinted")
         }
     }
 }
