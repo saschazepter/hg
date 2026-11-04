@@ -1769,8 +1769,6 @@ class dirstate(intdirstate.IDirstate):
                 continue
 
             t = dget(fn)
-            mode = t.v1_mode
-            size = t.v1_size
 
             if not st and t.tracked:
                 dadd(fn)
@@ -1781,6 +1779,21 @@ class dirstate(intdirstate.IDirstate):
             elif t.removed:
                 radd(fn)
             elif t.tracked:
+                # A file not matching the mode (exec bit) and size recorded
+                # for its clean version is modified. Without them, only the
+                # content can tell.
+                mode_size = t.mode_size
+                # Only True is meaningful: False also stands for "unknown",
+                # when the item records no mode and size.
+                same_size = False
+                modified_from_stat = False
+                if mode_size is not None:
+                    mode, size = mode_size
+                    same_size = size == st.st_size & _rangemask
+                    if not same_size:
+                        modified_from_stat = True
+                    elif checkexec and (mode ^ st.st_mode) & 0o100:
+                        modified_from_stat = True
                 if not checklink and t.has_fallback_symlink:
                     # If the file system does not support symlink, the mode
                     # might not be correctly stored in the dirstate, so do not
@@ -1791,18 +1804,8 @@ class dirstate(intdirstate.IDirstate):
                     # might not be correctly stored in the dirstate, so do not
                     # trust it.
                     ladd(fn)
-                elif (
-                    size >= 0
-                    and (
-                        size != st.st_size & _rangemask
-                        or ((mode ^ st.st_mode) & 0o100 and checkexec)
-                    )
-                    or fn in copymap
-                ):
-                    if (
-                        stat.S_ISLNK(st.st_mode)
-                        and size != st.st_size & _rangemask
-                    ):
+                elif modified_from_stat or fn in copymap:
+                    if stat.S_ISLNK(st.st_mode) and not same_size:
                         # issue6456: Size returned may be longer due to
                         # encryption on EXT-4 fscrypt, undecided.
                         ladd(fn)
