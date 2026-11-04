@@ -3105,18 +3105,20 @@ def debugpathcomplete(ui, repo, *specs, **opts):
                     addfile(f)
         return files, dirs
 
-    acceptable = b''
-    if opts['normal']:
-        acceptable += b'nm'
-    if opts['added']:
-        acceptable += b'a'
-    if opts['removed']:
-        acceptable += b'r'
-    if not acceptable:
-        acceptable = b'nmar'
+    normal = opts['normal']
+    added = opts['added']
+    removed = opts['removed']
+    if not (normal or added or removed):
+        normal = added = removed = True
 
     def accept(item):
-        return item.v1_state in acceptable
+        """True for the entries the options select"""
+        if item.added:
+            return added
+        if item.removed:
+            return removed
+        # tracked in the working copy and in a parent, merged or not
+        return normal and item.any_tracked
 
     cwd = repo.getcwd()
     if not specs:
