@@ -1794,12 +1794,15 @@ class dirstate(intdirstate.IDirstate):
                 elif (
                     size >= 0
                     and (
-                        (size != st.st_size and size != st.st_size & _rangemask)
+                        size != st.st_size & _rangemask
                         or ((mode ^ st.st_mode) & 0o100 and checkexec)
                     )
                     or fn in copymap
                 ):
-                    if stat.S_ISLNK(st.st_mode) and size != st.st_size:
+                    if (
+                        stat.S_ISLNK(st.st_mode)
+                        and size != st.st_size & _rangemask
+                    ):
                         # issue6456: Size returned may be longer due to
                         # encryption on EXT-4 fscrypt, undecided.
                         ladd(fn)
