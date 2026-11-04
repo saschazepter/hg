@@ -585,6 +585,15 @@ static PyMethodDef dirstate_item_methods[] = {
     {NULL} /* Sentinel */
 };
 
+static PyObject *dirstate_item_get_mode_size(dirstateItemObject *self)
+{
+	if (self->flags & dirstate_flag_has_meaningful_data) {
+		return Py_BuildValue("(ii)", self->mode, self->size);
+	} else {
+		Py_RETURN_NONE;
+	}
+}
+
 static PyObject *dirstate_item_get_v1_mode(dirstateItemObject *self)
 {
 	return PyLong_FromLong(dirstate_item_c_v1_mode(self));
@@ -779,6 +788,7 @@ static PyObject *dirstate_item_get_removed(dirstateItemObject *self)
 }
 
 static PyGetSetDef dirstate_item_getset[] = {
+    {"mode_size", (getter)dirstate_item_get_mode_size, NULL, "mode_size", NULL},
     {"v1_mode", (getter)dirstate_item_get_v1_mode, NULL, "v1_mode", NULL},
     {"v1_size", (getter)dirstate_item_get_v1_size, NULL, "v1_size", NULL},
     {"v1_mtime", (getter)dirstate_item_get_v1_mtime, NULL, "v1_mtime", NULL},

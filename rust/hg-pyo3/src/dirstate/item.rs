@@ -88,6 +88,12 @@ impl DirstateItem {
         Ok(PyBytes::new(py, &[state_byte.into()]).unbind())
     }
 
+    /// The recorded mode and size of the clean version of the file, if any
+    #[getter]
+    fn mode_size(&self) -> PyResult<Option<(u32, u32)>> {
+        Ok(self.read()?.mode_size())
+    }
+
     #[getter]
     fn v1_mode(&self) -> PyResult<i32> {
         Ok(self.read()?.v1_mode())

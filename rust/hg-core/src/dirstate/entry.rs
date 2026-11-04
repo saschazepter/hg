@@ -616,6 +616,15 @@ impl DirstateEntry {
         }
     }
 
+    /// The recorded mode and size of the clean version of the file
+    ///
+    /// `None` when the entry records none. A file not matching them is
+    /// modified; a file matching them is clean when its mtime matches too,
+    /// or modified when `expected_state_is_modified` is set.
+    pub fn mode_size(&self) -> Option<(u32, u32)> {
+        self.mode_size
+    }
+
     pub fn truncated_mtime(&self) -> Option<TruncatedTimestamp> {
         self.mtime
     }

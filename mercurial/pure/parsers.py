@@ -365,6 +365,19 @@ class DirstateItem(int_dirstate.IDirstateItem):
             self._expected_state_is_modified = False
 
     @property
+    def mode_size(self):
+        """The recorded mode and size of the clean version of the file
+
+        A `(mode, size)` tuple, or None when the item records none. A file
+        not matching them is modified; a file matching them is clean when its
+        mtime matches too, or modified when `expected_state_is_modified` is
+        set.
+        """
+        if self._mode is None or self._size is None:
+            return None
+        return (self._mode, self._size)
+
+    @property
     def v1_mode(self):
         """The mode the dirstate-v1 format records for this entry
 

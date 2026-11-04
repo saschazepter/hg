@@ -166,6 +166,16 @@ class IDirstateItem(Protocol):
     def removed(self) -> bool:
         """True if the file has been removed"""
 
+    @property
+    @abc.abstractmethod
+    def mode_size(self) -> tuple[int, int] | None:
+        """The recorded mode and size of the clean version of the file
+
+        None when the item records none. A file not matching them is
+        modified; a file matching them is clean when its mtime matches too,
+        or modified when `expected_state_is_modified` is set.
+        """
+
 
 class IChangingContextRepo(Protocol):
     """The part of a repository a dirstate changing context needs
