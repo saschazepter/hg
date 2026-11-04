@@ -94,7 +94,7 @@ that shards not declared as shapes (here "secret") is not listed
   shape00-b0d34eda1df98b871c7ccb7254b61187a6a7eab61bc344e98c2e507ab65e1512 default
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full-manual
-  shape00-d71c3512f4304795c745e9e03b657cacc0ec675ea6397a60d69739de3a0eed0e other-secret
+  shape00-8e958ffc18c18371e8df8a32b75213316d8984cbe0a0cb14637c71564a9fd553 other-secret
 
   $ hg admin::narrow-server --store-profile-fingerprints -Tjson
   [
@@ -111,7 +111,7 @@ that shards not declared as shapes (here "secret") is not listed
     "name": "full-manual"
    },
    {
-    "fingerprint": "shape00-d71c3512f4304795c745e9e03b657cacc0ec675ea6397a60d69739de3a0eed0e",
+    "fingerprint": "shape00-8e958ffc18c18371e8df8a32b75213316d8984cbe0a0cb14637c71564a9fd553",
     "name": "other-secret"
    }
   ]
@@ -124,25 +124,25 @@ List the read-write-access of every shard by shard id, including the implicit
 shards. It is listed for external systems, it is not enforced by Mercurial.
 
   $ hg admin::narrow-server --store-shards
+  shard00-061330ec0246e218f25cbe1bec82cf7e6a6cfc022c9a8520de41e2d5431569da
+  shard00-3711ce3253a35e53b8fb7ff93a0da0e483254f17ce1f5034ba9860d7f6f6d895
   shard00-6edbd548038d51c90e4d3167524c82c2dff501ae3b39ab574fe26cd618a49db0 read-write-access=
-  shard00-a122e07847d28dcf11f188e2a013e2ea7dd70e3e3315d95e9401fd8feba9bb9e
   shard00-c491fc7f4780d490a8156c3888e591101acc71f30f6a0481a2e1b44b5e69ccb6 read-write-access=foo-team,security
-  shard00-f4406bd6c4db335b9ea30cae57fcacc91beab75ea57849249f67b6f13d1b4ef3
   $ hg admin::narrow-server --store-shards -Tjson
   [
+   {
+    "shard_id": "shard00-061330ec0246e218f25cbe1bec82cf7e6a6cfc022c9a8520de41e2d5431569da"
+   },
+   {
+    "shard_id": "shard00-3711ce3253a35e53b8fb7ff93a0da0e483254f17ce1f5034ba9860d7f6f6d895"
+   },
    {
     "read_write_access": [],
     "shard_id": "shard00-6edbd548038d51c90e4d3167524c82c2dff501ae3b39ab574fe26cd618a49db0"
    },
    {
-    "shard_id": "shard00-a122e07847d28dcf11f188e2a013e2ea7dd70e3e3315d95e9401fd8feba9bb9e"
-   },
-   {
     "read_write_access": ["foo-team", "security"],
     "shard_id": "shard00-c491fc7f4780d490a8156c3888e591101acc71f30f6a0481a2e1b44b5e69ccb6"
-   },
-   {
-    "shard_id": "shard00-f4406bd6c4db335b9ea30cae57fcacc91beab75ea57849249f67b6f13d1b4ef3"
    }
   ]
 
@@ -158,8 +158,10 @@ Check that we generate the correct narrow patterns for every shape
   inc:/
   $ hg admin::narrow-server --store-shape-patterns other-secret
   exc:/
+  inc:/.hgeol
   inc:/.hgignore
   inc:/.hglfs
+  inc:/.hgsigs
   inc:/.hgsub
   inc:/.hgsubstate
   inc:/.hgtags
@@ -172,11 +174,19 @@ Check that we generate the correct narrow patterns for every shape
    },
    {
     "included": true,
+    "path": ".hgeol"
+   },
+   {
+    "included": true,
     "path": ".hgignore"
    },
    {
     "included": true,
     "path": ".hglfs"
+   },
+   {
+    "included": true,
+    "path": ".hgsigs"
    },
    {
     "included": true,
@@ -226,8 +236,10 @@ Test the legacy narrow patterns option
   $ hg admin::narrow-server --store-shape-narrow-patterns full-manual
   $ hg admin::narrow-server --store-shape-narrow-patterns other-secret
   [include]
+  path:.hgeol
   path:.hgignore
   path:.hglfs
+  path:.hgsigs
   path:.hgsub
   path:.hgsubstate
   path:.hgtags
@@ -236,11 +248,19 @@ Test the legacy narrow patterns option
   [
    {
     "included": true,
+    "path": ".hgeol"
+   },
+   {
+    "included": true,
     "path": ".hgignore"
    },
    {
     "included": true,
     "path": ".hglfs"
+   },
+   {
+    "included": true,
+    "path": ".hgsigs"
    },
    {
     "included": true,
@@ -280,7 +300,7 @@ One including the root
 One excluding the root
 
   $ hg admin::narrow-server --store-profile-fingerprints | grep other-secret
-  shape00-d71c3512f4304795c745e9e03b657cacc0ec675ea6397a60d69739de3a0eed0e other-secret
+  shape00-8e958ffc18c18371e8df8a32b75213316d8984cbe0a0cb14637c71564a9fd553 other-secret
   $ hg admin::narrow-server --store-shape-narrow-patterns other-secret > ../shape.npt
   $ hg --config extensions.narrow= clone --narrow --narrowspec ../shape.npt . ../clone-test-2
   reading narrowspec from '$TESTTMP/server/../shape.npt'
@@ -288,7 +308,7 @@ One excluding the root
   updating to branch default
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ hg --config extensions.narrow= -R ../clone-test-2 admin::narrow-client --store-shape-fingerprint
-  shape00-d71c3512f4304795c745e9e03b657cacc0ec675ea6397a60d69739de3a0eed0e
+  shape00-8e958ffc18c18371e8df8a32b75213316d8984cbe0a0cb14637c71564a9fd553
 
 
 Test listing files
@@ -460,7 +480,7 @@ Update from file, adding a new shape that depends on the existing shard
   includes = ["foo"]
   public = true
   $ hg admin::narrow-server --store-profile-fingerprints
-  shape00-235febbc0d793deefdbd54c4bfbc1e17523c0050c107a93b72d9f20cfcf19ab8 from-file
+  shape00-2c9550754270e8898934090a45089201c6388211b5df36c6458aafebe46c7642 from-file
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
 Fail if `-f` is a path that does not exist
@@ -498,7 +518,7 @@ Updating to invalid contents is not allowed
   [30]
 
   $ hg admin::narrow-server --store-profile-fingerprints
-  shape00-235febbc0d793deefdbd54c4bfbc1e17523c0050c107a93b72d9f20cfcf19ab8 from-file
+  shape00-2c9550754270e8898934090a45089201c6388211b5df36c6458aafebe46c7642 from-file
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
 
 Test that an update either reshapes or reshards, not both
@@ -536,7 +556,7 @@ Passing `--override-reshape-and-reshard-check` allows the update anyways
   $ hg admin::narrow-server --store-sharding-update -f ../new-shapes --override-reshape-and-reshard-check
   $ hg admin::narrow-server --store-profile-fingerprints
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
-  shape00-b2794f94c467340c11b9dd7dc000733dc32952a6a4859424bf062884d69fbd6f new-shape
+  shape00-35ad59de419852b021828685618bdab6905fdaf17b60664011aa735e6a8e08df new-shape
 
 Test that a shape keeps its fingerprint
 ---------------------------------------
@@ -580,7 +600,7 @@ Passing `--override-saved-configs-check` allows the update anyways
 
   $ hg admin::narrow-server --store-sharding-update -f ../added-shape --override-saved-configs-check
   $ hg admin::narrow-server --store-profile-fingerprints | grep foo-shape
-  shape00-235febbc0d793deefdbd54c4bfbc1e17523c0050c107a93b72d9f20cfcf19ab8 foo-shape
+  shape00-2c9550754270e8898934090a45089201c6388211b5df36c6458aafebe46c7642 foo-shape
 
 Clear the config saved by the resharding above, so that the reshaping below is
 only exercising the fingerprint check
@@ -593,7 +613,7 @@ Passing `--override-fingerprint-change-check` allows the update anyways
   $ hg admin::narrow-server --store-sharding-update -f ../new-shapes --override-fingerprint-change-check
   $ hg admin::narrow-server --store-profile-fingerprints
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full
-  shape00-235febbc0d793deefdbd54c4bfbc1e17523c0050c107a93b72d9f20cfcf19ab8 new-shape
+  shape00-2c9550754270e8898934090a45089201c6388211b5df36c6458aafebe46c7642 new-shape
 
 Resharding saves previous configs
 ---------------------------------
@@ -733,5 +753,5 @@ The lock is released afterwards, so now another update can now go through
 
   $ hg admin::narrow-server --store-sharding-update -f ../concurrent-update
   $ hg admin::narrow-server --store-profile-fingerprints
-  shape00-235febbc0d793deefdbd54c4bfbc1e17523c0050c107a93b72d9f20cfcf19ab8 concurrent
+  shape00-2c9550754270e8898934090a45089201c6388211b5df36c6458aafebe46c7642 concurrent
   shape00-3a324c73577297c4840e43bf3af8e60c6f62a96cbe32a69baf25d8b679018545 full

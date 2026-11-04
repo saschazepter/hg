@@ -45,6 +45,8 @@ lazy_static! {
         ".hgsub".to_string(),
         ".hgsubstate".to_string(),
         ".hglfs".to_string(),
+        ".hgeol".to_string(),
+        ".hgsigs".to_string(),
     ];
 }
 
@@ -1941,8 +1943,10 @@ mod tests {
                 "bar",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -1955,8 +1959,10 @@ mod tests {
                 "baron",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -1970,8 +1976,10 @@ mod tests {
                 "bazik",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -1992,8 +2000,10 @@ mod tests {
                 "stone",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2006,8 +2016,10 @@ mod tests {
                 "borden",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2021,8 +2033,10 @@ mod tests {
                 "mummy",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2035,8 +2049,10 @@ mod tests {
                 "chamber",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2056,8 +2072,10 @@ mod tests {
                 "nested",
                 (
                     &[
+                        ".hgeol",
                         ".hgignore",
                         ".hglfs",
+                        ".hgsigs",
                         ".hgsub",
                         ".hgsubstate",
                         ".hgtags",
@@ -2097,8 +2115,10 @@ mod tests {
 
         let files_to_shape: &[(&str, &[&str])] = &[
             // the core mercurial file shoudl always be included
+            (".hgeol", &all_shape_names),
             (".hgignore", &all_shape_names),
             (".hglfs", &all_shape_names),
+            (".hgsigs", &all_shape_names),
             (".hgsub", &all_shape_names),
             (".hgsubstate", &all_shape_names),
             (".hgtags", &all_shape_names),
@@ -2322,7 +2342,9 @@ mod tests {
                     ".hgsubstate",
                     ".hgtags",
                     ".hgsub",
-                    ".hglfs"
+                    ".hglfs",
+                    ".hgeol",
+                    ".hgsigs"
                 ]
                 .iter()
                 .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
@@ -2357,7 +2379,9 @@ mod tests {
                     ".hgsubstate",
                     ".hgtags",
                     ".hgsub",
-                    ".hglfs"
+                    ".hglfs",
+                    ".hgeol",
+                    ".hgsigs"
                 ]
                 .iter()
                 .map(|path| HgPathBuf::from_bytes(path.as_bytes()))
