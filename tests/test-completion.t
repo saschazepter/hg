@@ -606,6 +606,32 @@ Test debugpathcomplete
   $ hg debugpathcomplete -r F
   Fum
 
+The options select entries by state, every entry without option
+----------------------------------------------------------------
+
+  $ echo zephir > zephir
+  $ hg add zephir
+  $ hg debugpathcomplete -a
+  zephir
+  $ hg debugpathcomplete -n
+  .hgtags
+  fee
+  fie
+  fo
+  $ hg debugpathcomplete -n -r
+  .hgtags
+  Fum
+  fee
+  fie
+  fo
+  $ hg debugpathcomplete
+  .hgtags
+  Fum
+  fee
+  fie
+  fo
+  zephir
+
 Test debugnamecomplete
 
   $ hg debugnamecomplete
