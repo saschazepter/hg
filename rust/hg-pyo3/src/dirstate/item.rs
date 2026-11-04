@@ -94,8 +94,8 @@ impl DirstateItem {
     }
 
     #[getter]
-    fn size(&self) -> PyResult<i32> {
-        Ok(self.read()?.size())
+    fn v1_size(&self) -> PyResult<i32> {
+        Ok(self.read()?.v1_size())
     }
 
     #[getter]

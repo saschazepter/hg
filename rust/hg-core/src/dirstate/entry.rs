@@ -510,7 +510,12 @@ impl DirstateEntry {
         }
     }
 
-    fn v1_size(&self) -> i32 {
+    /// The size the dirstate-v1 format records for this entry
+    ///
+    /// The recorded size of the clean version of the file, or a sentinel of
+    /// that format: -1 without one or for an added file, -2 for a file from
+    /// p2, 0 for a removed one.
+    pub fn v1_size(&self) -> i32 {
         if !self.any_tracked() {
             // TODO: return an Option instead?
             panic!("Accessing v1_size of an untracked DirstateEntry")
@@ -557,11 +562,6 @@ impl DirstateEntry {
         } else {
             MTIME_UNSET
         }
-    }
-
-    // TODO: return Option?
-    pub fn size(&self) -> i32 {
-        self.v1_size()
     }
 
     // TODO: return Option?
@@ -745,7 +745,7 @@ impl DirstateEntry {
     /// Returns a `(state, mode, size, mtime)` tuple as for
     /// `DirstateMapMethods::debug_iter`.
     pub fn debug_tuple(&self) -> (u8, i32, i32, i32) {
-        (self.v1_state().into(), self.v1_mode(), self.size(), self.mtime())
+        (self.v1_state().into(), self.v1_mode(), self.v1_size(), self.mtime())
     }
 }
 

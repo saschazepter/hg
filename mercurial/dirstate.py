@@ -1770,7 +1770,7 @@ class dirstate(intdirstate.IDirstate):
 
             t = dget(fn)
             mode = t.v1_mode
-            size = t.size
+            size = t.v1_size
 
             if not st and t.tracked:
                 dadd(fn)

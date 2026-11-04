@@ -374,7 +374,13 @@ class DirstateItem(int_dirstate.IDirstateItem):
         return self._v1_mode()
 
     @property
-    def size(self):
+    def v1_size(self):
+        """The size the dirstate-v1 format records for this entry
+
+        The recorded size of the clean version of the file, or a sentinel of
+        that format: -1 without one or for an added file, -2 for a file from
+        p2, 0 for a removed one.
+        """
         return self._v1_size()
 
     @property

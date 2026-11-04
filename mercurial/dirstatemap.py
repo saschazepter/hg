@@ -398,7 +398,7 @@ class dirstatemap(_dirstatemapcommon):
                 filename,
                 item.v1_state,
                 item.v1_mode,
-                item.size,
+                item.v1_size,
                 item.mtime,
             )
 
