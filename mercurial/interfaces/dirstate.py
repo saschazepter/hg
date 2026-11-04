@@ -99,8 +99,12 @@ class IDirstateItem(Protocol):
 
     @property
     @abc.abstractmethod
-    def state(self) -> bytes:
-        """The dirstate-v1 state: one of b'n', b'm', b'r', b'a' or b'?'."""
+    def v1_state(self) -> bytes:
+        """The state the dirstate-v1 format records for this entry
+
+        One of b'n', b'm', b'r', b'a' or b'?'. This is a direct expression of
+        that format: use the semantic attributes instead.
+        """
 
     @property
     @abc.abstractmethod

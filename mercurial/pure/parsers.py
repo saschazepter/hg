@@ -399,17 +399,17 @@ class DirstateItem(int_dirstate.IDirstateItem):
             return self_ns == other_ns
 
     @property
-    def state(self) -> bytes:
-        """
+    def v1_state(self) -> bytes:
+        """The state the dirstate-v1 format records for this entry
+
         States are:
           n  normal
           m  needs merging
           r  marked for removal
           a  marked for addition
 
-        XXX This "state" is a bit obscure and mostly a direct expression of the
-        dirstatev1 format. It would make sense to ultimately deprecate it in
-        favor of the more "semantic" attributes.
+        This is a direct expression of the dirstate-v1 format: use the
+        semantic attributes (`tracked`, `added`, `removed`, ...) instead.
         """
         if not self.any_tracked:
             return b'?'

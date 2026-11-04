@@ -394,7 +394,7 @@ class dirstatemap(_dirstatemapcommon):
         `all` is unused when Rust is not enabled
         """
         for filename, item in self.items():
-            yield (filename, item.state, item.mode, item.size, item.mtime)
+            yield (filename, item.v1_state, item.mode, item.size, item.mtime)
 
     def keys(self):
         return self._map.keys()

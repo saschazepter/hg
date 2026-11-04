@@ -600,7 +600,7 @@ static PyObject *dirstate_item_get_mtime(dirstateItemObject *self)
 	return PyLong_FromLong(dirstate_item_c_v1_mtime(self));
 }
 
-static PyObject *dirstate_item_get_state(dirstateItemObject *self)
+static PyObject *dirstate_item_get_v1_state(dirstateItemObject *self)
 {
 	char state = dirstate_item_c_v1_state(self);
 	return PyBytes_FromStringAndSize(&state, 1);
@@ -782,7 +782,7 @@ static PyGetSetDef dirstate_item_getset[] = {
     {"mode", (getter)dirstate_item_get_mode, NULL, "mode", NULL},
     {"size", (getter)dirstate_item_get_size, NULL, "size", NULL},
     {"mtime", (getter)dirstate_item_get_mtime, NULL, "mtime", NULL},
-    {"state", (getter)dirstate_item_get_state, NULL, "state", NULL},
+    {"v1_state", (getter)dirstate_item_get_v1_state, NULL, "v1_state", NULL},
     {"has_fallback_exec", (getter)dirstate_item_get_has_fallback_exec, NULL,
      "has_fallback_exec", NULL},
     {"fallback_exec", (getter)dirstate_item_get_fallback_exec,

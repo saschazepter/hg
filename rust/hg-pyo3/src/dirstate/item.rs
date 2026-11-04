@@ -83,8 +83,8 @@ impl DirstateItem {
     }
 
     #[getter]
-    fn state(&self, py: Python) -> PyResult<Py<PyBytes>> {
-        let state_byte = self.read()?.state();
+    fn v1_state(&self, py: Python) -> PyResult<Py<PyBytes>> {
+        let state_byte = self.read()?.v1_state();
         Ok(PyBytes::new(py, &[state_byte.into()]).unbind())
     }
 

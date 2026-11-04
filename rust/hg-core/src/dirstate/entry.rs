@@ -478,7 +478,11 @@ impl DirstateEntry {
         self.flags.contains(Flags::EXPECTED_STATE_IS_MODIFIED)
     }
 
-    fn v1_state(&self) -> EntryState {
+    /// The state the dirstate-v1 format records for this entry
+    ///
+    /// This is a direct expression of that format: use the semantic methods
+    /// (`tracked`, `added`, `removed`, ...) instead.
+    pub fn v1_state(&self) -> EntryState {
         if !self.any_tracked() {
             // TODO: return an Option instead?
             panic!("Accessing v1_state of an untracked DirstateEntry")
@@ -549,11 +553,6 @@ impl DirstateEntry {
         } else {
             MTIME_UNSET
         }
-    }
-
-    // TODO: return `Option<EntryState>`? None when `!self.any_tracked`
-    pub fn state(&self) -> EntryState {
-        self.v1_state()
     }
 
     // TODO: return Option?
@@ -747,7 +746,7 @@ impl DirstateEntry {
     /// Returns a `(state, mode, size, mtime)` tuple as for
     /// `DirstateMapMethods::debug_iter`.
     pub fn debug_tuple(&self) -> (u8, i32, i32, i32) {
-        (self.state().into(), self.mode(), self.size(), self.mtime())
+        (self.v1_state().into(), self.mode(), self.size(), self.mtime())
     }
 }
 
