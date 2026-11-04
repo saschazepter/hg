@@ -365,7 +365,12 @@ class DirstateItem(int_dirstate.IDirstateItem):
             self._expected_state_is_modified = False
 
     @property
-    def mode(self):
+    def v1_mode(self):
+        """The mode the dirstate-v1 format records for this entry
+
+        The recorded mode of the clean version of the file, or 0 without one:
+        a direct expression of that format.
+        """
         return self._v1_mode()
 
     @property
@@ -564,9 +569,9 @@ class DirstateItem(int_dirstate.IDirstateItem):
             flags |= DIRSTATE_V2_P2_INFO
         if self._mode is not None and self._size is not None:
             flags |= DIRSTATE_V2_HAS_MODE_AND_SIZE
-            if self.mode & stat.S_IXUSR:
+            if self.v1_mode & stat.S_IXUSR:
                 flags |= DIRSTATE_V2_MODE_EXEC_PERM
-            if stat.S_ISLNK(self.mode):
+            if stat.S_ISLNK(self.v1_mode):
                 flags |= DIRSTATE_V2_MODE_IS_SYMLINK
         if self._mtime_s is not None:
             flags |= DIRSTATE_V2_HAS_MTIME

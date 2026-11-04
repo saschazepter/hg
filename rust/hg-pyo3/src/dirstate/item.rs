@@ -89,8 +89,8 @@ impl DirstateItem {
     }
 
     #[getter]
-    fn mode(&self) -> PyResult<i32> {
-        Ok(self.read()?.mode())
+    fn v1_mode(&self) -> PyResult<i32> {
+        Ok(self.read()?.v1_mode())
     }
 
     #[getter]

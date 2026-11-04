@@ -498,7 +498,11 @@ impl DirstateEntry {
         }
     }
 
-    fn v1_mode(&self) -> i32 {
+    /// The mode the dirstate-v1 format records for this entry
+    ///
+    /// The recorded mode of the clean version of the file, or 0 without one:
+    /// a direct expression of that format.
+    pub fn v1_mode(&self) -> i32 {
         if let Some((mode, _size)) = self.mode_size {
             i32::try_from(mode).unwrap()
         } else {
@@ -553,11 +557,6 @@ impl DirstateEntry {
         } else {
             MTIME_UNSET
         }
-    }
-
-    // TODO: return Option?
-    pub fn mode(&self) -> i32 {
-        self.v1_mode()
     }
 
     // TODO: return Option?
@@ -729,14 +728,14 @@ impl DirstateEntry {
         // outcomes when the file changes from file to symlink
         // (or back), but ideally the call site in `status.rs`
         // should become more aware of this.
-        let dirstate_kind = mode_to_file_kind(self.mode() as u32);
+        let dirstate_kind = mode_to_file_kind(self.v1_mode() as u32);
         let fs_kind = mode_to_file_kind(filesystem_metadata.mode());
         match (dirstate_kind, fs_kind) {
             (Some(kind1), Some(kind2)) => kind1 != kind2,
             _ => {
                 // We might hit this in weird fifo/socket/device cases,
                 // but more importantly we sometimes end up with
-                // `self.mode()` *not* including the file type bits.
+                // `self.v1_mode()` *not* including the file type bits.
                 // Not clear why this happens, but the test
                 // `test-sparse-profiles.t` reproduces that.
                 false
@@ -746,7 +745,7 @@ impl DirstateEntry {
     /// Returns a `(state, mode, size, mtime)` tuple as for
     /// `DirstateMapMethods::debug_iter`.
     pub fn debug_tuple(&self) -> (u8, i32, i32, i32) {
-        (self.v1_state().into(), self.mode(), self.size(), self.mtime())
+        (self.v1_state().into(), self.v1_mode(), self.size(), self.mtime())
     }
 }
 
