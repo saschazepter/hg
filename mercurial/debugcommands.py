@@ -3075,7 +3075,7 @@ def debugpathcomplete(ui, repo, *specs, **opts):
     Completion extends only to the next path segment unless
     --full is specified, in which case entire paths are used."""
 
-    def complete(path, acceptable):
+    def complete(path, accept):
         dirstate = repo.dirstate
         spec = os.path.normpath(os.path.join(encoding.getcwd(), path))
         rootdir = repo.root + pycompat.ossep
@@ -3091,8 +3091,8 @@ def debugpathcomplete(ui, repo, *specs, **opts):
         fullpaths = opts['full']
         files, dirs = set(), set()
         adddir, addfile = dirs.add, files.add
-        for f, st in dirstate.items():
-            if f.startswith(spec) and st.v1_state in acceptable:
+        for f, item in dirstate.items():
+            if f.startswith(spec) and accept(item):
                 if fixpaths:
                     f = f.replace(b'/', pycompat.ossep)
                 if fullpaths:
@@ -3112,13 +3112,19 @@ def debugpathcomplete(ui, repo, *specs, **opts):
         acceptable += b'a'
     if opts['removed']:
         acceptable += b'r'
+    if not acceptable:
+        acceptable = b'nmar'
+
+    def accept(item):
+        return item.v1_state in acceptable
+
     cwd = repo.getcwd()
     if not specs:
         specs = [b'.']
 
     files, dirs = set(), set()
     for spec in specs:
-        f, d = complete(spec, acceptable or b'nmar')
+        f, d = complete(spec, accept)
         files.update(f)
         dirs.update(d)
     files.update(dirs)
