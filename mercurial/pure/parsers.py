@@ -595,9 +595,9 @@ class DirstateItem(int_dirstate.IDirstateItem):
             flags |= DIRSTATE_V2_P2_INFO
         if self._mode is not None and self._size is not None:
             flags |= DIRSTATE_V2_HAS_MODE_AND_SIZE
-            if self.v1_mode & stat.S_IXUSR:
+            if self._mode & stat.S_IXUSR:
                 flags |= DIRSTATE_V2_MODE_EXEC_PERM
-            if stat.S_ISLNK(self.v1_mode):
+            if stat.S_ISLNK(self._mode):
                 flags |= DIRSTATE_V2_MODE_IS_SYMLINK
         if self._mtime_s is not None:
             flags |= DIRSTATE_V2_HAS_MTIME

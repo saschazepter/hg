@@ -281,27 +281,22 @@ static inline int dirstate_item_c_v1_mtime(dirstateItemObject *self)
 static PyObject *dirstate_item_v2_data(dirstateItemObject *self)
 {
 	int flags = self->flags;
-	int mode = dirstate_item_c_v1_mode(self);
-#ifdef S_IXUSR
-	/* This is for platforms with an exec bit */
-	if ((mode & S_IXUSR) != 0) {
-		flags |= dirstate_flag_mode_exec_perm;
-	} else {
-		flags &= ~dirstate_flag_mode_exec_perm;
-	}
-#else
 	flags &= ~dirstate_flag_mode_exec_perm;
+	flags &= ~dirstate_flag_mode_is_symlink;
+	if (self->flags & dirstate_flag_has_meaningful_data) {
+#ifdef S_IXUSR
+		/* This is for platforms with an exec bit */
+		if ((self->mode & S_IXUSR) != 0) {
+			flags |= dirstate_flag_mode_exec_perm;
+		}
 #endif
 #ifdef S_ISLNK
-	/* This is for platforms with support for symlinks */
-	if (S_ISLNK(mode)) {
-		flags |= dirstate_flag_mode_is_symlink;
-	} else {
-		flags &= ~dirstate_flag_mode_is_symlink;
-	}
-#else
-	flags &= ~dirstate_flag_mode_is_symlink;
+		/* This is for platforms with support for symlinks */
+		if (S_ISLNK(self->mode)) {
+			flags |= dirstate_flag_mode_is_symlink;
+		}
 #endif
+	}
 	return Py_BuildValue("iiii", flags, self->size, self->mtime_s,
 	                     self->mtime_ns);
 }
