@@ -970,15 +970,24 @@ impl<'tree, 'on_disk> StatusCommon<'_, 'tree, 'on_disk> {
             .expect("handle_normal_file called with entry-less node");
         let mode_changed =
             || self.options.check_exec && entry.mode_changed(&fs_metadata);
-        let size = entry.v1_size();
-        let size_changed = size != truncate_u64(fs_metadata.len());
-        if size >= 0 && size_changed && fs_metadata.file_type().is_symlink() {
+        // A file not matching the mode (exec bit) and size recorded for its
+        // clean version is modified. Without them, only the content can tell.
+        // The size of a file from p2 is not compared: it is modified anyway.
+        let size = match entry.mode_size() {
+            Some((_mode, size)) if !entry.is_from_other_parent() => Some(size),
+            _ => None,
+        };
+        let size_changed = size.is_some_and(|size| {
+            truncate_u64(size.into()) != truncate_u64(fs_metadata.len())
+        });
+        if size_changed && fs_metadata.file_type().is_symlink() {
             // issue6456: Size returned may be longer due to encryption
             // on EXT-4 fscrypt. TODO maybe only do it on EXT4?
             self.push_outcome(Outcome::Unsure, dirstate_node)?
         } else if dirstate_node.has_copy_source()
             || entry.is_from_other_parent()
-            || (size >= 0 && (size_changed || mode_changed()))
+            || size_changed
+            || (size.is_some() && mode_changed())
         {
             self.push_outcome(Outcome::Modified, dirstate_node)?
         } else {

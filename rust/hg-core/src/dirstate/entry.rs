@@ -738,14 +738,18 @@ impl DirstateEntry {
         // outcomes when the file changes from file to symlink
         // (or back), but ideally the call site in `status.rs`
         // should become more aware of this.
-        let dirstate_kind = mode_to_file_kind(self.v1_mode() as u32);
+        let Some((mode, _size)) = self.mode_size else {
+            // nothing recorded to compare the file with
+            return false;
+        };
+        let dirstate_kind = mode_to_file_kind(mode);
         let fs_kind = mode_to_file_kind(filesystem_metadata.mode());
         match (dirstate_kind, fs_kind) {
             (Some(kind1), Some(kind2)) => kind1 != kind2,
             _ => {
                 // We might hit this in weird fifo/socket/device cases,
                 // but more importantly we sometimes end up with
-                // `self.v1_mode()` *not* including the file type bits.
+                // the recorded mode *not* including the file type bits.
                 // Not clear why this happens, but the test
                 // `test-sparse-profiles.t` reproduces that.
                 false
