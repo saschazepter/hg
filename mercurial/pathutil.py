@@ -357,7 +357,7 @@ class dirs(int_misc.IDirs):
         addpath = self.addpath
         if isinstance(map, dict) and only_tracked:
             for f, s in map.items():
-                if s.v1_state != b'r':
+                if s.tracked:
                     addpath(f)
         elif only_tracked:
             msg = b"`only_tracked` is only supported with a dict source"
