@@ -399,7 +399,7 @@ class dirstatemap(_dirstatemapcommon):
                 item.v1_state,
                 item.v1_mode,
                 item.v1_size,
-                item.mtime,
+                item.v1_mtime,
             )
 
     def keys(self):

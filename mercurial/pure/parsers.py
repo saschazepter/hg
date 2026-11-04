@@ -384,7 +384,14 @@ class DirstateItem(int_dirstate.IDirstateItem):
         return self._v1_size()
 
     @property
-    def mtime(self):
+    def v1_mtime(self):
+        """The mtime the dirstate-v1 format records for this entry
+
+        The seconds of the recorded mtime when that format can use them, and
+        otherwise its sentinels: -1 when the next status cannot trust the
+        mtime (none recorded, ambiguous second, file from p2 or not in p1,
+        expected to be modified), 0 for a removed file.
+        """
         return self._v1_mtime()
 
     def mtime_likely_equal_to(self, other_mtime):

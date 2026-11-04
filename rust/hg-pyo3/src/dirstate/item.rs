@@ -99,8 +99,8 @@ impl DirstateItem {
     }
 
     #[getter]
-    fn mtime(&self) -> PyResult<i32> {
-        Ok(self.read()?.mtime())
+    fn v1_mtime(&self) -> PyResult<i32> {
+        Ok(self.read()?.v1_mtime())
     }
 
     #[getter]

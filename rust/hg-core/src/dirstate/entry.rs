@@ -537,7 +537,13 @@ impl DirstateEntry {
         }
     }
 
-    fn v1_mtime(&self) -> i32 {
+    /// The mtime the dirstate-v1 format records for this entry
+    ///
+    /// The seconds of the recorded mtime when that format can use them, and
+    /// otherwise its sentinels: -1 when the next status cannot trust the
+    /// mtime (none recorded, ambiguous second, file from p2 or not in p1,
+    /// expected to be modified), 0 for a removed file.
+    pub fn v1_mtime(&self) -> i32 {
         if !self.any_tracked() {
             // TODO: return an Option instead?
             panic!("Accessing v1_mtime of an untracked DirstateEntry")
@@ -562,11 +568,6 @@ impl DirstateEntry {
         } else {
             MTIME_UNSET
         }
-    }
-
-    // TODO: return Option?
-    pub fn mtime(&self) -> i32 {
-        self.v1_mtime()
     }
 
     pub fn get_fallback_exec(&self) -> Option<bool> {
@@ -745,7 +746,12 @@ impl DirstateEntry {
     /// Returns a `(state, mode, size, mtime)` tuple as for
     /// `DirstateMapMethods::debug_iter`.
     pub fn debug_tuple(&self) -> (u8, i32, i32, i32) {
-        (self.v1_state().into(), self.v1_mode(), self.v1_size(), self.mtime())
+        (
+            self.v1_state().into(),
+            self.v1_mode(),
+            self.v1_size(),
+            self.v1_mtime(),
+        )
     }
 }
 
