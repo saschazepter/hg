@@ -1051,6 +1051,8 @@ Test list of internal help commands
                  return 0 if run with rhg 2 otherwise
    debug::link-revs
                  Show stored link-revs information for a revlog
+   debug::narrow-fingerprint
+                 print the shape fingerprint of the narrowspec read from stdin
    debug::python
                  Call the Python interpreter used by this Mercurial
    debug::revlog-reencoded-delta-info

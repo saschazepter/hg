@@ -5479,3 +5479,24 @@ def debugisancestor(ui, repo, rev1, rev2, **opts):
 def debug_is_this_hg(ui):
     """return 0 if run with rhg 2 otherwise"""
     return 2
+
+
+@command(
+    b'debug::narrow-fingerprint',
+    [],
+    norepo=True,
+)
+def debug_narrow_fingerprint(ui):
+    """print the shape fingerprint of the narrowspec read from stdin
+
+    Temporary debug command to help the transition from old narrow to new
+    shape-based narrow.
+    """
+    spec = ui.fin.read()
+    if not spec:
+        raise error.Abort(_(b'empty narrowspec given'))
+    includes, excludes = narrowspec.parseconfig(ui, spec)
+    fingerprint = shape_mod.fingerprint_for_patterns(includes, excludes)
+    if fingerprint is None:
+        raise error.Abort(_(b'only "path:" patterns can be fingerprinted'))
+    ui.write(b'%s\n' % fingerprint.to_text())
