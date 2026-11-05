@@ -255,6 +255,8 @@ a hand written value is not ours to delete
 
   $ hg config --del alias.config-set-hand-written
   note: no managed value for 'alias.config-set-hand-written'
+  warning: 'alias.config-set-hand-written' is still defined by $TESTTMP/*:4 (glob)
+  (clean your manual config to drop 'alias.config-set-hand-written')
   (nothing to delete in $TESTTMP/home/.hgrc-managed) (no-windows !)
   (nothing to delete in $TESTTMP\home\mercurial-managed.ini) (windows !)
 
@@ -742,3 +744,94 @@ level.
   $ hg config --debug --set alias.config-set-test-K=from-set \
   >     --config alias.config-set-test-K=from-cli | grep shadowed
   new value for 'alias.config-set-test-K' is shadowed by --config
+
+Warning when the value we delete is not the one in use
+======================================================
+
+Dropping a value that something else hides changes nothing the user can
+see, so the definition that keeps winning is reported, as it is on a write.
+
+still defined by a value written by hand
+----------------------------------------
+
+  $ hg config --del alias.config-set-test-hand
+  warning: 'alias.config-set-test-hand' is still defined by $TESTTMP/*:6 (glob)
+  (clean your manual config to drop 'alias.config-set-test-hand')
+  $ hg config alias.config-set-test-hand
+  hand-written
+
+no managed value, and a definition in use all the same
+------------------------------------------------------
+
+There is nothing to delete, and the value the user sees does not change
+either, as it would have hidden a managed value too.
+
+  $ cat >> $USER_RC <<EOF
+  > [alias]
+  > config-set-test-hand-only = hand-written
+  > EOF
+
+  $ hg config --del alias.config-set-test-hand-only
+  note: no managed value for 'alias.config-set-test-hand-only'
+  warning: 'alias.config-set-test-hand-only' is still defined by $TESTTMP/*:8 (glob)
+  (clean your manual config to drop 'alias.config-set-test-hand-only')
+  (nothing to delete in $TESTTMP/home/.hgrc-managed) (no-windows !)
+  (nothing to delete in $TESTTMP\home\mercurial-managed.ini) (windows !)
+
+  $ hg config alias.config-set-test-hand-only
+  hand-written
+
+still defined by an %include-d file
+-----------------------------------
+
+  $ hg config --del alias.config-set-test-M
+  warning: 'alias.config-set-test-M' is still defined by $TESTTMP/home/team.rc:2 (glob)
+  (clean your manual config to drop 'alias.config-set-test-M')
+  $ hg config alias.config-set-test-M
+  team-value
+
+no warning with --quiet
+-----------------------
+
+  $ hg config --set alias.config-set-test-M=user-value
+  warning: new value for 'alias.config-set-test-M' is shadowed by $TESTTMP/home/team.rc:2 (glob)
+  (clean your manual config to use --set on 'alias.config-set-test-M')
+  $ hg config --quiet --del alias.config-set-test-M
+
+still defined by another level of configuration
+-----------------------------------------------
+
+The repository value is untouched by a deletion at the user level, so this
+is a note pointing at the flag that deletes at that level.
+
+  $ hg -R repo config --del alias.config-set-test-I
+  note: 'alias.config-set-test-I' is still defined by $TESTTMP/repo/.hg/hgrc-managed:5 (glob)
+  (use --local to delete 'alias.config-set-test-I' at that level)
+  $ hg -R repo config alias.config-set-test-I
+  local-i
+  $ hg config alias.config-set-test-I
+  [1]
+
+still defined by an environment variable
+----------------------------------------
+
+The value does leave the file, but the variable keeps short circuiting the
+configuration wherever that item is read, so nothing changes in practice.
+
+  $ HGMERGE=celeste-merge hg config --del ui.merge
+  warning: 'ui.merge' is still defined by $HGMERGE
+  (unset $HGMERGE to use --del on 'ui.merge')
+  $ hg config ui.merge
+  [1]
+
+shadowed by a --config override
+-------------------------------
+
+The override goes away with the command, so the deletion does take effect
+and the shadowing is only mentioned at debug level.
+
+  $ hg config --debug --del alias.config-set-test-K \
+  >     --config alias.config-set-test-K=from-cli | grep 'still defined'
+  'alias.config-set-test-K' is still defined by --config
+  $ hg config alias.config-set-test-K
+  [1]

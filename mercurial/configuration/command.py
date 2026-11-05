@@ -296,32 +296,46 @@ def delete_config(
         managed_content = vfs.tryread(managed_file)
         if managed_content:
             cfg.parse(b'<managed>', managed_content)
-        unknown = []
-        removed = False
+        dropped = set()
         for section, key in keys:
             if cfg.remove_item(section, key):
-                removed = True
-            else:
-                unknown.append((section, key))
-        if removed:
+                dropped.add((section, key))
+        if dropped:
             managed_content = _MANAGED_HEADER + cfg.serialize()
             vfs.write(managed_file, managed_content, atomictemp=True)
         # the base file keeps including the managed one, even if it no longer
         # holds any value, as the next write would put the include back.
 
-    # Nothing to delete is not a failure, `--del` got us where the user asked
-    # to be, so this is only worth a note. The file we looked into is named
-    # once, after all of them.
-    if unknown and not ui.quiet:
-        for section, key in unknown:
-            msg = _(b"note: no managed value for '%s.%s'\n")
-            ui.warn(msg % (section, key))
-        managed_path = os.path.normpath(vfs.join(managed_file))
+    managed_path = os.path.normpath(vfs.join(managed_file))
+    base_path = os.path.normpath(vfs.join(base_file))
+    boundaries = _higher_level_boundaries(repo, level)
+    missing = False
+    for section, key in keys:
+        if (section, key) not in dropped:
+            # Nothing to delete is not a failure, `--del` got us where the
+            # user asked to be, so this is only worth a note. The definition
+            # in use is still reported below: it would have hidden a managed
+            # value too, so it is what the user has to deal with.
+            missing = True
+            if not ui.quiet:
+                msg = _(b"note: no managed value for '%s.%s'\n")
+                ui.warn(msg % (section, key))
+        shadowing = ui.find_config_write_shadow(
+            section,
+            key,
+            managed_path,
+            base_path,
+            higher_level_boundaries=boundaries,
+        )
+        # no value of ours is in play any more, hence the None
+        _report_if_shadowed(ui, section, key, None, shadowing)
+    # the file we looked into is named once, after all of them
+    if missing and not ui.quiet:
         ui.warn(_(b"(nothing to delete in %s)\n") % managed_path)
     return 0
 
 
-# the `hg config --set` flag writing at a given configuration level
+# the `hg config` flag acting at a given configuration level
 #
 # the user level is the default one and has no flag of its own.
 _LEVEL_FLAGS: dict[ConfigLevelT, bytes] = {
