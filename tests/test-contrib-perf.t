@@ -7,7 +7,8 @@ Set vars:
 
 Prepare repo:
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo this is file a > a
   $ hg add a
