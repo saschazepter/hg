@@ -1,5 +1,5 @@
 
-  $ cat > unix2mac.py <<EOF
+  $ cat > $TESTTMP/unix2mac.py <<EOF
   > import sys
   > 
   > for path in sys.argv[1:]:
@@ -7,7 +7,8 @@
   >     data = data.replace(b'\n', b'\r')
   >     open(path, 'wb').write(data)
   > EOF
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo '[hooks]' >> .hg/hgrc
   $ echo 'pretxncommit.cr = python:hgext.win32text.forbidcr' >> .hg/hgrc
   $ echo 'pretxnchangegroup.cr = python:hgext.win32text.forbidcr' >> .hg/hgrc
@@ -20,7 +21,7 @@
   $ hg add f
   $ hg ci -m 1
 
-  $ "$PYTHON" unix2mac.py f
+  $ "$PYTHON" $TESTTMP/unix2mac.py f
   $ hg ci -m 2
   attempt to commit or push text file(s) using CR line endings
   in dea860dc51ec: f
