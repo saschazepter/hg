@@ -1,5 +1,11 @@
 This test tries to exercise the ssh functionality with a dummy script
 
+work in a sub-directory, this test turns its root into a repository to hide
+the outer one
+
+  $ mkdir repo
+  $ cd repo
+
 creating 'remote' repo
 
   $ hg init remote
@@ -26,31 +32,31 @@ configure for serving
   > uncompressed = True
   > 
   > [hooks]
-  > changegroup = sh -c "printenv.py --line changegroup-in-remote 0 ../dummylog"
+  > changegroup = sh -c "printenv.py --line changegroup-in-remote 0 $TESTTMP_FORWARD_SLASH/dummylog"
   > EOF
-  $ cd $TESTTMP
+  $ cd $TESTTMP/repo
 
 repo not found error
 
-  $ hg clone ssh://user@dummy/nonexistent local
-  remote: abort: no repository found in 'nonexistent' (.hg not found)!
+  $ hg clone ssh://user@dummy/repo/nonexistent local
+  remote: abort: no repository found in 'repo/nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
-  $ hg clone -q ssh://user@dummy/nonexistent local
-  remote: abort: no repository found in 'nonexistent' (.hg not found)!
+  $ hg clone -q ssh://user@dummy/repo/nonexistent local
+  remote: abort: no repository found in 'repo/nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 
 non-existent absolute path
 
   $ hg clone ssh://user@dummy/`pwd`/nonexistent local
-  remote: abort: no repository found in '$TESTTMP/nonexistent' (.hg not found)!
+  remote: abort: no repository found in '$TESTTMP/repo/nonexistent' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 
 clone remote via stream
 
-  $ hg clone --stream ssh://user@dummy/remote local-stream
+  $ hg clone --stream ssh://user@dummy/repo/remote local-stream
   streaming all changes
   * files to transfer, * bytes of data (glob)
   stream-cloned * bytes in * seconds (* */sec) (glob)
@@ -60,12 +66,12 @@ clone remote via stream
   $ hg verify -q
   $ hg branches
   default                        0:1160648e36ce
-  $ cd $TESTTMP
+  $ cd $TESTTMP/repo
 
 clone bookmarks via stream
 
   $ hg -R local-stream book mybook
-  $ hg clone --stream ssh://user@dummy/local-stream stream2
+  $ hg clone --stream ssh://user@dummy/repo/local-stream stream2
   streaming all changes
   * files to transfer, * of data (glob)
   stream-cloned * files / * in * seconds (*) (glob)
@@ -74,12 +80,12 @@ clone bookmarks via stream
   $ cd stream2
   $ hg book
      mybook                    0:1160648e36ce
-  $ cd $TESTTMP
+  $ cd $TESTTMP/repo
   $ rm -rf local-stream stream2
 
 clone remote via pull
 
-  $ hg clone ssh://user@dummy/remote local
+  $ hg clone ssh://user@dummy/repo/remote local
   requesting all changes
   adding changesets
   adding manifests
@@ -95,23 +101,23 @@ verify
   $ hg verify -q
   $ cat >> .hg/hgrc <<EOF
   > [hooks]
-  > changegroup = sh -c "printenv.py changegroup-in-local 0 ../dummylog"
+  > changegroup = sh -c "printenv.py changegroup-in-local 0 $TESTTMP_FORWARD_SLASH/dummylog"
   > EOF
 
 empty default pull
 
   $ hg paths
-  default = ssh://user@dummy/remote
+  default = ssh://user@dummy/repo/remote
   $ hg pull
-  pulling from ssh://user@dummy/remote
+  pulling from ssh://user@dummy/repo/remote
   searching for changes
   no changes found
 
 pull from wrong ssh URL
 
-  $ hg pull ssh://user@dummy/doesnotexist
-  pulling from ssh://user@dummy/doesnotexist
-  remote: abort: no repository found in 'doesnotexist' (.hg not found)!
+  $ hg pull ssh://user@dummy/repo/doesnotexist
+  pulling from ssh://user@dummy/repo/doesnotexist
+  remote: abort: no repository found in 'repo/doesnotexist' (.hg not found)!
   abort: no suitable response from remote hg
   [255]
 
@@ -122,12 +128,12 @@ local change
 
 updating rc
 
-  $ echo "default-push = ssh://user@dummy/remote" >> .hg/hgrc
+  $ echo "default-push = ssh://user@dummy/repo/remote" >> .hg/hgrc
 
 find outgoing
 
-  $ hg out ssh://user@dummy/remote
-  comparing with ssh://user@dummy/remote
+  $ hg out ssh://user@dummy/repo/remote
+  comparing with ssh://user@dummy/repo/remote
   searching for changes
   changeset:   3:a28a9d1a809c
   tag:         tip
@@ -139,8 +145,8 @@ find outgoing
 
 find incoming on the remote side
 
-  $ hg incoming -R ../remote ssh://user@dummy/local
-  comparing with ssh://user@dummy/local
+  $ hg incoming -R ../remote ssh://user@dummy/repo/local
+  comparing with ssh://user@dummy/repo/local
   searching for changes
   changeset:   3:a28a9d1a809c
   tag:         tip
@@ -153,7 +159,7 @@ find incoming on the remote side
 find incoming on the remote side (using absolute path)
 
   $ hg incoming -R ../remote "ssh://user@dummy/`pwd`"
-  comparing with ssh://user@dummy/$TESTTMP/local
+  comparing with ssh://user@dummy/$TESTTMP/repo/local
   searching for changes
   changeset:   3:a28a9d1a809c
   tag:         tip
@@ -166,13 +172,13 @@ find incoming on the remote side (using absolute path)
 push
 
   $ hg push
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   remote: adding changesets
   remote: adding manifests
   remote: adding file changes
   remote: added 1 changesets with 1 changes to 1 files
-  $ cd $TESTTMP/remote
+  $ cd $TESTTMP/repo/remote
 
 check remote tip
 
@@ -193,44 +199,44 @@ check remote tip
 
 test pushkeys and bookmarks
 
-  $ cd $TESTTMP/local
-  $ hg debugpushkey ssh://user@dummy/remote namespaces
+  $ cd $TESTTMP/repo/local
+  $ hg debugpushkey ssh://user@dummy/repo/remote namespaces
   bookmarks	
   namespaces	
   phases	
   $ hg book foo -r 0
   $ hg out -B --config paths.default=bogus://invalid --config paths.default:pushurl=`hg paths default`
-  comparing with ssh://user@dummy/remote
+  comparing with ssh://user@dummy/repo/remote
   searching for changed bookmarks
      foo                       1160648e36ce
   $ hg push -B foo
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   no changes found
   exporting bookmark foo
   [1]
-  $ hg debugpushkey ssh://user@dummy/remote bookmarks
+  $ hg debugpushkey ssh://user@dummy/repo/remote bookmarks
   foo	1160648e36cec0054048a7edc4110c6f84fde594
   $ hg book -f foo
   $ hg push --traceback
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   no changes found
   updating bookmark foo
   [1]
   $ hg book -d foo
   $ hg in -B
-  comparing with ssh://user@dummy/remote
+  comparing with ssh://user@dummy/repo/remote
   searching for changed bookmarks
      foo                       a28a9d1a809c
   $ hg book -f -r 0 foo
   $ hg pull -B foo
-  pulling from ssh://user@dummy/remote
+  pulling from ssh://user@dummy/repo/remote
   no changes found
   updating bookmark foo
   $ hg book -d foo
   $ hg push -B foo
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   no changes found
   deleting remote bookmark foo
@@ -238,13 +244,13 @@ test pushkeys and bookmarks
 
 a bad, evil hook that prints to stdout
 
-  $ cat <<EOF > $TESTTMP/badhook
+  $ cat <<EOF > $TESTTMP/repo/badhook
   > import sys
   > sys.stdout.write("KABOOM\n")
   > sys.stdout.flush()
   > EOF
 
-  $ cat <<EOF > $TESTTMP/badpyhook.py
+  $ cat <<EOF > $TESTTMP/repo/badpyhook.py
   > import sys
   > def hook(ui, repo, hooktype, **kwargs):
   >     sys.stdout.write("KABOOM IN PROCESS\n")
@@ -253,8 +259,8 @@ a bad, evil hook that prints to stdout
 
   $ cat <<EOF >> ../remote/.hg/hgrc
   > [hooks]
-  > changegroup.stdout = "$PYTHON" $TESTTMP/badhook
-  > changegroup.pystdout = python:$TESTTMP/badpyhook.py:hook
+  > changegroup.stdout = "$PYTHON" $TESTTMP/repo/badhook
+  > changegroup.pystdout = python:$TESTTMP/repo/badpyhook.py:hook
   > EOF
   $ echo r > r
   $ hg ci -A -m z r
@@ -262,7 +268,7 @@ a bad, evil hook that prints to stdout
 push should succeed even though it has an unexpected response
 
   $ hg push
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   remote has heads on branch 'default' that are not known locally: 6c0482d977a3
   remote: adding changesets
@@ -297,7 +303,7 @@ try again with remote chg, which should succeed as well
   $ . "$TESTDIR/testlib/helpers-chg.sh"
 
   $ hg push --config ui.remotecmd="$TESTTMP/chg-wrapper/chg"
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   remote has heads on branch 'default' that are not known locally: 6c0482d977a3
   remote: adding changesets
@@ -314,7 +320,7 @@ clone bookmarks
   $ hg -R ../remote bookmark test
   $ hg -R ../remote bookmarks
    * test                      4:6c0482d977a3
-  $ hg clone ssh://user@dummy/remote local-bookmarks
+  $ hg clone ssh://user@dummy/repo/remote local-bookmarks
   requesting all changes
   adding changesets
   adding manifests
@@ -330,33 +336,33 @@ passwords in ssh urls are not supported
 (we use a glob here because different Python versions give different
 results here)
 
-  $ hg push ssh://user:erroneouspwd@dummy/remote
-  pushing to ssh://user:*@dummy/remote (glob)
+  $ hg push ssh://user:erroneouspwd@dummy/repo/remote
+  pushing to ssh://user:*@dummy/repo/remote (glob)
   abort: password in URL not supported
   [255]
 
-  $ cd $TESTTMP
+  $ cd $TESTTMP/repo
 
 hide outer repo
   $ hg init
 
 Test remote paths with spaces (issue2983):
 
-  $ hg init "ssh://user@dummy/a repo"
-  $ touch "$TESTTMP/a repo/test"
+  $ hg init "ssh://user@dummy/repo/a repo"
+  $ touch "$TESTTMP/repo/a repo/test"
   $ hg -R 'a repo' commit -A -m "test"
   adding test
   $ hg -R 'a repo' tag tag
-  $ hg id "ssh://user@dummy/a repo"
+  $ hg id "ssh://user@dummy/repo/a repo"
   73649e48688a
 
-  $ hg id "ssh://user@dummy/a repo#noNoNO"
+  $ hg id "ssh://user@dummy/repo/a repo#noNoNO"
   abort: unknown revision 'noNoNO'
   [255]
 
 Test (non-)escaping of remote paths with spaces when cloning (issue3145):
 
-  $ hg clone "ssh://user@dummy/a repo"
+  $ hg clone "ssh://user@dummy/repo/a repo"
   destination directory: a repo
   abort: destination 'a repo' is not empty
   [10]
@@ -404,21 +410,22 @@ parameters:
   > userhost="\$1"
   > SSH_ORIGINAL_COMMAND="\$2"
   > export SSH_ORIGINAL_COMMAND
+  > cd "$TESTTMP"
   > PYTHONPATH="$PYTHONPATH"
   > export PYTHONPATH
-  > "$PYTHON" "$TESTDIR/../contrib/hg-ssh" "$TESTTMP/a repo"
+  > "$PYTHON" "$TESTDIR/../contrib/hg-ssh" "$TESTTMP/repo/a repo"
   > EOF
 
-  $ hg id --ssh "sh ssh.sh" "ssh://user@dummy/a repo"
+  $ hg id --ssh "sh ssh.sh" "ssh://user@dummy/repo/a repo"
   73649e48688a
 
-  $ hg id --ssh "sh ssh.sh" "ssh://user@dummy/a'repo"
-  remote: Illegal repository "$TESTTMP/a'repo"
+  $ hg id --ssh "sh ssh.sh" "ssh://user@dummy/repo/a'repo"
+  remote: Illegal repository "$TESTTMP/repo/a'repo"
   abort: no suitable response from remote hg
   [255]
 
-  $ hg id --ssh "sh ssh.sh" --remotecmd hacking "ssh://user@dummy/a'repo"
-  remote: Illegal command "hacking -R 'a'\''repo' serve --stdio"
+  $ hg id --ssh "sh ssh.sh" --remotecmd hacking "ssh://user@dummy/repo/a'repo"
+  remote: Illegal command "hacking -R 'repo/a'\''repo' serve --stdio"
   abort: no suitable response from remote hg
   [255]
 
@@ -430,9 +437,9 @@ Test the path's suboption for remote command
 
   $ cat << EOF >> .hg/hgrc
   > [paths]
-  > foo-base = ssh://user@dummy/a repo
+  > foo-base = ssh://user@dummy/repo/a repo
   > foo-base:remote-cmd=
-  > foo-hacking = ssh://user@dummy/a repo
+  > foo-hacking = ssh://user@dummy/repo/a repo
   > foo-hacking:remote-cmd=hacking
   > EOF
 
@@ -440,49 +447,49 @@ Test the path's suboption for remote command
   73649e48688a
 
   $ hg id --ssh "sh ssh.sh" foo-hacking
-  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  remote: Illegal command "hacking -R 'repo/a repo' serve --stdio"
   abort: no suitable response from remote hg
   [255]
 
   $ hg pull --ssh "sh ssh.sh" foo-hacking
-  pulling from ssh://user@dummy/a%20repo
-  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  pulling from ssh://user@dummy/repo/a%20repo
+  remote: Illegal command "hacking -R 'repo/a repo' serve --stdio"
   abort: no suitable response from remote hg
   [255]
 
   $ hg incoming --ssh "sh ssh.sh" foo-hacking
-  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  remote: Illegal command "hacking -R 'repo/a repo' serve --stdio"
   abort: no suitable response from remote hg
   [255]
 
   $ hg push --ssh "sh ssh.sh" foo-hacking
-  pushing to ssh://user@dummy/a%20repo
-  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  pushing to ssh://user@dummy/repo/a%20repo
+  remote: Illegal command "hacking -R 'repo/a repo' serve --stdio"
   abort: no suitable response from remote hg
   [255]
 
   $ hg outgoing --ssh "sh ssh.sh" foo-hacking
-  comparing with ssh://user@dummy/a%20repo
-  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  comparing with ssh://user@dummy/repo/a%20repo
+  remote: Illegal command "hacking -R 'repo/a repo' serve --stdio"
   abort: no suitable response from remote hg
   [255]
 
 test that remote command is preserved on clone
 
-  $ hg clone ssh://user@dummy/local --remotecmd=$HGTEST_REAL_HG --quiet clone-rcmd
+  $ hg clone ssh://user@dummy/repo/local --remotecmd=$HGTEST_REAL_HG --quiet clone-rcmd
   $ hg paths -R clone-rcmd
-  default = ssh://user@dummy/local
+  default = ssh://user@dummy/repo/local
   default:remote-cmd = $HGTEST_REAL_HG
   $ hg pull -R clone-rcmd
-  pulling from ssh://user@dummy/local
+  pulling from ssh://user@dummy/repo/local
   searching for changes
   no changes found
 
 With both form of the option
 
-  $ hg clone ssh://user@dummy/local --remote-cmd=$HGTEST_REAL_HG --quiet clone-rcmd-dash
+  $ hg clone ssh://user@dummy/repo/local --remote-cmd=$HGTEST_REAL_HG --quiet clone-rcmd-dash
   $ hg paths -R clone-rcmd-dash
-  default = ssh://user@dummy/local
+  default = ssh://user@dummy/repo/local
   default:remote-cmd = $HGTEST_REAL_HG
 
 Test hg-ssh in read-only mode:
@@ -491,12 +498,13 @@ Test hg-ssh in read-only mode:
   > userhost="\$1"
   > SSH_ORIGINAL_COMMAND="\$2"
   > export SSH_ORIGINAL_COMMAND
+  > cd "$TESTTMP"
   > PYTHONPATH="$PYTHONPATH"
   > export PYTHONPATH
-  > "$PYTHON" "$TESTDIR/../contrib/hg-ssh" --read-only "$TESTTMP/remote"
+  > "$PYTHON" "$TESTDIR/../contrib/hg-ssh" --read-only "$TESTTMP/repo/remote"
   > EOF
 
-  $ hg clone --ssh "sh ssh.sh" "ssh://user@dummy/$TESTTMP/remote" read-only-local
+  $ hg clone --ssh "sh ssh.sh" "ssh://user@dummy/$TESTTMP/repo/remote" read-only-local
   requesting all changes
   adding changesets
   adding manifests
@@ -517,7 +525,7 @@ Test hg-ssh in read-only mode:
   abort: push failed on remote
   [100]
 
-  $ cd $TESTTMP
+  $ cd $TESTTMP/repo
 
 stderr from remote commands should be printed before stdout from local code (issue4336)
 
@@ -540,7 +548,7 @@ stderr from remote commands should be printed before stdout from local code (iss
 
   $ cat >> .hg/hgrc << EOF
   > [paths]
-  > default-push = ssh://user@dummy/remote
+  > default-push = ssh://user@dummy/repo/remote
   > [extensions]
   > localwrite = localwrite.py
   > EOF
@@ -548,7 +556,7 @@ stderr from remote commands should be printed before stdout from local code (iss
   $ echo localwrite > foo
   $ hg commit -m 'testing localwrite'
   $ hg push
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   remote: adding changesets
   remote: adding manifests
@@ -560,9 +568,9 @@ stderr from remote commands should be printed before stdout from local code (iss
 
 debug output
 
-  $ hg pull --debug ssh://user@dummy/remote --config devel.debug.peer-request=yes
-  pulling from ssh://user@dummy/remote
-  running .* ".*[/\\]dummyssh" ['"]user@dummy['"] ['"]hg -R remote serve --stdio['"] (re)
+  $ hg pull --debug ssh://user@dummy/repo/remote --config devel.debug.peer-request=yes
+  pulling from ssh://user@dummy/repo/remote
+  running .* ".*[/\\]dummyssh" ['"]user@dummy['"] ['"]hg -R repo/remote serve --stdio['"] (re)
   devel-peer-request: hello+between
   devel-peer-request:   pairs: 81 bytes
   sending hello command
@@ -601,21 +609,21 @@ debug output
   bundle2-input-bundle: 3 parts total
   checking for updated bookmarks
 
-  $ cd $TESTTMP
+  $ cd $TESTTMP/repo
 
-  $ cat dummylog
-  Got arguments 1:user@dummy 2:hg -R nonexistent serve --stdio
-  Got arguments 1:user@dummy 2:hg -R nonexistent serve --stdio
-  Got arguments 1:user@dummy 2:hg -R $TESTTMP/nonexistent serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R local-stream serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R doesnotexist serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R local serve --stdio
-  Got arguments 1:user@dummy 2:hg -R $TESTTMP/local serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
+  $ cat $TESTTMP/dummylog
+  Got arguments 1:user@dummy 2:hg -R repo/nonexistent serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/nonexistent serve --stdio
+  Got arguments 1:user@dummy 2:hg -R $TESTTMP/repo/nonexistent serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/local-stream serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/doesnotexist serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/local serve --stdio
+  Got arguments 1:user@dummy 2:hg -R $TESTTMP/repo/local serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
   changegroup-in-remote hook: HG_BUNDLE2=1
   HG_HOOKNAME=changegroup
   HG_HOOKTYPE=changegroup
@@ -626,15 +634,15 @@ debug output
   HG_TXNNAME=serve
   HG_URL=remote:ssh:$LOCALIP
   
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
   changegroup-in-remote hook: HG_BUNDLE2=1
   HG_HOOKNAME=changegroup
   HG_HOOKTYPE=changegroup
@@ -645,7 +653,7 @@ debug output
   HG_TXNNAME=serve
   HG_URL=remote:ssh:$LOCALIP
   
-  Got arguments 1:user@dummy 2:$TESTTMP/chg-wrapper/chg -R remote serve --stdio (chg !)
+  Got arguments 1:user@dummy 2:$TESTTMP/chg-wrapper/chg -R repo/remote serve --stdio (chg !)
   changegroup-in-remote hook: HG_BUNDLE2=1 (chg !)
   HG_HOOKNAME=changegroup (chg !)
   HG_HOOKTYPE=changegroup (chg !)
@@ -656,19 +664,19 @@ debug output
   HG_TXNNAME=serve (chg !)
   HG_URL=remote:ssh:$LOCALIP (chg !)
    (chg !)
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
-  Got arguments 1:user@dummy 2:hg init 'a repo'
-  Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
-  Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
-  Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
-  Got arguments 1:user@dummy 2:hg -R 'a repo' serve --stdio
-  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio (no-windows !)
-  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio (no-windows !)
-  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R local serve --stdio (no-windows !)
-  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R local serve --stdio (windows !)
-  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R local serve --stdio (windows !)
-  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R local serve --stdio (windows !)
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
+  Got arguments 1:user@dummy 2:hg init 'repo/a repo'
+  Got arguments 1:user@dummy 2:hg -R 'repo/a repo' serve --stdio
+  Got arguments 1:user@dummy 2:hg -R 'repo/a repo' serve --stdio
+  Got arguments 1:user@dummy 2:hg -R 'repo/a repo' serve --stdio
+  Got arguments 1:user@dummy 2:hg -R 'repo/a repo' serve --stdio
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R repo/local serve --stdio (no-windows !)
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R repo/local serve --stdio (no-windows !)
+  Got arguments 1:user@dummy 2:$HGTEST_REAL_HG -R repo/local serve --stdio (no-windows !)
+  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R repo/local serve --stdio (windows !)
+  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R repo/local serve --stdio (windows !)
+  Got arguments 1:user@dummy 2:'$HGTEST_REAL_HG' -R repo/local serve --stdio (windows !)
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
   changegroup-in-remote hook: HG_BUNDLE2=1
   HG_HOOKNAME=changegroup
   HG_HOOKTYPE=changegroup
@@ -679,26 +687,26 @@ debug output
   HG_TXNNAME=serve
   HG_URL=remote:ssh:$LOCALIP
   
-  Got arguments 1:user@dummy 2:hg -R remote serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/remote serve --stdio
 
 
 remote hook failure is attributed to remote
 
-  $ cat > $TESTTMP/failhook << EOF
+  $ cat > $TESTTMP/repo/failhook << EOF
   > def hook(ui, repo, **kwargs):
   >     ui.write(b'hook failure!\n')
   >     ui.flush()
   >     return 1
   > EOF
 
-  $ echo "pretxnchangegroup.fail = python:$TESTTMP/failhook:hook" >> remote/.hg/hgrc
+  $ echo "pretxnchangegroup.fail = python:$TESTTMP/repo/failhook:hook" >> remote/.hg/hgrc
 
-  $ hg -q clone ssh://user@dummy/remote hookout
+  $ hg -q clone ssh://user@dummy/repo/remote hookout
   $ cd hookout
   $ touch hookfailure
   $ hg -q commit -A -m 'remote hook failure'
   $ hg push
-  pushing to ssh://user@dummy/remote
+  pushing to ssh://user@dummy/repo/remote
   searching for changes
   remote: adding changesets
   remote: adding manifests
@@ -719,7 +727,7 @@ abort during pull is properly reported as such
   > crash = ${TESTDIR}/crashgetbundler.py
   > EOF
   $ hg pull
-  pulling from ssh://user@dummy/remote
+  pulling from ssh://user@dummy/repo/remote
   searching for changes
   remote: abort: this is an exercise
   abort: pull failed on remote
