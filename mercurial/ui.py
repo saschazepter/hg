@@ -1407,7 +1407,10 @@ class ui:
         if not user:
             raise error.Abort(
                 _(b'no username supplied'),
-                hint=_(b"use 'hg config --edit' " b'to set your username'),
+                hint=_(
+                    b"use 'hg config --set ui.username=NAME'"
+                    b' to set your username'
+                ),
             )
         if b"\n" in user:
             raise error.Abort(
