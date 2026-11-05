@@ -790,8 +790,43 @@ class ui:
             root = os.path.expanduser(b'~')
         self.fixconfig(root=root, section=section)
 
-        # the configuration object cannot know about these
+        return self._shadow_from_environment(section, name, shadowing)
 
+    def find_config_write_shadow(
+        self,
+        section,
+        name,
+        managed_file: bytes,
+        base_file: bytes,
+        higher_level_boundaries: Collection[_BoundaryT] = (),
+    ) -> conf_mod.Shadowing | None:
+        """report what hides a value written to `managed_file`
+
+        Same report as `register_config_write`, for a caller that writes no
+        value, like a deletion. The configuration this process loaded is
+        left alone.
+        """
+        self._tcfg.insert_source_before(managed_file, base_file)
+        self._ucfg.insert_source_before(managed_file, base_file)
+        shadowing = self._tcfg.find_shadow(
+            section,
+            name,
+            managed_file,
+            higher_level_boundaries=higher_level_boundaries,
+        )
+        return self._shadow_from_environment(section, name, shadowing)
+
+    def _shadow_from_environment(
+        self,
+        section,
+        name,
+        shadowing: conf_mod.Shadowing | None,
+    ) -> conf_mod.Shadowing | None:
+        """refine a shadow with what the configuration object cannot know
+
+        Return the shadowing passed in when nothing in the environment or on
+        the command line hides the value.
+        """
         # an environment variable the code reading that item looks up first,
         # it wins whatever the configuration holds
         env_var = rcutil.overriding_env_var(section, name)

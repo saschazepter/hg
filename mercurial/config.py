@@ -445,30 +445,76 @@ class config:
         # a source that spans multiple levels holds its own values at the
         # last one (the earlier ones cover what it includes).
         level = max(levels)
-        existing = self._get(section, item)
+        shadowing = self.find_shadow(
+            section,
+            item,
+            source,
+            higher_level_boundaries=higher_level_boundaries,
+        )
         # If an higher level value shadow the one we try to add, don't update
         # the config and return that value.
         #
         # Note: if a backup existed for this value that would be impacted by
         # this `set_at_source`, it will not be visible to `restore`.
-        if existing is None or existing[2] <= level:
+        if shadowing is None:
             self._set_item(section, item, value, source, level=level)
-            existing = None
-        else:
-            e_value, e_source, e_level = existing
-            status = conf_mod.SHADOW.SAME_LEVEL
-            config_level = None
-            # the boundaries come in read order, so the last one the
-            # definition sits after is the level it belongs to.
-            for lvl, boundary_source in higher_level_boundaries:
-                boundary = self._source_levels.get(_source_key(boundary_source))
-                if boundary is not None and e_level >= min(boundary):
-                    status = conf_mod.SHADOW.HIGHER_LEVEL
-                    config_level = lvl
-            existing = conf_mod.Shadowing(
-                e_value, e_source, status, config_level
-            )
-        return existing
+        return shadowing
+
+    def find_shadow(
+        self,
+        section: bytes,
+        item: bytes,
+        source: bytes,
+        higher_level_boundaries: Collection[_BoundaryT] = (),
+    ) -> conf_mod.Shadowing | None:
+        """return what hides a value defined by `source`, if anything
+
+        Anything read after `source` has precedence over what it defines, so
+        such a definition is reported, as a Shadowing object. Nothing is
+        installed in the config, see `set_at_source` for that.
+
+        `higher_level_boundaries` is used as in `set_at_source`.
+
+        >>> cfg = config()
+        >>> cfg.new_source()
+        >>> cfg.parse(
+        ...     b'user-rc',
+        ...     b'[one]\\n'
+        ...     b'key = from-user\\n',
+        ... )
+        >>> cfg.insert_source_before(b'user-rc-managed', b'user-rc')
+
+        A value read later hides what `source` defines:
+
+        >>> cfg.find_shadow(b'one', b'key', b'user-rc-managed')
+        Shadowing(b'from-user', b'user-rc:2', SHADOW.SAME_LEVEL, None)
+
+        Nothing is reported for an item no later source defines:
+
+        >>> cfg.find_shadow(b'one', b'other', b'user-rc-managed') is None
+        True
+        """
+        levels = self._source_levels.get(_source_key(source))
+        if levels is None:
+            msg = b'looking for a shadow on an unknown source: %s' % source
+            raise error.ProgrammingError(msg)
+        # a source that spans multiple levels holds its own values at the
+        # last one (the earlier ones cover what it includes).
+        level = max(levels)
+        existing = self._get(section, item)
+        if existing is None or existing[2] <= level:
+            return None
+        e_value, e_source, e_level = existing
+        status = conf_mod.SHADOW.SAME_LEVEL
+        config_level = None
+        # the boundaries come in read order, so the last one the definition
+        # sits after is the level it belongs to.
+        for lvl, boundary_source in higher_level_boundaries:
+            boundary = self._source_levels.get(_source_key(boundary_source))
+            if boundary is not None and e_level >= min(boundary):
+                status = conf_mod.SHADOW.HIGHER_LEVEL
+                config_level = lvl
+        return conf_mod.Shadowing(e_value, e_source, status, config_level)
 
     def _set_item(
         self,
