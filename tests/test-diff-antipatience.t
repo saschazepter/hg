@@ -10,7 +10,8 @@
 
 Test case that makes use of the weakness of patience diff algorithm
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   >>> open('a', 'wb').write(('\n'.join(list('a' + 'x' * 10 + 'u' + 'x' * 30 + 'a\n'))).encode('ascii')) and None
   $ hg commit -m 1 -A a
   >>> open('a', 'wb').write(('\n'.join(list('b' + 'x' * 30 + 'u' + 'x' * 10 + 'b\n'))).encode('ascii')) and None
