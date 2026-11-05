@@ -1,5 +1,10 @@
 Setting up test
 
+work in a sub-directory, this test turns its root into a repository to hide
+the outer one
+
+  $ mkdir repo
+  $ cd repo
   $ hg init test
   $ cd test
   $ echo 0 > afile
@@ -964,7 +969,7 @@ directory does not exist
   $ hg bundle --base 1 -r 3 ../update2bundled.hg
   1 changesets found
   $ hg strip -r 3
-  saved backup bundle to $TESTTMP/update2bundled/.hg/strip-backup/8bd3e1f196af-017e56d8-backup.hg
+  saved backup bundle to $TESTTMP/repo/update2bundled/.hg/strip-backup/8bd3e1f196af-017e56d8-backup.hg
   $ hg merge -R ../update2bundled.hg -r 3
   setting parent to node 8bd3e1f196af289b2b121be08031e76d7ae92098 that only exists in the bundle
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
