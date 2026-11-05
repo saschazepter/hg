@@ -425,15 +425,15 @@ impl Node {
         )
     }
 
-    pub(super) fn node_data(
+    pub(super) fn path_data(
         &self,
-    ) -> Result<dirstate_map::NodeData, DirstateV2ParseError> {
+    ) -> Result<dirstate_map::PathData, DirstateV2ParseError> {
         if self.has_entry() {
-            Ok(dirstate_map::NodeData::Entry(self.assume_entry()?))
+            Ok(dirstate_map::PathData::Entry(self.assume_entry()?))
         } else if let Some(mtime) = self.cached_directory_mtime()? {
-            Ok(dirstate_map::NodeData::CachedDirectory { mtime })
+            Ok(dirstate_map::PathData::CachedDirectory { mtime })
         } else {
-            Ok(dirstate_map::NodeData::None)
+            Ok(dirstate_map::PathData::None)
         }
     }
 
@@ -546,7 +546,7 @@ impl Node {
         Ok(dirstate_map::Node {
             children: dirstate_map::ChildNodes::OnDisk(self.children(on_disk)?),
             copy_source: self.copy_source(on_disk)?.map(Cow::Borrowed),
-            data: self.node_data()?,
+            data: self.path_data()?,
             descendants_with_entry_count: self
                 .descendants_with_entry_count
                 .get(),
@@ -864,10 +864,10 @@ impl Writer<'_, '_> {
             on_disk_nodes.push(match node {
                 NodeRef::InMemory(path, node) => {
                     let (flags, size, mtime) = match &node.data {
-                        dirstate_map::NodeData::Entry(entry) => {
+                        dirstate_map::PathData::Entry(entry) => {
                             Node::from_dirstate_entry(entry)
                         }
-                        dirstate_map::NodeData::CachedDirectory { mtime } => {
+                        dirstate_map::PathData::CachedDirectory { mtime } => {
                             // we currently never set a mtime if unknown file
                             // are present.
                             // So if we have a mtime for a directory, we know
@@ -886,7 +886,7 @@ impl Writer<'_, '_> {
                             }
                             (flags, 0.into(), (*mtime).into())
                         }
-                        dirstate_map::NodeData::None => (
+                        dirstate_map::PathData::None => (
                             Flags::DIRECTORY,
                             0.into(),
                             PackedTruncatedTimestamp::null(),

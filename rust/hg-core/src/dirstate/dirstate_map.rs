@@ -455,7 +455,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
     ) -> Result<Option<TruncatedTimestamp>, DirstateV2ParseError> {
         match self {
             NodeRef::InMemory(_path, node) => Ok(match node.data {
-                NodeData::CachedDirectory { mtime } => Some(mtime),
+                PathData::CachedDirectory { mtime } => Some(mtime),
                 _ => None,
             }),
             NodeRef::OnDisk(node) => node.cached_directory_mtime(),
@@ -480,7 +480,7 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
 /// Represents a file or a directory
 #[derive(Default, Debug)]
 pub(super) struct Node<'on_disk> {
-    pub(super) data: NodeData,
+    pub(super) data: PathData,
 
     pub(super) copy_source: Option<Cow<'on_disk, HgPath>>,
 
@@ -494,8 +494,11 @@ pub(super) struct Node<'on_disk> {
     pub(super) tracked_descendants_count: u32,
 }
 
+/// What the dirstate knows about a path: the entry of a file, the cached
+/// mtime of a directory, or nothing for a directory that only holds other
+/// paths
 #[derive(Debug, Default)]
-pub(super) enum NodeData {
+pub(super) enum PathData {
     Entry(DirstateEntry),
     CachedDirectory {
         mtime: TruncatedTimestamp,
@@ -504,21 +507,21 @@ pub(super) enum NodeData {
     None,
 }
 
-impl NodeData {
+impl PathData {
     fn has_entry(&self) -> bool {
-        matches!(self, NodeData::Entry(_))
+        matches!(self, PathData::Entry(_))
     }
 
     fn as_entry(&self) -> Option<&DirstateEntry> {
         match self {
-            NodeData::Entry(entry) => Some(entry),
+            PathData::Entry(entry) => Some(entry),
             _ => None,
         }
     }
 
     fn as_entry_mut(&mut self) -> Option<&mut DirstateEntry> {
         match self {
-            NodeData::Entry(entry) => Some(entry),
+            PathData::Entry(entry) => Some(entry),
             _ => None,
         }
     }
@@ -610,7 +613,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                     node.copy_source.is_none(),
                     "duplicate dirstate entry in read"
                 );
-                node.data = NodeData::Entry(*entry);
+                node.data = PathData::Entry(*entry);
                 node.copy_source = copy_source.map(Cow::Borrowed);
                 map.nodes_with_entry_count += 1;
                 if copy_source.is_some() {
@@ -797,13 +800,13 @@ impl<'on_disk> DirstateMap<'on_disk> {
             if set_parents_mtime
                 && let Some(parent_file_data) = parent_file_data_opt
                 && let Some(mtime) = parent_file_data.mtime
-                && let NodeData::CachedDirectory { .. } | NodeData::None =
+                && let PathData::CachedDirectory { .. } | PathData::None =
                     ancestor.data
             {
                 // Set this parent directory's mtime to the same as the target
                 // node's. This is only useful in the FUSE.
                 // See `DirstateEntryReset::set_parents_mtime`
-                ancestor.data = NodeData::CachedDirectory { mtime }
+                ancestor.data = PathData::CachedDirectory { mtime }
             }
             if !had_entry {
                 ancestor.descendants_with_entry_count += 1;
@@ -841,7 +844,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
                 ..Default::default()
             }
         };
-        node.data = NodeData::Entry(DirstateEntry::from_v2_data(v2_data));
+        node.data = PathData::Entry(DirstateEntry::from_v2_data(v2_data));
         if !had_entry {
             self.nodes_with_entry_count += 1;
         }
@@ -877,9 +880,9 @@ impl<'on_disk> DirstateMap<'on_disk> {
                 new = true;
                 e.set_tracked();
             }
-            node.data = NodeData::Entry(e)
+            node.data = PathData::Entry(e)
         } else {
-            node.data = NodeData::Entry(DirstateEntry::new_tracked());
+            node.data = PathData::Entry(DirstateEntry::new_tracked());
             self.nodes_with_entry_count += 1;
             new = true;
         };
@@ -909,7 +912,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             .expect("node should exist");
         let mut new_entry = old_entry;
         new_entry.set_untracked();
-        node.data = NodeData::Entry(new_entry);
+        node.data = PathData::Entry(new_entry);
         Ok(())
     }
 
@@ -937,7 +940,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             .expect("node should exist");
         let mut new_entry = old_entry;
         new_entry.set_clean(mode, size, mtime);
-        node.data = NodeData::Entry(new_entry);
+        node.data = PathData::Entry(new_entry);
         Ok(())
     }
 
@@ -960,7 +963,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             .as_entry_mut()
             .ok_or_else(|| DirstateError::path_not_found(filename))?;
         entry.set_state(mode, size, mtime, modified);
-        node.data = NodeData::Entry(*entry);
+        node.data = PathData::Entry(*entry);
         Ok(())
     }
 
@@ -978,7 +981,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             .expect("node should exist");
         let entry = node.data.as_entry_mut().expect("entry should exist");
         entry.set_possibly_dirty();
-        node.data = NodeData::Entry(*entry);
+        node.data = PathData::Entry(*entry);
         Ok(())
     }
 
@@ -997,7 +1000,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
             .as_entry_mut()
             .ok_or_else(|| DirstateError::path_not_found(filename))?;
         entry.drop_cache_info();
-        node.data = NodeData::Entry(*entry);
+        node.data = PathData::Entry(*entry);
         Ok(())
     }
 
@@ -1010,8 +1013,8 @@ impl<'on_disk> DirstateMap<'on_disk> {
             Some(node) => node,
             None => return Ok(()),
         };
-        if let NodeData::CachedDirectory { .. } = &node.data {
-            node.data = NodeData::None
+        if let PathData::CachedDirectory { .. } = &node.data {
+            node.data = PathData::None
         }
         Ok(())
     }
@@ -1027,9 +1030,9 @@ impl<'on_disk> DirstateMap<'on_disk> {
             None => return Ok(()),
         };
         match &node.data {
-            NodeData::Entry(_) => {} // Don’t overwrite an entry
-            NodeData::CachedDirectory { .. } | NodeData::None => {
-                node.data = NodeData::CachedDirectory { mtime }
+            PathData::Entry(_) => {} // Don’t overwrite an entry
+            PathData::CachedDirectory { .. } | PathData::None => {
+                node.data = PathData::CachedDirectory { mtime }
             }
         }
         Ok(())
@@ -1468,9 +1471,9 @@ impl OwningDirstateMap {
                     // Directory caches must be invalidated when removing a
                     // child node
                     if removed
-                        && let NodeData::CachedDirectory { .. } = &node.data
+                        && let PathData::CachedDirectory { .. } = &node.data
                     {
-                        node.data = NodeData::None
+                        node.data = PathData::None
                     }
                 } else {
                     return Ok(None);
@@ -1480,7 +1483,7 @@ impl OwningDirstateMap {
                 let was_tracked = entry.is_some_and(|entry| entry.tracked());
                 let had_entry = entry.is_some();
                 if had_entry {
-                    node.data = NodeData::None
+                    node.data = PathData::None
                 }
                 let mut had_copy_source = false;
                 if let Some(source) = &node.copy_source {
