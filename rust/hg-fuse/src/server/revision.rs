@@ -20,6 +20,7 @@ use hg::dirstate::dirstate_map::DirstateEntryReset;
 use hg::dirstate::dirstate_map::DirstateFuseExt;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
 use hg::dirstate::dirstate_map::FuseNodeInfo;
+use hg::dirstate::dirstate_map::PathData;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::Docket;
@@ -99,17 +100,17 @@ impl<T: FileToken> OwnedRevision<T> {
         // dirstate soon.
         let inner = &self.revision;
         // The iterator starts from the root nodes, which is what we want
-        inner.dirstate.debug_iter(true).par_bridge().for_each(|entry| {
-            let Ok((path, (type_byte, _, _, _))) = entry else {
+        inner.dirstate.debug_iter(true).par_bridge().for_each(|path_data| {
+            let Ok((path, data)) = path_data else {
                 return;
             };
             let Ok(path) = hg_path_to_path_buf(path) else {
                 return;
             };
-            if type_byte == b' ' {
-                Self::preload_directory(root.join(path));
-            } else {
+            if matches!(data, PathData::Entry(_)) {
                 _ = std::fs::symlink_metadata(root.join(path));
+            } else {
+                Self::preload_directory(root.join(path));
             }
         });
     }

@@ -756,16 +756,6 @@ impl DirstateEntry {
             }
         }
     }
-    /// Returns a `(state, mode, size, mtime)` tuple as for
-    /// `DirstateMapMethods::debug_iter`.
-    pub fn debug_tuple(&self) -> (u8, i32, i32, i32) {
-        (
-            self.v1_state().into(),
-            self.v1_mode(),
-            self.v1_size(),
-            self.v1_mtime(),
-        )
-    }
 }
 
 impl EntryState {

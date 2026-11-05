@@ -16,6 +16,7 @@ use hg::dirstate::StateMapIter;
 use hg::dirstate::dirstate_map::DirstateEntryReset;
 use hg::dirstate::dirstate_map::DirstateIdentity as CoreDirstateIdentity;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
+use hg::dirstate::dirstate_map::PathData;
 use hg::dirstate::entry::DirstateEntry;
 use hg::dirstate::entry::ParentFileData;
 use hg::dirstate::entry::TruncatedTimestamp;
@@ -472,9 +473,22 @@ impl DirstateMap {
             // performance issue, as this is a debug method.
             let as_vec: PyResult<Vec<_>> = inner
                 .debug_iter(all)
-                .map(|item| {
-                    let (path, (state, mode, size, mtime)) =
-                        item.map_err(|e| dirstate_error(slf.py(), e))?;
+                .map(|path_data| {
+                    let (path, data) =
+                        path_data.map_err(|e| dirstate_error(slf.py(), e))?;
+                    // the dirstate-v1 record of the path, until the Python
+                    // side reads the data itself
+                    let (state, mode, size, mtime) = match data {
+                        PathData::Entry(entry) => entry.v1_data(),
+                        PathData::CachedDirectory { mtime } => (
+                            b' ',
+                            0,
+                            -1,
+                            i32::try_from(mtime.truncated_seconds())
+                                .expect("a truncated mtime fits in 31 bits"),
+                        ),
+                        PathData::None => (b' ', 0, -1, -1),
+                    };
                     Ok((PyHgPathRef(path), state, mode, size, mtime))
                 })
                 .collect();

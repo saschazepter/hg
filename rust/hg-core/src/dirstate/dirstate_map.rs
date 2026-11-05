@@ -450,6 +450,17 @@ impl<'tree, 'on_disk> NodeRef<'tree, 'on_disk> {
         }
     }
 
+    /// What the dirstate knows about the path, as a `PathData`: the entry
+    /// of a file, the mtime a directory caches, or nothing. `entry` and
+    /// `cached_directory_mtime` each read one of these; this reads the node
+    /// once for a caller that has to tell the three apart.
+    fn data(&self) -> Result<PathData, DirstateV2ParseError> {
+        match self {
+            NodeRef::InMemory(_path, node) => Ok(node.data),
+            NodeRef::OnDisk(node) => node.path_data(),
+        }
+    }
+
     pub(super) fn cached_directory_mtime(
         &self,
     ) -> Result<Option<TruncatedTimestamp>, DirstateV2ParseError> {
@@ -497,8 +508,8 @@ pub(super) struct Node<'on_disk> {
 /// What the dirstate knows about a path: the entry of a file, the cached
 /// mtime of a directory, or nothing for a directory that only holds other
 /// paths
-#[derive(Debug, Default)]
-pub(super) enum PathData {
+#[derive(Debug, Default, Clone, Copy)]
+pub enum PathData {
     Entry(DirstateEntry),
     CachedDirectory {
         mtime: TruncatedTimestamp,
@@ -1282,7 +1293,13 @@ pub struct DirstateEntryReset<'a> {
     pub set_parents_mtime: bool,
 }
 
-type DebugDirstateTuple<'a> = (&'a HgPath, (u8, i32, i32, i32));
+/// The paths of the map with their data, as `debug_iter` yields them
+type DebugIter<'a> = Box<
+    dyn Iterator<Item = Result<(&'a HgPath, PathData), DirstateV2ParseError>>
+        + Send
+        + Sync
+        + 'a,
+>;
 
 impl OwningDirstateMap {
     pub fn clear(&mut self) {
@@ -1835,27 +1852,16 @@ impl OwningDirstateMap {
         })
     }
 
-    pub fn debug_iter(
-        &self,
-        all: bool,
-    ) -> Box<
-        dyn Iterator<
-                Item = Result<DebugDirstateTuple<'_>, DirstateV2ParseError>,
-            > + Send
-            + '_,
-    > {
+    /// Every path of the map with its data in one walk, or only the entries
+    /// without `all`
+    pub fn debug_iter(&self, all: bool) -> DebugIter<'_> {
         let map = self.get_map();
         Box::new(filter_map_results(map.iter_nodes(), move |node| {
-            let debug_tuple = if let Some(entry) = node.entry()? {
-                entry.debug_tuple()
-            } else if !all {
+            let data = node.data()?;
+            if !all && !matches!(data, PathData::Entry(_)) {
                 return Ok(None);
-            } else if let Some(mtime) = node.cached_directory_mtime()? {
-                (b' ', 0, -1, mtime.truncated_seconds() as i32)
-            } else {
-                (b' ', 0, -1, -1)
-            };
-            Ok(Some((node.full_path(map.on_disk)?, debug_tuple)))
+            }
+            Ok(Some((node.full_path(map.on_disk)?, data)))
         }))
     }
 }
