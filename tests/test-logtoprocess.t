@@ -6,7 +6,8 @@ Otherwise the test will be flaky.
 
 Test if logtoprocess correctly captures command-related log calls.
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ cat > $TESTTMP/foocommand.py << EOF
   > from mercurial import registrar
   > cmdtable = {}
@@ -87,7 +88,7 @@ Add a script that waits on a file to appear. If the script is awaited by hg,
 the script will die after the timeout before we could touch the file and the
 resulting file will not exist. If not, we will touch the file and see it.
 
-  $ cat >> fakepager.py <<EOF
+  $ cat >> $TESTTMP/fakepager.py <<EOF
   > import sys
   > printed = False
   > for line in sys.stdin:
