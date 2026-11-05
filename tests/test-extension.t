@@ -628,7 +628,8 @@ Even though the extension fails during uisetup, hg is still basically usable:
   $ cd ..
 
 hide outer repo
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ cat > empty.py <<EOF
   > '''empty cmdtable
@@ -1690,12 +1691,12 @@ Commands handling multiple repositories at a time should invoke only
   $ echo '# enable extension locally' >> src/.hg/hgrc
   $ echo "reposetuptest = $TESTTMP/reposetuptest.py" >> src/.hg/hgrc
   $ hg -R src status
-  reposetup() for $TESTTMP/reposetup-test/src
-  reposetup() for $TESTTMP/reposetup-test/src (chg !)
+  reposetup() for $TESTTMP/repo/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src (chg !)
 
 #if no-extraextensions
   $ hg --cwd src debugextensions
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src
   dodo (untested!)
   dudu (untested!)
   mq
@@ -1704,13 +1705,13 @@ Commands handling multiple repositories at a time should invoke only
 #endif
 
   $ hg clone -U src clone-dst1
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src
   $ hg init push-dst1
   $ hg -q -R src push push-dst1
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src
   $ hg init pull-src1
   $ hg -q -R pull-src1 pull src
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src
 
   $ cat <<EOF >> $HGRCPATH
   > [extensions]
@@ -1718,13 +1719,13 @@ Commands handling multiple repositories at a time should invoke only
   > reposetuptest = !
   > EOF
   $ hg clone -U src clone-dst2
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src
   $ hg init push-dst2
   $ hg -q -R src push push-dst2
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src
   $ hg init pull-src2
   $ hg -q -R pull-src2 pull src
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/src
 
   $ cat <<EOF >> $HGRCPATH
   > [extensions]
@@ -1732,32 +1733,32 @@ Commands handling multiple repositories at a time should invoke only
   > reposetuptest = $TESTTMP/reposetuptest.py
   > EOF
   $ hg clone -U src clone-dst3
-  reposetup() for $TESTTMP/reposetup-test/src
-  reposetup() for $TESTTMP/reposetup-test/clone-dst3
+  reposetup() for $TESTTMP/repo/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/clone-dst3
   $ hg init push-dst3
-  reposetup() for $TESTTMP/reposetup-test/push-dst3
+  reposetup() for $TESTTMP/repo/reposetup-test/push-dst3
   $ hg -q -R src push push-dst3
-  reposetup() for $TESTTMP/reposetup-test/src
-  reposetup() for $TESTTMP/reposetup-test/push-dst3
+  reposetup() for $TESTTMP/repo/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/push-dst3
   $ hg init pull-src3
-  reposetup() for $TESTTMP/reposetup-test/pull-src3
+  reposetup() for $TESTTMP/repo/reposetup-test/pull-src3
   $ hg -q -R pull-src3 pull src
-  reposetup() for $TESTTMP/reposetup-test/pull-src3
-  reposetup() for $TESTTMP/reposetup-test/src
+  reposetup() for $TESTTMP/repo/reposetup-test/pull-src3
+  reposetup() for $TESTTMP/repo/reposetup-test/src
 
   $ echo '[extensions]' >> src/.hg/hgrc
   $ echo '# disable extension locally' >> src/.hg/hgrc
   $ echo 'reposetuptest = !' >> src/.hg/hgrc
   $ hg clone -U src clone-dst4
-  reposetup() for $TESTTMP/reposetup-test/clone-dst4
+  reposetup() for $TESTTMP/repo/reposetup-test/clone-dst4
   $ hg init push-dst4
-  reposetup() for $TESTTMP/reposetup-test/push-dst4
+  reposetup() for $TESTTMP/repo/reposetup-test/push-dst4
   $ hg -q -R src push push-dst4
-  reposetup() for $TESTTMP/reposetup-test/push-dst4
+  reposetup() for $TESTTMP/repo/reposetup-test/push-dst4
   $ hg init pull-src4
-  reposetup() for $TESTTMP/reposetup-test/pull-src4
+  reposetup() for $TESTTMP/repo/reposetup-test/pull-src4
   $ hg -q -R pull-src4 pull src
-  reposetup() for $TESTTMP/reposetup-test/pull-src4
+  reposetup() for $TESTTMP/repo/reposetup-test/pull-src4
 
 disabling in command line overlays with all configuration
   $ hg --config extensions.reposetuptest=! clone -U src clone-dst5
@@ -1802,8 +1803,8 @@ disabling in command line overlays with all configuration
   $ echo "reposetuptest = $TESTTMP/reposetuptest.py" >> parent/.hg/hgrc
   $ cp parent/.hg/hgrc parent/sub2/.hg/hgrc
   $ hg -R parent status -S -A
-  reposetup() for $TESTTMP/reposetup-test/parent
-  reposetup() for $TESTTMP/reposetup-test/parent/sub2
+  reposetup() for $TESTTMP/repo/reposetup-test/parent
+  reposetup() for $TESTTMP/repo/reposetup-test/parent/sub2
   C .hgsub
   C .hgsubstate
   C sub1/1
@@ -1835,7 +1836,7 @@ Prohibit registration of commands that don't use @command (issue5137)
   > EOF
 
   $ hg deprecatedcmd > /dev/null
-  *** failed to import extension "deprecatedcmd" from $TESTTMP/deprecated/deprecatedcmd.py: missing attributes: norepo, optionalrepo, inferrepo
+  *** failed to import extension "deprecatedcmd" from $TESTTMP/repo/deprecated/deprecatedcmd.py: missing attributes: norepo, optionalrepo, inferrepo
   *** (use @command decorator to register 'deprecatedcmd')
   hg: unknown command 'deprecatedcmd'
   (use 'hg help' for a list of commands)
@@ -1844,7 +1845,7 @@ Prohibit registration of commands that don't use @command (issue5137)
  the extension shouldn't be loaded at all so the mq works:
 
   $ hg qseries --config extensions.mq= > /dev/null
-  *** failed to import extension "deprecatedcmd" from $TESTTMP/deprecated/deprecatedcmd.py: missing attributes: norepo, optionalrepo, inferrepo
+  *** failed to import extension "deprecatedcmd" from $TESTTMP/repo/deprecated/deprecatedcmd.py: missing attributes: norepo, optionalrepo, inferrepo
   *** (use @command decorator to register 'deprecatedcmd')
 
   $ cd ..
@@ -1898,21 +1899,21 @@ Check the mandatory extension feature
 -------------------------------------
 
   $ hg init mandatory-extensions
-  $ cat > $TESTTMP/mandatory-extensions/.hg/good.py << EOF
+  $ cat > $TESTTMP/repo/mandatory-extensions/.hg/good.py << EOF
   > pass
   > EOF
-  $ cat > $TESTTMP/mandatory-extensions/.hg/bad.py << EOF
+  $ cat > $TESTTMP/repo/mandatory-extensions/.hg/bad.py << EOF
   > raise RuntimeError("babar")
   > EOF
-  $ cat > $TESTTMP/mandatory-extensions/.hg/syntax.py << EOF
+  $ cat > $TESTTMP/repo/mandatory-extensions/.hg/syntax.py << EOF
   > def (
   > EOF
 
 Check that the good one load :
 
-  $ cat > $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
+  $ cat > $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
   > [extensions]
-  > good = $TESTTMP/mandatory-extensions/.hg/good.py
+  > good = $TESTTMP/repo/mandatory-extensions/.hg/good.py
   > EOF
 
   $ hg -R mandatory-extensions id
@@ -1920,7 +1921,7 @@ Check that the good one load :
 
 Make it mandatory to load
 
-  $ cat >> $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
+  $ cat >> $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
   > good:required = yes
   > EOF
 
@@ -1929,51 +1930,51 @@ Make it mandatory to load
 
 Check that the bad one does not load
 
-  $ cat >> $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
-  > bad = $TESTTMP/mandatory-extensions/.hg/bad.py
+  $ cat >> $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
+  > bad = $TESTTMP/repo/mandatory-extensions/.hg/bad.py
   > EOF
 
   $ hg -R mandatory-extensions id
-  *** failed to import extension "bad" from $TESTTMP/mandatory-extensions/.hg/bad.py: babar
+  *** failed to import extension "bad" from $TESTTMP/repo/mandatory-extensions/.hg/bad.py: babar
   000000000000 tip
 
 Make it mandatory to load
 
-  $ cat >> $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
+  $ cat >> $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
   > bad:required = yes
   > EOF
 
   $ hg -R mandatory-extensions id
-  abort: failed to import extension "bad" from $TESTTMP/mandatory-extensions/.hg/bad.py: babar
+  abort: failed to import extension "bad" from $TESTTMP/repo/mandatory-extensions/.hg/bad.py: babar
   (loading of this extension was required, see `hg help config.extensions` for details)
   [255]
 
 Make it not mandatory to load
 
-  $ cat >> $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
+  $ cat >> $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
   > bad:required = no
   > EOF
 
   $ hg -R mandatory-extensions id
-  *** failed to import extension "bad" from $TESTTMP/mandatory-extensions/.hg/bad.py: babar
+  *** failed to import extension "bad" from $TESTTMP/repo/mandatory-extensions/.hg/bad.py: babar
   000000000000 tip
 
 Same check with the syntax error one
 
-  $ cat >> $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
+  $ cat >> $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
   > bad = !
-  > syntax = $TESTTMP/mandatory-extensions/.hg/syntax.py
+  > syntax = $TESTTMP/repo/mandatory-extensions/.hg/syntax.py
   > syntax:required = yes
   > EOF
 
   $ hg -R mandatory-extensions id
-  abort: failed to import extension "syntax" from $TESTTMP/mandatory-extensions/.hg/syntax.py: invalid syntax (*syntax.py, line 1) (glob)
+  abort: failed to import extension "syntax" from $TESTTMP/repo/mandatory-extensions/.hg/syntax.py: invalid syntax (*syntax.py, line 1) (glob)
   (loading of this extension was required, see `hg help config.extensions` for details)
   [255]
 
 Same check with a missing one
 
-  $ cat >> $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
+  $ cat >> $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
   > syntax = !
   > syntax:required =
   > missing = foo/bar/baz/I/do/not/exist/
@@ -1987,17 +1988,17 @@ Same check with a missing one
 
 Have a "default" setting for the suboption:
 
-  $ cat > $TESTTMP/mandatory-extensions/.hg/hgrc << EOF
+  $ cat > $TESTTMP/repo/mandatory-extensions/.hg/hgrc << EOF
   > [extensions]
-  > bad = $TESTTMP/mandatory-extensions/.hg/bad.py
+  > bad = $TESTTMP/repo/mandatory-extensions/.hg/bad.py
   > bad:required = no
-  > good = $TESTTMP/mandatory-extensions/.hg/good.py
-  > syntax = $TESTTMP/mandatory-extensions/.hg/syntax.py
+  > good = $TESTTMP/repo/mandatory-extensions/.hg/good.py
+  > syntax = $TESTTMP/repo/mandatory-extensions/.hg/syntax.py
   > *:required = yes
   > EOF
 
   $ hg -R mandatory-extensions id
-  *** failed to import extension "bad" from $TESTTMP/mandatory-extensions/.hg/bad.py: babar
-  abort: failed to import extension "syntax" from $TESTTMP/mandatory-extensions/.hg/syntax.py: invalid syntax (*syntax.py, line 1) (glob)
+  *** failed to import extension "bad" from $TESTTMP/repo/mandatory-extensions/.hg/bad.py: babar
+  abort: failed to import extension "syntax" from $TESTTMP/repo/mandatory-extensions/.hg/syntax.py: invalid syntax (*syntax.py, line 1) (glob)
   (loading of this extension was required, see `hg help config.extensions` for details)
   [255]
