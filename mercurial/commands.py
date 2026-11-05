@@ -2149,6 +2149,12 @@ def _docommit(ui, repo, *pats, **opts):
             _(b'show all known config option (EXPERIMENTAL)'),
         ),
         (b'', b'set', [], _(b'set a config option value (EXPERIMENTAL)')),
+        (
+            b'',
+            b'del',
+            [],
+            _(b'delete a config option value (EXPERIMENTAL)'),
+        ),
         (b'e', b'edit', None, _(b'edit user config')),
         (b'l', b'local', None, _(b'edit repository config')),
         (b'', b'source', None, _(b'show source of configuration value')),
@@ -2207,7 +2213,7 @@ def config(ui, repo, *values, **opts):
     Returns 0 on success, 1 if NAME does not exist.
 
     """
-    cmdutil.check_at_most_one_arg(opts, 'edit', 'set')
+    cmdutil.check_at_most_one_arg(opts, 'edit', 'set', 'del')
     set_args = opts.get('set')
     if set_args:
         set_values = config_command.parse_config_args(set_args)
@@ -2215,6 +2221,13 @@ def config(ui, repo, *values, **opts):
         if set_level is None:
             set_level = configuration.LEVEL_USER
         return config_command.set_config(ui, repo, set_values, set_level)
+    del_args = opts.get('del')
+    if del_args:
+        del_keys = config_command.parse_config_keys(del_args)
+        del_level = config_command.find_edit_level(ui, repo, opts)
+        if del_level is None:
+            del_level = configuration.LEVEL_USER
+        return config_command.delete_config(ui, repo, del_keys, del_level)
     edit_level = config_command.find_edit_level(ui, repo, opts)
     if edit_level is not None:
         return config_command.edit_config(ui, repo, edit_level)

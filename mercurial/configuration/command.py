@@ -26,6 +26,7 @@ from .. import (
 )
 
 from . import (
+    ConfigKeyT,
     ConfigLevelT,
     ConfigSpecT,
     EDIT_LEVELS,
@@ -104,6 +105,18 @@ def parse_config_args(values: Collection[bytes]) -> Collection[ConfigSpecT]:
             hint = _(b'use --set section.name=value')
             raise error.InputError(msg % value_spec, hint=hint)
     return configs
+
+
+def parse_config_keys(values: Collection[bytes]) -> Collection[ConfigKeyT]:
+    keys = []
+    for key_spec in values:
+        try:
+            keys.append(configmod.parse_single_key(key_spec))
+        except ValueError:
+            msg = _(b'malformed --del option: \'%s\'')
+            hint = _(b'use --del section.name')
+            raise error.InputError(msg % key_spec, hint=hint)
+    return keys
 
 
 def _target_by_level(
@@ -251,6 +264,60 @@ def set_config(
                 higher_level_boundaries=boundaries,
             )
         _report_if_shadowed(ui, section, key, value, shadowing)
+    return 0
+
+
+def delete_config(
+    ui: uimod.ui,
+    repo,
+    keys: Collection[ConfigKeyT],
+    level: ConfigLevelT,
+) -> int:
+    """drop ``section.key`` from the managed configuration
+
+    Only the managed value is dropped, so a definition the user wrote by
+    hand, or one coming from another configuration level, is left alone and
+    still applies.
+    """
+
+    timeout = ui.configint(b'ui', b'timeout')
+    warntimeout = ui.configint(b'ui', b'timeout.warn')
+    vfs, base_file, managed_file = _target_by_level(repo, level)
+    # grab some lock so concurrent writes don't clobber each other.
+    with lockmod.trylock(
+        ui,
+        vfs,
+        CONFIG_LOCK_NAME,
+        timeout,
+        warntimeout,
+        desc=_(b'config update for %s') % base_file,
+    ):
+        cfg = configmod.config()
+        managed_content = vfs.tryread(managed_file)
+        if managed_content:
+            cfg.parse(b'<managed>', managed_content)
+        unknown = []
+        removed = False
+        for section, key in keys:
+            if cfg.remove_item(section, key):
+                removed = True
+            else:
+                unknown.append((section, key))
+        if removed:
+            managed_content = _MANAGED_HEADER + cfg.serialize()
+            vfs.write(managed_file, managed_content, atomictemp=True)
+        # the base file keeps including the managed one, even if it no longer
+        # holds any value, as the next write would put the include back.
+
+    # Nothing to delete is not a failure, `--del` got us where the user asked
+    # to be, so this is only worth a note. The file we looked into is named
+    # once, after all of them.
+    if unknown and not ui.quiet:
+        for section, key in unknown:
+            msg = _(b"note: no managed value for '%s.%s'\n")
+            ui.warn(msg % (section, key))
+        managed_path = os.path.normpath(vfs.join(managed_file))
+        ui.warn(_(b"(nothing to delete in %s)\n") % managed_path)
     return 0
 
 

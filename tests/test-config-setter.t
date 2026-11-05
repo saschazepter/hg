@@ -217,6 +217,101 @@ does not apply and the generic 255 exit code is used for InputError)
   (use --set section.name=value)
   [255]
 
+Deleting a value
+================
+
+dropping a value we wrote
+-------------------------
+
+`--del` drops the value, without touching the rest of the file:
+
+  $ hg config alias.config-set-test-E
+  value-e
+
+  $ hg config --del alias.config-set-test-E
+
+  $ hg config alias.config-set-test-E
+  [1]
+  $ cat $USER_AUTO_RC
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
+  [alias]
+  config-set-test-D = value-d
+
+the %include line stays
+-----------------------
+
+The next write would put it back anyway:
+
+  $ cat $USER_RC
+  %include .hgrc-managed (no-windows !)
+  %include mercurial-managed.ini (windows !)
+  [alias]
+  # a hand written comment
+  config-set-hand-written = value-hand
+
+a hand written value is not ours to delete
+------------------------------------------
+
+  $ hg config --del alias.config-set-hand-written
+  note: no managed value for 'alias.config-set-hand-written'
+  (nothing to delete in $TESTTMP/home/.hgrc-managed) (no-windows !)
+  (nothing to delete in $TESTTMP\home\mercurial-managed.ini) (windows !)
+
+  $ hg config alias.config-set-hand-written
+  value-hand
+
+deleting a value nobody ever set is harmless
+--------------------------------------------
+
+  $ hg config --del alias.config-set-test-unknown
+  note: no managed value for 'alias.config-set-test-unknown'
+  (nothing to delete in $TESTTMP/home/.hgrc-managed) (no-windows !)
+  (nothing to delete in $TESTTMP\home\mercurial-managed.ini) (windows !)
+
+the file we looked into is named once, after all the values
+-----------------------------------------------------------
+
+  $ hg config --del alias.config-set-test-unknown \
+  >            --del alias.config-set-test-other
+  note: no managed value for 'alias.config-set-test-unknown'
+  note: no managed value for 'alias.config-set-test-other'
+  (nothing to delete in $TESTTMP/home/.hgrc-managed) (no-windows !)
+  (nothing to delete in $TESTTMP\home\mercurial-managed.ini) (windows !)
+
+the notes go to stderr
+----------------------
+
+  $ hg config --del alias.config-set-test-unknown 2>/dev/null
+
+nothing is reported when the user asked for quiet
+-------------------------------------------------
+
+  $ hg config --quiet --del alias.config-set-test-unknown
+
+specifications are checked as they are for --set
+------------------------------------------------
+
+  $ hg config --del alias.config-set-test-D=value-d
+  abort: malformed --del option: 'alias.config-set-test-D=value-d'
+  (use --del section.name)
+  [255]
+  $ hg config --del alias
+  abort: malformed --del option: 'alias'
+  (use --del section.name)
+  [255]
+
+combining --set and --del is rejected
+-------------------------------------
+
+Setting and deleting the same value in the same command is weird and rejected
+(in practice combining --set and --del is rejected in all case for now. As this
+make things simpler. It could change in the future.)
+
+  $ hg config --set alias.config-set-test-D=value-d --del alias.config-set-test-D
+  abort: cannot specify both --set and --del
+  [255]
+
 Checking writing to the right level
 ===================================
 

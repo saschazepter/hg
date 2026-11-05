@@ -492,6 +492,40 @@ class config:
             self._data[section] = self._data[section].preparewrite()
         self._data[section][item] = (value, source, level)
 
+    def remove_item(self, section: bytes, item: bytes) -> bool:
+        """drop an item from the config, telling whether it was there
+
+        Important note:
+
+        Only this definition is dropped, so a value this one was
+        shadowing is not restored and will only be visible when the
+        configuration is read again.
+
+        This is a limitation of the current config implementation in Python.
+        Not design choice. The Rust implemention doesn't have the same
+        limitation. When the Rust config gain similar feature it should use the
+        more correct behavior of restoring previously shadowed value.
+
+        >>> cfg = config()
+        >>> cfg.set(b'one', b'key', b'value')
+        >>> cfg.remove_item(b'one', b'key')
+        True
+        >>> cfg.get(b'one', b'key') is None
+        True
+
+        Removing an unknown item is harmless:
+
+        >>> cfg.remove_item(b'one', b'key')
+        False
+        >>> cfg.remove_item(b'unknown', b'key')
+        False
+        """
+        if not self.hasitem(section, item):
+            return False
+        self._data[section] = self._data[section].preparewrite()
+        del self._data[section][item]
+        return True
+
     def alter(self, section: bytes, key: bytes, new_value: bytes) -> None:
         """alter a value without altering its source or level
 
