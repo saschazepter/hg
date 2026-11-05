@@ -3,7 +3,8 @@
 Tests whether or not hgwebdir properly handles various symlink topologies.
 
 hide outer repo
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ hg init a
   $ echo a > a/a
