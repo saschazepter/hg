@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ mkdir alpha
   $ touch alpha/one
