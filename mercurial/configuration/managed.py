@@ -8,6 +8,25 @@ from __future__ import annotations
 
 import os
 
+from typing import Collection
+
+from ..i18n import _
+from ..interfaces.types import (
+    HgPathT,
+    UiT,
+    VfsT,
+)
+
+from .. import (
+    config as configmod,
+    lock as lockmod,
+)
+
+from . import (
+    ConfigKeyT,
+    ConfigSpecT,
+)
+
 # machine writes go to "<hgrc><-suffix>[.<ext>]"
 SUFFIX = b'-managed'
 
@@ -15,6 +34,9 @@ HEADER = (
     b"# This file is managed by Mercurial, do not edit it by hand.\n"
     b"# Use `hg config --set` to change the values it holds.\n"
 )
+
+# edits are covered by a lock file in the same dir as the file we edit.
+LOCK_NAME = b'config.lock'
 
 
 def sibling(path: bytes) -> bytes:
@@ -54,3 +76,74 @@ def inject_include(base_content: bytes, target: bytes) -> bytes:
     if base_content and not base_content.endswith(b'\n'):
         base_content += b'\n'
     return include_line + b"\n" + base_content
+
+
+def _lock(ui: UiT, vfs: VfsT, base_file: HgPathT) -> lockmod.lock:
+    """take the lock covering writes to the configuration in `vfs`"""
+    timeout = ui.configint(b'ui', b'timeout')
+    warntimeout = ui.configint(b'ui', b'timeout.warn')
+    # grab some lock so concurrent writes don't clobber each other.
+    return lockmod.trylock(
+        ui,
+        vfs,
+        LOCK_NAME,
+        timeout,
+        warntimeout,
+        desc=_(b'config update for %s') % base_file,
+    )
+
+
+def write_values(
+    ui: UiT,
+    vfs: VfsT,
+    base_file: HgPathT,
+    values: Collection[ConfigSpecT],
+) -> None:
+    """store `(section, key, value)` items beside `base_file`
+
+    The file the user edits by hand is only touched to make sure it includes
+    the managed one, from its top, so its own content always wins.
+    """
+    managed_file = sibling(base_file)
+    with _lock(ui, vfs, base_file):
+        # write the new values in the machine-managed file…
+        cfg = configmod.config()
+        content = vfs.tryread(managed_file)
+        if content:
+            cfg.parse(b'<managed>', content)
+        for section, key, value in values:
+            cfg.set(section, key, value)
+        vfs.write(managed_file, HEADER + cfg.serialize(), atomictemp=True)
+
+        # … and make sure the base file pulls it in.
+        base_content = vfs.tryread(base_file)
+        new_content = inject_include(base_content, managed_file)
+        if new_content != base_content:
+            vfs.write(base_file, new_content, atomictemp=True)
+
+
+def drop_values(
+    ui: UiT,
+    vfs: VfsT,
+    base_file: HgPathT,
+    keys: Collection[ConfigKeyT],
+) -> set[ConfigKeyT]:
+    """drop `(section, key)` items from the managed file beside `base_file`
+
+    Return the items that had a managed value, the only ones we can drop.
+    """
+    managed_file = sibling(base_file)
+    dropped = set()
+    with _lock(ui, vfs, base_file):
+        cfg = configmod.config()
+        content = vfs.tryread(managed_file)
+        if content:
+            cfg.parse(b'<managed>', content)
+        for section, key in keys:
+            if cfg.remove_item(section, key):
+                dropped.add((section, key))
+        if dropped:
+            vfs.write(managed_file, HEADER + cfg.serialize(), atomictemp=True)
+        # the base file keeps including the managed one, even if it no longer
+        # holds any value, as the next write would put the include back.
+    return dropped

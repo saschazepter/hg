@@ -8,6 +8,7 @@ from typing import Any, Collection
 
 from ..i18n import _
 from ..interfaces.types import (
+    HgPathT,
     RepoT,
     VfsT,
 )
@@ -17,7 +18,6 @@ from .. import (
     config as configmod,
     error,
     formatter,
-    lock as lockmod,
     pycompat,
     requirements,
     ui as uimod,
@@ -84,10 +84,6 @@ def _files_by_level(repo) -> dict[ConfigLevelT, list[bytes]]:
     return rc_by_level
 
 
-# edits are covered by a lock file in the same dir as the file we edit.
-CONFIG_LOCK_NAME = b'config.lock'
-
-
 def parse_config_args(values: Collection[bytes]) -> Collection[ConfigSpecT]:
     configs = []
     for value_spec in values:
@@ -115,7 +111,7 @@ def parse_config_keys(values: Collection[bytes]) -> Collection[ConfigKeyT]:
 def _target_by_level(
     repo: RepoT,
     level: ConfigLevelT,
-) -> tuple[VfsT, bytes, bytes,]:
+) -> tuple[VfsT, HgPathT, HgPathT]:
     """return the vfs, and base file name and the managed file name
 
     create the associated directory if needed
@@ -182,33 +178,8 @@ def set_config(
     edits by hand is never rewritten, and its content always wins.
     """
 
-    timeout = ui.configint(b'ui', b'timeout')
-    warntimeout = ui.configint(b'ui', b'timeout.warn')
     vfs, base_file, managed_file = _target_by_level(repo, level)
-    # grab some lock so concurrent `--set` don't clobber each other's writes.
-    with lockmod.trylock(
-        ui,
-        vfs,
-        CONFIG_LOCK_NAME,
-        timeout,
-        warntimeout,
-        desc=_(b'config update for %s') % base_file,
-    ):
-        # write the new values in the machine-managed file…
-        cfg = configmod.config()
-        managed_content = vfs.tryread(managed_file)
-        if managed_content:
-            cfg.parse(b'<managed>', managed_content)
-        for section, key, value in values:
-            cfg.set(section, key, value)
-        managed_content = managed.HEADER + cfg.serialize()
-        vfs.write(managed_file, managed_content, atomictemp=True)
-
-        # … and make sure the base file pulls it in.
-        base_content = vfs.tryread(base_file)
-        new_content = managed.inject_include(base_content, managed_file)
-        if new_content != base_content:
-            vfs.write(base_file, new_content, atomictemp=True)
+    managed.write_values(ui, vfs, base_file, values)
 
     # reflect the new values in the configuration we already loaded, for
     # whatever runs later in this process (hooks, extensions, …)
@@ -267,31 +238,8 @@ def delete_config(
     still applies.
     """
 
-    timeout = ui.configint(b'ui', b'timeout')
-    warntimeout = ui.configint(b'ui', b'timeout.warn')
     vfs, base_file, managed_file = _target_by_level(repo, level)
-    # grab some lock so concurrent writes don't clobber each other.
-    with lockmod.trylock(
-        ui,
-        vfs,
-        CONFIG_LOCK_NAME,
-        timeout,
-        warntimeout,
-        desc=_(b'config update for %s') % base_file,
-    ):
-        cfg = configmod.config()
-        managed_content = vfs.tryread(managed_file)
-        if managed_content:
-            cfg.parse(b'<managed>', managed_content)
-        dropped = set()
-        for section, key in keys:
-            if cfg.remove_item(section, key):
-                dropped.add((section, key))
-        if dropped:
-            managed_content = managed.HEADER + cfg.serialize()
-            vfs.write(managed_file, managed_content, atomictemp=True)
-        # the base file keeps including the managed one, even if it no longer
-        # holds any value, as the next write would put the include back.
+    dropped = managed.drop_values(ui, vfs, base_file, keys)
 
     managed_path = os.path.normpath(vfs.join(managed_file))
     base_path = os.path.normpath(vfs.join(base_file))
