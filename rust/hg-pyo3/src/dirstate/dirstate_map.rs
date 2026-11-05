@@ -461,6 +461,13 @@ impl DirstateMap {
         Ok(dict.unbind())
     }
 
+    /// Every path of the map as `(path, file_item?, directory_mtime?)`,
+    ///
+    /// files will alway have a file_item entry. directory have it set to None,
+    /// and may have a `directory_mtime` entry if any mtime is cached.
+    ///
+    /// The directory mtime is expressed as `(seconds, nanoseconds,
+    /// second_ambiguous)`
     fn debug_iter(
         slf: &Bound<'_, Self>,
         py: Python,
@@ -476,20 +483,21 @@ impl DirstateMap {
                 .map(|path_data| {
                     let (path, data) =
                         path_data.map_err(|e| dirstate_error(slf.py(), e))?;
-                    // the dirstate-v1 record of the path, until the Python
-                    // side reads the data itself
-                    let (state, mode, size, mtime) = match data {
-                        PathData::Entry(entry) => entry.v1_data(),
+                    let (item, mtime) = match data {
+                        PathData::Entry(entry) => {
+                            (Some(DirstateItem::new_as_py(py, entry)?), None)
+                        }
                         PathData::CachedDirectory { mtime } => (
-                            b' ',
-                            0,
-                            -1,
-                            i32::try_from(mtime.truncated_seconds())
-                                .expect("a truncated mtime fits in 31 bits"),
+                            None,
+                            Some((
+                                mtime.truncated_seconds(),
+                                mtime.nanoseconds(),
+                                mtime.second_ambiguous,
+                            )),
                         ),
-                        PathData::None => (b' ', 0, -1, -1),
+                        PathData::None => (None, None),
                     };
-                    Ok((PyHgPathRef(path), state, mode, size, mtime))
+                    Ok((PyHgPathRef(path), item, mtime))
                 })
                 .collect();
             // `IntoPyObject` on `Vec` and `&[T]` gives  `PyList` or `PyBytes`

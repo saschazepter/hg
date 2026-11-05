@@ -388,19 +388,15 @@ class dirstatemap(_dirstatemapcommon):
     iteritems = items
 
     def debug_iter(self, all):
-        """
-        Return an iterator of (filename, state, mode, size, mtime) tuples
+        """Iterate over the paths of the dirstate as `(path, file?, dir?)`
 
-        `all` is unused when Rust is not enabled
+        files will alway have a file_item entry. directory have it set to None, and may have a
+        `directory_mtime` entry if any mtime is cached.
+
+        The directory mtime is expressed as `(seconds, nanoseconds, second_ambiguous)`
         """
         for filename, item in self.items():
-            yield (
-                filename,
-                item.v1_state,
-                item.v1_mode,
-                item.v1_size,
-                item.v1_mtime,
-            )
+            yield (filename, item, None)
 
     def keys(self):
         return self._map.keys()
@@ -791,12 +787,9 @@ if rustmod is not None:
             return self._map.copymap()
 
         def debug_iter(self, all):
-            """
-            Return an iterator of (filename, state, mode, size, mtime) tuples
+            """Iterate over the paths of the dirstate as `(path, file?, dir?)`
 
-            `all`: also include with `state == b' '` dirstate tree nodes that
-            don't have an associated `DirstateItem`.
-
+            See `dirstatemap.debug_iter`.
             """
             return self._map.debug_iter(all)
 

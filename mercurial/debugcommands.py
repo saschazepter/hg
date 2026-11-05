@@ -1104,7 +1104,22 @@ def debugstate(ui, repo, **opts):
 
     else:
         keyfunc = None  # sort by filename
-    entries = list(repo.dirstate._map.debug_iter(all=opts['all']))
+    entries = []
+    paths = repo.dirstate._map.debug_iter(all=opts['all'])
+    for filename, item, directory_mtime in paths:
+        if item is None:
+            # a directory, which the v1 format has no record for
+            state, mode, size = b' ', 0, -1
+            if directory_mtime is None:
+                mtime = -1
+            else:
+                mtime = directory_mtime[0]
+        else:
+            state = item.v1_state
+            mode = item.v1_mode
+            size = item.v1_size
+            mtime = item.v1_mtime
+        entries.append((filename, state, mode, size, mtime))
     entries.sort(key=keyfunc)
     for entry in entries:
         filename, state, mode, size, mtime = entry
