@@ -13,7 +13,8 @@ doesn't automatically convert it in every case.
 
 
 hide outer repo
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 Invalid syntax: no value
 
@@ -21,7 +22,7 @@ Invalid syntax: no value
   > novaluekey
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: novaluekey
+  config error at $TESTTMP/repo/.hg/hgrc:1: novaluekey
   [30]
 
 Invalid syntax: no key
@@ -30,7 +31,7 @@ Invalid syntax: no key
   > =nokeyvalue
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: =nokeyvalue
+  config error at $TESTTMP/repo/.hg/hgrc:1: =nokeyvalue
   [30]
 
 Test hint about invalid syntax from leading white space
@@ -39,7 +40,7 @@ Test hint about invalid syntax from leading white space
   >  key=value
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  key=value
+  config error at $TESTTMP/repo/.hg/hgrc:1: unexpected leading whitespace:  key=value
   [30]
 
   $ cat > .hg/hgrc << EOF
@@ -47,7 +48,7 @@ Test hint about invalid syntax from leading white space
   > key=value
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  [section]
+  config error at $TESTTMP/repo/.hg/hgrc:1: unexpected leading whitespace:  [section]
   [30]
 
 Reset hgrc
