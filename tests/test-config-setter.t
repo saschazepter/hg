@@ -5,6 +5,15 @@ Test changing config value from the command line
   $ BCK_HGRCPATH="$HGRCPATH"
   $ unset HGRCPATH
 
+This test writes to the user level configuration file, so it needs a home
+directory of its own, free of the test runner's own configuration.
+
+  $ HOME="$TESTTMP/home"
+  $ export HOME
+  $ USERPROFILE="$HOME"
+  $ export USERPROFILE
+  $ mkdir "$HOME"
+
 Show files involved
 ===================
 
@@ -20,23 +29,23 @@ Small helper to avoid unstable output depending of the host system.
 no repo
 
 #if windows
-  $ USER_RC="$TESTTMP\\mercurial.ini"
+  $ USER_RC="$HOME\\mercurial.ini"
   $ AUTO_BASENAME="mercurial-managed.ini"
-  $ USER_AUTO_RC="$TESTTMP\\$AUTO_BASENAME"
+  $ USER_AUTO_RC="$HOME\\$AUTO_BASENAME"
 #else
-  $ USER_RC="$TESTTMP/.hgrc"
+  $ USER_RC="$HOME/.hgrc"
   $ AUTO_BASENAME=".hgrc-managed"
-  $ USER_AUTO_RC="$TESTTMP/$AUTO_BASENAME"
+  $ USER_AUTO_RC="$HOME/$AUTO_BASENAME"
 #endif
 
 #if windows
   $ hg config --debug no.item
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: *\python*\mercurial.ini (glob)
-  read config from: $TESTTMP\mercurial.ini
-  read config from: $TESTTMP\.hgrc
-  read config from: $TESTTMP\mercurial.ini
-  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\home\mercurial.ini
+  read config from: $TESTTMP\home\.hgrc
+  read config from: $TESTTMP\home\mercurial.ini
+  read config from: $TESTTMP\home\.hgrc
   [1]
 #else
   $ hg config --debug no.item | filter_hgrcd
@@ -45,8 +54,8 @@ no repo
   read config from: /usr/etc/mercurial/hgrc (?)
   read config from: /etc/mercurial/hgrc
   read config from: /etc/mercurial/hgrc.d/XXX.rc (?)
-  read config from: $TESTTMP/.hgrc
-  read config from: $TESTTMP/.config/hg/hgrc
+  read config from: $TESTTMP/home/.hgrc
+  read config from: $TESTTMP/home/.config/hg/hgrc
 #endif
 
 
@@ -63,10 +72,10 @@ with repo
   $ hg -R repo config --debug no.item
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: *\python*\mercurial.ini (glob)
-  read config from: $TESTTMP\mercurial.ini
-  read config from: $TESTTMP\.hgrc
-  read config from: $TESTTMP\mercurial.ini
-  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\home\mercurial.ini
+  read config from: $TESTTMP\home\.hgrc
+  read config from: $TESTTMP\home\mercurial.ini
+  read config from: $TESTTMP\home\.hgrc
   read config from: $TESTTMP\repo\.hg\hgrc
   read config from: $TESTTMP\repo\.hg\hgrc-not-shared
   [1]
@@ -77,8 +86,8 @@ with repo
   read config from: /usr/etc/mercurial/hgrc (?)
   read config from: /etc/mercurial/hgrc
   read config from: /etc/mercurial/hgrc.d/XXX.rc (?)
-  read config from: $TESTTMP/.hgrc
-  read config from: $TESTTMP/.config/hg/hgrc
+  read config from: $TESTTMP/home/.hgrc
+  read config from: $TESTTMP/home/.config/hg/hgrc
   read config from: $TESTTMP/repo/.hg/hgrc
   read config from: $TESTTMP/repo/.hg/hgrc-not-shared
 #endif
@@ -91,10 +100,10 @@ with share
   $ hg -R share config --debug no.item
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: *\python*\mercurial.ini (glob)
-  read config from: $TESTTMP\mercurial.ini
-  read config from: $TESTTMP\.hgrc
-  read config from: $TESTTMP\mercurial.ini
-  read config from: $TESTTMP\.hgrc
+  read config from: $TESTTMP\home\mercurial.ini
+  read config from: $TESTTMP\home\.hgrc
+  read config from: $TESTTMP\home\mercurial.ini
+  read config from: $TESTTMP\home\.hgrc
   read config from: $TESTTMP\repo\.hg/hgrc
   read config from: $TESTTMP\share\.hg\hgrc
   read config from: $TESTTMP\share\.hg\hgrc-not-shared
@@ -106,8 +115,8 @@ with share
   read config from: /usr/etc/mercurial/hgrc (?)
   read config from: /etc/mercurial/hgrc
   read config from: /etc/mercurial/hgrc.d/XXX.rc (?)
-  read config from: $TESTTMP/.hgrc
-  read config from: $TESTTMP/.config/hg/hgrc
+  read config from: $TESTTMP/home/.hgrc
+  read config from: $TESTTMP/home/.config/hg/hgrc
   read config from: $TESTTMP/repo/.hg/hgrc
   read config from: $TESTTMP/share/.hg/hgrc
   read config from: $TESTTMP/share/.hg/hgrc-not-shared
@@ -382,7 +391,7 @@ value shadowed by an %include-d file
 The user file includes another one, read at a higher priority than the
 file itself.
 
-  $ cat > $TESTTMP/team.rc <<EOF
+  $ cat > $HOME/team.rc <<EOF
   > [alias]
   > config-set-test-M = team-value
   > EOF
@@ -392,7 +401,7 @@ file itself.
   $ TEST_ALIAS_NAME="config-set-test-M" hg \
   >     --config hooks.post-config=python:$TESTTMP/showlive.py:showlive \
   >     config --set alias.config-set-test-M=new-team-value
-  warning: new value for 'alias.config-set-test-M' is shadowed by $TESTTMP/team.rc:2 (glob)
+  warning: new value for 'alias.config-set-test-M' is shadowed by $TESTTMP/home/team.rc:2 (glob)
   (clean your manual config to use --set on 'alias.config-set-test-M')
   live value: team-value
   $ hg config alias.config-set-test-M
@@ -489,7 +498,7 @@ The user file includes it from further down, so it is read later. It is
 still the same configuration level, so the new value is useless.
 
   $ hg config --set alias.config-set-test-M=user-value
-  warning: new value for 'alias.config-set-test-M' is shadowed by $TESTTMP/team.rc:2 (glob)
+  warning: new value for 'alias.config-set-test-M' is shadowed by $TESTTMP/home/team.rc:2 (glob)
   (clean your manual config to use --set on 'alias.config-set-test-M')
   $ hg config alias.config-set-test-M
   team-value
