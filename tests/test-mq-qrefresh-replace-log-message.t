@@ -9,7 +9,8 @@ Environment setup for MQ
   > qrefresh = -d "0 0"
   > qfold = -d "0 0"
   > EOF
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ hg qinit
 
 Should fail if no patches applied
