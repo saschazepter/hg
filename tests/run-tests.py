@@ -1200,7 +1200,6 @@ class Test(unittest.TestCase):
         self.errpath = os.path.join(self._outputdir, b'%s.err' % self.bname)
 
         self._threadtmp = tmpdir
-        self._hgrcpath = os.path.join(self._threadtmp, b'.hgrc')
         self._keeptmpdir = keeptmpdir
         self._debug = debug
         self._first = first
@@ -1224,6 +1223,7 @@ class Test(unittest.TestCase):
         self._out = None
         self._skipped = None
         self._testtmp = None
+        self._hgrcpath = None
         self._chgsockdir = None
         self._forbid_skip = forbid_skip
 
@@ -1270,6 +1270,17 @@ class Test(unittest.TestCase):
 
         name = self._tmpname
         self._testtmp = os.path.join(self._threadtmp, name)
+        # $HOME is $TESTTMP, so this is also the user level configuration file.
+        # Using that file for HGRCPATH make the setup a bit more "standard"
+        # which cannot hurt in general and unlock the usage of managed config
+        # options. (e.g. hg config --set).
+        #
+        # We still point HGRCPATH to the same file as so many test rely the
+        # variable to configure things. This is a tradeoff taken in November
+        # 2026, during the Mercurial 7.3 cycle. This tradeoff can be challenged
+        # in the far future when all test (core and 3rd party extensions) would
+        # have hypothetically migrated.
+        self._hgrcpath = os.path.join(self._testtmp, b'.hgrc')
         os.mkdir(self._testtmp)
 
         # Remove any previous output files.
