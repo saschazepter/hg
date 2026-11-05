@@ -321,6 +321,97 @@ of current repo is still respected over the config which came from source config
 
   $ cd ../
 
+Unshare carries the managed values of the source over
+=====================================================
+
+A value written with `hg config --set` lives in a machine managed file,
+pulled in by an `%include` at the top of the configuration file. Unsharing
+copies the source configuration over, so the values the source holds in its
+managed file have to come along, and the copied `%include` must not be left
+behind, now that it resolves to our own managed file.
+
+Neither happens today, so the cases below use the usual markers to show the
+behavior we get next to the one we want.
+
+a share with managed values on both sides
+-----------------------------------------
+
+  $ cd $TESTTMP
+  $ hg init managed-source
+  $ hg share managed-source managed-share
+  updating working directory
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ hg -R managed-source config --local --set alias.from-source=source-value
+  $ hg -R managed-source config --local --set alias.both=source-value
+  $ cat >> managed-source/.hg/hgrc <<EOF
+  > [alias]
+  > hand-written = source-hand
+  > EOF
+  $ hg -R managed-share config --local --set alias.from-share=share-value
+  $ hg -R managed-share config --local --set alias.both=share-value
+
+The share reads both levels, its own value winning. The output is sorted, as
+only the values matter here, not the order they are read in:
+
+  $ hg -R managed-share config alias.both alias.from-share alias.from-source \
+  >    alias.hand-written | sort
+  alias.both=share-value
+  alias.from-share=share-value
+  alias.from-source=source-value
+  alias.hand-written=source-hand
+
+unsharing keeps every value in use
+----------------------------------
+
+The unshared repository should see the same values as the share did, with the
+same precedence: the ones it manages itself win over the ones it inherits.
+
+  $ hg -R managed-share unshare
+
+  $ hg -R managed-share config alias.both alias.from-share alias.from-source \
+  >    alias.hand-written | sort
+  alias.both=share-value
+  alias.from-share=share-value
+  alias.from-source=source-value (missing-correct-output !)
+  alias.hand-written=source-hand
+
+the values of the source land in our own managed file
+-----------------------------------------------------
+
+There is a single managed file left to hold them, and the values the share
+wrote itself should win over the ones it takes over from the source.
+
+  $ cat managed-share/.hg/hgrc-managed
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
+  [alias]
+  both = share-value
+  from-share = share-value
+  from-source = source-value (missing-correct-output !)
+
+a single include is left, at the top
+------------------------------------
+
+The copied configuration was written by hand, so it should keep winning over
+the managed values, which only one `%include` at the top can achieve.
+
+  $ cat managed-share/.hg/hgrc
+  %include hgrc-managed (missing-correct-output !)
+  # Config copied from shared source
+  %include hgrc-managed (known-bad-output !)
+  [alias]
+  hand-written = source-hand
+  
+  %include hgrc-managed (known-bad-output !)
+
+setting a value after the unshare still works
+---------------------------------------------
+
+  $ hg -R managed-share config --local --set alias.both=after-unshare
+  $ hg -R managed-share config alias.both
+  after-unshare
+
 Test that upgrading using debugupgraderepo works
 =================================================
 
