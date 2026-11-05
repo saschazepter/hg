@@ -312,6 +312,7 @@ r4 has hardlinks in the working dir (not just inside .hg):
   2 r4/.hg/dirstate
   2 r4/.hg/fsmonitor.state (fsmonitor !)
   2 r4/.hg/hgrc
+  2 r4/.hg/hgrc-managed
   2 r4/.hg/last-message.txt
   2 r4/.hg/requires
   2 r4/.hg/store/00changelog-7f2eb713.nd (rust !)
@@ -369,6 +370,7 @@ Update back to revision 12 in r4 should break hardlink of file f1 and f3:
   1 r4/.hg/dirstate
   1 r4/.hg/fsmonitor.state (fsmonitor !)
   2 r4/.hg/hgrc
+  2 r4/.hg/hgrc-managed
   2 r4/.hg/last-message.txt
   2 r4/.hg/requires
   2 r4/.hg/store/00changelog-7f2eb713.nd (rust !)

@@ -42,6 +42,7 @@ clone remote without extension
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat test/.hg/hgrc
+  %include hgrc-managed
   # example repository config (see 'hg help config' for more info)
   #
   # Values are written for this repository with `hg config --local --set` and
@@ -55,7 +56,12 @@ clone remote without extension
   # or a name and email local to this repository:
   #
   #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
-  
+
+The path we picked ourselves is a managed value:
+
+  $ cat test/.hg/hgrc-managed
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
   [paths]
   default = ssh://user@dummy/server
 
@@ -92,6 +98,7 @@ add extension
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat ./test-extended/.hg/hgrc
+  %include hgrc-managed
   # example repository config (see 'hg help config' for more info)
   #
   # Values are written for this repository with `hg config --local --set` and
@@ -105,12 +112,17 @@ add extension
   # or a name and email local to this repository:
   #
   #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
-  
-  [paths]
-  default = ssh://user@dummy/server
   # written by extension!
 
-The extension writing that file did not cost us the default path:
+The managed value survives the extension writing that file:
+
+  $ cat ./test-extended/.hg/hgrc-managed
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
+  [paths]
+  default = ssh://user@dummy/server
+
+The clone source is still usable as the default path:
 
   $ hg -R test-extended config paths.default
   ssh://user@dummy/server

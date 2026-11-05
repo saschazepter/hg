@@ -505,21 +505,22 @@ def clone(
 
         destrepo = destpeer.local()
         if destrepo:
-            template = uimod.samplehgrcs[b'cloned']
             u = urlutil.url(abspath)
             u.passwd = None
             defaulturl = bytes(u)
-            args = {
-                b"default-path": defaulturl,
-                b"remote-cmd-config": b"",
-            }
-            if srcpeer.path.remote_cmd is not None:
-                args[b"remote-cmd-config"] = (
-                    b"\ndefault:remote-cmd = " + src_path.remote_cmd
-                )
-            content = template % args
-            content = util.tonativeeol(content) + destrepo.vfs.tryread(b'hgrc')
+            # the commented guidance goes in the file the user edits…
+            template = uimod.samplehgrcs[b'cloned']
+            content = util.tonativeeol(template)
+            content += destrepo.vfs.tryread(b'hgrc')
             destrepo.vfs.write(b'hgrc', content)
+            # … while the paths we pick ourselves are managed values, so the
+            # user can change them with `hg config --set` later on.
+            values = [(b'paths', b'default', defaulturl)]
+            if srcpeer.path.remote_cmd is not None:
+                values.append(
+                    (b'paths', b'default:remote-cmd', src_path.remote_cmd)
+                )
+            managed.write_values(ui, destrepo.vfs, b'hgrc', values)
             destrepo.ui.setconfig(b'paths', b'default', defaulturl, b'clone')
 
             if ui.configbool(b'experimental', b'remotenames'):

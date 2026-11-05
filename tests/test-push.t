@@ -294,9 +294,13 @@ Test `commands.push.require-revs`
   $ hg clone -q test-revflag test-require-revs-source
   $ hg init test-require-revs-dest
   $ cd test-require-revs-source
+
+The default path the clone wrote for us is a managed value, so we can simply
+point it somewhere else:
+
+  $ hg config --local --set paths.default=../test-require-revs-dest
+
   $ cat >> .hg/hgrc << EOF
-  > [paths]
-  > default = ../test-require-revs-dest
   > [commands]
   > push.require-revs=1
   > EOF

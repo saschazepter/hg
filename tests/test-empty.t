@@ -38,6 +38,7 @@ Poke at a clone:
   branch
   cache
   hgrc
+  hgrc-managed
   requires
   store
   wcache

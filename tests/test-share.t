@@ -411,7 +411,7 @@ where the default path of the share comes from
 The original value
 
   $ hg -R cloned config --source paths.default
-  $TESTTMP/cloned/.hg/hgrc:16: $TESTTMP/repo1
+  $TESTTMP/cloned/.hg/hgrc-managed:4: $TESTTMP/repo1
 
 The clone result
 

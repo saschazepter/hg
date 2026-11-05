@@ -202,9 +202,6 @@ username =
 # or a name and email local to this repository:
 #
 #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
-
-[paths]
-default = %(default-path)s%(remote-cmd-config)s
 """,
     b'local': b"""# example repository config (see 'hg help config' for more info)
 #

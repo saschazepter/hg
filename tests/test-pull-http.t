@@ -36,12 +36,13 @@ Cloning with a password in the URL should not save the password in .hg/hgrc:
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
-The value we use, then the file it is stored in:
+The value we use, then the files it is stored in:
 
   $ hg -R test3 config paths.default
   http://foo@localhost:$HGPORT/
 
   $ cat test3/.hg/hgrc
+  %include hgrc-managed
   # example repository config (see 'hg help config' for more info)
   #
   # Values are written for this repository with `hg config --local --set` and
@@ -55,9 +56,13 @@ The value we use, then the file it is stored in:
   # or a name and email local to this repository:
   #
   #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
-  
+
+  $ cat test3/.hg/hgrc-managed
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
   [paths]
   default = http://foo@localhost:$HGPORT/
+
   $ killdaemons.py
 
 expect error, cloning not allowed
