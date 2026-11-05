@@ -1735,8 +1735,8 @@ class Test(unittest.TestCase):
         # points to. So a test can use `hg config --set` to override them, the
         # way a user would.
         #
-        # The "-managed" suffix duplicates `MANAGED_SUFFIX` in
-        # mercurial/configuration/command.py, as run-tests.py cannot import
+        # The "-managed" suffix duplicates `SUFFIX` in
+        # mercurial/configuration/managed.py, as run-tests.py cannot import
         # from the Mercurial it is about to build.
         #
         # This should be kept in sync with how Mercurial internals deal with

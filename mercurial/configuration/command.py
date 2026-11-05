@@ -37,6 +37,7 @@ from . import (
     NO_REPO_EDIT_LEVELS,
     SHADOW,
     Shadowing,
+    managed,
     rcutil,
 )
 
@@ -83,16 +84,8 @@ def _files_by_level(repo) -> dict[ConfigLevelT, list[bytes]]:
     return rc_by_level
 
 
-# machine writes go to "<hgrc><-suffix>[.<ext>]"
-MANAGED_SUFFIX = b'-managed'
-
 # edits are covered by a lock file in the same dir as the file we edit.
 CONFIG_LOCK_NAME = b'config.lock'
-
-_MANAGED_HEADER = (
-    b"# This file is managed by Mercurial, do not edit it by hand.\n"
-    b"# Use `hg config --set` to change the values it holds.\n"
-)
 
 
 def parse_config_args(values: Collection[bytes]) -> Collection[ConfigSpecT]:
@@ -147,14 +140,8 @@ def _target_by_level(
     return (
         vfsmod.vfs(directory),
         base_file,
-        _managed_sibling(base_file),
+        managed.sibling(base_file),
     )
-
-
-def _managed_sibling(path: bytes) -> bytes:
-    """return the path of the machine-managed companion of config file `path`"""
-    core, ext = os.path.splitext(path)
-    return core + MANAGED_SUFFIX + ext
 
 
 def _higher_level_boundaries(
@@ -214,12 +201,12 @@ def set_config(
             cfg.parse(b'<managed>', managed_content)
         for section, key, value in values:
             cfg.set(section, key, value)
-        managed_content = _MANAGED_HEADER + cfg.serialize()
+        managed_content = managed.HEADER + cfg.serialize()
         vfs.write(managed_file, managed_content, atomictemp=True)
 
         # … and make sure the base file pulls it in.
         base_content = vfs.tryread(base_file)
-        new_content = _inject_managed_include(base_content, managed_file)
+        new_content = managed.inject_include(base_content, managed_file)
         if new_content != base_content:
             vfs.write(base_file, new_content, atomictemp=True)
 
@@ -301,7 +288,7 @@ def delete_config(
             if cfg.remove_item(section, key):
                 dropped.add((section, key))
         if dropped:
-            managed_content = _MANAGED_HEADER + cfg.serialize()
+            managed_content = managed.HEADER + cfg.serialize()
             vfs.write(managed_file, managed_content, atomictemp=True)
         # the base file keeps including the managed one, even if it no longer
         # holds any value, as the next write would put the include back.
@@ -404,39 +391,6 @@ def _report_if_shadowed(
     else:
         assert shadowing.status is SHADOW.SAME_LEVEL
         ui.warn(manual_hint % (section, key))
-
-
-def _inject_managed_include(base_content: bytes, target: bytes) -> bytes:
-    """return `base_content` with a single `%include` of `target` on top
-
-    The include must stay the first line. Manually set value always wins.
-
-    >>> _inject_managed_include(b'[ui]\\nusername = Foo\\n', b'.hgrc.managed')
-    b'%include .hgrc.managed\\n[ui]\\nusername = Foo\\n'
-    >>> _inject_managed_include(b'%include .hgrc.managed\\n', b'.hgrc.managed')
-    b'%include .hgrc.managed\\n'
-    >>> _inject_managed_include(b'no newline', b'.hgrc.managed')
-    b'%include .hgrc.managed\\nno newline\\n'
-    >>> _inject_managed_include(
-    ...     b'[ui]\\nusername = Foo\\n%include .hgrc.managed\\n',
-    ...     b'.hgrc.managed',
-    ... )
-    b'%include .hgrc.managed\\n[ui]\\nusername = Foo\\n'
-    """
-    # `%include` is resolved relative to the including file, and both files
-    # live in the same directory, so a bare basename is enough (and stays
-    # valid if the configuration directory is moved around).
-    include_line = b"%%include %s" % target
-    lines = base_content.splitlines(True)
-    if lines and lines[0].rstrip() == include_line:
-        # already included first, nothing to do
-        return base_content
-    # drop any occurrence further down before re-inserting it at the top
-    lines = [l for l in lines if l.rstrip() != include_line]
-    base_content = b"".join(lines)
-    if base_content and not base_content.endswith(b'\n'):
-        base_content += b'\n'
-    return include_line + b"\n" + base_content
 
 
 def edit_config(ui: uimod.ui, repo, level: ConfigLevelT) -> None:
