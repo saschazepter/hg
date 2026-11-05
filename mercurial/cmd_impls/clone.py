@@ -18,6 +18,7 @@ from ..node import (
 
 from .. import (
     bookmarks,
+    config as configmod,
     error,
     exchange,
     extensions,
@@ -33,6 +34,7 @@ from .. import (
     util,
     vfs as vfsmod,
 )
+from ..configuration import managed
 from . import (
     update as up_impl,
 )
@@ -856,10 +858,42 @@ def unshare(ui, repo):
     return newrepo
 
 
+def _merge_source_managed_values(srcvfs, dstvfs, managed_file) -> bool:
+    """fold the managed values of a share source into our own managed file
+
+    `hg config --set` wrote the source values in a machine managed file of
+    its own, which this repository stops reading once it is unshared. So
+    merge them into our own managed values, which keep precedence over them,
+    as they had before.
+
+    Return True when the source had such a file, as the `%include` pulling
+    it in then has to be dealt with by the caller.
+    """
+    if not srcvfs.exists(managed_file):
+        return False
+    values = configmod.config()
+    values.parse(b'<share-source-managed>', srcvfs.read(managed_file))
+    if dstvfs.exists(managed_file):
+        own = configmod.config()
+        own.parse(b'<managed>', dstvfs.read(managed_file))
+        values.update(own)
+    content = managed.HEADER + values.serialize()
+    dstvfs.write(managed_file, content, atomictemp=True)
+    return True
+
+
 def _prependsourcehgrc(repo):
-    """copies the source repo config and prepend it in current repo .hg/hgrc
-    on unshare. This is only done if the share was perfomed using share safe
-    method where we share config of source in shares"""
+    """copies the source repo config into the share.
+
+    The config is prepended to current repo .hg/hgrc on unshare. "managed"
+    config as properly merged.
+
+    If "mixed" configuration style is used (using both config managed by `hg
+    config --set` and config written manually, this may lead to a manual from
+    the repository to take precedence over one of the share config.
+
+    This is only done if the share was perfomed using share safe method where
+    we share config of source in shares"""
     srcvfs = vfsmod.vfs(repo.sharedpath)
     dstvfs = vfsmod.vfs(repo.path)
 
@@ -870,12 +904,19 @@ def _prependsourcehgrc(repo):
     if dstvfs.exists(b'hgrc'):
         currentconfig = dstvfs.read(b'hgrc')
 
+    managed_file = managed.sibling(b'hgrc')
+    merged = _merge_source_managed_values(srcvfs, dstvfs, managed_file)
+
     with dstvfs(b'hgrc', b'wb') as fp:
         sourceconfig = srcvfs.read(b'hgrc')
-        fp.write(b"# Config copied from shared source\n")
-        fp.write(sourceconfig)
-        fp.write(b'\n')
-        fp.write(currentconfig)
+        content = b"# Config copied from shared source\n"
+        content += sourceconfig
+        content += b'\n'
+        content += currentconfig
+        if merged:
+            # make sure we have a simple include to the managed files.
+            content = managed.inject_include(content, managed_file)
+        fp.write(content)
 
 
 def copy_store(ui, srcrepo, destpath):

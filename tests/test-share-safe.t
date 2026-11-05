@@ -373,7 +373,7 @@ same precedence: the ones it manages itself win over the ones it inherits.
   >    alias.hand-written | sort
   alias.both=share-value
   alias.from-share=share-value
-  alias.from-source=source-value (missing-correct-output !)
+  alias.from-source=source-value
   alias.hand-written=source-hand
 
 the values of the source land in our own managed file
@@ -388,7 +388,7 @@ wrote itself should win over the ones it takes over from the source.
   [alias]
   both = share-value
   from-share = share-value
-  from-source = source-value (missing-correct-output !)
+  from-source = source-value
 
 a single include is left, at the top
 ------------------------------------
@@ -397,13 +397,11 @@ The copied configuration was written by hand, so it should keep winning over
 the managed values, which only one `%include` at the top can achieve.
 
   $ cat managed-share/.hg/hgrc
-  %include hgrc-managed (missing-correct-output !)
+  %include hgrc-managed
   # Config copied from shared source
-  %include hgrc-managed (known-bad-output !)
   [alias]
   hand-written = source-hand
   
-  %include hgrc-managed (known-bad-output !)
 
 setting a value after the unshare still works
 ---------------------------------------------
