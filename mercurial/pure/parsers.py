@@ -407,6 +407,19 @@ class DirstateItem(int_dirstate.IDirstateItem):
         """
         return self._v1_mtime()
 
+    @property
+    def mtime(self):
+        """The recorded mtime of the file, or None when the item records none
+
+        A `(seconds, nanoseconds, second_ambiguous)` tuple. A file matching
+        the recorded mode and size and this mtime has the content the item
+        expects, unless the second is ambiguous: another write may then
+        share the mtime, and the content has to be checked.
+        """
+        if self._mtime_s is None:
+            return None
+        return (self._mtime_s, self._mtime_ns, self._mtime_second_ambiguous)
+
     def mtime_likely_equal_to(self, other_mtime):
         self_sec = self._mtime_s
         if self_sec is None:

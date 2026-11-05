@@ -176,6 +176,16 @@ class IDirstateItem(Protocol):
         or modified when `expected_state_is_modified` is set.
         """
 
+    @property
+    @abc.abstractmethod
+    def mtime(self) -> tuple[int, int, bool] | None:
+        """The recorded mtime of the file, or None when the item records none
+
+        A `(seconds, nanoseconds, second_ambiguous)` tuple; with an
+        ambiguous second, another write may share the mtime and the content
+        has to be checked.
+        """
+
 
 class IChangingContextRepo(Protocol):
     """The part of a repository a dirstate changing context needs

@@ -109,6 +109,19 @@ impl DirstateItem {
         Ok(self.read()?.v1_mtime())
     }
 
+    /// The recorded mtime as `(seconds, nanoseconds, second_ambiguous)`,
+    /// if any
+    #[getter]
+    fn mtime(&self) -> PyResult<Option<(u32, u32, bool)>> {
+        Ok(self.read()?.truncated_mtime().map(|mtime| {
+            (
+                mtime.truncated_seconds(),
+                mtime.nanoseconds(),
+                mtime.second_ambiguous,
+            )
+        }))
+    }
+
     #[getter]
     fn has_fallback_exec(&self) -> PyResult<bool> {
         Ok(self.read()?.get_fallback_exec().is_some())
