@@ -1,7 +1,8 @@
 #require serve
 
 hide outer repo and work in dir without '.hg'
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ mkdir dir
   $ cd dir
 
@@ -1326,7 +1327,7 @@ Test accessing invalid paths:
   403 Forbidden
   
   
-  error: .. not under root '$TESTTMP/dir/webdir/notrepo/f'
+  error: .. not under root '$TESTTMP/repo/dir/webdir/notrepo/f'
   [1]
 
   $ get-with-headers.py localhost:$HGPORT1 'rcoll/notrepo/f/file/tip/.hg/hgrc?style=raw'
@@ -1481,7 +1482,7 @@ test descend = False
   $ rm hg.pid
   $ hg serve -p $HGPORT1 -d --pid-file=hg.pid --webdir-conf paths.conf \
   >     -A access-paths.log -E error-paths-8.log
-  abort: filesystem path is not a repository: '$TESTTMP/dir/webdir/inexistent'
+  abort: filesystem path is not a repository: '$TESTTMP/repo/dir/webdir/inexistent'
   (this was mapped to server path 'inexistent')
   [10]
   $ killdaemons.py hg.pid
