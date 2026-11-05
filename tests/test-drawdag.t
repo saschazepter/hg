@@ -9,7 +9,8 @@
   >   rm -rf .hg && hg init
   > }
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 Test what said in drawdag.py docstring
 
