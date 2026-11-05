@@ -44,13 +44,15 @@ Test status and dirstate of largefiles and that summary output is correct.
   $ sleep 1
   $ hg st
   $ hg debugstate --no-dates
-  n 644         41 set                 .hglf/large1
-  n 644         41 set                 .hglf/sub/large2
-  n 644          8 set                 normal1
-  n 644          8 set                 sub/normal2
+  trk exp mode fb       size mtime path
+  w1- c    644 --         41 set   .hglf/large1
+  w1- c    644 --         41 set   .hglf/sub/large2
+  w1- c    644 --          8 set   normal1
+  w1- c    644 --          8 set   sub/normal2
   $ hg debugstate --large --no-dates
-  n 644          7 set                 large1
-  n 644          7 set                 sub/large2
+  trk exp mode fb       size mtime path
+  w1- c    644 --          7 set   large1
+  w1- c    644 --          7 set   sub/large2
   $ echo normal11 > normal1
   $ echo normal22 > sub/normal2
   $ echo large11 > large1

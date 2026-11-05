@@ -58,10 +58,11 @@ Narrow the share and check that the main repo's working copy gets updated
   $ sleep 2
   $ hg -R main st
   $ hg -R main debugdirstate --no-dates
-  n 644          2 set                 d1/f
-  n 644          2 set                 d3/f
-  n 644          2 set                 d5/f
-  n 644          2 set                 d7/f
+  trk exp mode fb       size mtime path
+  w1- c    644 --          2 set   d1/f
+  w1- c    644 --          2 set   d3/f
+  w1- c    644 --          2 set   d5/f
+  w1- c    644 --          2 set   d7/f
 # Make d3/f dirty
   $ echo x >> main/d3/f
   $ echo y >> main/d3/g
@@ -79,11 +80,12 @@ Narrow the share and check that the main repo's working copy gets updated
   A d3/g
   ? d3/untracked
   $ hg -R main debugdirstate --no-dates
-  n 644          2 set                 d1/f
-  n 644          2 set                 d3/f
-  a   0         -1 unset               d3/g
-  n 644          2 set                 d5/f
-  n 644          2 set                 d7/f
+  trk exp mode fb       size mtime path
+  w1- c    644 --          2 set   d1/f
+  w1- c    644 --          2 set   d3/f
+  w-- c      - --          - -     d3/g
+  w1- c    644 --          2 set   d5/f
+  w1- c    644 --          2 set   d7/f
   $ touch main/d5/f
   $ hg -R share tracked --removeinclude d1 --removeinclude d3 --removeinclude d5
   comparing with ssh://user@dummy/remote

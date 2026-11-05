@@ -155,8 +155,9 @@ Issue1527: repeated addremove causes Abort
   adding d/b
   recording removal of d/a as rename to d/b (100% similar)
   $ hg debugstate
-  r   0          0 1970-01-01 00:00:00 d/a
-  a   0         -1 unset               d/b
+  trk exp mode fb       size mtime                ns        path
+  -1- c      - --          - -                    -         d/a
+  w-- c      - --          - -                    -         d/b
   copy: d/a -> d/b
   $ mv d/b c
 

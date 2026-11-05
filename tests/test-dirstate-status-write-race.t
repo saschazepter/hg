@@ -107,20 +107,21 @@ Add some unknown files and refresh the dirstate
   ? p
   ? q
   $ hg debugstate
-  n 644          0 2000-01-01 00:00:00 dir/b
-  n 644          0 2000-01-01 00:00:00 dir/c
-  n 644          0 2000-01-01 00:00:00 dir/d
-  n 644          0 2000-01-01 00:10:00 dir/i
-  n 644          0 2000-01-01 00:10:00 dir/j
-  n 644          0 2000-01-01 00:00:00 dir/nested/a
-  n 644          0 2000-01-01 00:10:00 dir/nested/h
-  r ?????????????????????????????????? dir/nested/m (glob)
-  a ?????????????????????????????????? dir/o (glob)
-  n 644          0 2000-01-01 00:00:00 dir2/e
-  n 644          0 2000-01-01 00:10:00 dir2/k
-  n 644          0 2000-01-01 00:10:00 dir2/l
-  n 644          0 2000-01-01 00:00:00 f
-  n 644          0 2000-01-01 00:10:00 g
+  trk exp mode fb       size mtime                ns        path
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/b
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/c
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/d
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/i
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/j
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/nested/a
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/nested/h
+  -1- c      - --          - -                    -         dir/nested/m
+  w-- c      - --          - -                    -         dir/o
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir2/e
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir2/k
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir2/l
+  w1- c    644 --          0 2000-01-01 00:00:00  0         f
+  w1- c    644 --          0 2000-01-01 00:10:00  0         g
   $ hg debugstate > ../reference
   $ cd ..
 
@@ -132,20 +133,21 @@ First, we can properly copy the reference
   $ cp -a reference-repo sanity-check
   $ cd sanity-check
   $ hg debugstate
-  n 644          0 2000-01-01 00:00:00 dir/b
-  n 644          0 2000-01-01 00:00:00 dir/c
-  n 644          0 2000-01-01 00:00:00 dir/d
-  n 644          0 2000-01-01 00:10:00 dir/i
-  n 644          0 2000-01-01 00:10:00 dir/j
-  n 644          0 2000-01-01 00:00:00 dir/nested/a
-  n 644          0 2000-01-01 00:10:00 dir/nested/h
-  r ?????????????????????????????????? dir/nested/m (glob)
-  a ?????????????????????????????????? dir/o (glob)
-  n 644          0 2000-01-01 00:00:00 dir2/e
-  n 644          0 2000-01-01 00:10:00 dir2/k
-  n 644          0 2000-01-01 00:10:00 dir2/l
-  n 644          0 2000-01-01 00:00:00 f
-  n 644          0 2000-01-01 00:10:00 g
+  trk exp mode fb       size mtime                ns        path
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/b
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/c
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/d
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/i
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/j
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/nested/a
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/nested/h
+  -1- c      - --          - -                    -         dir/nested/m
+  w-- c      - --          - -                    -         dir/o
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir2/e
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir2/k
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir2/l
+  w1- c    644 --          0 2000-01-01 00:00:00  0         f
+  w1- c    644 --          0 2000-01-01 00:10:00  0         g
   $ hg debugstate > ../post-copy
   $ diff ../reference ../post-copy
 
@@ -158,20 +160,21 @@ And status thinks the cache is in a proper state
   ? p
   ? q
   $ hg debugstate
-  n 644          0 2000-01-01 00:00:00 dir/b
-  n 644          0 2000-01-01 00:00:00 dir/c
-  n 644          0 2000-01-01 00:00:00 dir/d
-  n 644          0 2000-01-01 00:10:00 dir/i
-  n 644          0 2000-01-01 00:10:00 dir/j
-  n 644          0 2000-01-01 00:00:00 dir/nested/a
-  n 644          0 2000-01-01 00:10:00 dir/nested/h
-  r ?????????????????????????????????? dir/nested/m (glob)
-  a ?????????????????????????????????? dir/o (glob)
-  n 644          0 2000-01-01 00:00:00 dir2/e
-  n 644          0 2000-01-01 00:10:00 dir2/k
-  n 644          0 2000-01-01 00:10:00 dir2/l
-  n 644          0 2000-01-01 00:00:00 f
-  n 644          0 2000-01-01 00:10:00 g
+  trk exp mode fb       size mtime                ns        path
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/b
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/c
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/d
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/i
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/j
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir/nested/a
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/nested/h
+  -1- c      - --          - -                    -         dir/nested/m
+  w-- c      - --          - -                    -         dir/o
+  w1- c    644 --          0 2000-01-01 00:00:00  0         dir2/e
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir2/k
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir2/l
+  w1- c    644 --          0 2000-01-01 00:00:00  0         f
+  w1- c    644 --          0 2000-01-01 00:10:00  0         g
   $ hg debugstate > ../post-status
   $ diff ../reference ../post-status
 
@@ -204,11 +207,11 @@ and should have missed the timestamp update
   ? q
   $ cat $TESTTMP/status-race-lock.log
   $ hg debugstate | grep dir/c
-  n 644          0 2000-01-01 00:01:00 dir/c
+  w1- c    644 --          0 2000-01-01 00:01:00  0         dir/c
   $ hg debugstate | grep dir/i
-  n 644          0 2000-01-01 00:10:00 dir/i
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/i
   $ hg debugstate | grep dir/j
-  n 644          0 2000-01-01 00:10:00 dir/j
+  w1- c    644 --          0 2000-01-01 00:10:00  0         dir/j
 
 final cleanup
 
@@ -396,7 +399,7 @@ touch g
 the first update should be on disk
 
   $ hg debugstate --all | grep "g"
-  n 644          0 2000-01-01 00:25:00 g
+  w1- c    644 --          0 2000-01-01 00:25:00  0         g
 
 The status process should return a consistent result and not crash.
 

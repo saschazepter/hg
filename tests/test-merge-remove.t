@@ -22,8 +22,9 @@
   (branch merge, don't forget to commit)
 
   $ hg debugstate --no-dates
-  m   0         -2 unset               bar
-  m   0         -2 unset               foo1
+  trk exp mode fb       size mtime path
+  w12 c      - --          - -     bar
+  w12 c      - --          - -     foo1
   copy: foo -> foo1
 
   $ hg st -q
@@ -38,8 +39,9 @@ Removing foo1 and bar:
   $ hg rm -f foo1 bar
 
   $ hg debugstate --no-dates
-  r   0         -1 set                 bar
-  r   0         -1 set                 foo1
+  trk exp mode fb       size mtime path
+  -1- c      - --          - -     bar
+  -1- c      - --          - -     foo1
   copy: foo -> foo1
 
   $ hg st -qC
@@ -56,8 +58,9 @@ Re-adding foo1 and bar:
   adding foo1
 
   $ hg debugstate --no-dates
-  m   0         -2 unset               bar
-  m   0         -2 unset               foo1
+  trk exp mode fb       size mtime path
+  w12 c      - --          - -     bar
+  w12 c      - --          - -     foo1
   copy: foo -> foo1
 
   $ hg st -qC
@@ -75,8 +78,9 @@ Reverting foo1 and bar:
   reverting foo1
 
   $ hg debugstate --no-dates
-  m   0         -2 unset               bar
-  m   0         -2 unset               foo1
+  trk exp mode fb       size mtime path
+  w12 c      - --          - -     bar
+  w12 c      - --          - -     foo1
   copy: foo -> foo1
 
   $ hg st -qC

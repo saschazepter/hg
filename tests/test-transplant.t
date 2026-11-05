@@ -1063,7 +1063,7 @@ timestamp of them isn't changed on the filesystem (see also issue4583)
   $ cat r1
   Y1
   $ hg debugstate | grep ' r1$'
-  n   0         -1 unset               r1
+  w1- c      - --          - -                    -         r1
   $ hg status -A r1
   M r1
 

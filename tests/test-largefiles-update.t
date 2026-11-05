@@ -55,8 +55,9 @@ following verification is thus disabled but can be verified manually.
 
 #if false
   $ hg debugdirstate --large --nodate
-  n 644          7 unset               large1
-  n 644         13 unset               large2
+  trk exp mode fb       size mtime path
+  w1- c    644 --          7 -     large1
+  w1- c    644 --         13 -     large2
 #endif
 
 Wait to make sure we get a tick so the mtime of the largefiles become valid.
@@ -83,15 +84,17 @@ we don't have to hash them again next time we update.
   updated to "f74e50bd9e55: #2"
   1 other heads for branch "default"
   $ hg debugdirstate --large --nodate
-  n 644          7 set                 large1 (missing-correct-output !)
-  n 644         13 set                 large2 (missing-correct-output !)
-  n   0         -1 unset               large1 (known-bad-output !)
-  n   0         -1 unset               large2 (known-bad-output !)
+  trk exp mode fb       size mtime path
+  w1- c    644 --          7 set   large1 (missing-correct-output !)
+  w1- c    644 --         13 set   large2 (missing-correct-output !)
+  w1- c      - --          - -     large1 (known-bad-output !)
+  w1- c      - --          - -     large2 (known-bad-output !)
   $ sleep 1 # so that mtime are not ambiguous
   $ hg status
   $ hg debugdirstate --large --nodate
-  n 644          7 set                 large1
-  n 644         13 set                 large2
+  trk exp mode fb       size mtime path
+  w1- c    644 --          7 set   large1
+  w1- c    644 --         13 set   large2
 
 Test that lfdirstate keeps track of last modification of largefiles and
 prevents unnecessary hashing of content - also after linear/noop update
@@ -102,22 +105,25 @@ status call, this is slower, but more correct)
   $ sleep 1
   $ hg st
   $ hg debugdirstate --large --nodate
-  n 644          7 set                 large1
-  n 644         13 set                 large2
+  trk exp mode fb       size mtime path
+  w1- c    644 --          7 set   large1
+  w1- c    644 --         13 set   large2
   $ hg up
   0 files updated, 0 files merged, 0 files removed, 0 files unresolved
   updated to "f74e50bd9e55: #2"
   1 other heads for branch "default"
   $ hg debugdirstate --large --nodate
-  n 644          7 set                 large1 (missing-correct-output !)
-  n 644         13 set                 large2 (missing-correct-output !)
-  n   0         -1 unset               large1 (known-bad-output !)
-  n   0         -1 unset               large2 (known-bad-output !)
+  trk exp mode fb       size mtime path
+  w1- c    644 --          7 set   large1 (missing-correct-output !)
+  w1- c    644 --         13 set   large2 (missing-correct-output !)
+  w1- c      - --          - -     large1 (known-bad-output !)
+  w1- c      - --          - -     large2 (known-bad-output !)
   $ sleep 1 # so that mtime are not ambiguous
   $ hg status
   $ hg debugdirstate --large --nodate
-  n 644          7 set                 large1
-  n 644         13 set                 large2
+  trk exp mode fb       size mtime path
+  w1- c    644 --          7 set   large1
+  w1- c    644 --         13 set   large2
 
 Test that "hg merge" updates largefiles from "other" correctly
 
@@ -437,8 +443,8 @@ Test a linear merge to a revision containing same-name normal file
   remote turned local largefile large2 into a normal file
   keep (l)argefile or use (n)ormal file? l
   $ hg debugdirstate --no-dates | grep large2
-  a   0         -1 unset               .hglf/large2
-  r   0          0 set                 large2
+  w-- c      - --          - -     .hglf/large2
+  -1- c      - --          - -     large2
   $ hg status -A large2
   A large2
   $ cat large2
@@ -453,8 +459,8 @@ Test a linear merge to a revision containing same-name normal file
   remote turned local largefile large3 into a normal file
   keep (l)argefile or use (n)ormal file? l
   $ hg debugdirstate --no-dates | grep large3
-  a   0         -1 unset               .hglf/large3
-  r   0          0 set                 large3
+  w-- c      - --          - -     .hglf/large3
+  -1- c      - --          - -     large3
   $ hg status -A large3
   A large3
   $ cat large3

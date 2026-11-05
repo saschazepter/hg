@@ -22,10 +22,13 @@
   $ cd copy
 
   $ hg debugdirstate --no-dates
-  n *         20 *               foo/bar (glob)
+  trk exp mode fb       size mtime path
+  w1- c    * --         20 * foo/bar (glob)
   $ mv .hg/dirstate .hg/old_dirstate
   $ dd bs=40 count=1 if=.hg/old_dirstate of=.hg/dirstate 2>/dev/null
   $ hg debugdirstate
+  trk exp mode fb       size mtime                ns        path
   $ hg debugrebuilddirstate
   $ hg debugdirstate
-  n *         * unset               foo/bar (glob)
+  trk exp mode fb       size mtime                ns        path
+  w1- c      - --          - -                    -         foo/bar

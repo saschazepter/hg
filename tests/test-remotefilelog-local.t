@@ -72,9 +72,10 @@
   2 files updated, 0 files merged, 1 files removed, 0 files unresolved
   $ clearcache
   $ hg debugdirstate
-  n 644          2 * x (glob)
-  n 644          2 * y (glob)
-  n 644          2 * z (glob)
+  trk exp mode fb       size mtime                ns        path
+  w1- c    644 --          2 * x (glob)
+  w1- c    644 --          2 * y (glob)
+  w1- c    644 --          2 * z (glob)
   $ echo xxxx > x
   $ echo yyyy > y
 # run status early to avoid a flaky second fetch during commit.

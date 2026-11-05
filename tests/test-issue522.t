@@ -35,7 +35,7 @@ revision.
   (branch merge, don't forget to commit)
 
   $ hg debugstate | grep foo
-  m   0         -2 unset               foo
+  w12 c      - --          - -                    -         foo
 
   $ hg st -A foo
   M foo

@@ -83,6 +83,7 @@
 dirstate should be empty:
 
   $ hg debugstate
+  trk exp mode fb       size mtime                ns        path
   $ hg parents -q
   $ hg up -C
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
@@ -92,7 +93,7 @@ put something in the dirstate:
 
   $ hg debugstate > debugstate
   $ grep baz debugstate
-  a   0         -1 unset               baz
+  w-- c      - --          - -                    -         baz
   copy: bar -> baz
 
 add a new revision in the original repo

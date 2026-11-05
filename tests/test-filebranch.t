@@ -38,10 +38,10 @@ Creating branch b:
   $ echo 2b > baz
   $ hg commit -m "branch b"
 
-We shouldn't have anything but n state here:
+We shouldn't have anything but clean tracked files here. The template lists
+the entries whose tracking is not `w1-`: the added, removed or merged files.
 
-  $ hg debugstate --no-dates | grep -v "^n"
-  [1]
+  $ hg debugstate -T '{ifeq("{wc_tracked_str}{p1_tracked_str}{p2_info_str}", "w1-", "", "{path}\n")}'
 
 Merging:
 

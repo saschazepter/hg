@@ -1082,6 +1082,55 @@ def _debugdirstate_fields(filename, item, directory_mtime, copies):
     return fields
 
 
+def _debugdirstate_display(fields, nodates):
+    """The display value of each field, as the plain output shows it
+
+    Each `<name>_str` is the text of the `<name>` column: a letter for a flag
+    that is set, a space for one recorded as unset, `-` for a value the path
+    does not record.
+    """
+
+    def flag(value, letter):
+        if value is None:
+            return b'-'
+        return letter if value else b' '
+
+    def number(value):
+        if value is None:
+            return b'-'
+        return b'%d' % value
+
+    mode = fields['mode']
+    if mode is None:
+        mode_str = b'-'
+    elif mode & 0o20000:
+        mode_str = b'lnk'
+    else:
+        mode_str = b'%3o' % (mode & 0o777 & ~util.umask)
+    mtime = fields['mtime']
+    if mtime is None:
+        mtime_str = b'-'
+    elif nodates:
+        mtime_str = b'set'
+    else:
+        mtime_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(mtime))
+        mtime_str = encoding.strtolocal(mtime_str)
+    return {
+        'wc_tracked_str': b'w' if fields['wc_tracked'] else b'-',
+        'p1_tracked_str': b'1' if fields['p1_tracked'] else b'-',
+        'p2_info_str': b'2' if fields['p2_info'] else b'-',
+        # the first letter of the state: `c`, `m` or `d`
+        'expected_state_str': fields['expected_state'][:1],
+        'mode_str': mode_str,
+        'size_str': number(fields['size']),
+        'fallback_exec_str': flag(fields['fallback_exec'], b'x'),
+        'fallback_symlink_str': flag(fields['fallback_symlink'], b'l'),
+        'mtime_str': mtime_str,
+        'mtime_ambiguous_str': b'~' if fields['mtime_ambiguous'] else b' ',
+        'mtime_ns_str': number(fields['mtime_ns']),
+    }
+
+
 @command(
     b'debugdirstate|debugstate',
     [
@@ -1110,7 +1159,64 @@ def _debugdirstate_fields(filename, item, directory_mtime, copies):
     _(b'[OPTION]...'),
 )
 def debugstate(ui, repo, **opts):
-    """show the contents of the current dirstate"""
+    """show the contents of the current dirstate
+
+    Without a template, each entry is a line of columns under a header
+    naming them:
+
+    :trk:   how the file is tracked, ``w`` in the working copy, ``1`` in its
+            first parent, ``2`` when a merge involved it (merged, taken from
+            the second parent or renamed from there), ``-`` otherwise.
+
+    :exp:   what the cached data describe, ``c`` a clean file, ``m`` a file
+            found modified (the mtime then tells it still is), ``d`` a
+            directory (dirstate-v2, with ``--all``).
+
+    :mode:  the cached mode, ``lnk`` for a symlink, the permissions in octal
+            otherwise.
+
+    :fb:    the fallback exec (``x``) and symlink (``l``) flags, recorded
+            when the filesystem cannot hold them; a space when recorded as
+            unset.
+
+    :size:  the cached size.
+
+    :mtime: the cached modification time, as a date or as ``set`` with
+            ``--no-dates``, followed by ``~`` when its second is ambiguous.
+
+    :ns:    the nanoseconds of the cached mtime (not shown with
+            ``--no-dates``).
+
+    :path:  the path of the entry.
+
+    ``-`` marks a value the entry does not record. The copy sources are
+    listed after the entries.
+
+    With a template, each entry exposes the raw values as:
+
+    - ``path``, the path of the entry
+    - ``directory``, whether the entry is a directory
+    - ``wc_tracked``, whether the working copy tracks the file
+    - ``p1_tracked``, whether its first parent tracks the file
+    - ``p2_info``, whether a merge involved the file
+    - ``expected_state``, ``clean``, ``modified`` or ``directory``
+    - ``mode``, the cached mode
+    - ``size``, the cached size
+    - ``fallback_exec``, the fallback exec flag
+    - ``fallback_symlink``, the fallback symlink flag
+    - ``mtime``, the seconds of the cached mtime
+    - ``mtime_ns``, its nanoseconds
+    - ``mtime_ambiguous``, whether its second is ambiguous
+    - ``copy_source``, the path the entry was copied from
+
+    The text of each column is the matching ``<name>_str`` keyword, and the
+    dirstate-v1 record of an entry as:
+
+    - ``v1_state``, the state letter
+    - ``v1_mode``, the mode
+    - ``v1_size``, the size, or the sentinel standing for the state
+    - ``v1_mtime``, the mtime, or the sentinel standing for the state
+    """
 
     if opts.get("docket"):
         if repo.dirstate.version == int_dirstate.DirstateVersion.V1:
@@ -1147,55 +1253,68 @@ def debugstate(ui, repo, **opts):
     if datesort:
 
         def keyfunc(entry):
-            filename, v1_record, _item, _directory_mtime = entry
-            return (v1_record[3], filename)
+            fields, _item = entry
+            mtime = fields['mtime']
+            if mtime is None:
+                mtime = -1
+            return (mtime, fields['path'])
 
     else:
 
         def keyfunc(entry):
-            return entry[0]
+            return entry[0]['path']
 
+    copies = repo.dirstate.copies()
     entries = []
     paths = repo.dirstate._map.debug_iter(all=opts['all'])
     for filename, item, directory_mtime in paths:
-        if item is None:
-            # a directory, which the v1 format has no record for
-            state, mode, size = b' ', 0, -1
-            if directory_mtime is None:
-                mtime = -1
-            else:
-                mtime = directory_mtime[0]
-        else:
-            state = item.v1_state
-            mode = item.v1_mode
-            size = item.v1_size
-            mtime = item.v1_mtime
-        v1_record = (state, mode, size, mtime)
-        entries.append((filename, v1_record, item, directory_mtime))
+        fields = _debugdirstate_fields(filename, item, directory_mtime, copies)
+        entries.append((fields, item))
     entries.sort(key=keyfunc)
-    copies = repo.dirstate.copies()
+    # the mtime column holds a date and the ambiguity flag, or `set`
+    mtime_width = 5 if nodates else 20
+    header = [
+        b'trk',
+        b'exp',
+        b'mode',
+        b'fb',
+        b'size'.rjust(10),
+        b'mtime'.ljust(mtime_width),
+    ]
+    if not nodates:
+        header.append(b'ns'.ljust(9))
+    header.append(b'path')
     fm = ui.formatter(b'debugdirstate', pycompat.byteskwargs(opts))
-    for filename, v1_record, item, directory_mtime in entries:
-        state, mode, size, mtime = v1_record
-        if mtime == -1:
-            timestr = b'unset               '
-        elif nodates:
-            timestr = b'set                 '
-        else:
-            timestr = time.strftime("%Y-%m-%d %H:%M:%S ", time.localtime(mtime))
-            timestr = encoding.strtolocal(timestr)
-        if mode & 0o20000:
-            modestr = b'lnk'
-        else:
-            modestr = b'%3o' % (mode & 0o777 & ~util.umask)
+    fm.plain(b' '.join(header) + b'\n')
+    for fields, item in entries:
+        display = _debugdirstate_display(fields, nodates)
         fm.startitem()
-        fm.data(
-            **_debugdirstate_fields(filename, item, directory_mtime, copies)
-        )
-        fm.data(v1_state=state, v1_mode=mode, v1_size=size, v1_mtime=mtime)
-        fm.plain(
-            b"%c %s %10d %s%s\n" % (state, modestr, size, timestr, filename)
-        )
+        fm.data(**fields)
+        fm.data(**display)
+        if item is not None:
+            # the v1 format has no record for a directory
+            fm.data(
+                v1_state=item.v1_state,
+                v1_mode=item.v1_mode,
+                v1_size=item.v1_size,
+                v1_mtime=item.v1_mtime,
+            )
+        columns = [
+            display['wc_tracked_str']
+            + display['p1_tracked_str']
+            + display['p2_info_str'],
+            display['expected_state_str'].ljust(3),
+            display['mode_str'].rjust(4),
+            display['fallback_exec_str'] + display['fallback_symlink_str'],
+            display['size_str'].rjust(10),
+            (display['mtime_str'] + display['mtime_ambiguous_str']).ljust(
+                mtime_width
+            ),
+        ]
+        if not nodates:
+            columns.append(display['mtime_ns_str'].ljust(9))
+        columns.append(fields['path'])
+        fm.plain(b' '.join(columns) + b'\n')
     for f in copies:
         fm.plain(_(b"copy: %s -> %s\n") % (copies[f], f))
     fm.end()

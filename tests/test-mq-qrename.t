@@ -90,6 +90,7 @@ Test renames with mq repo (issue2097)
   $ (cd .hg/patches && hg init)
   $ hg qren p0 p1
   $ hg debugstate --mq
+  trk exp mode fb       size mtime                ns        path
   $ hg ci --mq -mq0
   nothing changed
   [1]

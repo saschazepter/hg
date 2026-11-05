@@ -172,7 +172,8 @@ transaction: in-memory dirstate changes should be written into
   $ hg status -A
   C c
   $ hg debugstate --no-dates
-  n 644         12 set                 c
+  trk exp mode fb       size mtime path
+  w1- c    644 --         12 set   c
   $ hg backout -d '6 0' -m 'to be rollback-ed soon' -r .
   removing c
   adding b
@@ -182,8 +183,9 @@ transaction: in-memory dirstate changes should be written into
   A b
   R c
   $ hg debugstate --no-dates
-  a   0         -1 unset               b
-  r   0          0 set                 c
+  trk exp mode fb       size mtime path
+  w-- c      - --          - -     b
+  -1- c      - --          - -     c
 
 across branch
 

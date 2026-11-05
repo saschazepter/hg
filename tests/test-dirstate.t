@@ -62,7 +62,8 @@ Status must not set a's entry to unset (issue1790):
 
   $ hg status
   $ hg debugstate
-  n 644          2 2031-01-01 12:00:00 a
+  trk exp mode fb       size mtime                ns        path
+  w1- c    644 --          2 2031-01-01 12:00:00  0         a
 
 Check that .hg/dirstate permissions are correct
 (there was a bug where rust atomic replace would set permissions 0600,
@@ -79,7 +80,8 @@ Test modulo storage/comparison of absurd dates:
   $ touch -t 195001011200 a
   $ hg st
   $ hg debugstate
-  n 644          2 2018-01-19 15:14:08 a
+  trk exp mode fb       size mtime                ns        path
+  w1- c    644 --          2 2018-01-19 15:14:08  0         a
 #endif
 
 Verify that exceptions during a dirstate change leave the dirstate
@@ -552,10 +554,11 @@ next to the dirstate-v1 record it prints by default:
   A zephir
   R celeste
   $ hg debugdirstate --no-dates
-  n 644          6 set                 babar
-  r   0          0 set                 celeste
-  a   0         -1 unset               flore
-  a   0         -1 unset               zephir
+  trk exp mode fb       size mtime path
+  w1- c    644 --          6 set   babar
+  -1- c      - --          - -     celeste
+  w-- c      - --          - -     flore
+  w-- c      - --          - -     zephir
   copy: babar -> flore
   $ hg debugdirstate -T '{path}: wc={wc_tracked} p1={p1_tracked} p2={p2_info} expected={expected_state} size={size} mtime={mtime} copy={copy_source} v1={v1_state}\n'
   babar: wc=True p1=True p2=False expected=clean size=6 mtime=946684800 copy= v1=n

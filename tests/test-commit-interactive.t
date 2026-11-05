@@ -1931,7 +1931,7 @@ even if none of mode, size and timestamp is changed on the filesystem
   > EOF
 
   $ hg debugstate | grep ' subdir/f1$'
-  n   0         -1 unset               subdir/f1
+  w1- c      - --          - -                    -         subdir/f1
   $ hg status -A subdir/f1
   M subdir/f1
 

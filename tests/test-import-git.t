@@ -593,7 +593,8 @@ Consecutive import with renames (issue2459)
   applying patch from stdin
   a has not been committed yet, so no copy data will be stored for b.
   $ hg debugstate
-  a   0         -1 unset               b
+  trk exp mode fb       size mtime                ns        path
+  w-- c      - --          - -                    -         b
   $ hg ci -m done
   $ cd ..
 

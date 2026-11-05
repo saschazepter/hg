@@ -16,7 +16,8 @@ Make sure we notice the change of mode if the cached size == -1:
   $ hg rm a
   $ hg revert -r 0 a
   $ hg debugstate
-  n   0         -1 unset               a
+  trk exp mode fb       size mtime                ns        path
+  w1- c      - --          - -                    -         a
   $ hg status
   M a
 

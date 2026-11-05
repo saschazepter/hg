@@ -103,7 +103,8 @@ debugdirstate. If we don't do this, the test can be slightly flaky.
   $ sleep 3
   $ hg status
   $ hg debugdirstate --no-dates
-  n 644         10 set                 inside/f1
+  trk exp mode fb       size mtime path
+  w1- c    644 --         10 set   inside/f1
 
 Can commit empty files
 
