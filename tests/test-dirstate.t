@@ -530,3 +530,36 @@ Check dirstate ordering
   $ hg commit -Aqm1
   $ hg st
   $ cd ..
+
+Template fields
+===============
+
+`debugdirstate` exposes the semantic attributes of each entry to templates,
+next to the dirstate-v1 record it prints by default:
+
+  $ hg init template-fields
+  $ cd template-fields
+  $ echo babar > babar
+  $ echo celeste > celeste
+  $ touch -t 200001010000 babar celeste
+  $ hg commit -Aqm initial
+  $ hg cp babar flore
+  $ hg rm celeste
+  $ echo zephir > zephir
+  $ hg add zephir
+  $ hg status
+  A flore
+  A zephir
+  R celeste
+  $ hg debugdirstate --no-dates
+  n 644          6 set                 babar
+  r   0          0 set                 celeste
+  a   0         -1 unset               flore
+  a   0         -1 unset               zephir
+  copy: babar -> flore
+  $ hg debugdirstate -T '{path}: wc={wc_tracked} p1={p1_tracked} p2={p2_info} expected={expected_state} size={size} mtime={mtime} copy={copy_source} v1={v1_state}\n'
+  babar: wc=True p1=True p2=False expected=clean size=6 mtime=946684800 copy= v1=n
+  celeste: wc=False p1=True p2=False expected=clean size= mtime= copy= v1=r
+  flore: wc=True p1=False p2=False expected=clean size= mtime= copy=babar v1=a
+  zephir: wc=True p1=False p2=False expected=clean size= mtime= copy= v1=a
+  $ cd ..

@@ -1035,6 +1035,53 @@ def debugdeltafind(ui, repo, arg_1, arg_2=None, source=b'full', **opts):
     revlog_debug.debug_delta_find(ui, revlog, rev, base_rev=base_rev)
 
 
+def _debugdirstate_fields(filename, item, directory_mtime, copies):
+    """The semantic fields of a dirstate path, for the formatter
+
+    A path is an entry, with its item, or a directory, with the mtime it
+    caches: both kinds carry the same fields, so a template can read any of
+    them on any path. `expected_state` says what the cached data describe: a
+    `clean` file, a `modified` one or a `directory`.
+    """
+    fields = {
+        'path': filename,
+        'directory': item is None,
+        'wc_tracked': False,
+        'p1_tracked': False,
+        'p2_info': False,
+        'expected_state': b'clean',
+        'mode': None,
+        'size': None,
+        'fallback_exec': None,
+        'fallback_symlink': None,
+        'mtime': None,
+        'mtime_ns': None,
+        'mtime_ambiguous': None,
+        'copy_source': copies.get(filename),
+    }
+    if item is None:
+        mtime = directory_mtime
+        fields['expected_state'] = b'directory'
+    else:
+        mtime = item.mtime
+        mode_size = item.mode_size
+        fields['wc_tracked'] = item.tracked
+        fields['p1_tracked'] = item.p1_tracked
+        fields['p2_info'] = item.p2_info
+        if item.expected_state_is_modified:
+            fields['expected_state'] = b'modified'
+        if mode_size is not None:
+            fields['mode'], fields['size'] = mode_size
+        fields['fallback_exec'] = item.fallback_exec
+        fields['fallback_symlink'] = item.fallback_symlink
+    if mtime is not None:
+        seconds, nanoseconds, second_ambiguous = mtime
+        fields['mtime'] = seconds
+        fields['mtime_ns'] = nanoseconds
+        fields['mtime_ambiguous'] = second_ambiguous
+    return fields
+
+
 @command(
     b'debugdirstate|debugstate',
     [
@@ -1100,11 +1147,14 @@ def debugstate(ui, repo, **opts):
     if datesort:
 
         def keyfunc(entry):
-            filename, _state, _mode, _size, mtime = entry
-            return (mtime, filename)
+            filename, v1_record, _item, _directory_mtime = entry
+            return (v1_record[3], filename)
 
     else:
-        keyfunc = None  # sort by filename
+
+        def keyfunc(entry):
+            return entry[0]
+
     entries = []
     paths = repo.dirstate._map.debug_iter(all=opts['all'])
     for filename, item, directory_mtime in paths:
@@ -1120,11 +1170,13 @@ def debugstate(ui, repo, **opts):
             mode = item.v1_mode
             size = item.v1_size
             mtime = item.v1_mtime
-        entries.append((filename, state, mode, size, mtime))
+        v1_record = (state, mode, size, mtime)
+        entries.append((filename, v1_record, item, directory_mtime))
     entries.sort(key=keyfunc)
+    copies = repo.dirstate.copies()
     fm = ui.formatter(b'debugdirstate', pycompat.byteskwargs(opts))
-    for entry in entries:
-        filename, state, mode, size, mtime = entry
+    for filename, v1_record, item, directory_mtime in entries:
+        state, mode, size, mtime = v1_record
         if mtime == -1:
             timestr = b'unset               '
         elif nodates:
@@ -1138,17 +1190,14 @@ def debugstate(ui, repo, **opts):
             modestr = b'%3o' % (mode & 0o777 & ~util.umask)
         fm.startitem()
         fm.data(
-            path=filename,
-            v1_state=state,
-            v1_mode=mode,
-            v1_size=size,
-            v1_mtime=mtime,
+            **_debugdirstate_fields(filename, item, directory_mtime, copies)
         )
+        fm.data(v1_state=state, v1_mode=mode, v1_size=size, v1_mtime=mtime)
         fm.plain(
             b"%c %s %10d %s%s\n" % (state, modestr, size, timestr, filename)
         )
-    for f in repo.dirstate.copies():
-        fm.plain(_(b"copy: %s -> %s\n") % (repo.dirstate.copied(f), f))
+    for f in copies:
+        fm.plain(_(b"copy: %s -> %s\n") % (copies[f], f))
     fm.end()
 
 
