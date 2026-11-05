@@ -6,7 +6,8 @@ Do not strip innocent children. See https://bitbucket.org/facebook/hg-experiment
   > drawdag=$TESTDIR/drawdag.py
   > EOF
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ hg debugdrawdag << EOF
   > E
   > |
