@@ -43,7 +43,8 @@ Test UI worker interaction
   >     ui.status(b'done\n')
   > EOF
   $ abspath=`pwd`/t.py
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 Run tests with worker enable by forcing a heigh cost
 
