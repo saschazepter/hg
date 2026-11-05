@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo foo > a
   $ echo foo > b
