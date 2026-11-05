@@ -1,5 +1,10 @@
 Preparing the subrepository 'sub'
 
+work in a sub-directory, this test turns its root into a repository to hide
+the outer one
+
+  $ mkdir repo
+  $ cd repo
   $ hg init sub
   $ echo sub > sub/sub
   $ hg add -R sub
@@ -186,7 +191,7 @@ subrepo is referenced by absolute path.
 
 subrepo paths with ssh urls
 
-  $ hg clone ssh://user@dummy/cloned sshclone
+  $ hg clone ssh://user@dummy/repo/cloned sshclone
   requesting all changes
   adding changesets
   adding manifests
@@ -194,7 +199,7 @@ subrepo paths with ssh urls
   added 1 changesets with 3 changes to 3 files
   new changesets fdfeeb3e979e
   updating to branch default
-  cloning subrepo sub from ssh://user@dummy/sub
+  cloning subrepo sub from ssh://user@dummy/repo/sub
   requesting all changes
   adding changesets
   adding manifests
@@ -204,16 +209,16 @@ subrepo paths with ssh urls
   3 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
   $ hg -R sshclone push ssh://user@dummy/`pwd`/cloned
-  pushing to ssh://user@dummy/$TESTTMP/cloned
-  pushing subrepo sub to ssh://user@dummy/$TESTTMP/sub
+  pushing to ssh://user@dummy/$TESTTMP/repo/cloned
+  pushing subrepo sub to ssh://user@dummy/$TESTTMP/repo/sub
   searching for changes
   no changes found
   searching for changes
   no changes found
   [1]
 
-  $ cat dummylog
-  Got arguments 1:user@dummy 2:hg -R cloned serve --stdio
-  Got arguments 1:user@dummy 2:hg -R sub serve --stdio
-  Got arguments 1:user@dummy 2:hg -R $TESTTMP/cloned serve --stdio
-  Got arguments 1:user@dummy 2:hg -R $TESTTMP/sub serve --stdio
+  $ cat $TESTTMP/dummylog
+  Got arguments 1:user@dummy 2:hg -R repo/cloned serve --stdio
+  Got arguments 1:user@dummy 2:hg -R repo/sub serve --stdio
+  Got arguments 1:user@dummy 2:hg -R $TESTTMP/repo/cloned serve --stdio
+  Got arguments 1:user@dummy 2:hg -R $TESTTMP/repo/sub serve --stdio
