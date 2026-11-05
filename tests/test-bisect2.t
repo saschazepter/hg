@@ -25,7 +25,8 @@
 
 init
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 committing changes
 
