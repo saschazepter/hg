@@ -1730,8 +1730,29 @@ class Test(unittest.TestCase):
 
     def _createhgrc(self, path):
         """Create an hgrc file for this test."""
-        # The sections, and the items within them, should be written sorted.
+        # The settings are written the way `hg config --set` writes them: in a
+        # machine managed file, included from the top of the file $HGRCPATH
+        # points to. So a test can use `hg config --set` to override them, the
+        # way a user would.
+        #
+        # The "-managed" suffix duplicates `MANAGED_SUFFIX` in
+        # mercurial/configuration/command.py, as run-tests.py cannot import
+        # from the Mercurial it is about to build.
+        #
+        # This should be kept in sync with how Mercurial internals deal with
+        # managed config values. Making the whole things more robust and
+        # integrated is also an option if the reader feels like it.
+        #
+        # The suffix goes before the extension, if any: `.hgrc-managed`, but
+        # `mercurial-managed.ini` for the Windows user level file.
+        core, ext = os.path.splitext(path)
+        managed = core + '-managed' + ext
         with open(path, 'wb') as hgrc:
+            hgrc.write(
+                b'%%include %s\n' % _sys2bytes(os.path.basename(managed))
+            )
+        # The sections, and the items within them, should be written sorted.
+        with open(managed, 'wb') as hgrc:
             hgrc.write(b'[chgserver]\n')
             hgrc.write(b'idletimeout=60\n')
             hgrc.write(b'[defaults]\n')

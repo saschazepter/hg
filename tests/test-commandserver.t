@@ -17,8 +17,7 @@ buggy. This need to be resolved sooner than later.
 
 typical client does not want echo-back messages, so test without it:
 
-  $ grep -v '^promptecho ' < $HGRCPATH >> $HGRCPATH.new
-  $ mv $HGRCPATH.new $HGRCPATH
+  $ hg config --del ui.promptecho
 
   $ hg init repo
   $ cd repo

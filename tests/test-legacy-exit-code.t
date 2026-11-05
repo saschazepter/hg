@@ -1,10 +1,7 @@
 Tests that the exit code is as expected when ui.detailed-exit-code is *not*
 enabled.
 
-  $ cat >> $HGRCPATH << EOF
-  > [ui]
-  > detailed-exit-code=no
-  > EOF
+  $ hg config --set ui.detailed-exit-code=no
 
   $ hg init repo
   $ cd repo
