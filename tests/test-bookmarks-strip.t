@@ -1,7 +1,8 @@
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "mq=" >> $HGRCPATH
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo qqq>qqq.txt
 
@@ -56,7 +57,7 @@ bookmarks updated?
 strip to revision 1
 
   $ hg strip 1
-  saved backup bundle to $TESTTMP/.hg/strip-backup/*-backup.hg (glob)
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/*-backup.hg (glob)
 
 list bookmarks
 
