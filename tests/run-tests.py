@@ -1730,17 +1730,8 @@ class Test(unittest.TestCase):
 
     def _createhgrc(self, path):
         """Create an hgrc file for this test."""
+        # The sections, and the items within them, should be written sorted.
         with open(path, 'wb') as hgrc:
-            hgrc.write(b'[ui]\n')
-            hgrc.write(b'slash = True\n')
-            hgrc.write(b'interactive = False\n')
-            hgrc.write(b'detailed-exit-code = True\n')
-            hgrc.write(b'merge = internal:merge\n')
-            hgrc.write(b'mergemarkers = detailed\n')
-            hgrc.write(b'promptecho = True\n')
-            dummyssh = os.path.join(self._testdir, b'dummyssh')
-            hgrc.write(b'ssh = "%s" "%s"\n' % (self._pythonb, dummyssh))
-            hgrc.write(b'timeout.warn=15\n')
             hgrc.write(b'[chgserver]\n')
             hgrc.write(b'idletimeout=60\n')
             hgrc.write(b'[defaults]\n')
@@ -1757,6 +1748,16 @@ class Test(unittest.TestCase):
                 b'usercache = %s\n'
                 % (os.path.join(self._testtmp, b'.cache/lfs'))
             )
+            hgrc.write(b'[ui]\n')
+            hgrc.write(b'detailed-exit-code = True\n')
+            hgrc.write(b'interactive = False\n')
+            hgrc.write(b'merge = internal:merge\n')
+            hgrc.write(b'mergemarkers = detailed\n')
+            hgrc.write(b'promptecho = True\n')
+            hgrc.write(b'slash = True\n')
+            dummyssh = os.path.join(self._testdir, b'dummyssh')
+            hgrc.write(b'ssh = "%s" "%s"\n' % (self._pythonb, dummyssh))
+            hgrc.write(b'timeout.warn=15\n')
             hgrc.write(b'[web]\n')
             hgrc.write(b'address = localhost\n')
             hgrc.write(b'ipv6 = %r\n' % self._useipv6)

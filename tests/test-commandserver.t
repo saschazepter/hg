@@ -233,11 +233,11 @@ check that local configs for the cached repo aren't inherited when -R is used:
   format.use-dirstate-v2=1 (dirstate-v2 !)
   largefiles.usercache=$TESTTMP/.cache/largefiles
   lfs.usercache=$TESTTMP/.cache/lfs
-  ui.slash=True
-  ui.interactive=False
   ui.detailed-exit-code=True
+  ui.interactive=False
   ui.merge=internal:merge
   ui.mergemarkers=detailed
+  ui.slash=True
   ui.ssh=* (glob)
   ui.timeout.warn=15
   ui.foo=bar
@@ -247,11 +247,11 @@ check that local configs for the cached repo aren't inherited when -R is used:
   web.server-header=testing stub value
   *** runcommand init foo
   *** runcommand -R foo showconfig ui defaults
-  ui.slash=True
-  ui.interactive=False
   ui.detailed-exit-code=True
+  ui.interactive=False
   ui.merge=internal:merge
   ui.mergemarkers=detailed
+  ui.slash=True
   ui.ssh=* (glob)
   ui.timeout.warn=15
   ui.nontty=true
