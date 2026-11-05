@@ -2390,6 +2390,14 @@ class IRepo(Protocol):
     def invalidatedirstate(self):
         """Invalidate the dirstate."""
 
+    # XXX We should not have private method as part of the interface
+    #
+    # It is called by code moving the working copy parents around, a proper
+    # API should replace it.
+    @abc.abstractmethod
+    def _quick_access_changeid_invalidate(self) -> None:
+        """Drop the cached quick access data about the working copy parents."""
+
     @abc.abstractmethod
     def invalidate(self, clearfilecache=False):
         pass
