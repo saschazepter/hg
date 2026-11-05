@@ -1489,8 +1489,10 @@ class Test(unittest.TestCase):
             [
                 (br'([^0-9])%s' % re.escape(self._localip()), br'\1$LOCALIP'),
                 (br'\bHG_TXNID=TXN:[a-f0-9]{40}\b', br'HG_TXNID=TXN:$ID$'),
-                (self._escapepath(self._testtmp), b'$TESTTMP'),
+                # the hgrc path can live inside $TESTTMP, so substitute it
+                # first, the longer match is the informative one.
                 (self._escapepath(self._hgrcpath), b'$HGRCPATH'),
+                (self._escapepath(self._testtmp), b'$TESTTMP'),
                 (self._escapepath(self._testdir), b'$TESTDIR'),
                 # we don't add escape for RUNTEST_DIR because it might be the
                 # same as TESTDIR and the replacement won't work well.
@@ -1502,10 +1504,10 @@ class Test(unittest.TestCase):
         if WINDOWS:
             # JSON output escapes backslashes in Windows paths, so also catch a
             # double-escape.
-            replaced = self._testtmp.replace(b'\\', br'\\')
-            r.append((self._escapepath(replaced), b'$STR_REPR_TESTTMP'))
             replaced = self._hgrcpath.replace(b'\\', br'\\')
             r.append((self._escapepath(replaced), b'$STR_REPR_HGRCPATH'))
+            replaced = self._testtmp.replace(b'\\', br'\\')
+            r.append((self._escapepath(replaced), b'$STR_REPR_TESTTMP'))
             replaced = self._testdir.replace(b'\\', br'\\')
             r.append((self._escapepath(replaced), b'$STR_REPR_TESTDIR'))
 
