@@ -294,7 +294,8 @@ Testing --version:
   Mercurial Distributed SCM * (glob)
 
 hide outer repo
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 Testing -h/--help:
 
