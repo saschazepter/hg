@@ -5,7 +5,8 @@
   > tglog = log -G -T "{rev} '{desc}'\n"
   > EOF
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo a > a; hg add a; hg ci -m a
   $ echo b > b; hg add b; hg ci -m b1
@@ -33,7 +34,7 @@ With rewrite.empty-successor=keep, b2 will be recreated although it became empty
   $ hg rebase -s 2 -d 1 --config rewrite.empty-successor=keep
   rebasing 2:6e2aad5e0f3c tip "b2"
   note: created empty successor for 2:6e2aad5e0f3c tip "b2", its destination already has all its changes
-  saved backup bundle to $TESTTMP/.hg/strip-backup/6e2aad5e0f3c-7d7c8801-rebase.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/6e2aad5e0f3c-7d7c8801-rebase.hg
 
   $ hg tglog
   @  2 'b2'
