@@ -11,8 +11,7 @@
   $ hg --config ui.strict=False an a
   0: a
 
-  $ echo "[ui]" >> $HGRCPATH
-  $ echo "strict=True" >> $HGRCPATH
+  $ hg config --set ui.strict=True
 
   $ hg an a
   hg: unknown command 'an'
