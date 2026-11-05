@@ -4,7 +4,8 @@
   > drawdag=$TESTDIR/drawdag.py
   > EOF
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ hg debugdrawdag <<'EOS'
   > C
   > |
