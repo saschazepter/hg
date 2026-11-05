@@ -1,5 +1,6 @@
 hide outer repo
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
   $ echo "[extensions]" >> $HGRCPATH
   $ echo "mq=" >> $HGRCPATH
