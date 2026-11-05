@@ -1,4 +1,5 @@
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ mkdir d1 d1/d11 d2
   $ echo d1/a > d1/a
   $ echo d1/ba > d1/ba
@@ -35,7 +36,7 @@ Test single file
   [10]
 # Successful invocation
   $ hg cp -A --at-rev . d1/b d1/d
-  saved backup bundle to $TESTTMP/.hg/strip-backup/8a9d70fa20c9-973ae357-copy.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/8a9d70fa20c9-973ae357-copy.hg
 # New copy is recorded, and previously recorded copy is also still there
   $ hg st -C --change .
   A d1/c
@@ -44,7 +45,7 @@ Test single file
     d1/b
 # Should get helpful message if we try to copy or rename after commit
   $ hg cp --forget --at-rev . d1/d
-  saved backup bundle to $TESTTMP/.hg/strip-backup/3f7c325d3f9e-46f377bb-uncopy.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/3f7c325d3f9e-46f377bb-uncopy.hg
   $ hg cp d1/b d1/d
   d1/d: not overwriting - file already committed
   ('hg copy --at-rev .' to record the copy in the parent of the working copy)
@@ -64,7 +65,7 @@ Test moved file (not copied) using 'hg cp' command
   $ hg ci -m 'move d1/b to d1/d'
   created new head
   $ hg cp -A --at-rev . d1/b d1/d
-  saved backup bundle to $TESTTMP/.hg/strip-backup/519850c3ea27-153c8fbb-copy.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/519850c3ea27-153c8fbb-copy.hg
   $ hg st -C --change .
   A d1/d
     d1/b
@@ -80,7 +81,7 @@ Test moved file (not copied) using 'hg mv' command
   $ hg ci -m 'move d1/b to d1/d'
   created new head
   $ hg mv -A --at-rev . d1/b d1/d
-  saved backup bundle to $TESTTMP/.hg/strip-backup/519850c3ea27-153c8fbb-copy.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/519850c3ea27-153c8fbb-copy.hg
   $ hg st -C --change .
   A d1/d
     d1/b
@@ -95,7 +96,7 @@ Test moved file (not copied) for which source still exists
   $ hg ci -m 'copy d1/b to d1/d'
   created new head
   $ hg mv -A --at-rev . d1/b d1/d
-  saved backup bundle to $TESTTMP/.hg/strip-backup/c8d0f6bcf7ca-1c9bb53e-copy.hg
+  saved backup bundle to $TESTTMP/repo/.hg/strip-backup/c8d0f6bcf7ca-1c9bb53e-copy.hg
   $ hg st -C --change .
   A d1/d
     d1/b
