@@ -1,6 +1,7 @@
 Tests about metadataonlyctx
 
-  $ hg init
+  $ hg init repo
+  $ cd repo
   $ echo A > A
   $ hg commit -A A -m 'Add A'
   $ echo B > B
@@ -11,7 +12,7 @@ Tests about metadataonlyctx
   $ hg add C -q
   $ hg commit -m 'Remove A'
 
-  $ cat > metaedit.py <<EOF
+  $ cat > $TESTTMP/metaedit.py <<EOF
   > from mercurial import context, pycompat, registrar
   > cmdtable = {}
   > command = registrar.command(cmdtable)
