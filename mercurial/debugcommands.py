@@ -1058,7 +1058,8 @@ def debugdeltafind(ui, repo, arg_1, arg_2=None, source=b'full', **opts):
             False,
             _(b'display dirstate-v2 tree nodes that would not exist in v1'),
         ),
-    ],
+    ]
+    + cmdutil.formatteropts,
     _(b'[OPTION]...'),
 )
 def debugstate(ui, repo, **opts):
@@ -1121,6 +1122,7 @@ def debugstate(ui, repo, **opts):
             mtime = item.v1_mtime
         entries.append((filename, state, mode, size, mtime))
     entries.sort(key=keyfunc)
+    fm = ui.formatter(b'debugdirstate', pycompat.byteskwargs(opts))
     for entry in entries:
         filename, state, mode, size, mtime = entry
         if mtime == -1:
@@ -1131,12 +1133,23 @@ def debugstate(ui, repo, **opts):
             timestr = time.strftime("%Y-%m-%d %H:%M:%S ", time.localtime(mtime))
             timestr = encoding.strtolocal(timestr)
         if mode & 0o20000:
-            mode = b'lnk'
+            modestr = b'lnk'
         else:
-            mode = b'%3o' % (mode & 0o777 & ~util.umask)
-        ui.write(b"%c %s %10d %s%s\n" % (state, mode, size, timestr, filename))
+            modestr = b'%3o' % (mode & 0o777 & ~util.umask)
+        fm.startitem()
+        fm.data(
+            path=filename,
+            v1_state=state,
+            v1_mode=mode,
+            v1_size=size,
+            v1_mtime=mtime,
+        )
+        fm.plain(
+            b"%c %s %10d %s%s\n" % (state, modestr, size, timestr, filename)
+        )
     for f in repo.dirstate.copies():
-        ui.write(_(b"copy: %s -> %s\n") % (repo.dirstate.copied(f), f))
+        fm.plain(_(b"copy: %s -> %s\n") % (repo.dirstate.copied(f), f))
+    fm.end()
 
 
 @command(
