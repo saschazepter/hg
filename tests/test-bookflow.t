@@ -8,6 +8,11 @@ initialize
   >     cd $d
   >     return $r
   > }
+
+the test checks that it starts in an empty directory, so use one of its own
+
+  $ mkdir repo
+  $ cd repo
   $ ls -1a
   .
   ..
@@ -51,7 +56,7 @@ change a
 pull in b
   $ cd ../b
   $ hg pull -u
-  pulling from $TESTTMP/a
+  pulling from $TESTTMP/repo/a
   searching for changes
   adding changesets
   adding manifests
@@ -168,7 +173,7 @@ now merge with the remote bookmark
      @                         3:* (glob)
    * X                         8:26fed9bb3219
   $ hg push -B X | grep bookmark
-  pushing to $TESTTMP/a (?)
+  pushing to $TESTTMP/repo/a (?)
   updating bookmark X
   $ cd ../a
   $ hg up -q
@@ -241,7 +246,7 @@ make the bookmark move by updating it on a, and then pulling with a local change
   created new head
   $ echo "more" >> test
   $ hg pull -u 2>&1 | grep -F -v TESTTMP| grep -F -v "searching for changes" | grep -F -v adding
-  pulling from $TESTTMP/a
+  pulling from $TESTTMP/repo/a
   updating bookmark X
   added 1 changesets with 0 changes to 0 files (+1 heads)
   new changesets * (glob)
