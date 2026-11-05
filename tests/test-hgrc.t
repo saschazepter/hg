@@ -4,12 +4,13 @@ Use hgrc within $TESTTMP
   $ export HGRCPATH
 
 hide outer repo
-  $ hg init
+  $ hg init repo
+  $ cd repo
 
 Use an alternate var for scribbling on hgrc to keep check-code from
 complaining about the important settings we may be overwriting:
 
-  $ HGRC=`pwd`/hgrc
+  $ HGRC=$TESTTMP/hgrc
   $ export HGRC
 
 Basic syntax error
@@ -30,7 +31,7 @@ Issue1199: Can't use '%' in hgrc (eg url encoded username)
   $ cat .hg/hgrc
   # example repository config (see 'hg help config' for more info)
   [paths]
-  default = $TESTTMP/foo%bar
+  default = $TESTTMP/repo/foo%bar
   
   # path aliases to other clones of this repo in URLs or filesystem paths
   # (see 'hg help config.paths' for more info)
@@ -43,10 +44,10 @@ Issue1199: Can't use '%' in hgrc (eg url encoded username)
   # name and email (local to this repository, optional), e.g.
   # username = Jane Doe <jdoe@example.com>
   $ hg paths
-  default = $TESTTMP/foo%bar
+  default = $TESTTMP/repo/foo%bar
   $ hg showconfig
-  bundle.mainreporoot=$TESTTMP/foobar
-  paths.default=$TESTTMP/foo%bar
+  bundle.mainreporoot=$TESTTMP/repo/foobar
+  paths.default=$TESTTMP/repo/foo%bar
   $ cd ..
 
 Check %include
@@ -92,7 +93,7 @@ issue1829: wrong indentation
 make sure global options given on the cmdline take precedence
 
   $ hg showconfig --config ui.verbose=True --quiet
-  bundle.mainreporoot=$TESTTMP
+  bundle.mainreporoot=$TESTTMP/repo
   ui.verbose=False
   ui.debug=False
   ui.quiet=True
@@ -123,7 +124,7 @@ username expansion
   $ cd ..
 
   $ hg showconfig
-  bundle.mainreporoot=$TESTTMP
+  bundle.mainreporoot=$TESTTMP/repo
   ui.username=$FAKEUSER
 
   $ unset FAKEUSER
@@ -170,10 +171,10 @@ customized hgrc
 
   $ hg showconfig
   read config from: $TESTTMP/hgrc
-  read config from: $TESTTMP/.hg/hgrc
-  read config from: $TESTTMP/.hg/hgrc-not-shared
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/repo/.hg/hgrc-not-shared
   $TESTTMP/hgrc:13: alias.log=log -g
-  repo: bundle.mainreporoot=$TESTTMP
+  repo: bundle.mainreporoot=$TESTTMP/repo
   $TESTTMP/hgrc:11: defaults.identify=-n
   $TESTTMP/hgrc:2: ui.debug=true
   $TESTTMP/hgrc:3: ui.fallbackencoding=ASCII
@@ -189,9 +190,9 @@ plain hgrc
   $ HGPLAIN=; export HGPLAIN
   $ hg showconfig --config ui.traceback=True --debug
   read config from: $TESTTMP/hgrc
-  read config from: $TESTTMP/.hg/hgrc
-  read config from: $TESTTMP/.hg/hgrc-not-shared
-  repo: bundle.mainreporoot=$TESTTMP
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/repo/.hg/hgrc-not-shared
+  repo: bundle.mainreporoot=$TESTTMP/repo
   --config: ui.traceback=True
   --verbose: ui.verbose=False
   --debug: ui.debug=True
@@ -201,9 +202,9 @@ with environment variables
 
   $ PAGER=p1 EDITOR=e1 VISUAL=e2 hg showconfig --debug
   read config from: $TESTTMP/hgrc
-  read config from: $TESTTMP/.hg/hgrc
-  read config from: $TESTTMP/.hg/hgrc-not-shared
-  repo: bundle.mainreporoot=$TESTTMP
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/repo/.hg/hgrc-not-shared
+  repo: bundle.mainreporoot=$TESTTMP/repo
   $PAGER: pager.pager=p1
   $VISUAL: ui.editor=e2
   --verbose: ui.verbose=False
@@ -226,9 +227,9 @@ plain mode with exceptions
   $ hg showconfig --config ui.traceback=True --debug
   plain: True
   read config from: $TESTTMP/hgrc
-  read config from: $TESTTMP/.hg/hgrc
-  read config from: $TESTTMP/.hg/hgrc-not-shared
-  repo: bundle.mainreporoot=$TESTTMP
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/repo/.hg/hgrc-not-shared
+  repo: bundle.mainreporoot=$TESTTMP/repo
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
   --config: ui.traceback=True
   --verbose: ui.verbose=False
@@ -238,9 +239,9 @@ plain mode with exceptions
   $ hg showconfig --config ui.traceback=True --debug
   plain: True
   read config from: $TESTTMP/hgrc
-  read config from: $TESTTMP/.hg/hgrc
-  read config from: $TESTTMP/.hg/hgrc-not-shared
-  repo: bundle.mainreporoot=$TESTTMP
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/repo/.hg/hgrc-not-shared
+  repo: bundle.mainreporoot=$TESTTMP/repo
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
   --config: ui.traceback=True
   --verbose: ui.verbose=False
@@ -250,9 +251,9 @@ plain mode with exceptions
   $ hg showconfig --config ui.traceback=True --debug
   plain: True
   read config from: $TESTTMP/hgrc
-  read config from: $TESTTMP/.hg/hgrc
-  read config from: $TESTTMP/.hg/hgrc-not-shared
-  repo: bundle.mainreporoot=$TESTTMP
+  read config from: $TESTTMP/repo/.hg/hgrc
+  read config from: $TESTTMP/repo/.hg/hgrc-not-shared
+  repo: bundle.mainreporoot=$TESTTMP/repo
   $TESTTMP/hgrc:15: extensions.plain=./plain.py
   --config: ui.traceback=True
   --verbose: ui.verbose=False
@@ -276,7 +277,7 @@ Test we can skip the user configuration
   > elephant = babar
   > EOF
   $ hg path
-  elephant = $TESTTMP/babar
+  elephant = $TESTTMP/repo/babar
   foo = $TESTTMP/bar
   $ HGRCSKIPREPO=1 hg path
   foo = $TESTTMP/bar
@@ -286,7 +287,7 @@ Test we can skip the user configuration
   > EOF
 
   $ hg path
-  config error at $TESTTMP/.hg/hgrc:3: [broken
+  config error at $TESTTMP/repo/.hg/hgrc:3: [broken
   [255]
   $ HGRCSKIPREPO=1 hg path
   foo = $TESTTMP/bar
@@ -294,7 +295,7 @@ Test we can skip the user configuration
 Check that hgweb respect HGRCSKIPREPO=1
 
   $ hg serve -n test -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
-  config error at $TESTTMP/.hg/hgrc:3: [broken
+  config error at $TESTTMP/repo/.hg/hgrc:3: [broken
   [255]
   $ test -f hg.pid && (cat hg.pid >> $DAEMON_PIDS)
   [1]
@@ -313,7 +314,7 @@ Check that hgweb respect HGRCSKIPREPO=1
 Check that zeroconf respect HGRCSKIPREPO=1
 
   $ hg paths --config extensions.zeroconf=
-  config error at $TESTTMP/.hg/hgrc:3: [broken
+  config error at $TESTTMP/repo/.hg/hgrc:3: [broken
   [255]
 
 XXX: This occasionally crashes with a bytes vs str problem when processing a
