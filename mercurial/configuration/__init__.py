@@ -78,6 +78,9 @@ class Shadowing(NamedTuple):
         )
 
 
+# a ``section.name=value`` specification, as parsed from a command argument
+ConfigSpecT = tuple[bytes, bytes, bytes]
+
 ConfigItemT = tuple[bytes, bytes, bytes, bytes]
 ResourceIDT = tuple[bytes, bytes]
 FileRCT = bytes

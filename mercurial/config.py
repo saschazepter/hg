@@ -698,7 +698,7 @@ class config:
         )
 
 
-def parse_single_arg(spec: bytes) -> tuple[bytes, bytes, bytes]:
+def parse_single_arg(spec: bytes) -> conf_mod.ConfigSpecT:
     """parse a ``section.name=value`` specification into a triplet
 
     Whitespaces around the ``section.name`` part and around the value are

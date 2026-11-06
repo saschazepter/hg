@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-from typing import Any, Collection, TYPE_CHECKING
+from typing import Any, Collection
 
 from ..i18n import _
 from ..interfaces.types import (
@@ -27,6 +27,7 @@ from .. import (
 
 from . import (
     ConfigLevelT,
+    ConfigSpecT,
     EDIT_LEVELS,
     LEVEL_GLOBAL,
     LEVEL_LOCAL,
@@ -39,9 +40,6 @@ from . import (
 )
 
 EDIT_FLAG = 'edit'
-
-if TYPE_CHECKING:
-    ConfigSpecT = tuple[bytes, bytes, bytes]
 
 
 def find_edit_level(
