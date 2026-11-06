@@ -12,7 +12,16 @@ from typing import (
 # keep typing simple for now
 ConfigLevelT = str
 LEVEL_BUNDLED_RESOURCE = 'RESOURCE'
-LEVEL_ENV_OVERWRITE = 'ENV-HGRCPATH'
+# the values a handful of environment variables provide, read right before
+# the user level so the user can override them.
+#
+# This level never holds any file.
+LEVEL_ENV_ITEMS = 'env-items'
+# the configuration files listed in $HGRCPATH
+#
+# When that variable is set, these files replace the bundled, system and user
+# ones.
+LEVEL_HGRCPATH = 'HGRCPATH'
 LEVEL_USER = 'user'
 LEVEL_LOCAL = 'local'
 LEVEL_GLOBAL = 'global'

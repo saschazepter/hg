@@ -134,7 +134,7 @@ def rccomponents(use_hgrcpath=True) -> list[ComponentT]:
     list of (section, name, value, source) that should fill the config directly.
     If type is 'resource', obj is a tuple of (package name, resource name).
     """
-    envrc = (conf_mod.LEVEL_ENV_OVERWRITE, b'items', envrcitems())
+    envrc = (conf_mod.LEVEL_ENV_ITEMS, b'items', envrcitems())
 
     _rccomponents = []
     comp = _rccomponents.append
@@ -147,7 +147,7 @@ def rccomponents(use_hgrcpath=True) -> list[ComponentT]:
             if not p:
                 continue
             for p in _expandrcpath(p):
-                comp((conf_mod.LEVEL_ENV_OVERWRITE, b'path', p))
+                comp((conf_mod.LEVEL_HGRCPATH, b'path', p))
     else:
         for r in default_rc_resources():
             comp((conf_mod.LEVEL_BUNDLED_RESOURCE, b'resource', r))
