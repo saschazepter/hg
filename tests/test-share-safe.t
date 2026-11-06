@@ -410,6 +410,55 @@ setting a value after the unshare still works
   $ hg -R managed-share config alias.both
   after-unshare
 
+Unshare warns about the values the source takes over
+====================================================
+
+When unsharing, all manual config end stronger than the managed one. Before the
+unshare, the managed value in the share were stronger than the manual in the
+source.
+
+We need to warn the user about that.
+
+(We could also further alter the behavior if a good alternative comes up)
+
+a value defined by hand in the source and managed in the share
+--------------------------------------------------------------
+
+  $ cd $TESTTMP
+  $ hg init taken-over-source
+  $ hg share taken-over-source taken-over-share
+  updating working directory
+  0 files updated, 0 files merged, 0 files removed, 0 files unresolved
+
+  $ cat >> taken-over-source/.hg/hgrc <<EOF
+  > [alias]
+  > taken-over = source-hand
+  > EOF
+  $ hg -R taken-over-source config --local --set alias.from-source=source-value
+  $ hg -R taken-over-share config --local --set alias.taken-over=share-value
+
+The share manages the value, so it wins over the one the source wrote:
+
+  $ hg -R taken-over-share config alias.taken-over
+  share-value
+
+unsharing says which value changes hands
+----------------------------------------
+
+  $ hg -R taken-over-share unshare
+  warning: config manually set in the source now overwrites the managed one: 'alias.taken-over'
+  (the copied configuration lives in $TESTTMP/taken-over-share/.hg/hgrc) (no-windows !)
+  (the copied configuration lives in $TESTTMP\taken-over-share\.hg\hgrc) (windows !)
+
+  $ hg -R taken-over-share config alias.taken-over
+  source-hand
+
+The values the source only managed are not affected, ours still win over
+them, so they are not warned about:
+
+  $ hg -R taken-over-share config alias.from-source
+  source-value
+
 Test that upgrading using debugupgraderepo works
 =================================================
 

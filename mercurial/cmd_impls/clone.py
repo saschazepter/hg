@@ -858,7 +858,43 @@ def unshare(ui, repo):
     return newrepo
 
 
-def _merge_source_managed_values(srcvfs, dstvfs, managed_file) -> bool:
+def _warn_source_manual_overrides(
+    ui, srcvfs, dstvfs, managed_file, own
+) -> None:
+    """warn about the values of ours the source configuration now overrides
+
+    Our managed values used to win over the whole configuration of the
+    source. A single `%include` now pulls them in above the copied source
+    content, so a value the source defines by hand wins over ours instead.
+    Only a key defined both ways is affected.
+    """
+    source_config = configmod.config()
+    source_config.read(srcvfs.join(b'hgrc'))
+    source_managed = os.path.normpath(srcvfs.join(managed_file))
+    overridden = False
+    for section in own.sections():
+        for key, __ in own.items(section):
+            if source_config.get(section, key) is None:
+                continue
+            source = source_config.source(section, key)
+            if source.rsplit(b':', 1)[0] == source_managed:
+                # the source managed that value too, so ours keeps winning
+                # over it, as it did before.
+                continue
+            overridden = True
+            msg = _(
+                b"warning: config manually set in the source now overwrites"
+                b" the managed one: '%s.%s'\n"
+            )
+            ui.warn(msg % (section, key))
+    # the file holding the definitions in the way is named once, after all of
+    # them
+    if overridden:
+        hgrc = os.path.normpath(dstvfs.join(b'hgrc'))
+        ui.warn(_(b"(the copied configuration lives in %s)\n") % hgrc)
+
+
+def _merge_source_managed_values(ui, srcvfs, dstvfs, managed_file) -> bool:
     """fold the managed values of a share source into our own managed file
 
     `hg config --set` wrote the source values in a machine managed file of
@@ -876,6 +912,7 @@ def _merge_source_managed_values(srcvfs, dstvfs, managed_file) -> bool:
     if dstvfs.exists(managed_file):
         own = configmod.config()
         own.parse(b'<managed>', dstvfs.read(managed_file))
+        _warn_source_manual_overrides(ui, srcvfs, dstvfs, managed_file, own)
         values.update(own)
     content = managed.HEADER + values.serialize()
     dstvfs.write(managed_file, content, atomictemp=True)
@@ -905,7 +942,7 @@ def _prependsourcehgrc(repo):
         currentconfig = dstvfs.read(b'hgrc')
 
     managed_file = managed.sibling(b'hgrc')
-    merged = _merge_source_managed_values(srcvfs, dstvfs, managed_file)
+    merged = _merge_source_managed_values(repo.ui, srcvfs, dstvfs, managed_file)
 
     with dstvfs(b'hgrc', b'wb') as fp:
         sourceconfig = srcvfs.read(b'hgrc')
