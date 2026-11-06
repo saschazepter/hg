@@ -43,19 +43,21 @@ The value we use, then the file it is stored in:
 
   $ cat test3/.hg/hgrc
   # example repository config (see 'hg help config' for more info)
+  #
+  # Values are written for this repository with `hg config --local --set` and
+  # dropped again with `hg config --local --del`, for instance a path alias to
+  # another clone of it (see 'hg help config.paths' for more info):
+  #
+  #   hg config --local --set paths.default:pushurl=ssh://jdoe@example.net/fork
+  #   hg config --local --set paths.my-fork=ssh://jdoe@example.net/hg/jdoes-fork
+  #   hg config --local --set paths.my-clone=/home/jdoe/jdoes-clone
+  #
+  # or a name and email local to this repository:
+  #
+  #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
+  
   [paths]
   default = http://foo@localhost:$HGPORT/
-  
-  # path aliases to other clones of this repo in URLs or filesystem paths
-  # (see 'hg help config.paths' for more info)
-  #
-  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone        = /home/jdoe/jdoes-clone
-  
-  [ui]
-  # name and email (local to this repository, optional), e.g.
-  # username = Jane Doe <jdoe@example.com>
   $ killdaemons.py
 
 expect error, cloning not allowed

@@ -160,78 +160,83 @@ _PLAIN_FEATURE_SECTIONS: tuple[bytes, ...] = (
 
 samplehgrcs: dict[bytes, bytes] = {
     b'user': b"""# example user config (see 'hg help config' for more info)
+#
+# Values are written with `hg config --set` and dropped again with
+# `hg config --del`. The settings most worth a look:
+#
+# We recommend enabling tweakdefaults to get slight improvements to
+# the UI over time. Make sure to set HGPLAIN in the environment when
+# writing scripts!
+#
+#   hg config --set ui.tweakdefaults=True
+#
+# To disable color in command output (see 'hg help color' for details):
+#
+#   hg config --set ui.color=never
+#
+# To disable command output pagination (see 'hg help pager' for details):
+#
+#   hg config --set ui.paginate=never
+#
+# To enable some popular extensions (see 'hg help extensions' for more info):
+#
+#   hg config --set extensions.histedit=
+#   hg config --set extensions.rebase=
+#   hg config --set extensions.uncommit=
+
 [ui]
 # name and email, e.g.
 # username = Jane Doe <jdoe@example.com>
 username =
-
-# We recommend enabling tweakdefaults to get slight improvements to
-# the UI over time. Make sure to set HGPLAIN in the environment when
-# writing scripts!
-# tweakdefaults = True
-
-# uncomment to disable color in command output
-# (see 'hg help color' for details)
-# color = never
-
-# uncomment to disable command output pagination
-# (see 'hg help pager' for details)
-# paginate = never
-
-[extensions]
-# uncomment the lines below to enable some popular extensions
-# (see 'hg help extensions' for more info)
-#
-# histedit =
-# rebase =
-# uncommit =
 """,
     b'cloned': b"""# example repository config (see 'hg help config' for more info)
+#
+# Values are written for this repository with `hg config --local --set` and
+# dropped again with `hg config --local --del`, for instance a path alias to
+# another clone of it (see 'hg help config.paths' for more info):
+#
+#   hg config --local --set paths.default:pushurl=ssh://jdoe@example.net/fork
+#   hg config --local --set paths.my-fork=ssh://jdoe@example.net/hg/jdoes-fork
+#   hg config --local --set paths.my-clone=/home/jdoe/jdoes-clone
+#
+# or a name and email local to this repository:
+#
+#   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
+
 [paths]
 default = %(default-path)s%(remote-cmd-config)s
-
-# path aliases to other clones of this repo in URLs or filesystem paths
-# (see 'hg help config.paths' for more info)
-#
-# default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
-# my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
-# my-clone        = /home/jdoe/jdoes-clone
-
-[ui]
-# name and email (local to this repository, optional), e.g.
-# username = Jane Doe <jdoe@example.com>
 """,
     b'local': b"""# example repository config (see 'hg help config' for more info)
-[paths]
-# path aliases to other clones of this repo in URLs or filesystem paths
-# (see 'hg help config.paths' for more info)
 #
-# default         = http://example.com/hg/example-repo
-# default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
-# my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
-# my-clone        = /home/jdoe/jdoes-clone
-
-[ui]
-# name and email (local to this repository, optional), e.g.
-# username = Jane Doe <jdoe@example.com>
+# Values are written for this repository with `hg config --local --set` and
+# dropped again with `hg config --local --del`, for instance a path alias to
+# another clone of it (see 'hg help config.paths' for more info):
+#
+#   hg config --local --set paths.default=http://example.com/hg/example-repo
+#   hg config --local --set paths.default:pushurl=ssh://jdoe@example.net/fork
+#   hg config --local --set paths.my-fork=ssh://jdoe@example.net/hg/jdoes-fork
+#   hg config --local --set paths.my-clone=/home/jdoe/jdoes-clone
+#
+# or a name and email local to this repository:
+#
+#   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
 """,
     b'global': b"""# example system-wide hg config (see 'hg help config' for more info)
-
-[ui]
-# uncomment to disable color in command output
-# (see 'hg help color' for details)
-# color = never
-
-# uncomment to disable command output pagination
-# (see 'hg help pager' for details)
-# paginate = never
-
-[extensions]
-# uncomment the lines below to enable some popular extensions
-# (see 'hg help extensions' for more info)
 #
-# blackbox =
-# churn =
+# Values are written system wide with `hg config --global --set` and dropped
+# again with `hg config --global --del`, for instance to disable color in
+# command output (see 'hg help color' for details):
+#
+#   hg config --global --set ui.color=never
+#
+# or to disable command output pagination (see 'hg help pager' for details):
+#
+#   hg config --global --set ui.paginate=never
+#
+# To enable some popular extensions (see 'hg help extensions' for more info):
+#
+#   hg config --global --set extensions.blackbox=
+#   hg config --global --set extensions.churn=
 """,
 }
 

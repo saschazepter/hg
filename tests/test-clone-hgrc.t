@@ -43,19 +43,21 @@ clone remote without extension
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat test/.hg/hgrc
   # example repository config (see 'hg help config' for more info)
+  #
+  # Values are written for this repository with `hg config --local --set` and
+  # dropped again with `hg config --local --del`, for instance a path alias to
+  # another clone of it (see 'hg help config.paths' for more info):
+  #
+  #   hg config --local --set paths.default:pushurl=ssh://jdoe@example.net/fork
+  #   hg config --local --set paths.my-fork=ssh://jdoe@example.net/hg/jdoes-fork
+  #   hg config --local --set paths.my-clone=/home/jdoe/jdoes-clone
+  #
+  # or a name and email local to this repository:
+  #
+  #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
+  
   [paths]
   default = ssh://user@dummy/server
-  
-  # path aliases to other clones of this repo in URLs or filesystem paths
-  # (see 'hg help config.paths' for more info)
-  #
-  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone        = /home/jdoe/jdoes-clone
-  
-  [ui]
-  # name and email (local to this repository, optional), e.g.
-  # username = Jane Doe <jdoe@example.com>
 
 The clone source is usable as the default path:
 
@@ -91,19 +93,21 @@ add extension
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
   $ cat ./test-extended/.hg/hgrc
   # example repository config (see 'hg help config' for more info)
+  #
+  # Values are written for this repository with `hg config --local --set` and
+  # dropped again with `hg config --local --del`, for instance a path alias to
+  # another clone of it (see 'hg help config.paths' for more info):
+  #
+  #   hg config --local --set paths.default:pushurl=ssh://jdoe@example.net/fork
+  #   hg config --local --set paths.my-fork=ssh://jdoe@example.net/hg/jdoes-fork
+  #   hg config --local --set paths.my-clone=/home/jdoe/jdoes-clone
+  #
+  # or a name and email local to this repository:
+  #
+  #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
+  
   [paths]
   default = ssh://user@dummy/server
-  
-  # path aliases to other clones of this repo in URLs or filesystem paths
-  # (see 'hg help config.paths' for more info)
-  #
-  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone        = /home/jdoe/jdoes-clone
-  
-  [ui]
-  # name and email (local to this repository, optional), e.g.
-  # username = Jane Doe <jdoe@example.com>
   # written by extension!
 
 The extension writing that file did not cost us the default path:
