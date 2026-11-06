@@ -13,6 +13,8 @@
 * setup: a new `--rust-ready` build flavor installs the Rust extensions without
   enabling them; such a build behaves like a non-Rust one until
   `HGMODULEPOLICY=rust+c` is set. See `hg help rust`.
+* config: added `--set` and `--del` flags to programmatically handle
+  configuration. See `hg help config` for details.
 
 == Default Format Change ==
 
