@@ -698,6 +698,49 @@ class config:
         )
 
 
+def parse_single_key(spec: bytes) -> conf_mod.ConfigKeyT:
+    """parse a ``section.name`` specification into a pair
+
+    Whitespaces around the specification are stripped.
+
+    A ``ValueError`` is raised for malformed specifications.
+
+    >>> parse_single_key(b'ui.username')
+    (b'ui', b'username')
+    >>> parse_single_key(b' ui.username ')
+    (b'ui', b'username')
+
+    The name part may contain dots:
+
+    >>> parse_single_key(b'alias.log.short')
+    (b'alias', b'log.short')
+
+    Malformed specifications are rejected:
+
+    >>> parse_single_key(b'username')
+    Traceback (most recent call last):
+        ...
+    ValueError: malformed config specification: b'username'
+    >>> parse_single_key(b'.username')
+    Traceback (most recent call last):
+        ...
+    ValueError: malformed config specification: b'.username'
+    >>> parse_single_key(b'ui.username=Babar')
+    Traceback (most recent call last):
+        ...
+    ValueError: malformed config specification: b'ui.username=Babar'
+    """
+    key = spec.strip()
+    if b'=' in key:
+        raise ValueError('malformed config specification: %r' % spec)
+    if b'.' not in key:
+        raise ValueError('malformed config specification: %r' % spec)
+    section, name = key.split(b'.', 1)
+    if not section or not name:
+        raise ValueError('malformed config specification: %r' % spec)
+    return (section, name)
+
+
 def parse_single_arg(spec: bytes) -> conf_mod.ConfigSpecT:
     """parse a ``section.name=value`` specification into a triplet
 
@@ -734,10 +777,10 @@ def parse_single_arg(spec: bytes) -> conf_mod.ConfigSpecT:
     if b"=" not in spec:
         raise ValueError('malformed config specification: %r' % spec)
     key, value = spec.split(b'=', 1)
-    key = key.strip()
-    if b'.' not in key:
-        raise ValueError('malformed config specification: %r' % spec)
-    section, name = key.split(b'.', 1)
-    if not section or not name:
+    try:
+        section, name = parse_single_key(key)
+    except ValueError:
+        # the key alone is not what we were handed, so report the whole
+        # specification instead.
         raise ValueError('malformed config specification: %r' % spec)
     return (section, name, value.strip())

@@ -78,6 +78,8 @@ class Shadowing(NamedTuple):
         )
 
 
+# a ``section.name`` configuration key, as parsed from a command argument
+ConfigKeyT = tuple[bytes, bytes]
 # a ``section.name=value`` specification, as parsed from a command argument
 ConfigSpecT = tuple[bytes, bytes, bytes]
 
