@@ -122,6 +122,18 @@ From source
 Please refer to the `rust/README.md` file in the Mercurial repository for
 instructions on how to install from source.
 
+Installed but not enabled
+-------------------------
+
+Packagers can build Mercurial with the ``--rust-ready`` flavor instead of
+``--rust``: the Rust extensions are installed but left out of the default
+module policy, so Mercurial behaves like a non-Rust build until a user opts in
+by setting the ``HGMODULEPOLICY`` environment variable to ``rust+c``::
+
+  $ HGMODULEPOLICY=rust+c hg debuginstall | grep -i rust
+  checking Rust extensions (installed)
+  checking module policy (rust+c)
+
 MSRV
 ====
 

@@ -432,6 +432,7 @@ class hgdist(Distribution):
     pure = False
     rust = False
     no_rust = False
+    rust_ready = False
     cffi = ispypy
 
     global_options = Distribution.global_options + [
@@ -442,10 +443,15 @@ class hgdist(Distribution):
             None,
             "do not use Rust extensions additionally to C extensions",
         ),
+        (
+            'rust-ready',
+            None,
+            "install the Rust extensions without using them by default",
+        ),
     ]
 
     negative_opt = Distribution.negative_opt.copy()
-    boolean_options = ['pure', 'rust', 'no-rust']
+    boolean_options = ['pure', 'rust', 'no-rust', 'rust-ready']
     negative_opt['no-rust'] = 'rust'
 
     def parse_command_line(self):
@@ -453,6 +459,10 @@ class hgdist(Distribution):
         parsed = Distribution.parse_command_line(self)
         if self.pure and self.rust:
             raise DistutilsArgError("--pure and --rust are exclusive")
+        if self.rust and self.rust_ready:
+            raise DistutilsArgError("--rust and --rust-ready are exclusive")
+        if self.pure and self.rust_ready:
+            raise DistutilsArgError("--pure and --rust-ready are exclusive")
         return parsed
 
     def _set_command_options(self, command_obj, option_dict=None):
@@ -471,7 +481,7 @@ class hgdist(Distribution):
         They are built here too, unless `build_ext --no-rust` leaves that to
         an external build.
         """
-        return self.rust
+        return self.rust or self.rust_ready
 
     def has_ext_modules(self):
         # self.ext_modules is emptied in hgbuildpy.finalize_options which is
@@ -492,7 +502,7 @@ class hgbuildext(build_ext):
         (
             'rust',
             None,
-            'compile Rust extensions if they are in use '
+            'compile Rust extensions if they are installed '
             '(requires Cargo) [default]',
         ),
         ('no-rust', None, 'do not compile Rust extensions'),
@@ -635,6 +645,8 @@ class hgbuildpy(build_py):
                 )
 
     def run(self):
+        # Only `--rust` enables the Rust extensions: `--rust-ready` installs
+        # them but keeps them out of the default policy.
         rust = self.distribution.rust
         if self.distribution.pure:
             modulepolicy = 'py'

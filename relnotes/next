@@ -10,6 +10,9 @@
   `ui.remote-cmd` and `--remote-cmd` (with backward compatibility.
 * bundlespec: the case of a parameter name now says whether it is mandatory. See
   `hg help bundlespec`.
+* setup: a new `--rust-ready` build flavor installs the Rust extensions without
+  enabling them; such a build behaves like a non-Rust one until
+  `HGMODULEPOLICY=rust+c` is set. See `hg help rust`.
 
 == Default Format Change ==
 

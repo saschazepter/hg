@@ -36,6 +36,10 @@ built without rust previously):
   checking module policy (rust+c-allow)
 ```
 
+The `--rust-ready` flavor installs the Rust extensions without enabling them:
+the module policy stays the non-Rust one until `HGMODULEPOLICY=rust+c` is set
+in the environment (see `hg help rust`).
+
 ## Special features
 
 In the future, compile-time opt-ins may be added
