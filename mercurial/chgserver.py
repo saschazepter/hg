@@ -111,6 +111,9 @@ _configsections = [
 
 _configsectionitems = [
     (b'commands', b'show.aliasprefix'),  # show.py reads it in extsetup
+    # the server keeps the value it started with to report an error raised
+    # while validating a command, before the configuration is read again
+    (b'ui', b'detailed-exit-code'),
 ]
 
 # sensitive environment variables affecting confighash
