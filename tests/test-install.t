@@ -188,6 +188,28 @@ Verify the json works too:
     "fsmonitor-watchman": "false",
     "fsmonitor-watchman-error": "warning: Watchman unavailable: watchman exited with code 1",
 
+Installed Rust extensions can be enabled from the environment
+=============================================================
+
+A `--rust-ready` build keeps Rust out of its module policy, but the extensions
+load as soon as the environment asks for them.
+
+#if rust-ext no-rust no-pure
+the extensions are reported as installed, but the built-in policy ignores them
+------------------------------------------------------------------------------
+
+  $ hg debuginstall | grep 'Rust extensions'
+  checking Rust extensions (installed)
+  $ (unset HGMODULEPOLICY; hg debuginstall -T '{hgmodulepolicy}\n')
+  c
+
+the environment enables the installed Rust extensions
+-----------------------------------------------------
+
+  $ HGMODULEPOLICY=rust+c hg debuginstall -T '{hgmodulepolicy}\n'
+  rust+c
+#endif
+
 Verify that Mercurial is installable with pip. Note that this MUST be
 the last test in this file, because we do some nasty things to the
 shell environment in order to make the virtualenv work reliably.

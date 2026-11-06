@@ -60,6 +60,13 @@ error paths
   $ rm hg
 #endif
 
+contradictory flavors are rejected before anything runs
+
+  $ rt --rust-ready --no-rust
+  usage: run-tests.py [options] [tests]
+  run-tests.py: error: --rust-ready cannot be used with --pure, --rust or --no-rust
+  [2]
+
 Features for testing optional lines
 ===================================
 

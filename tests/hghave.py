@@ -410,6 +410,13 @@ def has_rust():
     return b'rust' in policy.group(1)
 
 
+@check("rust-ext", "Rust extensions installed (used or not)")
+def has_rust_ext():
+    """Check if the Rust extensions are installed, whatever the module policy"""
+    cmd = 'hg debuginstall --quiet 2>&1'
+    return matchoutput(cmd, br'checking Rust extensions \(installed\)')
+
+
 @check("hg08", "Mercurial >= 0.8")
 def has_hg08():
     if checks["hg09"][0]():

@@ -670,6 +670,11 @@ def getparser():
         help="do not use Rust code even if compiled",
     )
     hgconf.add_argument(
+        "--rust-ready",
+        action="store_true",
+        help="install the Rust extensions without using them (as --no-rust)",
+    )
+    hgconf.add_argument(
         "--with-chg",
         metavar="CHG",
         help="use specified chg wrapper in place of hg",
@@ -772,7 +777,9 @@ def parseargs(args, parser):
     if 'java' in sys.platform or '__pypy__' in sys.modules:
         options.pure = True
 
-    if sys.implementation.name != 'cpython' and options.rust:
+    if sys.implementation.name != 'cpython' and (
+        options.rust or options.rust_ready
+    ):
         parser.error('Rust extensions are only available with CPython')
 
     if options.pure and options.rust:
@@ -780,6 +787,11 @@ def parseargs(args, parser):
 
     if options.rust and options.no_rust:
         parser.error('--rust cannot be used with --no-rust')
+
+    if options.rust_ready and (options.pure or options.rust or options.no_rust):
+        parser.error(
+            '--rust-ready cannot be used with --pure, --rust or --no-rust'
+        )
 
     if options.chg:
         options.hg_exec_type = "rust-front"
@@ -3554,10 +3566,13 @@ class TestRunner:
             os.environ["HGMODULEPOLICY"] = "py"
         if self.options.rust:
             os.environ["HGMODULEPOLICY"] = "rust+c"
-        if self.options.no_rust:
+        if self.options.no_rust or self.options.rust_ready:
+            # a Rust policy inherited from the environment would enable the
+            # installed extensions: use its non-Rust counterpart
             current_policy = os.environ.get("HGMODULEPOLICY", "")
-            if current_policy.startswith("rust+"):
-                os.environ["HGMODULEPOLICY"] = current_policy[len("rust+") :]
+            no_rust_policy = {"rust+c": "c", "rust+c-allow": "allow"}
+            if current_policy in no_rust_policy:
+                os.environ["HGMODULEPOLICY"] = no_rust_policy[current_policy]
 
         if self.options.allow_slow_tests:
             os.environ["HGTEST_SLOW"] = "slow"
@@ -4026,6 +4041,8 @@ class TestRunner:
             setup_opts = b"--rust"
         elif self.options.no_rust:
             setup_opts = b"--no-rust"
+        elif self.options.rust_ready:
+            setup_opts = b"--rust-ready"
         if self.options.rhg:
             if setup_opts:
                 setup_opts += b" "
@@ -4198,10 +4215,14 @@ class TestRunner:
             err = msg % (b"--rust", policy)
         elif self.options.no_rust and b"rust" in policy:
             err = msg % (b"--no-rust", policy)
+        elif self.options.rust_ready and b"rust" in policy:
+            err = msg % (b"--rust-ready", policy)
         if err is not None:
             err = colorize(err.decode(), "red", self.options.color)
             sys.stderr.write(err)
             sys.exit(3)
+        if self.options.rust_ready:
+            self._check_rust_extensions()
 
     @staticmethod
     def _get_debuginstall_env():
@@ -4272,6 +4293,16 @@ class TestRunner:
             msg = f"fatal: fetching library from `hg` failed with {code}:\n"
             self._report_debuginstall_failure(msg, out, err)
         return out
+
+    def _check_rust_extensions(self):
+        """exit unless the "hg" binary loads the Rust extensions when asked"""
+        # a strict Rust policy makes Mercurial fail to start without them
+        env = self._get_debuginstall_env()
+        env["HGMODULEPOLICY"] = "rust+c"
+        code, out, err = self._debuginstall("{hgmodulepolicy}", env=env)
+        if code != 0:
+            msg = "fatal: --rust-ready, but `hg` cannot load the Rust extensions:\n"
+            self._report_debuginstall_failure(msg, out, err)
 
     def _get_hg_py_path(self):
         """Return the path to the mercurial package that is actually found by
