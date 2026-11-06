@@ -41,6 +41,13 @@ basic test for hg debugrebuildstate
   $ hg init repo
   $ cd repo
 
+The entries are read through a template, as `tracking mode size mtime path`:
+the rebuild has to keep what status cached, `set` once an mtime is reliable.
+
+  $ dirstate_entries() {
+  >   hg debugdirstate --no-dates -T '{wc_tracked_str}{p1_tracked_str}{p2_info_str} {mode_str} {size_str} {mtime_str} {path}\n'
+  > }
+
   $ touch foo bar
   $ hg ci -Am 'add foo bar'
   adding bar
@@ -54,17 +61,17 @@ basic test for hg debugrebuildstate
 
 state dump after
 
-  $ hg debugstate --no-dates | sort
-  n   0         -1 unset               bar
-  n   0         -1 unset               foo
+  $ dirstate_entries | sort
+  w1- - - - bar
+  w1- - - - foo
 
   $ hg debugadddrop --normal-lookup file1 file2
   $ hg debugadddrop --drop bar
   $ hg debugadddrop --drop
-  $ hg debugstate --no-dates
-  n   0         -1 unset               file1
-  n   0         -1 unset               file2
-  n   0         -1 unset               foo
+  $ dirstate_entries
+  w1- - - - file1
+  w1- - - - file2
+  w1- - - - foo
   $ hg debugrebuildstate
 
 status
@@ -86,16 +93,16 @@ but in the dirstate
   ? baz
   C foo
   $ hg debugadddrop --normal-lookup baz
-  $ hg debugdirstate --no-dates
-  r   0          0 * bar (glob)
-  n   0         -1 * baz (glob)
-  n 644          0 * foo (glob)
-  a   0         -1 * qux (glob)
+  $ dirstate_entries
+  -1- - - - bar
+  w1- - - - baz
+  w1- 644 0 set foo
+  w-- - - - qux
   $ hg debugrebuilddirstate --minimal
-  $ hg debugdirstate --no-dates
-  r   0          0 * bar (glob)
-  n 644          0 * foo (glob)
-  a   0         -1 * qux (glob)
+  $ dirstate_entries
+  -1- - - - bar
+  w1- 644 0 set foo
+  w-- - - - qux
   $ hg status -A
   A qux
   R bar
@@ -113,19 +120,19 @@ dirstate
   R bar
   ? baz
   C foo
-  $ hg debugdirstate --no-dates
-  r   0          0 * bar (glob)
-  n 644          0 * foo (glob)
-  a   0         -1 * qux (glob)
+  $ dirstate_entries
+  -1- - - - bar
+  w1- 644 0 set foo
+  w-- - - - qux
   $ hg debugadddrop --drop foo
-  $ hg debugdirstate --no-dates
-  r   0          0 * bar (glob)
-  a   0         -1 * qux (glob)
+  $ dirstate_entries
+  -1- - - - bar
+  w-- - - - qux
   $ hg debugrebuilddirstate --minimal
-  $ hg debugdirstate --no-dates
-  r   0          0 * bar (glob)
-  n   0         -1 * foo (glob)
-  a   0         -1 * qux (glob)
+  $ dirstate_entries
+  -1- - - - bar
+  w1- - - - foo
+  w-- - - - qux
   $ hg status -A
   A qux
   R bar
