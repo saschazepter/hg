@@ -976,11 +976,9 @@ test repository cloning
   $ hg clone mercurial/main mercurial2/main
   updating to branch default
   2 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ cat mercurial2/main/nested_absolute/.hg/hgrc \
-  >     mercurial2/main/nested_relative/.hg/hgrc
-  [paths]
+  $ hg -R mercurial2/main/nested_absolute paths
   default = $TESTTMP/mercurial/nested_absolute
-  [paths]
+  $ hg -R mercurial2/main/nested_relative paths
   default = $TESTTMP/mercurial/nested_relative
   $ rm -rf mercurial mercurial2
 
@@ -1840,12 +1838,13 @@ Test that '[paths]' is configured correctly at subrepo creation
   [paths]
   default = $TESTTMP/t/s
   default-push = /foo/bar/s
-  $ cat s/ss/.hg/hgrc
-  [paths]
+  $ hg -R s paths
+  default = $TESTTMP/t/s
+  default-push = /foo/bar/s
+  $ hg -R s/ss paths
   default = $TESTTMP/t/s/ss
   default-push = /foo/bar/s/ss
-  $ cat t/.hg/hgrc
-  [paths]
+  $ hg -R t paths
   default = $TESTTMP/t/t
   default-push = /foo/bar/t
 
