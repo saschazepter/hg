@@ -1239,6 +1239,7 @@ Check that share works with subrepo
   ../shared/subrepo-1/.hg/cache/storehash
   ../shared/subrepo-1/.hg/cache/storehash/* (glob)
   ../shared/subrepo-1/.hg/hgrc
+  ../shared/subrepo-1/.hg/hgrc-managed
   ../shared/subrepo-1/.hg/requires
   ../shared/subrepo-1/.hg/sharedpath
   ../shared/subrepo-1/.hg/wcache
@@ -1250,6 +1251,7 @@ Check that share works with subrepo
   ../shared/subrepo-2/.hg/cache/storehash/* (glob)
   ../shared/subrepo-2/.hg/dirstate
   ../shared/subrepo-2/.hg/hgrc
+  ../shared/subrepo-2/.hg/hgrc-managed
   ../shared/subrepo-2/.hg/requires
   ../shared/subrepo-2/.hg/sharedpath
   ../shared/subrepo-2/.hg/wcache
@@ -1835,6 +1837,23 @@ Test that '[paths]' is configured correctly at subrepo creation
   > EOF
   $ hg update -q
   $ cat s/.hg/hgrc
+  %include hgrc-managed
+  # example repository config (see 'hg help config' for more info)
+  #
+  # Values are written for this repository with `hg config --local --set` and
+  # dropped again with `hg config --local --del`, for instance a path alias to
+  # another clone of it (see 'hg help config.paths' for more info):
+  #
+  #   hg config --local --set paths.default:pushurl=ssh://jdoe@example.net/fork
+  #   hg config --local --set paths.my-fork=ssh://jdoe@example.net/hg/jdoes-fork
+  #   hg config --local --set paths.my-clone=/home/jdoe/jdoes-clone
+  #
+  # or a name and email local to this repository:
+  #
+  #   hg config --local --set 'ui.username=Jane Doe <jdoe@example.com>'
+  $ cat s/.hg/hgrc-managed
+  # This file is managed by Mercurial, do not edit it by hand.
+  # Use `hg config --set` to change the values it holds.
   [paths]
   default = $TESTTMP/t/s
   default-push = /foo/bar/s
@@ -1847,6 +1866,13 @@ Test that '[paths]' is configured correctly at subrepo creation
   $ hg -R t paths
   default = $TESTTMP/t/t
   default-push = /foo/bar/t
+
+The paths are managed values, so they can be changed afterwards
+
+  $ hg -R s config --local --set paths.default-push=/foo/baz/s
+  $ hg -R s paths
+  default = $TESTTMP/t/s
+  default-push = /foo/baz/s
 
   $ cd $TESTTMP/t
   $ hg up -qC 0

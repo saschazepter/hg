@@ -44,6 +44,7 @@ from . import (
     util,
     vfs as vfsmod,
 )
+from .configuration import managed
 from .interfaces import (
     misc as misc_type,
 )
@@ -643,11 +644,11 @@ class hgsubrepo(abstractsubrepo):
         self._repo._subsource = source
 
         if create:
-            lines = [b'[paths]\n']
+            values = []
 
             def addpathconfig(key: bytes, value: bytes | None):
                 if value:
-                    lines.append(b'%s = %s\n' % (key, value))
+                    values.append((b'paths', key, value))
                     self.ui.setconfig(b'paths', key, value, b'subrepo')
 
             defpath = _abssource(self._repo, abort=False)
@@ -656,7 +657,11 @@ class hgsubrepo(abstractsubrepo):
             if defpath != defpushpath:
                 addpathconfig(b'default-push', defpushpath)
 
-            self._repo.vfs.write(b'hgrc', util.tonativeeol(b''.join(lines)))
+            if values:
+                # paths we compute ourselves, so managed values, that the
+                # user can change with `hg config --set` later on.
+                vfs = self._repo.vfs
+                managed.write_values(self.ui, vfs, b'hgrc', values)
 
     @annotatesubrepoerror
     def add(
