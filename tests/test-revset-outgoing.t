@@ -85,31 +85,14 @@
   $ hg tlog -r 'outgoing("../a#default")'
   3:f0461977a3db: '4' 
 
-  $ echo "green = ../a#default" >> .hg/hgrc
-
-  $ cat .hg/hgrc
-  # example repository config (see 'hg help config' for more info)
-  [paths]
-  default = $TESTTMP/a#stable
-  
-  # path aliases to other clones of this repo in URLs or filesystem paths
-  # (see 'hg help config.paths' for more info)
-  #
-  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone        = /home/jdoe/jdoes-clone
-  
-  [ui]
-  # name and email (local to this repository, optional), e.g.
-  # username = Jane Doe <jdoe@example.com>
-  green = ../a#default
+  $ hg config --local --set 'paths.green=../a#default'
 
   $ hg tout green
-  abort: repository green does not exist
-  [255]
+  comparing with $TESTTMP/a
+  searching for changes
+  3:f0461977a3db: '4' 
 
   $ hg tlog -r 'outgoing("green")'
-  abort: repository green does not exist
-  [255]
+  3:f0461977a3db: '4' 
 
   $ cd ..
