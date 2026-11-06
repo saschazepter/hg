@@ -391,3 +391,29 @@ Test sharing and unsharing an empty repo
   checking files
   checking dirstate
   checked 0 changesets with 0 changes to 0 files
+
+Sharing carries the default path over
+=====================================
+
+The share gets the default path of its source, and we care about the file it
+is written in.
+
+a share of a clone
+------------------
+
+  $ cd $TESTTMP
+  $ hg clone -q repo1 cloned
+  $ hg share -q cloned shared-clone
+
+where the default path of the share comes from
+----------------------------------------------
+
+The original value
+
+  $ hg -R cloned config --source paths.default
+  $TESTTMP/cloned/.hg/hgrc:3: $TESTTMP/repo1
+
+The clone result
+
+  $ hg -R shared-clone config --source paths.default
+  $TESTTMP/shared-clone/.hg/hgrc:2: $TESTTMP/repo1
