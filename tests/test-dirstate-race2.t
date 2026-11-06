@@ -13,6 +13,13 @@ Checking the size/permissions/file-type of files stored in the
 dirstate after an update where the files are changed concurrently
 outside of hg's control.
 
+The entries are read through a template, as `tracking mode size path`: the
+races leave the mtime unpredictable and the test is not about it.
+
+  $ dirstate_entries() {
+  >   hg debugdirstate -T '{wc_tracked_str}{p1_tracked_str}{p2_info_str} {mode_str} {size_str} {path}\n'
+  > }
+
   $ hg init repo
   $ cd repo
   $ echo a > a
@@ -26,8 +33,8 @@ outside of hg's control.
   $ sleep 1
   $ hg status
 
-  $ hg debugdirstate --no-dates
-  n 644          3 (set  |unset)               a (re)
+  $ dirstate_entries
+  w1- 644 3 a
 
   $ cat >> $TESTTMP/dirstaterace.py << EOF
   > import time
@@ -55,8 +62,8 @@ so hg status correctly shows a as clean.
 
   $ hg up -r 0 --config extensions.race=$TESTTMP/dirstaterace.py
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
-  $ hg debugdirstate --no-dates
-  n 644          2 (set  |unset)               a (re)
+  $ dirstate_entries
+  w1- 644 2 a
   $ echo a > a; hg status; hg diff
 
 Do a commit where file 'a' is changed between hg committing its new
@@ -74,11 +81,11 @@ This used to results in a corrupted dirstate (size did not match committed size)
   =======
   aa
   >>>>>>> merge rev:    eb3fc6c17aa3 - test: _
-  $ hg debugdirstate --no-dates
-  m   0         -2 (set  |unset)               a (re)
+  $ dirstate_entries
+  w12 - - a
   $ hg commit -m _ --config extensions.race=$TESTTMP/dirstaterace.py
-  $ hg debugdirstate --no-dates
-  n   0         -1 unset               a
+  $ dirstate_entries
+  w1- - - a
   $ cat a | wc -c
    *0 (re)
   $ hg cat -r . a | wc -c
