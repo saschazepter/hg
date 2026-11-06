@@ -780,8 +780,10 @@ def post_share(sourcerepo, destrepo, defaultpath=None):
     """
     default = defaultpath or sourcerepo.ui.config(b'paths', b'default')
     if default:
-        template = b'[paths]\ndefault = %s\n'
-        destrepo.vfs.write(b'hgrc', util.tonativeeol(template % default))
+        # a path we pick ourselves, so a managed value, that the user can
+        # change with `hg config --set` later on.
+        values = [(b'paths', b'default', default)]
+        managed.write_values(destrepo.ui, destrepo.vfs, b'hgrc', values)
     if sourcerepo.is_narrow:
         with destrepo.wlock(), destrepo.lock(), destrepo.transaction(
             b"narrow-share"

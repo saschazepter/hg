@@ -416,4 +416,13 @@ The original value
 The clone result
 
   $ hg -R shared-clone config --source paths.default
-  $TESTTMP/shared-clone/.hg/hgrc:2: $TESTTMP/repo1
+  $TESTTMP/shared-clone/.hg/hgrc-managed:4: $TESTTMP/repo1
+
+pointing the share somewhere else
+---------------------------------
+
+The value is managed, so the command can simply replace it.
+
+  $ hg -R shared-clone config --local --set paths.default=$TESTTMP/repo2
+  $ hg -R shared-clone config --source paths.default
+  $TESTTMP/shared-clone/.hg/hgrc-managed:4: $TESTTMP/repo2
