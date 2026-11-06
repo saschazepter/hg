@@ -1112,6 +1112,13 @@ Make `hg status` report the files it has to look up:
   $ touch -t 200001010000 babar celeste
   $ hg commit -Aqm 'initial'
 
+The cached data of each entry is read through a template, as `path: state
+mode size mtime`, the state being the one the data describe:
+
+  $ cached_data() {
+  >   hg debugdirstate --no-dates -T '{path}: {expected_state} {mode_str} {size_str} {mtime_str}\n'
+  > }
+
 Modified file without expected size in the dirstate
 ---------------------------------------------------
 
@@ -1119,23 +1126,25 @@ Drop the file data recorded for both files, to get entries without any mode,
 size or mtime:
 
   $ hg debug::dirstate-drop-cache-info babar celeste
-  $ hg debugdirstate --no-dates
-  n   0         -1 unset               babar
-  n   0         -1 unset               celeste
+  $ cached_data
+  babar: clean - - -
+  celeste: clean - - -
 
 Status has to look all files up. The clean file gets its information cached,
-and the modified one gets the mode and size it has in the parent:
+and the modified one gets the mode and size it has in the parent, plus, in
+dirstate-v2, the mtime it was found modified at:
 
   $ echo more >> celeste
   $ hg status
   lookup: babar
   lookup: celeste
   M celeste
-  $ hg debugdirstate --no-dates
-  n 644          6 set                 babar
-  n 644          8 unset               celeste
+  $ cached_data
+  babar: clean 644 6 set
+  celeste: modified 644 8 set (dirstate-v2 !)
+  celeste: clean 644 8 - (dirstate-v1 !)
 
-So the next status can tell it is modified from its size alone:
+So the next status can tell it is modified without reading it:
 
   $ hg status
   M celeste
@@ -1143,16 +1152,17 @@ So the next status can tell it is modified from its size alone:
 When the size matches the one in the parent, the content has to be checked
 once. The dirstate-v2 format then records that a file with this mtime is
 modified, so the next status reports it without reading it. The v1 format
-cannot record that, and `debugdirstate` only shows the mtime v1 would keep:
+cannot record that and keeps no mtime for the file:
 
   $ echo CELESTE > celeste
   $ sleep 1
   $ hg status
   lookup: celeste
   M celeste
-  $ hg debugdirstate --no-dates
-  n 644          6 set                 babar
-  n 644          8 unset               celeste
+  $ cached_data
+  babar: clean 644 6 set
+  celeste: modified 644 8 set (dirstate-v2 !)
+  celeste: clean 644 8 - (dirstate-v1 !)
   $ hg status
   lookup: celeste (dirstate-v1 !)
   M celeste
@@ -1163,9 +1173,9 @@ Restoring the parent content makes the file clean again:
   $ touch -t 200001010000 celeste
   $ hg status
   lookup: celeste
-  $ hg debugdirstate --no-dates
-  n 644          6 set                 babar
-  n 644          8 set                 celeste
+  $ cached_data
+  babar: clean 644 6 set
+  celeste: clean 644 8 set
 
 #if execbit
 
@@ -1186,8 +1196,9 @@ so the next status does not need to:
   $ hg status
   lookup: zephir
   M zephir
-  $ hg debugdirstate --no-dates | grep zephir
-  n 755          7 unset               zephir
+  $ cached_data | grep zephir
+  zephir: modified 755 7 set (dirstate-v2 !)
+  zephir: clean 755 7 - (dirstate-v1 !)
   $ hg status
   M zephir
 
@@ -1204,8 +1215,8 @@ Restoring the parent content makes the file clean again, with its mode cached:
   $ touch -t 200001010000 zephir
   $ hg status
   lookup: zephir
-  $ hg debugdirstate --no-dates | grep zephir
-  n 755          7 set                 zephir
+  $ cached_data | grep zephir
+  zephir: clean 755 7 set
 
 #endif
 
@@ -1228,8 +1239,9 @@ in the parent:
   $ hg status
   lookup: arthur
   M arthur
-  $ hg debugdirstate --no-dates | grep arthur
-  n lnk          5 unset               arthur
+  $ cached_data | grep arthur
+  arthur: modified lnk 5 set (dirstate-v2 !)
+  arthur: clean lnk 5 - (dirstate-v1 !)
 
 The size of a symlink is not trusted (see issue6456), so the content still has
 to be checked:
@@ -1246,8 +1258,8 @@ Restoring the parent target makes the symlink clean again:
   $ sleep 1
   $ hg status
   lookup: arthur
-  $ hg debugdirstate --no-dates | grep arthur
-  n lnk          5 set                 arthur
+  $ cached_data | grep arthur
+  arthur: clean lnk 5 set
 
 #endif
 
