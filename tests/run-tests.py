@@ -4221,58 +4221,56 @@ class TestRunner:
         env.pop("HGDAEMONIZEPOLICY", None)
         return env
 
-    def _get_hg_module_policy(self):
-        """return the module policy as seen by the "hg" binary"""
+    def _debuginstall(
+        self,
+        template: str,
+        env: "dict[str, str] | None" = None,
+    ) -> "tuple[int, bytes, bytes]":
+        """run ``hg debuginstall`` with ``template``, return (code, out, err)
+
+        ``env`` defaults to the one of ``_get_debuginstall_env``."""
+        if env is None:
+            env = self._get_debuginstall_env()
         cmd = [
             _bytes2sys(self._real_hg),
             "debuginstall",
             "--template",
-            "{hgmodulepolicy}",
+            template,
         ]
         p = subprocess.Popen(
             " ".join(cmd),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             shell=True,
-            env=self._get_debuginstall_env(),
+            env=env,
         )
         out, err = p.communicate()
-        if p.returncode != 0:
+        return p.returncode, out, err
+
+    def _report_debuginstall_failure(self, msg: str, out: bytes, err: bytes):
+        """report a failed ``hg debuginstall`` call and exit"""
+        msg = colorize(msg, "red", self.options.color)
+        sys.stderr.write(msg)
+        cmd_err = colorize(err.decode(), "magenta", self.options.color)
+        sys.stderr.write(cmd_err)
+        cmd_err = colorize(out.decode(), "yellow", self.options.color)
+        sys.stderr.write(cmd_err)
+        sys.exit(4)
+
+    def _get_hg_module_policy(self):
+        """return the module policy as seen by the "hg" binary"""
+        code, out, err = self._debuginstall("{hgmodulepolicy}")
+        if code != 0:
             msg = "fatal: fetching module policy from `hg` failed:\n"
-            msg = colorize(msg, "red", self.options.color)
-            sys.stderr.write(msg)
-            cmd_err = colorize(err.decode(), "magenta", self.options.color)
-            sys.stderr.write(cmd_err)
-            cmd_err = colorize(out.decode(), "yellow", self.options.color)
-            sys.stderr.write(cmd_err)
-            sys.exit(4)
+            self._report_debuginstall_failure(msg, out, err)
         return out
 
     def _get_hg_bin_path(self):
         """return the path to the mercurial lib according to the "hg" binary"""
-        cmd = [
-            _bytes2sys(self._real_hg),
-            "debuginstall",
-            "--template",
-            "{hgmodules}",
-        ]
-        p = subprocess.Popen(
-            " ".join(cmd),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            shell=True,
-            env=self._get_debuginstall_env(),
-        )
-        out, err = p.communicate()
-        if p.returncode != 0:
-            msg = f"fatal: fetching library from `hg` failed with {p.returncode}:\n"
-            msg = colorize(msg, "red", self.options.color)
-            sys.stderr.write(msg)
-            cmd_err = colorize(err.decode(), "magenta", self.options.color)
-            sys.stderr.write(cmd_err)
-            cmd_err = colorize(out.decode(), "yellow", self.options.color)
-            sys.stderr.write(cmd_err)
-            sys.exit(4)
+        code, out, err = self._debuginstall("{hgmodules}")
+        if code != 0:
+            msg = f"fatal: fetching library from `hg` failed with {code}:\n"
+            self._report_debuginstall_failure(msg, out, err)
         return out
 
     def _get_hg_py_path(self):
