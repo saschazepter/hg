@@ -994,26 +994,33 @@ Check read_dir caching
   $ touch subdir/a subdir/b
   $ hg ci -Aqm '#0'
 
+The directories are read through a template, as `path: mtime`, `set` once
+status cached one:
+
+  $ cached_directories() {
+  >   hg debugdirstate --all --no-dates -T '{if(directory, "{path}: {mtime_str}\n")}'
+  > }
+
 The cached mtime is initially unset
 
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 unset               subdir
+  $ cached_directories
+  subdir: -
 
 It is still not set when there are unknown files
 
   $ touch subdir/unknown
   $ hg status
   ? subdir/unknown
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 unset               subdir
+  $ cached_directories
+  subdir: -
 
 Now the directory is eligible for caching, so its mtime is saved in the dirstate
 
   $ rm subdir/unknown
   $ advance_fs_time
   $ hg status
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 set                 subdir
+  $ cached_directories
+  subdir: set
 
 This time the command should be ever so slightly faster since it does not need `read_dir("subdir")`
 
@@ -1031,11 +1038,11 @@ Creating a new file changes the directory’s mtime, invalidating the cache
 Removing a node from the dirstate resets the cache for its parent directory
 
   $ hg forget subdir/a
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 set                 subdir
+  $ cached_directories
+  subdir: set
   $ hg ci -qm '#1'
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 unset               subdir
+  $ cached_directories
+  subdir: -
   $ hg status
   ? subdir/a
 
@@ -1051,8 +1058,8 @@ Changing the hgignore rules makes us recompute the status (and rewrite the dirst
 
   $ advance_fs_time
   $ hg status --config ui.ignore.global="$TESTTMP"/extra-hgignore
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 set                 subdir
+  $ cached_directories
+  subdir: set
 
   $ hg status
   ? another-subdir/something-else
@@ -1060,8 +1067,8 @@ Changing the hgignore rules makes us recompute the status (and rewrite the dirst
 One invocation of status is enough to populate the cache even if it's invalidated
 in the same run.
 
-  $ hg debugdirstate --all --no-dates | grep '^ '
-      0         -1 set                 subdir
+  $ cached_directories
+  subdir: set
 
 #endif
 
