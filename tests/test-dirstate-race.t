@@ -73,13 +73,20 @@ confused with a file with the exec bit set
   >     return orig(self, *args, **kwargs)
   > EOF
 
+The entries are read through a template, as `tracking mode size path`: the
+races leave the mtime unpredictable.
+
+  $ dirstate_entries() {
+  >   hg debugdirstate -T '{wc_tracked_str}{p1_tracked_str}{p2_info_str} {mode_str} {size_str} {path}\n'
+  > }
+
   $ hg debugrebuilddirstate
-  $ hg debugdirstate
-  n   0         -1 unset               a
-  n   0         -1 unset               b
-  n   0         -1 unset               d
-  n   0         -1 unset               dir1/c
-  n   0         -1 unset               e
+  $ dirstate_entries
+  w1- - - a
+  w1- - - b
+  w1- - - d
+  w1- - - dir1/c
+  w1- - - e
 
 XXX Note that this returns M for files that got replaced by directories. This is
 definitely a bug, but the fix for that is hard and the next status run is fine
@@ -95,13 +102,13 @@ anyway.
   M e
   ! b
   ! dir1/c
-  $ hg debugdirstate
-  n 644          2 * a (glob)
-  n   0         -1 unset               b
-  n 644          5 unset               d
-  n   0         -1 unset               dir1/c
-  n 755          5 unset               e (execbit !)
-  n 644          5 unset               e (no-execbit !)
+  $ dirstate_entries
+  w1- 644 2 a
+  w1- - - b
+  w1- 644 5 d
+  w1- - - dir1/c
+  w1- 755 5 e (execbit !)
+  w1- 644 5 e (no-execbit !)
 
   $ hg status
   ! b
@@ -123,12 +130,12 @@ condition (see issue5584 for detail).
   1:* (glob)
 
   $ hg debugrebuilddirstate
-  $ hg debugdirstate
-  n   0         -1 unset               a
-  n   0         -1 unset               b
-  n   0         -1 unset               d
-  n   0         -1 unset               dir1/c
-  n   0         -1 unset               e
+  $ dirstate_entries
+  w1- - - a
+  w1- - - b
+  w1- - - d
+  w1- - - dir1/c
+  w1- - - e
 
   $ cat > $TESTTMP/dirstaterace.sh <<EOF
   > # This script assumes timetable of typical issue5584 case below:
@@ -170,8 +177,8 @@ treated differently in _checklookup() according to runtime platform.
   0:* (glob)
   $ hg files
   a
-  $ hg debugdirstate
-  n * * * a (glob)
+  $ dirstate_entries
+  w1- * * a (glob)
 
   $ rm b
 
