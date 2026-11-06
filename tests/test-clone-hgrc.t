@@ -57,6 +57,11 @@ clone remote without extension
   # name and email (local to this repository, optional), e.g.
   # username = Jane Doe <jdoe@example.com>
 
+The clone source is usable as the default path:
+
+  $ hg -R test config paths.default
+  ssh://user@dummy/server
+
 add extension
 
   $ cat > write_hgrc.py << EOF
@@ -100,3 +105,8 @@ add extension
   # name and email (local to this repository, optional), e.g.
   # username = Jane Doe <jdoe@example.com>
   # written by extension!
+
+The extension writing that file did not cost us the default path:
+
+  $ hg -R test-extended config paths.default
+  ssh://user@dummy/server
