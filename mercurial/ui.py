@@ -164,6 +164,10 @@ samplehgrcs: dict[bytes, bytes] = {
 # Values are written with `hg config --set` and dropped again with
 # `hg config --del`. The settings most worth a look:
 #
+# Your name and email:
+#
+#   hg config --set 'ui.username=Jane Doe <jdoe@example.com>'
+#
 # We recommend enabling tweakdefaults to get slight improvements to
 # the UI over time. Make sure to set HGPLAIN in the environment when
 # writing scripts!
@@ -183,11 +187,6 @@ samplehgrcs: dict[bytes, bytes] = {
 #   hg config --set extensions.histedit=
 #   hg config --set extensions.rebase=
 #   hg config --set extensions.uncommit=
-
-[ui]
-# name and email, e.g.
-# username = Jane Doe <jdoe@example.com>
-username =
 """,
     b'cloned': b"""# example repository config (see 'hg help config' for more info)
 #
