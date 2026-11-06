@@ -181,6 +181,24 @@ be overridden in other configuration files. So far the directory only contains
 merge tool configuration but packagers can also put other default configuration
 there.
 
+Changing values
+===============
+
+Values can be written with :hg:`config --set`, and dropped again with
+:hg:`config --del`::
+
+  hg config --set 'ui.username=Jane Doe <jdoe@example.com>'
+  hg config --local --del paths.default
+
+The user-level file is used by default; use ``--global``, ``--local``,
+``--shared`` or ``--non-shared`` to pick another one.
+
+These values are not written in the file you edit by hand, but in a companion
+file named after it with a ``-managed`` suffix (for example ``hgrc-managed``
+beside ``<repo>/.hg/hgrc``). An ``%include`` of that companion file is added as
+the first line of the file you edit by hand, so the entries and comments you
+wrote yourself are never rewritten and always take precedence.
+
 Syntax
 ======
 
