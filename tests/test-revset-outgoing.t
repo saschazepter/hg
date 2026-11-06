@@ -35,21 +35,11 @@
   $ hg clone -q a#stable b
 
   $ cd b
-  $ cat .hg/hgrc
-  # example repository config (see 'hg help config' for more info)
-  [paths]
-  default = $TESTTMP/a#stable
-  
-  # path aliases to other clones of this repo in URLs or filesystem paths
-  # (see 'hg help config.paths' for more info)
-  #
-  # default:pushurl = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-fork         = ssh://jdoe@example.net/hg/jdoes-fork
-  # my-clone        = /home/jdoe/jdoes-clone
-  
-  [ui]
-  # name and email (local to this repository, optional), e.g.
-  # username = Jane Doe <jdoe@example.com>
+
+The branch is part of the default path we recorded:
+
+  $ hg config paths.default
+  $TESTTMP/a#stable
 
   $ echo red >> a
   $ hg ci -qm3
