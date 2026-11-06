@@ -2184,6 +2184,12 @@ def config(ui, repo, *values, **opts):
     With multiple arguments, print names and values of all config
     items with matching section names or section.names.
 
+    The recommended way to modify configuration is through the ``--set`` and
+    ``--del`` flags. The configuration level to modify can be controlled using
+    the --global, --local, --shared or --non-shared flags.
+    Configuration manually written in configuration files takes precedence
+    over the one managed by --set and --del.
+
     With --edit, start an editor on the user-level config file. With
     --global, edit the system-wide config file. With --local, edit the
     repository-level config file.
