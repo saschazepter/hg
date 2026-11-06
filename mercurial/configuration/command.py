@@ -336,12 +336,15 @@ def _report_if_shadowed(
     ui: uimod.ui,
     section: bytes,
     key: bytes,
-    value: bytes,
+    value: bytes | None,
     shadowing: Shadowing | None,
 ) -> None:
     """tell the user when the value we just wrote is not the one in use
 
     This is a sub section of `set_config` extracted for readability.
+
+    `value` is the value we wrote, or None when we dropped one instead. The
+    two cases are reported the same way, only the wording differs.
 
     A definition from a higher configuration level legitimately wins over
     what we just wrote, so it only gets a note pointing at the flag that
@@ -350,7 +353,18 @@ def _report_if_shadowed(
     """
     if shadowing is None or ui.quiet:
         return
-    shadow_msg = _(b"new value for '%s.%s' is shadowed by %s\n")
+    if value is None:
+        # we dropped our value, so the item keeps the definition that was
+        # hiding it, and the user sees no change at all.
+        shadow_msg = _(b"'%s.%s' is still defined by %s\n")
+        level_hint = _(b"(use %s to delete '%s.%s' at that level)\n")
+        env_hint = _(b"(unset %s to use --del on '%s.%s')\n")
+        manual_hint = _(b"(clean your manual config to drop '%s.%s')\n")
+    else:
+        shadow_msg = _(b"new value for '%s.%s' is shadowed by %s\n")
+        level_hint = _(b"(use %s to set '%s.%s' at that level)\n")
+        env_hint = _(b"(unset %s to use --set on '%s.%s')\n")
+        manual_hint = _(b"(clean your manual config to use --set on '%s.%s')\n")
     shadow_msg %= (section, key, shadowing.source)
     if shadowing.status is SHADOW.OVERRIDE:
         # the override goes away with the command, so this is not worth a
@@ -363,8 +377,7 @@ def _report_if_shadowed(
         ui.warn(_(b"note: %s") % shadow_msg)
         flag = _LEVEL_FLAGS.get(shadowing.config_level)
         if flag is not None:
-            msg = _(b"(use %s to set '%s.%s' at that level)\n")
-            ui.warn(msg % (flag, section, key))
+            ui.warn(level_hint % (flag, section, key))
         return
     if shadowing.value == value:
         # the user sees the value they asked for, so this is not worth a
@@ -373,12 +386,10 @@ def _report_if_shadowed(
         return
     ui.warn(_(b"warning: %s") % shadow_msg)
     if shadowing.status is SHADOW.ENVIRONMENT:
-        msg = _(b"(unset %s to use --set on '%s.%s')\n")
-        ui.warn(msg % (shadowing.source, section, key))
+        ui.warn(env_hint % (shadowing.source, section, key))
     else:
         assert shadowing.status is SHADOW.SAME_LEVEL
-        msg = _(b"(clean your manual config to use --set on '%s.%s')\n")
-        ui.warn(msg % (section, key))
+        ui.warn(manual_hint % (section, key))
 
 
 def _inject_managed_include(base_content: bytes, target: bytes) -> bytes:
