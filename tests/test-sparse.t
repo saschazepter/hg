@@ -415,6 +415,14 @@ Test non-sparse repos work while sparse is loaded
 
 Test debugrebuilddirstate
   $ cd ../sparserepo
+
+The entries are read through a template, as `tracking path`: the rebuild
+decides which files are tracked, and none has cached data here.
+
+  $ dirstate_entries() {
+  >   hg debugdirstate -T '{wc_tracked_str}{p1_tracked_str}{p2_info_str} {path}\n'
+  > }
+
   $ touch included
   $ touch excluded
   $ hg add included excluded
@@ -423,25 +431,25 @@ Test debugrebuilddirstate
   $ hg debugsparse -X excluded
   $ cp ../dirstateboth .hg/dirstate
   $ hg debugrebuilddirstate
-  $ hg debugdirstate
-  n   0         -1 unset               included
+  $ dirstate_entries
+  w1- included
 
 Test debugdirstate --minimal where file is in the parent manifest but not the
 dirstate
   $ hg debugsparse -X included
-  $ hg debugdirstate
+  $ dirstate_entries
   $ cp .hg/dirstate ../dirstateallexcluded
   $ hg debugsparse --reset
   $ hg debugsparse -X excluded
   $ cp ../dirstateallexcluded .hg/dirstate
   $ touch includedadded
   $ hg add includedadded
-  $ hg debugdirstate --no-dates
-  a   0         -1 unset               includedadded
+  $ dirstate_entries
+  w-- includedadded
   $ hg debugrebuilddirstate --minimal
-  $ hg debugdirstate --no-dates
-  n   0         -1 unset               included
-  a   0         -1 * includedadded (glob)
+  $ dirstate_entries
+  w1- included
+  w-- includedadded
 
 Test debugdirstate --minimal where a file is not in parent manifest
 but in the dirstate. This should take into account excluded files in the
@@ -461,13 +469,13 @@ manifest
   included
 We have files in the dirstate that are included and excluded. Some are in the
 manifest and some are not.
-  $ hg debugdirstate --no-dates
-  n * excluded (glob)
-  a * excludednomanifest (glob)
-  n * included (glob)
-  a * includedadded (glob)
+  $ dirstate_entries
+  w1- excluded
+  w-- excludednomanifest
+  w1- included
+  w-- includedadded
   $ hg debugrebuilddirstate --minimal
-  $ hg debugdirstate --no-dates
-  n * included (glob)
-  a * includedadded (glob)
+  $ dirstate_entries
+  w1- included
+  w-- includedadded
 
