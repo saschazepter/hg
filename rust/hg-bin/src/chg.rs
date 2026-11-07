@@ -22,22 +22,14 @@ fn policy_from_env() -> Policy {
     }
 }
 
-/// Read the daemonization policy from the `[policy] daemonize`
-/// configuration.
-fn policy_from_config() -> Policy {
-    let Ok(config) = hg::config::Config::load_non_repo() else {
-        return Policy::Never;
-    };
-    Policy::from_config(&config, POLICY_CONFIG_ITEM)
-}
-
 /// Resolve the effective daemonization policy: the environment variable
-/// first, deferring to the configuration, itself deferring to the
-/// built-in default (`Never`, for now). Never returns `Default`.
-fn resolve_policy() -> Policy {
+/// first, deferring to the `[policy] daemonize` configuration, itself
+/// deferring to the built-in default (`Never`, for now). Never returns
+/// `Default`.
+fn resolve_policy(config: &hg::config::Config) -> Policy {
     let mut policy = policy_from_env();
     if let Policy::Default = policy {
-        policy = policy_from_config();
+        policy = Policy::from_config(config, POLICY_CONFIG_ITEM);
     }
     if let Policy::Default = policy {
         policy = Policy::Never;
@@ -49,8 +41,8 @@ fn resolve_policy() -> Policy {
 ///
 /// Follows the daemonize policy (see the crate documentation).
 #[cfg(feature = "chg")]
-pub fn enabled() -> bool {
-    match resolve_policy() {
+pub fn enabled(config: &hg::config::Config) -> bool {
+    match resolve_policy(config) {
         Policy::Never | Policy::Default => false,
         Policy::Auto | Policy::Always => true,
     }
@@ -61,8 +53,8 @@ pub fn enabled() -> bool {
 /// This binary was built without chg support: abort when the daemonize
 /// policy requires a command server (`always`).
 #[cfg(not(feature = "chg"))]
-pub fn enabled() -> bool {
-    match resolve_policy() {
+pub fn enabled(config: &hg::config::Config) -> bool {
+    match resolve_policy(config) {
         Policy::Never | Policy::Auto | Policy::Default => false,
         Policy::Always => {
             eprintln!(

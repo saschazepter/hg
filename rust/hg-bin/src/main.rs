@@ -54,8 +54,15 @@ fn main() {
     let exec_dir = exec_path.parent().expect("binary not in a directory?");
     let hg_py = exec_dir.join(".__hg_internal__");
 
+    // The features read their policies from the non-repository configuration
+    // (system and user levels). One that cannot be loaded reads as empty:
+    // every feature then falls back to its built-in default, and the Python
+    // code reports the error in due time.
+    let config = hg::config::Config::load_non_repo()
+        .unwrap_or_else(|_| hg::config::Config::empty());
+
     // run chg according to policy and availability
-    if chg::enabled() {
+    if chg::enabled(&config) {
         chg::run(&hg_py)
     }
 
