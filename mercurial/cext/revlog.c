@@ -1097,7 +1097,7 @@ static PyObject *index_start_bundle_repo(indexObject *self)
 
 static PyObject *index_add_entry(indexObject *self, PyObject *obj)
 {
-	PyObject *tuple;
+	PyObject *tuple, *ret = NULL;
 	uint64_t offset_flags, sidedata_offset;
 	int rev, comp_len, uncomp_len, base_rev, link_rev, parent_1, parent_2,
 	    sidedata_comp_len, rank;
@@ -1117,12 +1117,12 @@ static PyObject *index_add_entry(indexObject *self, PyObject *obj)
 	                      &sidedata_offset, &sidedata_comp_len,
 	                      &data_comp_mode, &sidedata_comp_mode, &rank)) {
 		PyErr_SetString(PyExc_TypeError, "12-tuple required");
-		return NULL;
+		goto bail;
 	}
 
 	if (c_node_id_len != self->nodelen) {
 		PyErr_SetString(PyExc_TypeError, "invalid node");
-		return NULL;
+		goto bail;
 	}
 	if (self->format_version == format_v1) {
 
@@ -1130,13 +1130,13 @@ static PyObject *index_add_entry(indexObject *self, PyObject *obj)
 			PyErr_Format(PyExc_ValueError,
 			             "invalid data compression mode: %i",
 			             data_comp_mode);
-			return NULL;
+			goto bail;
 		}
 		if (sidedata_comp_mode != comp_mode_inline) {
 			PyErr_Format(PyExc_ValueError,
 			             "invalid sidedata compression mode: %i",
 			             sidedata_comp_mode);
-			return NULL;
+			goto bail;
 		}
 	}
 
@@ -1145,8 +1145,10 @@ static PyObject *index_add_entry(indexObject *self, PyObject *obj)
 		    self->added_length ? self->added_length * 2 : 4096;
 		void *new_added = PyMem_Realloc(
 		    self->added, new_added_length * self->entry_size);
-		if (!new_added)
-			return PyErr_NoMemory();
+		if (!new_added) {
+			PyErr_NoMemory();
+			goto bail;
+		}
 		self->added = new_added;
 		self->added_length = new_added_length;
 	}
@@ -1206,14 +1208,20 @@ static PyObject *index_add_entry(indexObject *self, PyObject *obj)
 		putbe32(rank, data + entry_cl2_offset_rank);
 	} else {
 		raise_revlog_error();
-		return NULL;
+		goto bail;
 	}
 
 	if (self->ntinitialized)
 		nt_insert(&self->nt, c_node_id, rev);
 
 	Py_CLEAR(self->headrevs);
-	Py_RETURN_NONE;
+	Py_INCREF(Py_None);
+	ret = Py_None;
+bail:
+	/* `c_node_id` points into `tuple`, which must outlive its last use
+	   above */
+	Py_DECREF(tuple);
+	return ret;
 }
 
 /* Replace an existing index entry's sidedata offset and length with new ones.
