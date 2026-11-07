@@ -202,6 +202,14 @@ def has_chg():
     return 'CHG_INSTALLED_AS_HG' in os.environ
 
 
+@check("rust-front", "running with the Rust front end as 'hg'")
+def has_rust_front():
+    """Check if the `hg` executable is the Rust front end, as reported by
+    the installation"""
+    cmd = "hg debuginstall -T '{hgexectype}'"
+    return matchoutput(cmd, br'\Arust-front\Z')
+
+
 @check("rhg", "running with rhg as 'hg'")
 def has_rhg():
     p = subprocess.Popen(
