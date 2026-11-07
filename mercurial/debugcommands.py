@@ -2218,6 +2218,11 @@ def debuginstall(ui, **opts):
         b'hgmodulepolicy', _(b"checking module policy (%s)\n"), policy.policy
     )
     fm.write(
+        b'hgexectype',
+        _(b"checking executable type (%s)\n"),
+        policy.exec_type,
+    )
+    fm.write(
         b'hgmodules',
         _(b"checking installed modules (%s)...\n"),
         hgmodules or _(b"unknown"),
