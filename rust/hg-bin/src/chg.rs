@@ -9,47 +9,40 @@ use crate::policy::Policy;
 
 /// Environment variable controlling the use of a command server.
 pub const POLICY_ENV_VAR: &str = "HGDAEMONIZEPOLICY";
-/// Configuration section controlling the use of a command server.
-pub const POLICY_CONFIG_SECTION: &[u8] = b"policy";
 /// Configuration item controlling the use of a command server.
 pub const POLICY_CONFIG_ITEM: &[u8] = b"daemonize";
 
-impl Policy {
-    /// Read the daemonization policy from `$HGDAEMONIZEPOLICY`.
-    ///
-    /// An unset or empty variable is read as `Default`.
-    pub fn from_env() -> Self {
-        match std::env::var_os(POLICY_ENV_VAR) {
-            Some(value) => Self::from_bytes(value.as_encoded_bytes()),
-            None => Policy::Default,
-        }
+/// Read the daemonization policy from `$HGDAEMONIZEPOLICY`.
+///
+/// An unset or empty variable is read as `Default`.
+fn policy_from_env() -> Policy {
+    match std::env::var_os(POLICY_ENV_VAR) {
+        Some(value) => Policy::from_bytes(value.as_encoded_bytes()),
+        None => Policy::Default,
     }
+}
 
-    /// Read the daemonization policy from the `[policy] daemonize`
-    /// configuration.
-    pub fn from_config() -> Self {
-        let Ok(config) = hg::config::Config::load_non_repo() else {
-            return Policy::Never;
-        };
-        match config.get(POLICY_CONFIG_SECTION, POLICY_CONFIG_ITEM) {
-            Some(value) => Self::from_bytes(value),
-            None => Policy::Default,
-        }
-    }
+/// Read the daemonization policy from the `[policy] daemonize`
+/// configuration.
+fn policy_from_config() -> Policy {
+    let Ok(config) = hg::config::Config::load_non_repo() else {
+        return Policy::Never;
+    };
+    Policy::from_config(&config, POLICY_CONFIG_ITEM)
+}
 
-    /// Resolve the effective daemonization policy: the environment variable
-    /// first, deferring to the configuration, itself deferring to the
-    /// built-in default (`Never`, for now). Never returns `Default`.
-    pub fn resolve() -> Self {
-        let mut policy = Self::from_env();
-        if let Policy::Default = policy {
-            policy = Self::from_config();
-        }
-        if let Policy::Default = policy {
-            policy = Policy::Never;
-        }
-        policy
+/// Resolve the effective daemonization policy: the environment variable
+/// first, deferring to the configuration, itself deferring to the
+/// built-in default (`Never`, for now). Never returns `Default`.
+fn resolve_policy() -> Policy {
+    let mut policy = policy_from_env();
+    if let Policy::Default = policy {
+        policy = policy_from_config();
     }
+    if let Policy::Default = policy {
+        policy = Policy::Never;
+    }
+    policy
 }
 
 /// Should the command be handed over to the chg client logic (`run`)?
@@ -57,7 +50,7 @@ impl Policy {
 /// Follows the daemonize policy (see the crate documentation).
 #[cfg(feature = "chg")]
 pub fn enabled() -> bool {
-    match Policy::resolve() {
+    match resolve_policy() {
         Policy::Never | Policy::Default => false,
         Policy::Auto | Policy::Always => true,
     }
@@ -69,7 +62,7 @@ pub fn enabled() -> bool {
 /// policy requires a command server (`always`).
 #[cfg(not(feature = "chg"))]
 pub fn enabled() -> bool {
-    match Policy::resolve() {
+    match resolve_policy() {
         Policy::Never | Policy::Auto | Policy::Default => false,
         Policy::Always => {
             eprintln!(

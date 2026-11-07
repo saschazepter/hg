@@ -5,6 +5,9 @@
 //! configuration, possibly overridden by an environment variable of its own
 //! (see the crate documentation for the sources each feature consults).
 
+/// Configuration section holding the front-desk policies.
+pub const CONFIG_SECTION: &[u8] = b"policy";
+
 /// Policy value using a feature when the installation supports it.
 pub const POLICY_AUTO: &[u8] = b"auto";
 /// Policy value requiring a feature.
@@ -47,6 +50,16 @@ impl Policy {
             POLICY_NEVER => Policy::Never,
             POLICY_DEFAULT => Policy::Default,
             _ => Policy::Never,
+        }
+    }
+
+    /// Read the policy of `item` from the `[policy]` section of `config`.
+    ///
+    /// A missing item is read as `Default`.
+    pub fn from_config(config: &hg::config::Config, item: &[u8]) -> Self {
+        match config.get(CONFIG_SECTION, item) {
+            Some(value) => Self::from_bytes(value),
+            None => Policy::Default,
         }
     }
 }
