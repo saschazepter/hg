@@ -31,6 +31,7 @@
 //! as `never`.
 
 mod chg;
+mod policy;
 
 use std::os::unix::process::CommandExt;
 

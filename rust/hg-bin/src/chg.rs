@@ -5,6 +5,8 @@
 //! function (see `contrib/chg/chg.c`). The daemonization policy handling
 //! is available regardless of the feature.
 
+use crate::policy::Policy;
+
 /// Environment variable controlling the use of a command server.
 pub const POLICY_ENV_VAR: &str = "HGDAEMONIZEPOLICY";
 /// Configuration section controlling the use of a command server.
@@ -12,50 +14,7 @@ pub const POLICY_CONFIG_SECTION: &[u8] = b"policy";
 /// Configuration item controlling the use of a command server.
 pub const POLICY_CONFIG_ITEM: &[u8] = b"daemonize";
 
-/// Policy value requesting a command server when supported.
-pub const POLICY_AUTO: &[u8] = b"auto";
-/// Policy value requiring a command server.
-pub const POLICY_ALWAYS: &[u8] = b"always";
-/// Policy value disabling the use of a command server.
-pub const POLICY_NEVER: &[u8] = b"never";
-/// Policy value deferring to the next policy source.
-pub const POLICY_DEFAULT: &[u8] = b"default";
-
-/// Daemonization requested through `$HGDAEMONIZEPOLICY` or the
-/// `[policy] daemonize` configuration
-///
-/// (see the crate documentation for the exact semantics of each value).
-pub enum Policy {
-    /// never run through a Daemon.
-    Never,
-    /// use a Daemon if available.
-    Auto,
-    /// use a Daemon, abort when the feature is unavailable.
-    Always,
-    /// ignore that source and rely on the next one (in this order):
-    /// - environement,
-    /// - config,
-    /// - built-in default.
-    Default,
-}
-
 impl Policy {
-    /// Parse a policy value, shared by the environment variable and the
-    /// configuration.
-    ///
-    /// An empty value is read as `Default`.
-    /// An unrecognized one as `Never`.
-    fn from_bytes(value: &[u8]) -> Self {
-        match value {
-            b"" => Policy::Default,
-            POLICY_AUTO => Policy::Auto,
-            POLICY_ALWAYS => Policy::Always,
-            POLICY_NEVER => Policy::Never,
-            POLICY_DEFAULT => Policy::Default,
-            _ => Policy::Never,
-        }
-    }
-
     /// Read the daemonization policy from `$HGDAEMONIZEPOLICY`.
     ///
     /// An unset or empty variable is read as `Default`.
