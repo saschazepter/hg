@@ -532,6 +532,16 @@ class hgbuildext(build_ext):
 
             for rustext in ruststandalones:
                 rustext.build('' if self.editable_mode else self.build_lib)
+        elif not self.distribution.rust:
+            # a previous build may have left the Rust extensions in the
+            # build directory (or in the source tree for an in-place build):
+            # they must not be shipped.
+            if self.editable_mode:
+                target_dir = ''
+            else:
+                target_dir = self.build_lib
+            for rustext in ruststandalones:
+                rustext.remove(target_dir)
 
         return build_ext.build_extensions(self)
 
@@ -1350,6 +1360,16 @@ class RustStandaloneExtension(RustExtension):
             ),
             target,
         )
+
+    def remove(self, target_dir):
+        """remove the extension module a previous build left in ``target_dir``
+
+        A build that does not ship the extension must not package a stale
+        copy of it.
+        """
+        target = self.target_path(target_dir)
+        if os.path.exists(target):
+            os.unlink(target)
 
 
 extmodules = [
