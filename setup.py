@@ -457,6 +457,14 @@ class hgdist(Distribution):
             self, command_obj, option_dict=option_dict
         )
 
+    def ships_rust_extensions(self):
+        """Are the Rust extensions installed?
+
+        They are built here too, unless `build_ext --no-rust` leaves that to
+        an external build.
+        """
+        return self.rust
+
     def has_ext_modules(self):
         # self.ext_modules is emptied in hgbuildpy.finalize_options which is
         # too late for some cases
@@ -520,10 +528,10 @@ class hgbuildext(build_ext):
                 e for e in self.extensions if e.name != 'mercurial.zstd'
             ]
 
-        # Build Rust standalone extensions if it'll be used
-        # and its build is not explicitly disabled (for external build
+        # Build Rust standalone extensions if they are installed
+        # and their build is not explicitly disabled (for external build
         # as Linux distributions would do)
-        if self.distribution.rust and self.rust:
+        if self.distribution.ships_rust_extensions() and self.rust:
             if not sys.platform.startswith('linux'):
                 logging.warning(
                     "rust extensions have only been tested on Linux "
@@ -532,7 +540,7 @@ class hgbuildext(build_ext):
 
             for rustext in ruststandalones:
                 rustext.build('' if self.editable_mode else self.build_lib)
-        elif not self.distribution.rust:
+        elif not self.distribution.ships_rust_extensions():
             # a previous build may have left the Rust extensions in the
             # build directory (or in the source tree for an in-place build):
             # they must not be shipped.
@@ -547,7 +555,7 @@ class hgbuildext(build_ext):
 
     def build_extension(self, ext):
         if (
-            self.distribution.rust
+            self.distribution.ships_rust_extensions()
             and self.rust
             and isinstance(ext, RustExtension)
         ):
