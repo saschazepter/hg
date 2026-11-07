@@ -1,4 +1,4 @@
-#require serve no-chg
+#require serve
 
   $ cat >> $HGRCPATH <<EOF
   > [extensions]

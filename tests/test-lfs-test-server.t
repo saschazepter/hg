@@ -1,4 +1,3 @@
-#require no-chg
 #testcases git-server hg-server
 
 #if git-server
