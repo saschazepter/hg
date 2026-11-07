@@ -132,6 +132,7 @@ from setuptools.errors import (
 
 # no setuptools.command.build_scripts
 from distutils.command.build_scripts import build_scripts
+from distutils.errors import DistutilsArgError
 
 from distutils.spawn import spawn
 from distutils import file_util
@@ -446,6 +447,13 @@ class hgdist(Distribution):
     negative_opt = Distribution.negative_opt.copy()
     boolean_options = ['pure', 'rust', 'no-rust']
     negative_opt['no-rust'] = 'rust'
+
+    def parse_command_line(self):
+        """parse the command line, then reject contradictory flavors"""
+        parsed = Distribution.parse_command_line(self)
+        if self.pure and self.rust:
+            raise DistutilsArgError("--pure and --rust are exclusive")
+        return parsed
 
     def _set_command_options(self, command_obj, option_dict=None):
         # Not all distutils versions in the wild have boolean_options.
