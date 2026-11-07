@@ -1,4 +1,4 @@
-#require serve no-chg
+#require serve
 
 #testcases stream-legacy stream-bundle2-v2 stream-bundle2-v3
 #testcases fncache fileindex
