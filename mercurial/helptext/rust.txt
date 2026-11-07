@@ -134,6 +134,13 @@ by setting the ``HGMODULEPOLICY`` environment variable to ``rust+c``::
   checking Rust extensions (installed)
   checking module policy (rust+c)
 
+When the ``hg`` executable is the Rust front end (``hg-bin``), the
+``policy.rust-pyext`` configuration turns them on without touching the
+environment::
+
+  [policy]
+  rust-pyext = auto
+
 MSRV
 ====
 

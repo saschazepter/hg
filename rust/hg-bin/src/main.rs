@@ -29,8 +29,22 @@
 //! An unset or empty environment variable, like a missing or empty
 //! configuration item, is read as `default`; an unrecognized value is read
 //! as `never`.
+//!
+//! The `[policy] rust-pyext` configuration controls the use of the Rust
+//! extensions by the Python code (see the `module_policy` module). It adjusts
+//! the module policy built into the installation, unless the `HGMODULEPOLICY`
+//! environment variable is already set to a non-empty value:
+//!
+//! - `never`:   do not use the Rust extensions,
+//! - `always`:  use the Rust extensions, abort when the installation cannot,
+//! - `auto`:    use the Rust extensions when the installation can,
+//! - `default`: keep the built-in module policy.
+//!
+//! A missing or empty configuration item is read as `default`; an
+//! unrecognized value is read as `never`.
 
 mod chg;
+mod module_policy;
 mod policy;
 
 use std::os::unix::process::CommandExt;
@@ -60,6 +74,9 @@ fn main() {
     // code reports the error in due time.
     let config = hg::config::Config::load_non_repo()
         .unwrap_or_else(|_| hg::config::Config::empty());
+
+    // settle the module policy first: the command server inherits it too
+    module_policy::apply(&config);
 
     // run chg according to policy and availability
     if chg::enabled(&config) {

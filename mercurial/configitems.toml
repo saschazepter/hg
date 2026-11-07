@@ -2149,6 +2149,31 @@ during initialization, and will be used for the full duration of the command.
 """
 
 [[items]]
+section = "policy"
+name = "rust-pyext"
+default = "default"
+documentation="""Control the use of the Rust extensions by the Python code.
+
+Only the Rust front end (``hg-bin``) honors this configuration: it sets the
+``HGMODULEPOLICY`` environment variable for the Python code accordingly. A
+variable already set to a non-empty value takes precedence.
+
+Accepted values:
+
+- ``never``: do not use the Rust extensions,
+- ``auto``: use the Rust extensions when the installation includes them,
+- ``always``: use the Rust extensions, abort when the installation cannot,
+- ``default``: keep the module policy built into the installation.
+
+Any other value is read as ``never``.
+
+This configuration is only taken into account for general and user level
+config. The configuration from repository and share is ignored. The value is
+used during initialization, and will be used for the full duration of the
+command.
+"""
+
+[[items]]
 section = "profiling"
 name = "enabled"
 default = false
