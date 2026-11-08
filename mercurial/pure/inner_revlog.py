@@ -1964,6 +1964,9 @@ class InnerRevlogV2(BaseInnerRevlog):
                 self._strip_one_file(ft, end)
             self._strip_one_file(self.docket.FT.DATA, data_end)
             self._strip_one_file(self.docket.FT.SIDEDATA, sidedata_end)
+            # The updates below only concern the remaining revisions, drop the
+            # stripped ones from the in-memory index too.
+            del self.index[rev:-1]
 
             if self.feature_config.children:
                 self._strip_apply_children(transaction, children_updates)
