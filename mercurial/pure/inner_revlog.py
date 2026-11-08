@@ -1486,7 +1486,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         entry_size = self._index_entry_sizes[file_type]
         assert len(data) == entry_size, (len(data), entry_size)
         pos = entry_size * rev
-        if self.docket.get_end(file_type) < pos:
+        if (end := self.docket.get_end(file_type)) < pos:
             msg = "writing index of revision %d would leave a gap" % rev
             raise error.ProgrammingError(msg)
         # Changing index content under reader nose would be a problem,
@@ -1502,9 +1502,16 @@ class InnerRevlogV2(BaseInnerRevlog):
         elif not self.docket.is_pending_offset(file_type, pos):
             msg = "invalid rewrite of a non-pending revision"
             raise error.ProgrammingError(msg)
-        _path, fh = self._writinghandles[file_type]
+        path, fh = self._writinghandles[file_type]
+        new_end = pos + entry_size
+        if end < new_end:
+            # we should not reach this while stripping
+            assert not stripping
+            transaction.add(path, pos)
         fh.seek(pos, os.SEEK_SET)
         fh.write(data)
+        if end < new_end:
+            self.docket.set_end(file_type, new_end)
 
     @util.propertycache
     def _index_entry_sizes(self) -> dict[V2FileType, int]:
@@ -1679,12 +1686,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             self.docket.set_end(ft, fh.tell())
 
         for ft, bin_piece in zip(self._index_fts, bin_entry):
-            path, fh = self._writinghandles[ft]
-            pos = docket.get_end(ft)
-            fh.seek(pos, os.SEEK_SET)
-            transaction.add(path, pos)
-            fh.write(bin_piece)
-            self.docket.set_end(ft, fh.tell())
+            self._write_index_piece(transaction, ft, curr, bin_piece)
 
     def register_extra_link_rev(
         self,
