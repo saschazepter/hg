@@ -1457,13 +1457,10 @@ class InnerRevlogV2(BaseInnerRevlog):
         The `idx_bins` is a tuple of binary data to update for `rev` for each
         index block. `None` value are unchanged and don't need to be updated.
         """
-        for idx_ft, bin_piece, entry_size in zip(
-            self._index_fts,
-            idx_bins,
-            self.index.entry_sizes,
-        ):
+        for idx_ft, bin_piece in zip(self._index_fts, idx_bins):
             if bin_piece is None:
                 continue
+            entry_size = self._index_entry_sizes[idx_ft]
             idx_pos = entry_size * rev
             assert len(bin_piece) == entry_size
             # Changing index content under reader nose would be a problem,
@@ -1482,6 +1479,10 @@ class InnerRevlogV2(BaseInnerRevlog):
             idx_fh = self._writinghandles[idx_ft]
             idx_fh.seek(idx_pos, os.SEEK_SET)
             idx_fh.write(bin_piece)
+
+    @util.propertycache
+    def _index_entry_sizes(self) -> dict[V2FileType, int]:
+        return dict(zip(self._index_fts, self.index.entry_sizes))
 
     def _add_children_info(
         self,
