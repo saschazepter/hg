@@ -1202,25 +1202,28 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         index_blocks = []
         for ft in self._index_fts:
-            block = b''
+            blocks = []
             # always get the filepath to get consistent order in the test
-            block_path = docket.filepath(ft)
-            block_size = docket.get_end(ft)
-            if block_size > 0:
-                block = opener.tryread(
-                    block_path,
-                    configs.data.mmap_index_threshold,
-                    size=block_size,
-                )
-                if len(block) < block_size:
-                    msg = IDX_TOO_SHORT % (
-                        self.display_id,
-                        docket_mod.EXT[ft],
-                        len(block),
-                        block_size,
+            if True:  # pre-indent for multiple segments
+                block = b''
+                block_path = docket.filepath(ft)
+                block_size = docket.get_end(ft)
+                if block_size > 0:
+                    block = opener.tryread(
+                        block_path,
+                        configs.data.mmap_index_threshold,
+                        size=block_size,
                     )
-                    raise error.RevlogError(msg)
-            index_blocks.append([block])
+                    if len(block) < block_size:
+                        msg = IDX_TOO_SHORT % (
+                            self.display_id,
+                            docket_mod.EXT[ft],
+                            len(block),
+                            block_size,
+                        )
+                        raise error.RevlogError(msg)
+                blocks.append(block)
+            index_blocks.append(blocks)
 
         try:
             index = index_parser(tuple(index_blocks))
