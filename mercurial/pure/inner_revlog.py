@@ -1472,39 +1472,38 @@ class InnerRevlogV2(BaseInnerRevlog):
     def _write_index_piece(
         self,
         transaction: TransactionT,
-        idx_ft: V2FileType,
+        file_type: V2FileType,
         rev: RevnumT,
-        bin_piece: bytes,
+        data: bytes,
         pending_only: bool = False,
         stripping: bool = False,
     ):
-        """write the `idx_ft` index data of `rev` to disk
+        """write the `file_type` index data of `rev` to disk
 
         `rev` is either an existing revision or the next one to be appended.
         """
-        if True:  # keep the moved code unchanged, cleaned up next
-            entry_size = self._index_entry_sizes[idx_ft]
-            idx_pos = entry_size * rev
-            assert len(bin_piece) == entry_size
-            if self.docket.get_end(idx_ft) < idx_pos:
-                msg = "writing index of revision %d would leave a gap" % rev
-                raise error.ProgrammingError(msg)
-            # Changing index content under reader nose would be a problem,
-            # however if that transaction has not been committed yet,
-            # nobody is reading it and this won't be a problem.
-            if not pending_only:
-                self._prepare_update(
-                    transaction,
-                    idx_ft,
-                    idx_pos,
-                    stripping=stripping,
-                )
-            elif not self.docket.is_pending_offset(idx_ft, idx_pos):
-                msg = "invalid rewrite of a non-pending revision"
-                raise error.ProgrammingError(msg)
-            idx_fh = self._writinghandles[idx_ft]
-            idx_fh.seek(idx_pos, os.SEEK_SET)
-            idx_fh.write(bin_piece)
+        entry_size = self._index_entry_sizes[file_type]
+        assert len(data) == entry_size, (len(data), entry_size)
+        pos = entry_size * rev
+        if self.docket.get_end(file_type) < pos:
+            msg = "writing index of revision %d would leave a gap" % rev
+            raise error.ProgrammingError(msg)
+        # Changing index content under reader nose would be a problem,
+        # however if that transaction has not been committed yet,
+        # nobody is reading it and this won't be a problem.
+        if not pending_only:
+            self._prepare_update(
+                transaction,
+                file_type,
+                pos,
+                stripping=stripping,
+            )
+        elif not self.docket.is_pending_offset(file_type, pos):
+            msg = "invalid rewrite of a non-pending revision"
+            raise error.ProgrammingError(msg)
+        fh = self._writinghandles[file_type]
+        fh.seek(pos, os.SEEK_SET)
+        fh.write(data)
 
     @util.propertycache
     def _index_entry_sizes(self) -> dict[V2FileType, int]:
