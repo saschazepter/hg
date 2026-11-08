@@ -261,6 +261,14 @@ class RevlogDocket:
             self._current[file_type] = BlockInfo(uuid=make_uid())
         return self._filepath(file_type, self._current[file_type].uuid)
 
+    def segments(self, file_type: FileType) -> list[tuple[HgPathT, int, int]]:
+        """return the (path, start, end) of all files holding `file_type` data
+
+        `start` and `end` are offsets in the `file_type` data, `end` being
+        exclusive. The segments are returned in offset order.
+        """
+        return [(self.filepath(file_type), 0, self.get_end(file_type))]
+
     def new_filepath(self, file_type: FileType) -> HgPathT:
         """switch index file to a new UID
 

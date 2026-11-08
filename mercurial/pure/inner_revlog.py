@@ -1204,16 +1204,17 @@ class InnerRevlogV2(BaseInnerRevlog):
         for ft in self._index_fts:
             blocks = []
             # always get the filepath to get consistent order in the test
-            if True:  # pre-indent for multiple segments
+            for block_path, start, end in docket.segments(ft):
                 block = b''
-                block_path = docket.filepath(ft)
-                block_size = docket.get_end(ft)
+                block_size = end - start
                 if block_size > 0:
                     block = opener.tryread(
                         block_path,
                         configs.data.mmap_index_threshold,
-                        size=block_size,
+                        size=end,
                     )
+                    if start != 0:
+                        block = block[start:]
                     if len(block) < block_size:
                         msg = IDX_TOO_SHORT % (
                             self.display_id,
@@ -1290,11 +1291,9 @@ class InnerRevlogV2(BaseInnerRevlog):
         add_many = res.extend
         add_one(docket.docket_path())
         for ft in self._active_fts:
-            if ft.is_index:
-                add_one(docket.filepath(ft))
-            else:
-                if 0 < docket.get_end(ft):
-                    add_one(docket.filepath(ft))
+            for path, start, end in docket.segments(ft):
+                if ft.is_index or start < end:
+                    add_one(path)
         if include_old:
             add_many(docket.old_filepaths())
         return res
