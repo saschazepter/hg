@@ -1460,9 +1460,35 @@ class InnerRevlogV2(BaseInnerRevlog):
         for idx_ft, bin_piece in zip(self._index_fts, idx_bins):
             if bin_piece is None:
                 continue
+            self._write_index_piece(
+                transaction,
+                idx_ft,
+                rev,
+                bin_piece,
+                pending_only=pending_only,
+                stripping=stripping,
+            )
+
+    def _write_index_piece(
+        self,
+        transaction: TransactionT,
+        idx_ft: V2FileType,
+        rev: RevnumT,
+        bin_piece: bytes,
+        pending_only: bool = False,
+        stripping: bool = False,
+    ):
+        """write the `idx_ft` index data of `rev` to disk
+
+        `rev` is either an existing revision or the next one to be appended.
+        """
+        if True:  # keep the moved code unchanged, cleaned up next
             entry_size = self._index_entry_sizes[idx_ft]
             idx_pos = entry_size * rev
             assert len(bin_piece) == entry_size
+            if self.docket.get_end(idx_ft) < idx_pos:
+                msg = "writing index of revision %d would leave a gap" % rev
+                raise error.ProgrammingError(msg)
             # Changing index content under reader nose would be a problem,
             # however if that transaction has not been committed yet,
             # nobody is reading it and this won't be a problem.
