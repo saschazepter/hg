@@ -278,7 +278,7 @@ class RevlogDocket:
                 radix=self._radix,
                 file_type=file_type,
             )
-        return self._filepath(file_type, self._current[file_type].uuid)
+        return self._current[file_type].path
 
     def segments(self, file_type: FileType) -> list[tuple[HgPathT, int, int]]:
         """return the (path, start, end) of all files holding `file_type` data
