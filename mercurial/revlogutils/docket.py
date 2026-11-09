@@ -125,16 +125,15 @@ class BlockInfo:
         )
 
     @staticmethod
-    def deserialize(data: bytes, radix: HgPathT) -> tuple[FileType, BlockInfo]:
+    def deserialize(data: bytes, radix: HgPathT) -> BlockInfo:
         pieces = S_ENTRY.unpack(data)
-        block = BlockInfo(
+        return BlockInfo(
             uuid=pieces[2],
             radix=radix,
             file_type=FileType(pieces[0]),
             end=pieces[1],
             immutable_end=pieces[1],
         )
-        return (block.file_type, block)
 
     def freeze(self) -> BlockInfo:
         """Mark the pending data as immutable
@@ -449,13 +448,13 @@ def parse_docket_args(data, radix) -> _DocketArgsT:
 
     current_data = {}
     for __ in range(0, current_count):
-        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size), radix)
-        current_data[ft] = block
+        block = BlockInfo.deserialize(get_data(S_ENTRY.size), radix)
+        current_data[block.file_type] = block
 
     pending_data = {}
     for __ in range(0, pending_count):
-        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size), radix)
-        pending_data[ft] = block
+        block = BlockInfo.deserialize(get_data(S_ENTRY.size), radix)
+        pending_data[block.file_type] = block
 
     older_uuids = []
     for __ in range(outdated_count):
