@@ -1854,7 +1854,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         # append the new sidedata
 
         _path, sdfh = self._writinghandles[self.docket.FT.SIDEDATA]
-        sdfh.seek(self.docket.get_end(self.docket.FT.SIDEDATA), os.SEEK_SET)
+        sidedata_block = self.docket.get_data_block(self.docket.FT.SIDEDATA)
+        sdfh.seek(sidedata_block.end, os.SEEK_SET)
         current_offset = sdfh.tell()
         startrev = None
         for rev, serialized_sidedata, flags in new_info:
@@ -2184,7 +2185,8 @@ class InnerRevlogV2(BaseInnerRevlog):
 
         index = self.index
         docket = self.docket
-        offset = docket.get_end(docket.FT.DATA)
+        data_block = docket.get_data_block(docket.FT.DATA)
+        offset = data_block.end
         if rev == 0:
             assert offset == 0
         else:
@@ -2227,7 +2229,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         assert ft in self._active_fts
         assert self.is_writing
         path, fh = self._writinghandles[ft]
-        start_pos = pos = docket.get_end(ft)
+        cf_block = docket.get_data_block(ft)
+        start_pos = pos = cf_block.end
         fh.seek(pos, os.SEEK_SET)
         transaction.add(path, pos)
         for rev, has_copy_info, cfg_bin in data_iter:
