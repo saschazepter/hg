@@ -117,9 +117,9 @@ class BlockInfo:
         """The path of the file holding that data block"""
         return file_path(self.file_type, self.radix, self.uuid)
 
-    def serialize(self, file_type: FileType) -> bytes:
+    def serialize(self) -> bytes:
         return S_ENTRY.pack(
-            int(file_type),
+            int(self.file_type),
             self.end,
             self.uuid,
         )
@@ -379,11 +379,11 @@ class RevlogDocket:
         s = []
         s.append(S_HEADER.pack(*data))
 
-        for ft, block in sorted(self._initial.items()):
-            s.append(block.serialize(ft))
+        for _ft, block in sorted(self._initial.items()):
+            s.append(block.serialize())
 
-        for ft, block in sorted(self._current.items()):
-            s.append(block.serialize(ft))
+        for _ft, block in sorted(self._current.items()):
+            s.append(block.serialize())
 
         for ft, uuid in self._outdated_uuids:
             s.append(S_OLD_ENTRY.pack(ft, uuid))
