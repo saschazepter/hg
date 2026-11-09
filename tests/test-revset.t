@@ -1130,6 +1130,17 @@ test the specialized implementation of heads(commonancestors(..))
   $ hg log -T '{rev}\n' -r 'heads(commonancestors(8 + 9))'
   8
 
+with many revisions
+
+  $ hg init ../many-children
+  $ hg -R ../many-children debugbuilddag "+1:root $("$PYTHON" -c "print('*root ' * 65)")"
+  $ hg -R ../many-children log -T '{rev}\n' -r 'heads(commonancestors(1:64))'
+  0 (no-rust !)
+  0 (rust missing-correct-output !)
+  $ hg -R ../many-children log -T '{rev}\n' -r 'heads(commonancestors(1:65))'
+  0 (no-rust !)
+  0 (rust missing-correct-output !)
+
 test ancestor variants of empty revision
 
   $ log 'ancestor(none())'
