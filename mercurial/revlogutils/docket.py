@@ -240,6 +240,13 @@ class RevlogDocket:
     def _read_only(self) -> bool:
         return self._initial is None
 
+    def _check_writable(self) -> None:
+        """raise a ProgrammingError if this docket cannot be updated"""
+        if self._read_only:
+            msg = b'updating read-only docket: %s'
+            msg %= self._path
+            raise error.ProgrammingError(msg)
+
     @util.propertycache
     def active_fts(self) -> tuple[FileType]:
         """The list of active file types for the revlog variant of this docket
@@ -302,10 +309,7 @@ class RevlogDocket:
         """switch index file to a new UID
 
         The previous index UID is moved to the "older" list."""
-        if self._read_only:
-            msg = b'updating read-only docket: %s'
-            msg %= self._path
-            raise error.ProgrammingError(msg)
+        self._check_writable()
         # XXX if the old size is 0, we could skip adding it and delete it on
         # XXX the spot.
         old = self._current[file_type]
@@ -332,10 +336,7 @@ class RevlogDocket:
         return self._current[file_type].end
 
     def set_end(self, file_type: FileType, new_size: int) -> None:
-        if self._read_only:
-            msg = b'updating read-only docket: %s'
-            msg %= self._path
-            raise error.ProgrammingError(msg)
+        self._check_writable()
         if new_size != self._current[file_type].end:
             self._current[file_type].end = new_size
             self._dirty = True
