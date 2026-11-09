@@ -1671,14 +1671,15 @@ class InnerRevlogV2(BaseInnerRevlog):
         if data[0]:
             data_fh.write(data[0])
         data_fh.write(data[1])
+        self.docket.set_end(docket.FT.DATA, data_fh.tell())
         for ft, o_data in sorted(other_data.items()):
             _path, fh = self._writinghandles[ft]
             fh.write(o_data)
+            self.docket.set_end(ft, fh.tell())
 
         for ft, bin_piece in zip(self._index_fts, bin_entry):
             _path, fh = self._writinghandles[ft]
             fh.write(bin_piece)
-        for ft, (_path, fh) in sorted(self._writinghandles.items()):
             self.docket.set_end(ft, fh.tell())
 
     def register_extra_link_rev(
