@@ -156,6 +156,18 @@ class BlockInfo:
             immutable_end=self.immutable_end,
         )
 
+    def set_end(self, docket: RevlogDocket, new_end: int) -> None:
+        """set the end of the active data of this block
+
+        `docket` is the docket holding this block, it checks the update is
+        allowed and tracks that it needs to be written.
+        """
+        docket._check_writable()
+        assert docket._current.get(self.file_type) is self
+        if new_end != self.end:
+            self.end = new_end
+            docket._dirty = True
+
 
 def file_path(file_type: FileType, radix: bytes, uuid: bytes) -> bytes:
     """compute a file path from a revlog radix, a uuid and a file type"""
@@ -336,10 +348,7 @@ class RevlogDocket:
         return self._current[file_type].end
 
     def set_end(self, file_type: FileType, new_size: int) -> None:
-        self._check_writable()
-        if new_size != self._current[file_type].end:
-            self._current[file_type].end = new_size
-            self._dirty = True
+        self._current[file_type].set_end(self, new_size)
 
     def is_pending_offset(self, file_type: FileType, offset: int) -> bool:
         assert self._initial is not None
