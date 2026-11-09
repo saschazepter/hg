@@ -301,14 +301,15 @@ class RevlogDocket:
         new_uuid = make_uid()
         assert new_uuid != old.uuid
         self._outdated_uuids.append((file_type, old.uuid))
-        self._current[file_type] = BlockInfo(
+        new = BlockInfo(
             uuid=new_uuid,
             radix=self._radix,
             file_type=file_type,
             end=old.end,
         )
+        self._current[file_type] = new
         self._dirty = True
-        return self.filepath(file_type)
+        return new.path
 
     def old_filepaths(self) -> Iterator[HgPathT]:
         """yield file path to older index files associated to this docket"""
