@@ -40,12 +40,12 @@ purge without the extension
 purge with the extension explicitly disabled
 
   $ touch foo
-  $ hg purge --config extensions.purge=! || echo exit=$?
-  permanently delete 1 unknown files? (yN) n (missing-correct-output rhg !)
-  abort: removal cancelled (missing-correct-output rhg !)
-  exit=250 (missing-correct-output rhg !)
+  $ hg purge --config extensions.purge=!
+  permanently delete 1 unknown files? (yN) n
+  abort: removal cancelled
+  [250]
   $ hg st
-  ? foo (missing-correct-output rhg !)
+  ? foo
   $ hg purge --no-confirm
   $ hg st
 

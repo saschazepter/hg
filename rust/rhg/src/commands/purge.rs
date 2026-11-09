@@ -166,7 +166,7 @@ pub fn run(invocation: &crate::CliInvocation) -> Result<(), CommandError> {
     } else if args.get_flag("no-confirm") {
         false
     } else {
-        invocation.config.get(b"extensions", b"purge").is_none()
+        !invocation.config.is_extension_enabled(b"purge")
     };
 
     if confirm {
