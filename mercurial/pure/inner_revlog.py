@@ -1393,7 +1393,7 @@ class InnerRevlogV2(BaseInnerRevlog):
                 transaction.add(path, end)
                 if ft in self._segment_files:
                     self._segment_files[ft].writing_handle = fh
-                handles[ft] = fh
+                handles[ft] = (path, fh)
             self._writinghandles = handles
             yield
             self._writinghandles = None
@@ -1422,8 +1422,9 @@ class InnerRevlogV2(BaseInnerRevlog):
             # data already updatable, nothing to do
             return
 
-        self._writinghandles[file_type].close()
-        old_path = self.opener.join(docket.filepath(file_type))
+        old_name, old_fh = self._writinghandles[file_type]
+        old_fh.close()
+        old_path = self.opener.join(old_name)
         new_name = docket.new_filepath(file_type)
         new_path = self.opener.join(new_name)
         if not stripping:
@@ -1435,7 +1436,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         util.copyfile(old_path, new_path, copystat=True)
         fh = self.opener.wopen(new_name)
         self._write_stack.enter_context(fh)
-        self._writinghandles[file_type] = fh
+        self._writinghandles[file_type] = (new_name, fh)
         if file_type in self._segment_files:
             self._segment_files[file_type].writing_handle = fh
         assert docket.is_pending_offset(file_type, pos)
@@ -1501,7 +1502,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         elif not self.docket.is_pending_offset(file_type, pos):
             msg = "invalid rewrite of a non-pending revision"
             raise error.ProgrammingError(msg)
-        fh = self._writinghandles[file_type]
+        _path, fh = self._writinghandles[file_type]
         fh.seek(pos, os.SEEK_SET)
         fh.write(data)
 
@@ -1659,22 +1660,25 @@ class InnerRevlogV2(BaseInnerRevlog):
         if self.feature_config.link_revs:
             self._register_first_link_rev(entry, link)
 
-        for ft, fh in sorted(self._writinghandles.items()):
+        for ft, (path, fh) in sorted(self._writinghandles.items()):
             pos = docket.get_end(ft)
             fh.seek(pos, os.SEEK_SET)
-            transaction.add(docket.filepath(ft), pos)
+            transaction.add(path, pos)
 
         self.index.add_entry(entry)
         bin_entry = self.index.entry_binaries(curr)
+        _path, data_fh = self._writinghandles[docket.FT.DATA]
         if data[0]:
-            self._writinghandles[docket.FT.DATA].write(data[0])
-        self._writinghandles[docket.FT.DATA].write(data[1])
+            data_fh.write(data[0])
+        data_fh.write(data[1])
         for ft, o_data in sorted(other_data.items()):
-            self._writinghandles[ft].write(o_data)
+            _path, fh = self._writinghandles[ft]
+            fh.write(o_data)
 
         for ft, bin_piece in zip(self._index_fts, bin_entry):
-            self._writinghandles[ft].write(bin_piece)
-        for ft, fh in sorted(self._writinghandles.items()):
+            _path, fh = self._writinghandles[ft]
+            fh.write(bin_piece)
+        for ft, (_path, fh) in sorted(self._writinghandles.items()):
             self.docket.set_end(ft, fh.tell())
 
     def register_extra_link_rev(
@@ -1693,7 +1697,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         FT_LR = self.docket.FT.LINK_REVS
         assert FT_LR in self._active_fts
         offset = self.docket.get_end(FT_LR)
-        fh = self._writinghandles[FT_LR]
+        _path, fh = self._writinghandles[FT_LR]
         fh.seek(offset, os.SEEK_SET)
 
         prev_idx = self.index.link_revs_last_idx(rev)
@@ -1719,7 +1723,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         FT_LR = self.docket.FT.LINK_REVS
         assert FT_LR in self._active_fts
         offset = self.docket.get_end(FT_LR)
-        fh = self._writinghandles[FT_LR]
+        _path, fh = self._writinghandles[FT_LR]
         fh.seek(offset, os.SEEK_SET)
         this_idx = offset // S_LINK_REVS.size
         data = S_LINK_REVS.pack(linkrev, this_idx)
@@ -1778,7 +1782,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         current_idx = index.link_revs_last_idx(first_affected)
         offset = S_LINK_REVS.size * current_idx
         self.docket.set_end(FT_LR, offset)
-        fh = self._writinghandles[FT_LR]
+        _path, fh = self._writinghandles[FT_LR]
         fh.seek(offset, os.SEEK_SET)
 
         for node, cl_rev in updates:
@@ -1835,7 +1839,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         new_entries = []
         # append the new sidedata
 
-        sdfh = self._writinghandles[self.docket.FT.SIDEDATA]
+        _path, sdfh = self._writinghandles[self.docket.FT.SIDEDATA]
         sdfh.seek(self.docket.get_end(self.docket.FT.SIDEDATA), os.SEEK_SET)
         current_offset = sdfh.tell()
         startrev = None
@@ -2174,7 +2178,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             expected += index.data_chunk_length(rev - 1)
             assert expected == offset, (offset, expected)
 
-        fh = self._writinghandles[docket.FT.DATA]
+        _path, fh = self._writinghandles[docket.FT.DATA]
         fh.seek(offset, os.SEEK_SET)
         fh.write(delta_data)
         docket.set_end(docket.FT.DATA, offset + len(delta_data))
@@ -2208,10 +2212,10 @@ class InnerRevlogV2(BaseInnerRevlog):
         ft = docket.FT.CHANGED_FILES
         assert ft in self._active_fts
         assert self.is_writing
-        fh = self._writinghandles[ft]
+        path, fh = self._writinghandles[ft]
         start_pos = pos = docket.get_end(ft)
         fh.seek(pos, os.SEEK_SET)
-        transaction.add(docket.filepath(ft), pos)
+        transaction.add(path, pos)
         for rev, has_copy_info, cfg_bin in data_iter:
             assert self.index.changed_files_offset(rev) == start_pos
             assert self.index.changed_files_length(rev) == 0
