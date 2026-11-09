@@ -70,6 +70,7 @@ help:
 	@echo '  local        - build for inplace usage'
 	@echo '  tests        - run all tests in the automatic test suite'
 	@echo '  test-foo     - run only specified tests (e.g. test-merge1.t)'
+	@echo '  rust-benchmark - run the Rust benchmarks (cargo bench)'
 	@echo '  dist         - run all tests and create a source tarball in dist/'
 	@echo '  clean        - remove files created by other targets'
 	@echo '                 (except installed files or dist source tarball)'
@@ -213,6 +214,11 @@ rust-tests:
 		&& $(CARGO) test --quiet --workspace \
 		   --features "full-tracing" --no-default-features \
 		&&  $(CARGO) test --quiet --workspace --no-default-features
+
+.PHONY: rust-benchmark
+rust-benchmark:
+	cd $(HGROOT)/rust \
+		&& $(CARGO) bench -p hg-core --bench patch
 
 .PHONY: cargo-clippy
 cargo-clippy:

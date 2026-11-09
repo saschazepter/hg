@@ -11,6 +11,12 @@ workspace = true
 [lib]
 name = "hg"
 
+[[bench]]
+name = "patch"
+# this is here because we don't want to use Rust's unstable benchmark system
+# it allows us to use a custom main entry point, in which we call divan
+harness = false
+
 [features]
 full-tracing = []
 
@@ -80,4 +86,5 @@ cc = "1.2"
 
 [dev-dependencies]
 clap = { version = "4", features = ["derive"] }
+divan = "0.1.21"
 pretty_assertions = "1.4.1"
