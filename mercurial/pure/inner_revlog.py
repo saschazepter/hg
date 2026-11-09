@@ -1648,19 +1648,20 @@ class InnerRevlogV2(BaseInnerRevlog):
             self._add_children_info(transaction, curr, entry)
 
         if (sidedata := other_data.get(docket.FT.SIDEDATA)) is not None:
-            entry.sidedata_offset = docket.get_end(self.docket.FT.SIDEDATA)
+            sidedata_block = docket.get_data_block(docket.FT.SIDEDATA)
+            entry.sidedata_offset = sidedata_block.end
             entry.sidedata_compressed_length = len(sidedata)
 
         if docket.FT.CHANGED_FILES in self._active_fts:
-            entry.changed_files_offset = docket.get_end(
-                self.docket.FT.CHANGED_FILES
-            )
+            cf_block = docket.get_data_block(docket.FT.CHANGED_FILES)
+            entry.changed_files_offset = cf_block.end
             entry.changed_files_length = len(
                 other_data.get(self.docket.FT.CHANGED_FILES, b"")
             )
 
         if docket.FT.STS_SPLIT in self._active_fts:
-            entry.sts_split_offset = docket.get_end(self.docket.FT.STS_SPLIT)
+            split_block = docket.get_data_block(docket.FT.STS_SPLIT)
+            entry.sts_split_offset = split_block.end
             split_data_size = len(other_data.get(self.docket.FT.STS_SPLIT, b""))
             assert (split_data_size % STR_SPLIT.size) == 0
             entry.sts_split_count = split_data_size // STR_SPLIT.size
@@ -1671,7 +1672,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         self.index.add_entry(entry)
         bin_entry = self.index.entry_binaries(curr)
         data_path, data_fh = self._writinghandles[docket.FT.DATA]
-        data_pos = docket.get_end(docket.FT.DATA)
+        data_block = docket.get_data_block(docket.FT.DATA)
+        data_pos = data_block.end
         data_fh.seek(data_pos, os.SEEK_SET)
         transaction.add(data_path, data_pos)
         if data[0]:
@@ -1680,7 +1682,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         self.docket.set_end(docket.FT.DATA, data_fh.tell())
         for ft, o_data in sorted(other_data.items()):
             path, fh = self._writinghandles[ft]
-            pos = docket.get_end(ft)
+            block = docket.get_data_block(ft)
+            pos = block.end
             fh.seek(pos, os.SEEK_SET)
             transaction.add(path, pos)
             fh.write(o_data)
