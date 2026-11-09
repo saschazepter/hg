@@ -1707,7 +1707,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         assert self.is_writing
         FT_LR = self.docket.FT.LINK_REVS
         assert FT_LR in self._active_fts
-        offset = self.docket.get_end(FT_LR)
+        lr_block = self.docket.get_data_block(FT_LR)
+        offset = lr_block.end
         _path, fh = self._writinghandles[FT_LR]
         fh.seek(offset, os.SEEK_SET)
 
@@ -1733,7 +1734,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         """
         FT_LR = self.docket.FT.LINK_REVS
         assert FT_LR in self._active_fts
-        offset = self.docket.get_end(FT_LR)
+        lr_block = self.docket.get_data_block(FT_LR)
+        offset = lr_block.end
         _path, fh = self._writinghandles[FT_LR]
         fh.seek(offset, os.SEEK_SET)
         this_idx = offset // S_LINK_REVS.size
@@ -1782,7 +1784,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         # So far we saw only one link-revs entry per revision we walked over.
         # let's also check that none sneaked above
         tip_idx = index.link_revs_last_idx(len(self) - 1)
-        offset = docket.get_end(FT_LR)
+        lr_block = docket.get_data_block(FT_LR)
+        offset = lr_block.end
         max_idx = (offset // S_LINK_REVS.size) - 1
         assert tip_idx == max_idx
 
