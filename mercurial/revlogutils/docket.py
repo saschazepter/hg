@@ -267,9 +267,6 @@ class RevlogDocket:
         """file path of that docket"""
         return self._path
 
-    def _filepath(self, file_type: FileType, uuid: _UuidT) -> bytes:
-        return file_path(file_type, self._radix, uuid)
-
     def filepath(self, file_type: FileType) -> bytes:
         if self._current.get(file_type) is None:
             self._current[file_type] = BlockInfo(
@@ -315,7 +312,7 @@ class RevlogDocket:
         """yield file path to older index files associated to this docket"""
         # very simplistic version at first
         for file_type, uuid in self._outdated_uuids:
-            yield self._filepath(file_type, uuid)
+            yield file_path(file_type, self._radix, uuid)
 
     def get_end(self, file_type: FileType) -> int:
         return self._current[file_type].end
