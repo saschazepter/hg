@@ -1946,8 +1946,8 @@ impl PoisonableBitSet for NonStaticPoisonableBitSet {
             self.set_size == other.set_size,
             "Binary operations on bit sets can only be done on same size"
         );
-        for i in 0..self.bit_set.len() - 1 {
-            self.bit_set[i] |= other.bit_set[i]
+        for (word, other_word) in self.bit_set.iter_mut().zip(&other.bit_set) {
+            *word |= other_word
         }
     }
 
