@@ -1486,7 +1486,8 @@ class InnerRevlogV2(BaseInnerRevlog):
         entry_size = self._index_entry_sizes[file_type]
         assert len(data) == entry_size, (len(data), entry_size)
         pos = entry_size * rev
-        if (end := self.docket.get_end(file_type)) < pos:
+        block = self.docket.get_index_block(file_type, rev)
+        if (end := block.end) < pos:
             msg = "writing index of revision %d would leave a gap" % rev
             raise error.ProgrammingError(msg)
         # Changing index content under reader nose would be a problem,
