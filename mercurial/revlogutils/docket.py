@@ -96,6 +96,12 @@ class BlockInfo:
     uuid = attr.ib(type=_UuidT)
     """The uuid used for that data block"""
 
+    radix = attr.ib(type=HgPathT)
+    """The radix of the revlog this block belongs to"""
+
+    file_type = attr.ib(type=FileType)
+    """The type of data held in that block"""
+
     end = attr.ib(type=int, default=0)
     """The number of bytes marking the end of the active data"""
 
@@ -106,6 +112,11 @@ class BlockInfo:
     be mutated.
     """
 
+    @util.propertycache
+    def path(self) -> HgPathT:
+        """The path of the file holding that data block"""
+        return file_path(self.file_type, self.radix, self.uuid)
+
     def serialize(self, file_type: FileType) -> bytes:
         return S_ENTRY.pack(
             int(file_type),
@@ -114,14 +125,16 @@ class BlockInfo:
         )
 
     @staticmethod
-    def deserialize(data: bytes) -> tuple[FileType, BlockInfo]:
+    def deserialize(data: bytes, radix: HgPathT) -> tuple[FileType, BlockInfo]:
         pieces = S_ENTRY.unpack(data)
         block = BlockInfo(
             uuid=pieces[2],
+            radix=radix,
+            file_type=FileType(pieces[0]),
             end=pieces[1],
             immutable_end=pieces[1],
         )
-        return (FileType(pieces[0]), block)
+        return (block.file_type, block)
 
     def freeze(self) -> BlockInfo:
         """Mark the pending data as immutable
@@ -137,6 +150,8 @@ class BlockInfo:
         # reference when we mutate the current data.
         return BlockInfo(
             uuid=self.uuid,
+            radix=self.radix,
+            file_type=self.file_type,
             end=self.end,
             immutable_end=self.immutable_end,
         )
@@ -258,7 +273,11 @@ class RevlogDocket:
 
     def filepath(self, file_type: FileType) -> bytes:
         if self._current.get(file_type) is None:
-            self._current[file_type] = BlockInfo(uuid=make_uid())
+            self._current[file_type] = BlockInfo(
+                uuid=make_uid(),
+                radix=self._radix,
+                file_type=file_type,
+            )
         return self._filepath(file_type, self._current[file_type].uuid)
 
     def segments(self, file_type: FileType) -> list[tuple[HgPathT, int, int]]:
@@ -283,7 +302,12 @@ class RevlogDocket:
         new_uuid = make_uid()
         assert new_uuid != old.uuid
         self._outdated_uuids.append((file_type, old.uuid))
-        self._current[file_type] = BlockInfo(uuid=new_uuid, end=old.end)
+        self._current[file_type] = BlockInfo(
+            uuid=new_uuid,
+            radix=self._radix,
+            file_type=file_type,
+            end=old.end,
+        )
         self._dirty = True
         return self.filepath(file_type)
 
@@ -396,7 +420,7 @@ class _DocketArgsT(TypedDict):
     outdated_uuids: list[tuple[FileType, _UuidT]]
 
 
-def parse_docket_args(data) -> _DocketArgsT:
+def parse_docket_args(data, radix) -> _DocketArgsT:
     """given some docket data return the argument to initialize a docket"""
     header = S_HEADER.unpack(data[: S_HEADER.size])
 
@@ -425,12 +449,12 @@ def parse_docket_args(data) -> _DocketArgsT:
 
     current_data = {}
     for __ in range(0, current_count):
-        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size))
+        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size), radix)
         current_data[ft] = block
 
     pending_data = {}
     for __ in range(0, pending_count):
-        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size))
+        ft, block = BlockInfo.deserialize(get_data(S_ENTRY.size), radix)
         pending_data[ft] = block
 
     older_uuids = []
@@ -454,7 +478,7 @@ def parse_docket(
     use_pending=False,
 ) -> RevlogDocket:
     """given some docket data return a docket object for the given revlog"""
-    args = parse_docket_args(data)
+    args = parse_docket_args(data, radix)
     docket = RevlogDocket(
         vfs,
         radix,
