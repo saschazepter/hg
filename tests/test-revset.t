@@ -1135,8 +1135,7 @@ with many revisions
   $ hg init ../many-children
   $ hg -R ../many-children debugbuilddag "+1:root $("$PYTHON" -c "print('*root ' * 65)")"
   $ hg -R ../many-children log -T '{rev}\n' -r 'heads(commonancestors(1:64))'
-  0 (no-rust !)
-  0 (rust missing-correct-output !)
+  0
   $ hg -R ../many-children log -T '{rev}\n' -r 'heads(commonancestors(1:65))'
   0 (no-rust !)
   0 (rust missing-correct-output !)

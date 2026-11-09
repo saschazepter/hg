@@ -1954,7 +1954,7 @@ impl PoisonableBitSet for NonStaticPoisonableBitSet {
     fn is_full_range(&self, n: usize) -> bool {
         let (sub_bs, bit_pos) = self.index(n);
         self.bit_set[..sub_bs].iter().all(|bs| *bs == u64::MAX)
-            && self.bit_set[sub_bs] == (1 << (bit_pos + 1)) - 1
+            && self.bit_set[sub_bs] == (1 << bit_pos) - 1
     }
 
     fn is_empty(&self) -> bool {
