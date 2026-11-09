@@ -1660,25 +1660,29 @@ class InnerRevlogV2(BaseInnerRevlog):
         if self.feature_config.link_revs:
             self._register_first_link_rev(entry, link)
 
-        for ft, (path, fh) in sorted(self._writinghandles.items()):
-            pos = docket.get_end(ft)
-            fh.seek(pos, os.SEEK_SET)
-            transaction.add(path, pos)
-
         self.index.add_entry(entry)
         bin_entry = self.index.entry_binaries(curr)
-        _path, data_fh = self._writinghandles[docket.FT.DATA]
+        data_path, data_fh = self._writinghandles[docket.FT.DATA]
+        data_pos = docket.get_end(docket.FT.DATA)
+        data_fh.seek(data_pos, os.SEEK_SET)
+        transaction.add(data_path, data_pos)
         if data[0]:
             data_fh.write(data[0])
         data_fh.write(data[1])
         self.docket.set_end(docket.FT.DATA, data_fh.tell())
         for ft, o_data in sorted(other_data.items()):
-            _path, fh = self._writinghandles[ft]
+            path, fh = self._writinghandles[ft]
+            pos = docket.get_end(ft)
+            fh.seek(pos, os.SEEK_SET)
+            transaction.add(path, pos)
             fh.write(o_data)
             self.docket.set_end(ft, fh.tell())
 
         for ft, bin_piece in zip(self._index_fts, bin_entry):
-            _path, fh = self._writinghandles[ft]
+            path, fh = self._writinghandles[ft]
+            pos = docket.get_end(ft)
+            fh.seek(pos, os.SEEK_SET)
+            transaction.add(path, pos)
             fh.write(bin_piece)
             self.docket.set_end(ft, fh.tell())
 
