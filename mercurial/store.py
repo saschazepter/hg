@@ -761,8 +761,9 @@ class RevlogStoreEntry(BaseStoreEntry):
                 index_path = self.main_file_path()
                 self._files.append(StoreFile(index_path))
                 with vfs(index_path) as fp:
-                    for s in revlogmod.revlog.suffix_from_index(fp):
-                        self._files.append(StoreFile(self._path_prefix + s))
+                    radix = self._path_prefix
+                    for path in revlogmod.revlog.files_from_index(fp, radix):
+                        self._files.append(StoreFile(path))
             else:
                 for ext in sorted(self._details, key=_ext_key):
                     path = self._path_prefix + ext

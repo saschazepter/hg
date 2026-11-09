@@ -500,11 +500,14 @@ class revlog:
         return features['inline'](_format_flags)
 
     @staticmethod
-    def suffix_from_index(main_fp: BinaryIO) -> Iterator[bytes]:
-        """yield the suffix of extra files part of a revlog
+    def files_from_index(
+        main_fp: BinaryIO,
+        radix: HgPathT,
+    ) -> Iterator[HgPathT]:
+        """yield the path of extra files part of a revlog
 
         This is done from an open file descriptor to the revlog main entry poin
-        (index or docket).
+        (index or docket) of the revlog using `radix`.
         """
         header_bytes = main_fp.read(INDEX_HEADER.size)
         if len(header_bytes) == 0:
@@ -516,12 +519,12 @@ class revlog:
         if _format_version in (REVLOGV0, REVLOGV1):
             features = FEATURES_BY_VERSION[_format_version]
             if not features['inline'](_format_flags):
-                yield b'.d'
+                yield radix + b'.d'
         else:
             docket_bytes = header_bytes + main_fp.read()
             d_args = docketutil.parse_docket_args(docket_bytes)
             for ft, block in sorted(d_args['blocks'][0].items()):
-                yield docketutil.file_path(ft, b'', block.uuid)
+                yield docketutil.file_path(ft, radix, block.uuid)
             # note: the docket might reference old files that we don't really
             # want to propagate, so we don't list them there.
 
