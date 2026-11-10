@@ -2301,11 +2301,31 @@ class workingctx(committablectx, i_context.IWorkingContext):
         ds = self._repo.dirstate
         return sorted(f for f in ds.matches(match) if ds.get_entry(f).tracked)
 
+    def _committed_file_data(self, path: HgPathT) -> ParentFileDataT | None:
+        """return what the dirstate should record about a committed file
+
+        Only the mode and size the file is expected to have on disk are
+        returned, as derived from the committed content. No mtime is: it
+        would claim that the file on disk holds that content, which nothing
+        guarantees here.
+
+        Return None when the commit registered nothing for this file.
+        """
+        committed = self._committed_files_data.get(path)
+        if committed is None:
+            return None
+        flags, size = committed
+        mode = _mode_from_flags(flags)
+        return (mode, size, None)
+
     def markcommitted(self, node) -> None:
         with self._repo.dirstate.changing_parents(self._repo):
             for f in self.modified() + self.added():
                 self._repo.dirstate.update_file(
-                    f, p1_tracked=True, wc_tracked=True
+                    f,
+                    p1_tracked=True,
+                    wc_tracked=True,
+                    parentfiledata=self._committed_file_data(f),
                 )
             for f in self.removed():
                 self._repo.dirstate.update_file(

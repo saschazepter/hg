@@ -85,7 +85,7 @@ This used to results in a corrupted dirstate (size did not match committed size)
   w12 - - a
   $ hg commit -m _ --config extensions.race=$TESTTMP/dirstaterace.py
   $ dirstate_entries
-  w1- - - a
+  w1- 644 105 a
   $ cat a | wc -c
    *0 (re)
   $ hg cat -r . a | wc -c

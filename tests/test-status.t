@@ -1285,7 +1285,7 @@ Committing an added file
   $ sleep 1
   $ hg commit -Aqm 'add babar'
   $ cached_data
-  babar: clean - - -
+  babar: clean 644 6 -
   $ hg status
   lookup: babar
 
@@ -1296,25 +1296,24 @@ Committing a modified file
   $ sleep 1
   $ hg commit -m 'modify babar'
   $ cached_data
-  babar: clean - - -
+  babar: clean 644 11 -
   $ hg status
   lookup: babar
 
 Changing the size of a committed file
 -------------------------------------
 
-Without a size recorded by the commit, status has to read the file to notice
-the change:
+The size recorded by the commit lets status notice the change without reading
+the file:
 
   $ echo zephir > zephir
   $ hg commit -Aqm 'add zephir'
   $ cached_data
   babar: clean 644 11 set
-  zephir: clean - - -
+  zephir: clean 644 7 -
 
   $ echo more >> zephir
   $ hg status
-  lookup: zephir
   M zephir
 
 Restoring the committed content makes the file clean again, once looked up:
@@ -1328,7 +1327,7 @@ Committing a file whose mtime cannot be trusted
 -----------------------------------------------
 
 A file with a mtime in the near future might still be written to without its
-mtime changing, so nothing can be cached about it:
+mtime changing, so no mtime can be cached for it:
 
   $ echo celeste > celeste
   $ future=$("$PYTHON" -c 'import time; print(time.strftime("%Y%m%d%H%M", time.localtime(time.time() + 7200)))')
@@ -1336,7 +1335,7 @@ mtime changing, so nothing can be cached about it:
   $ hg commit -Aqm 'add celeste'
   $ cached_data
   babar: clean 644 11 set
-  celeste: clean - - -
+  celeste: clean 644 8 -
   zephir: clean 644 7 set
   $ hg status
   lookup: celeste
