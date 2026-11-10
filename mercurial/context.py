@@ -19,6 +19,9 @@ from .node import (
     nullrev,
     short,
 )
+from .interfaces.types import (
+    HgPathT,
+)
 from . import (
     encoding,
     error,
@@ -1656,6 +1659,28 @@ class committablectx(basectx):
             [p.rev() for p in self._parents]
         ):
             yield self._repo[a]
+
+    @propertycache
+    def _committed_files_data(self) -> dict[HgPathT, tuple[bytes, int]]:
+        """the flags and size of the content committed for each file
+
+        Filled by the commit logic through `register_committed_file`.
+        """
+        return {}
+
+    def register_committed_file(
+        self,
+        path: HgPathT,
+        flags: bytes,
+        size: int,
+    ) -> None:
+        """register the flags and size of the content committed for a file
+
+        The commit logic calls it for the committed files whose size on disk it
+        knows, so that `markcommitted` can update the backing stores
+        accordingly.
+        """
+        self._committed_files_data[path] = (flags, size)
 
     def markcommitted(self, node):
         """Perform post-commit cleanup necessary after committing this ctx
