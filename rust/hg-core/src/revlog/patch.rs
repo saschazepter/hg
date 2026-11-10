@@ -124,11 +124,11 @@ pub trait Edit<'a>: Clone {
 #[derive(Clone)]
 pub struct PlainEdit<'a> {
     /// The start position of the chunk of data to replace
-    pub(crate) start: u32,
+    start: u32,
     /// The end position of the chunk of data to replace (open end interval)
-    pub(crate) end: u32,
+    end: u32,
     /// The data replacing the chunk
-    pub(crate) data: &'a [u8],
+    data: &'a [u8],
 }
 
 impl<'a> Edit<'a> for PlainEdit<'a> {
@@ -234,9 +234,9 @@ pub type SrcToken = u32;
 /// A Edit with information about  source and position within that source
 #[derive(Clone, Debug)]
 pub struct RichEdit<'a> {
-    pub inner: PlainEdit<'a>,
-    pub src: SrcToken,
-    pub data_pos: u32,
+    inner: PlainEdit<'a>,
+    src: SrcToken,
+    data_pos: u32,
 }
 
 impl RichEdit<'_> {
