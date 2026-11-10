@@ -2045,7 +2045,7 @@ impl BulkChunkReader<'_> {
         } else {
             patch::Delta::full_snapshot(chunk)
         };
-        Ok(delta.chunks.into_iter().map(|piece| piece.data))
+        Ok(delta.chunks.into_iter().map(|piece| piece.data()))
     }
 }
 

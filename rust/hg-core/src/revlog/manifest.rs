@@ -121,7 +121,7 @@ impl Manifestlog {
         }
         let mut bytes = vec![];
         for chunk in self.revlog.get_data_incr(rev)?.as_delta()?.chunks {
-            bytes.extend_from_slice(chunk.data);
+            bytes.extend_from_slice(chunk.data());
         }
         Ok(Manifest::from_bytes(rev, Box::new(bytes)))
     }
