@@ -37,6 +37,14 @@ HGPLAIN disables color
   ? b/2/in_b_2 (glob)
   ? b/in_b (glob)
   ? in_root
+HGPLAIN disables color, even with ui.formatted=true
+  $ HGPLAIN=1 hg status --color=debug --config ui.formatted=True
+  ? a/1/in_a_1
+  ? a/in_a
+  ? b/1/in_b_1
+  ? b/2/in_b_2
+  ? b/in_b
+  ? in_root
 HGPLAINEXCEPT=color does not disable color
   $ HGPLAINEXCEPT=color hg status --color=debug
   [status.unknown|? ][status.unknown|a/1/in_a_1] (glob)
@@ -45,6 +53,22 @@ HGPLAINEXCEPT=color does not disable color
   [status.unknown|? ][status.unknown|b/2/in_b_2] (glob)
   [status.unknown|? ][status.unknown|b/in_b] (glob)
   [status.unknown|? ][status.unknown|in_root]
+HGPLAINEXCEPT=color disables auto color
+  $ HGPLAINEXCEPT=color hg status --color=auto
+  ? a/1/in_a_1
+  ? a/in_a
+  ? b/1/in_b_1
+  ? b/2/in_b_2
+  ? b/in_b
+  ? in_root
+HGPLAINEXCEPT=color disables auto color, even with ui.formatted=true
+  $ HGPLAINEXCEPT=color hg status --color=auto --config ui.formatted=True
+  ? a/1/in_a_1
+  ? a/in_a
+  ? b/1/in_b_1
+  ? b/2/in_b_2
+  ? b/in_b
+  ? in_root
 
 hg status with template
   $ hg status -T "{label('red', path)}\n" --color=debug

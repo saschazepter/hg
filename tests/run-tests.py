@@ -4120,6 +4120,12 @@ class TestRunner:
         if self.options.offline:
             install_env["CARGO_NET_OFFLINE"] = "1"
 
+        # Certain environments (usually agents) set `PYTHONDONTWRITEBYTECODE=1`
+        # which disable automatic Python bytecode compilation. `uv` does not
+        # compile bytecode on install, but `pip` does.
+        # This makes `test-revset.t` 3.5x faster at the time of writing.
+        install_env.setdefault("UV_COMPILE_BYTECODE", "1")
+
         vlog("# Running", cmd)
         with open(installerrs, "wb") as logfile:
             r = subprocess.call(
