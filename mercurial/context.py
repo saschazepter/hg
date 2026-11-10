@@ -92,6 +92,16 @@ def make_null_subrepo(ctx: basectx, path: bytes, pctx: basectx):
     raise error.ProgrammingError(msg)
 
 
+def _mode_from_flags(flags: bytes) -> int:
+    """the mode a file with these flags is expected to have on disk"""
+    if b'l' in flags:
+        return stat.S_IFLNK | 0o777
+    elif b'x' in flags:
+        return stat.S_IFREG | 0o755
+    else:
+        return stat.S_IFREG | 0o644
+
+
 class basectx(abc.ABC):
     """A basectx object represents the common logic for its children:
     changectx: read-only context that is already present in the repo,
@@ -2025,13 +2035,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
             # The content on disk differs from the stored one, so the stored
             # size tells nothing about the expected size on disk.
             return None
-        flags = pfctx.flags()
-        if b'l' in flags:
-            mode = stat.S_IFLNK | 0o777
-        elif b'x' in flags:
-            mode = stat.S_IFREG | 0o755
-        else:
-            mode = stat.S_IFREG | 0o644
+        mode = _mode_from_flags(pfctx.flags())
         return (mode, pfctx.size())
 
     @util.rust_tracing_span("_poststatusfixup")
