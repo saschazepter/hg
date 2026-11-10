@@ -32,6 +32,9 @@ Mercurial XXX.
 * rebase: Keep the filelog ancestry of both sides when rebasing a merge.
   Files that the destination did not touch used to be recorded as descending
   from the second parent only, making annotate incorrect.
+* status: a lookup finding a file modified now records its size information in
+  the dirstate, so a later status no longer reads the file again when its size
+  differs (issue10101).
 
 == Backwards Compatibility Changes ==
 
