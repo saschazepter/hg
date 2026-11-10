@@ -1639,6 +1639,59 @@ mod tests {
             to_delta(edits).as_applied(text, 0, u_u32(text.len()))
         }
 
+        /// Rebuild edits in a canonical form: between two kept bytes,
+        /// deletions first, in `base` order, then insertions, in text order.
+        ///
+        /// Deltas meaning the same thing can differ in their edits:
+        /// `combine` may split an edit of `low` in two around an edit of
+        /// `high`, and the order of an insertion and an adjacent deletion
+        /// carries no information. Normalized, they compare equal.
+        fn normalize(edits: &[TestEdit]) -> Vec<TestEdit> {
+            // fuse an edit with the previous one when they have the same
+            // src and are contiguous
+            fn push(edits: &mut Vec<TestEdit>, edit: TestEdit) {
+                match edits.last_mut() {
+                    Some(last)
+                        if last.src == edit.src
+                            && last.end == edit.start
+                            && (last.data.is_empty()
+                                || edit.start == edit.end) =>
+                    {
+                        last.end = edit.end;
+                        last.data.extend(edit.data);
+                    }
+                    _ => edits.push(edit),
+                }
+            }
+
+            assert!(
+                edits.iter().all(|edit| edit.start <= edit.end)
+                    && edits.is_sorted_by(|a, b| a.end <= b.start),
+                "unordered edits"
+            );
+            let mut normalized = vec![];
+            // runs of adjacent edits, with no kept byte between them
+            for run in edits.chunk_by(|a, b| a.end == b.start) {
+                let run_end =
+                    u32_u(run.last().expect("chunks are never empty").end);
+                for TestEdit { start, end, src, .. } in run {
+                    if start < end {
+                        let (start, end) = (u32_u(*start), u32_u(*end));
+                        let edit = TestEdit::new(*src, start, end, b"");
+                        push(&mut normalized, edit);
+                    }
+                }
+                for TestEdit { data, src, .. } in run {
+                    if !data.is_empty() {
+                        let data = data.clone();
+                        let edit = TestEdit::new(*src, run_end, run_end, data);
+                        push(&mut normalized, edit);
+                    }
+                }
+            }
+            normalized
+        }
+
         /// Length of the spans inserted by `low`, of the untouched segments
         /// and of the bytes a `low` edit replaces in place: room for six
         /// distinct `high` boundaries strictly inside any of them.
@@ -1847,6 +1900,32 @@ mod tests {
                     TestEdit::new(25, 22, 35, b"222222222222"),
                 ]
             );
+        }
+
+        /// Deltas meaning the same thing normalize to the same edits: a
+        /// edit split in two around an insertion, and an insertion on
+        /// either side of an adjacent deletion.
+        #[test]
+        fn test_normalize() {
+            let split = [
+                TestEdit::new(1, 0, 0, b"X"),
+                TestEdit::new(24, 0, 0, b"Q"),
+                TestEdit::new(1, 0, 1, b"Y"),
+            ];
+            let whole = [
+                TestEdit::new(1, 0, 1, b"X"),
+                TestEdit::new(24, 1, 1, b"Q"),
+                TestEdit::new(1, 1, 1, b"Y"),
+            ];
+            assert_eq!(normalize(&split), whole);
+            assert_eq!(normalize(&whole), whole);
+
+            let before =
+                [TestEdit::new(24, 0, 0, b"Q"), TestEdit::new(1, 0, 1, b"")];
+            let after =
+                [TestEdit::new(1, 0, 1, b""), TestEdit::new(24, 1, 1, b"Q")];
+            assert_eq!(normalize(&before), after);
+            assert_eq!(normalize(&after), after);
         }
     }
 }
