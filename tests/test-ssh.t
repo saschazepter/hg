@@ -444,6 +444,31 @@ Test the path's suboption for remote command
   abort: no suitable response from remote hg
   [255]
 
+  $ hg pull --ssh "sh ssh.sh" foo-hacking
+  pulling from ssh://user@dummy/a%20repo
+  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  abort: no suitable response from remote hg
+  [255]
+
+  $ hg incoming --ssh "sh ssh.sh" foo-hacking
+  remote: Illegal command "hacking -R 'a repo' serve --stdio"
+  abort: no suitable response from remote hg
+  [255]
+
+  $ hg push --ssh "sh ssh.sh" foo-hacking
+  pushing to ssh://user@dummy/a%20repo
+  remote: Illegal command "hacking -R 'a repo' serve --stdio" (missing-correct-output !)
+  abort: no suitable response from remote hg (missing-correct-output !)
+  no changes found (known-bad-output !)
+  [1]
+
+  $ hg outgoing --ssh "sh ssh.sh" foo-hacking
+  comparing with ssh://user@dummy/a%20repo
+  remote: Illegal command "hacking -R 'a repo' serve --stdio" (missing-correct-output !)
+  abort: no suitable response from remote hg (missing-correct-output !)
+  no changes found (known-bad-output !)
+  [1]
+
 test that remote command is preserved on clone
 
   $ hg clone ssh://user@dummy/local --remotecmd=$HGTEST_REAL_HG --quiet clone-rcmd
