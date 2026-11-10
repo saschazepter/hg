@@ -91,6 +91,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
     ret = 1
     for path in urlutil.get_push_paths(repo, ui, dests):
         dest = path.loc
+        peer_path = path
         prev_subtopath = getattr(repo, "_subtoppath", _no_subtoppath)
         try:
             repo._subtoppath = dest
@@ -106,6 +107,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
                         normpath = posixpath.normpath
                     p.path = normpath(b'%s/%s' % (p.path, subpath))
                     dest = bytes(p)
+                peer_path = dest
             branches = path.branch, opts.get(b'branch') or []
 
             ui.status(_(b'comparing with %s\n') % urlutil.hidepassword(dest))
@@ -120,7 +122,7 @@ def outgoing(ui, repo, dests, opts, subpath=None):
                     repo[rev].node() for rev in logcmdutil.revrange(repo, revs)
                 ]
 
-            other = repo_factory.peer(repo, opts, dest)
+            other = repo_factory.peer(repo, opts, peer_path)
             try:
                 outgoing = discovery.findcommonoutgoing(
                     repo, other, revs, force=opts.get(b'force')

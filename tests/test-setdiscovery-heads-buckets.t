@@ -1306,8 +1306,7 @@ Simple full push
   
   ##### client goes to 1200 changesets
   pushing to ssh://user@dummy/simple-full-push/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 10) (missing-correct-output !)
-  query 1; heads + initial-local-heads (sample size is 10) (known-bad-output !)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 10)
            received 5 server heads
   searching for changes
   all remote heads known locally
@@ -1318,11 +1317,9 @@ Simple full push
   
   ##### client goes to 1230 changesets
   pushing to ssh://user@dummy/simple-full-push/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 7 (of 10)) (missing-correct-output !)
-           received 7 server heads, 3 cached, 10 total (missing-correct-output !)
-           3 local head pre-discovered (missing-correct-output !)
-  query 1; heads + initial-local-heads (sample size is 10) (known-bad-output !)
-           received 10 server heads (known-bad-output !)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 7 (of 10))
+           received 7 server heads, 3 cached, 10 total
+           3 local head pre-discovered
   searching for changes
   all remote heads known locally
   remote: adding changesets
@@ -1334,22 +1331,18 @@ final no-op push and outgoing
 
   $ hg -R client push --config devel.debug.discovery=yes
   pushing to ssh://user@dummy/simple-full-push/server
-  query 1; heads-fingerprints + initial-local-heads (sample size is 1 (of 10)) (missing-correct-output !)
-           received 1 server heads, 9 cached, 10 total (missing-correct-output !)
-           9 local head pre-discovered (missing-correct-output !)
-  query 1; heads + initial-local-heads (sample size is 10) (known-bad-output !)
-           received 10 server heads (known-bad-output !)
+  query 1; heads-fingerprints + initial-local-heads (sample size is 1 (of 10))
+           received 1 server heads, 9 cached, 10 total
+           9 local head pre-discovered
   searching for changes
   all remote heads known locally
   no changes found
   [1]
   $ hg -R client outgoing --config devel.debug.discovery=yes
   comparing with ssh://user@dummy/simple-full-push/server
-  query 1; heads-fingerprints (missing-correct-output !)
-           received 0 server heads, 10 cached, 10 total (missing-correct-output !)
-           10 local head pre-discovered (missing-correct-output !)
-  query 1; heads + initial-local-heads (sample size is 10) (known-bad-output !)
-           received 10 server heads (known-bad-output !)
+  query 1; heads-fingerprints
+           received 0 server heads, 10 cached, 10 total
+           10 local head pre-discovered
   searching for changes
   all remote heads known locally
   no changes found

@@ -5382,7 +5382,7 @@ def push(ui, repo, *dests, **opts):
             branches,
             opts.get(b'rev'),
         )
-        other = repo_factory.peer(repo, opts, dest)
+        other = repo_factory.peer(repo, opts, path)
 
         try:
             if revs:
