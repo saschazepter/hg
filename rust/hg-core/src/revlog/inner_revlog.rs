@@ -616,8 +616,7 @@ impl InnerRevlog {
                 // if the old version is empty, we can create a trivial "replace
                 // all" delta
                 let mut delta = vec![];
-                let patch =
-                    PlainEdit { start: 0, end: 0, data: new_data.as_ref() };
+                let patch = PlainEdit::new(0, 0, new_data.as_ref());
                 patch.write(&mut delta);
                 delta
             } else {
@@ -665,8 +664,7 @@ impl InnerRevlog {
                 let entry = &self.get_entry(old_rev)?;
                 let deleted_size =
                     entry.uncompressed_len().expect("checked above?");
-                let patch =
-                    PlainEdit { start: 0, end: deleted_size, data: &[] };
+                let patch = PlainEdit::new(0, deleted_size, &[]);
                 patch.write(&mut delta);
                 Ok(delta)
             }
@@ -679,7 +677,7 @@ impl InnerRevlog {
                 let mut delta = vec![];
                 let entry = &self.get_entry(new_rev)?;
                 let data = entry.data_unchecked()?;
-                let patch = PlainEdit { start: 0, end: 0, data: data.as_ref() };
+                let patch = PlainEdit::new(0, 0, data.as_ref());
                 patch.write(&mut delta);
                 Ok(delta)
             }

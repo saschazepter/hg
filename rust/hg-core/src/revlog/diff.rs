@@ -65,7 +65,7 @@ impl<'a> DeltaCursor<'a> {
         let d_start = u32_u(self.new.0);
         let d_end = u32_u(self.new.1);
         let data = &self.data[d_start..d_end];
-        PlainEdit { start, end, data }
+        PlainEdit::new(start, end, data)
     }
 }
 
@@ -247,13 +247,13 @@ pub(super) fn text_delta_with_offset(
 
 fn all_created(prefix_size: usize, content: &[u8], delta: &mut Vec<u8>) {
     let start = u_u32(prefix_size);
-    PlainEdit { start, end: start, data: content }.write(delta)
+    PlainEdit::new(start, start, content).write(delta)
 }
 
 fn all_deleted(prefix_size: usize, deleted: &[u8], delta: &mut Vec<u8>) {
     let start = u_u32(prefix_size);
     let end = start + u_u32(deleted.len());
-    PlainEdit { start, end, data: &[] }.write(delta)
+    PlainEdit::new(start, end, &[]).write(delta)
 }
 
 /// The main part of [`text_delta`] extracted for clarity

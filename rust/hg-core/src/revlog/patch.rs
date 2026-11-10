@@ -215,6 +215,15 @@ impl std::fmt::Debug for PlainEdit<'_> {
     }
 }
 
+impl<'a> PlainEdit<'a> {
+    /// build a PlainEdit from simple information
+    ///
+    /// In future commits, will get moved to Edit
+    pub fn new(start: u32, end: u32, data: &'a [u8]) -> Self {
+        Self { start, end, data }
+    }
+}
+
 /// An identifier for which Chunk a Edit comes from.
 ///
 /// Used within RichEdit
@@ -251,6 +260,7 @@ impl<'a> Edit<'a> for RichEdit<'a> {
         let inner = PlainEdit::new_rich(src, start, end, data_pos, data);
         Self { inner, src, data_pos }
     }
+
     /// The start position of the chunk of data to replace
     fn start(&self) -> u32 {
         self.inner.start()

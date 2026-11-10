@@ -708,12 +708,8 @@ impl<'a> ManifestSection<'a> {
             ([], []) => return 0,
             (_, []) => {
                 // the old section is deleted
-                patch::PlainEdit {
-                    start: offset,
-                    end: (offset + self.size),
-                    data: &[],
-                }
-                .write(delta);
+                patch::PlainEdit::new(offset, offset + self.size, &[])
+                    .write(delta);
             }
             ([], new) => {
                 // the new content is inserted
