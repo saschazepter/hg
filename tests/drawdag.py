@@ -299,6 +299,9 @@ class simplefilectx:
     def flags(self):
         return b''
 
+    def has_content_filter(self):
+        return False
+
 
 class simplecommitctx(context.committablectx):
     def __init__(self, repo, name, parentctxs, added):

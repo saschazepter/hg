@@ -592,7 +592,7 @@ and its ancestor by overriding "repo._filecommit".
   >         raise error.Abort('copying is not supported')
   >     if fparent2 != repo.nullid:
   >         return flog.add(text, meta, tr, linkrev,
-  >                         fparent1, fparent2), 'modified'
+  >                         fparent1, fparent2), 'modified', None
   >     raise error.Abort('only merging is supported')
   > def uisetup(ui):
   >     extensions.wrapfunction(commit, '_filecommit', _filecommit)

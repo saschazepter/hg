@@ -243,7 +243,7 @@ def _process_files(tr, ctx, ms, files, narrow_files=None):
                 removed.append(f)
             else:
                 added.append(f)
-                fnode, is_touched = _filecommit(
+                fnode, is_touched, size = _filecommit(
                     repo,
                     fctx,
                     m1,
@@ -259,7 +259,10 @@ def _process_files(tr, ctx, ms, files, narrow_files=None):
                         files.mark_merged(f)
                     else:
                         files.mark_touched(f)
-                m.set(f, fnode, fctx.flags())
+                flags = fctx.flags()
+                m.set(f, fnode, flags)
+                if size is not None:
+                    ctx.register_committed_file(f, flags, size)
         except OSError:
             repo.ui.warn(_(b"trouble committing %s!\n") % uipathfn(f))
             raise
@@ -313,10 +316,11 @@ def _filecommit(
         tr:         current transation
         ms:         mergestate object
 
-    output: (filenode, touched)
+    output: (filenode, touched, size)
 
         filenode: the filenode that should be used by this changeset
         touched:  one of: None (mean untouched), 'added' or 'modified'
+        size:     the size of the committed content, None if it is unknown
     """
 
     fname = fctx.path()
@@ -341,7 +345,7 @@ def _filecommit(
                 and manifest2.flags(fname) != fctx.flags()
             ):
                 touched = 'modified'
-            return node, touched
+            return node, touched, None
 
     flog = repo.file(fname, writable=True)
     meta = {}
@@ -470,7 +474,13 @@ def _filecommit(
         fnode = fparent1
     else:
         fnode = fparent1
-    return fnode, touched
+    if fctx.has_content_filter():
+        # the content on disk differs from the committed one, its size is
+        # unknown
+        size = None
+    else:
+        size = len(text)
+    return fnode, touched, size
 
 
 @util.rust_tracing_span("_commit_manifest")
