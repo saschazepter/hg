@@ -247,6 +247,14 @@ impl RichEdit<'_> {
     pub(super) fn data_end(&self) -> u32 {
         self.data_start() + self.size()
     }
+
+    pub fn src(&self) -> SrcToken {
+        self.src
+    }
+
+    pub fn data_pos(&self) -> u32 {
+        self.data_pos
+    }
 }
 
 impl<'a> Edit<'a> for RichEdit<'a> {

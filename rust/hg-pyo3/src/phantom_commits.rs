@@ -485,10 +485,10 @@ impl<'a> Squasher<'a> {
         let mut target_size = base.len() as i32;
         let mut ai_chunks = Vec::with_capacity(delta.chunks.len());
         for chunk in delta.chunks.iter() {
-            match chunk.src {
+            match chunk.src() {
                 AI => {
                     target_size += chunk.len_diff();
-                    ai_chunks.push(&chunk.inner);
+                    ai_chunks.push(chunk);
                 }
                 HUMAN => {}
                 _ => unreachable!("SrcToken must be AI or HUMAN"),

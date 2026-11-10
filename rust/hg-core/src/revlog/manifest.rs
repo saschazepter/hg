@@ -808,7 +808,7 @@ where
                 Some(r)
             }
             (Some(old), Some(new)) => {
-                let r = if old.src == new.src {
+                let r = if old.src() == new.src() {
                     if old.data_end() <= new.data_start() {
                         // old fully prior to new
                         let r = S::Old(old.data());
