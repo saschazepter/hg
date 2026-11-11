@@ -22,6 +22,8 @@ use crate::narrow::shape::ErrorKind as ShapeErrorKind;
 use crate::revlog::RevlogError;
 use crate::revlog::changelog::ChangelogErrorKind;
 use crate::segmented_bytes::ErrorKind as SegmentedBytesErrorKind;
+use crate::utils::docket::DocketError;
+use crate::utils::docket::DocketErrorKind;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
 
@@ -77,6 +79,9 @@ pub enum HgError {
     Pattern(PatternError),
     #[from]
     FileIndex(FileIndexError),
+    /// An error about a docket or the data files it points to
+    #[from]
+    Docket(DocketError),
     /// A race condition has been detected. This *must* be handled locally
     /// and not directly surface to the user.
     RaceDetected(String),
@@ -377,13 +382,7 @@ impl fmt::Display for HgError {
                         node.short()
                     )
                 }
-                RevlogError::CorruptedDocket { docket_path, backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}corrupted docket: {}",
-                        docket_path.display()
-                    )
-                }
+                RevlogError::Docket(error) => format_docket_error(f, error),
                 RevlogError::TooLittleData {
                     docket_path,
                     index_path,
@@ -770,6 +769,7 @@ impl fmt::Display for HgError {
                 };
                 f.write_str(&msg)
             }
+            HgError::Docket(error) => format_docket_error(f, error),
             HgError::FileIndex(error) => {
                 write!(f, "{}corrupted fileindex: ", &error.backtrace)?;
                 match &error.kind {
@@ -878,6 +878,18 @@ pub fn hg_path_error_to_string(
         ),
     }?;
     Ok(buf)
+}
+
+fn format_docket_error(
+    f: &mut std::fmt::Formatter<'_>,
+    error: &DocketError,
+) -> Result<(), std::fmt::Error> {
+    let DocketError { docket_path, kind, backtrace } = error;
+    match kind {
+        DocketErrorKind::Corrupted => {
+            write!(f, "{backtrace}corrupted docket: {}", docket_path.display())
+        }
+    }
 }
 
 fn format_pattern_error(
@@ -1116,6 +1128,7 @@ impl From<RevlogError> for HgError {
     fn from(err: RevlogError) -> HgError {
         match err {
             RevlogError::IO(hg_io_error) => HgError::from(*hg_io_error),
+            RevlogError::Docket(error) => HgError::Docket(error),
             err => HgError::Revlog(err),
         }
     }

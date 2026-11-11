@@ -49,6 +49,7 @@ use crate::revlog::index::Index;
 use crate::revlog::nodemap::validate_persistent_nodemap;
 use crate::utils::RawData;
 use crate::utils::debug::debug_wait_for_sync_point_or_print;
+use crate::utils::docket::DocketError;
 use crate::utils::u32_u;
 use crate::vfs::Vfs;
 use crate::vfs::VfsImpl;
@@ -435,8 +436,9 @@ pub enum RevlogError {
     TooLittleDataForHeader { backtrace: HgBacktrace },
     /// We have encountered a censored revision
     CensoredRevision { node: Node, backtrace: HgBacktrace },
-    /// This docket is corrupted
-    CorruptedDocket { docket_path: PathBuf, backtrace: HgBacktrace },
+    /// An error about the docket of the persistent nodemap
+    #[from]
+    Docket(DocketError),
     /// The docket points to a data file which is too short
     TooLittleData {
         docket_path: PathBuf,

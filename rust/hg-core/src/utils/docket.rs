@@ -5,9 +5,12 @@
 //! mercurial/utils/docket.py.
 
 use std::io::Write;
+use std::path::PathBuf;
 
 use bytes_cast::BytesCast;
 use rand::RngExt;
+
+use crate::errors::HgBacktrace;
 
 /// A unique identifier made of hex digits used as part of a filename.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, BytesCast)]
@@ -59,4 +62,30 @@ impl FileUid {
     pub fn as_str(&self) -> &str {
         std::str::from_utf8(&self.0).expect("hex digits are ASCII")
     }
+}
+
+/// An error about a docket or the data files it points to
+#[derive(Debug, PartialEq)]
+pub struct DocketError {
+    /// The path of the docket, relative to the vfs it is read from
+    pub docket_path: PathBuf,
+    pub kind: DocketErrorKind,
+    pub backtrace: HgBacktrace,
+}
+
+impl DocketError {
+    pub fn new(docket_path: impl Into<PathBuf>, kind: DocketErrorKind) -> Self {
+        Self {
+            docket_path: docket_path.into(),
+            kind,
+            backtrace: HgBacktrace::capture(),
+        }
+    }
+}
+
+/// The different kinds of [`DocketError`]
+#[derive(Debug, PartialEq)]
+pub enum DocketErrorKind {
+    /// The docket cannot be parsed
+    Corrupted,
 }

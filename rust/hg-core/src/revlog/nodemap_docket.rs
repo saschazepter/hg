@@ -11,6 +11,8 @@ use crate::BaseRevision;
 use crate::errors::HgBacktrace;
 use crate::errors::HgResultExt;
 use crate::revlog::RevlogError;
+use crate::utils::docket::DocketError;
+use crate::utils::docket::DocketErrorKind;
 use crate::vfs::VfsImpl;
 
 const ONDISK_VERSION: u8 = 1;
@@ -69,9 +71,8 @@ impl NodeMapDocket {
             docket_path: &Path,
             result: Result<T, E>,
         ) -> Result<T, RevlogError> {
-            result.map_err(|_| RevlogError::CorruptedDocket {
-                docket_path: docket_path.to_path_buf(),
-                backtrace: HgBacktrace::capture(),
+            result.map_err(|_| {
+                DocketError::new(docket_path, DocketErrorKind::Corrupted).into()
             })
         }
 
