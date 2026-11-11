@@ -98,4 +98,8 @@ pub enum DocketErrorKind {
     ReadRace,
     /// We've hit [`Self::ReadRace`] too many times in a row
     ReadRaceExhausted { tries: usize },
+    /// The ID of the data file in the docket is not valid UTF-8
+    NonUtf8DataFileId,
+    /// The data file is too large to be represented in the docket
+    Overflow,
 }

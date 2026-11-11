@@ -655,8 +655,9 @@ impl Repo {
                 Some(uuid) => {
                     let as_str = std::str::from_utf8(uuid)
                         .map_err(|_| {
-                            HgError::corrupted(
-                                "non-UTF-8 dirstate data file ID",
+                            DocketError::new(
+                                "dirstate",
+                                DocketErrorKind::NonUtf8DataFileId,
                             )
                         })?
                         .to_owned();
@@ -716,7 +717,7 @@ impl Repo {
                 uuid.as_bytes(),
             )
             .map_err(|_: std::num::TryFromIntError| {
-                HgError::corrupted("overflow in dirstate docket serialization")
+                DocketError::new("dirstate", DocketErrorKind::Overflow)
             })?;
 
             (packed_dirstate, old_uuid)

@@ -878,6 +878,20 @@ fn format_docket_error(
                 docket_path.display()
             )
         }
+        DocketErrorKind::NonUtf8DataFileId => {
+            write!(
+                f,
+                "{backtrace}non-UTF-8 {} data file ID",
+                docket_path.display()
+            )
+        }
+        DocketErrorKind::Overflow => {
+            write!(
+                f,
+                "{backtrace}overflow in {} docket serialization",
+                docket_path.display()
+            )
+        }
     }
 }
 
