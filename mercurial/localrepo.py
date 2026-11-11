@@ -2294,13 +2294,11 @@ class localrepository(_localrepo_base_classes):
         util.clearcachedproperty(self.unfiltered(), b'_data_filter')
 
     def wread(self, filename: bytes) -> bytes:
-        if self.wvfs.islink(filename):
-            data = self.wvfs.readlink(filename)
-        else:
-            data = self.wvfs.read(filename)
-        if (data_filter := self._data_filter) is not None:
-            data = data_filter.encode(self, filename, data)
-        return data
+        """read a file from the working directory, through the encode filters
+
+        Shorthand for `self[None][filename].data()`, which does the work.
+        """
+        return self[None][filename].data()
 
     def wwrite(
         self,

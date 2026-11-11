@@ -2431,7 +2431,19 @@ class workingfilectx(committablefilectx):
         return workingctx(self._repo)
 
     def data(self) -> bytes:
-        return self._repo.wread(self._path)
+        """read the file from the working directory, through the encode
+        filters
+
+        This is the content the file would be committed with.
+        """
+        repo = self._repo
+        if repo.wvfs.islink(self._path):
+            data = repo.wvfs.readlink(self._path)
+        else:
+            data = repo.wvfs.read(self._path)
+        if (data_filter := repo._data_filter) is not None:
+            data = data_filter.encode(repo, self._path, data)
+        return data
 
     def copysource(self) -> bytes | None:
         return self._repo.dirstate.copied(self._path)

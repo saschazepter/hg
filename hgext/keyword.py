@@ -795,6 +795,16 @@ def kwfilectx_cmp(orig, self, fctx):
     return True
 
 
+def kwworkingfilectx_data(orig, self):
+    '''In restricted mode, removes keyword substitutions from the data read
+    from the working directory.'''
+    data = orig(self)
+    kwt = getattr(self._repo, '_keywordkwt', None)
+    if kwt is None:
+        return data
+    return kwt.wread(self.path(), data)
+
+
 def kwfilectx_has_content_filter(orig, self):
     kwt = getattr(self._repo, '_keywordkwt', None)
     if kwt is not None and kwt.match(self.path()):
@@ -821,6 +831,9 @@ def uisetup(ui):
     extensions.wrapfunction(dispatch, '_parse', kwdispatch_parse)
 
     extensions.wrapfunction(context.filectx, 'cmp', kwfilectx_cmp)
+    extensions.wrapfunction(
+        context.workingfilectx, 'data', kwworkingfilectx_data
+    )
     extensions.wrapfunction(
         context.basefilectx, 'has_content_filter', kwfilectx_has_content_filter
     )
@@ -869,10 +882,6 @@ def reposetup(ui, repo):
             else:
                 radix = repo.store.filelog_radix_for_reading(f)
             return kwfilelog(self.svfs, kwt, f, radix=radix, writable=writable)
-
-        def wread(self, filename: bytes) -> bytes:
-            data = super().wread(filename)
-            return kwt.wread(filename, data)
 
         def commit(self, *args, **opts):
             # use custom commitctx for user commands
