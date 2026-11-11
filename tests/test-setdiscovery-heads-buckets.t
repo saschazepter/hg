@@ -196,19 +196,19 @@ display the current buckets and their fingerprint
   $ hg log -r 'max(all())' -T '{rev}\n'
   3135
   $ hg debug::heads-bucket-fingerprints
-   fingerprint bucket-id head-count
-      8ad425b4      2048          9
-      5d988be1      2560         15
-      97aacdfe      2816         17
-      97aacdfe      2944         17
-      b87e8dc5      3008         19
-      dcd9a578      3072         21
-      dcd9a578      3104         21
-      dcd9a578      3120         21
-      dcd9a578      3128         21
-      dcd9a578      3132         21
-      dcd9a578      3134         21
-      b37762e3      3135         22
+                                                       fingerprint bucket-id head-count
+  ab0dc45eab553bbcf4759be1e7a97c05b1f3034347bc3b3f3ac67b6b18b50a37      2048          9
+  63a99e605c8848f822217664dfcc582f2cfbc1ed580f965887f2ea65dbbf580b      2560         15
+  e1cdeaafa64cd14004eeecdaef74ef3190f24cb4e4013f265954644f5a6adcc5      2816         17
+  e1cdeaafa64cd14004eeecdaef74ef3190f24cb4e4013f265954644f5a6adcc5      2944         17
+  2f8db82d27583c27702b78cc980b1d59814859428823766acddacce3e560eb76      3008         19
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3072         21
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3104         21
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3120         21
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3128         21
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3132         21
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3134         21
+  d36461ec85243c333908fe91419031e22ab20a437aca2e70a5472cbf47f63854      3135         22
 
 
 Buckets stability
@@ -237,19 +237,19 @@ When adding a few more changeset, the lower buckets should remain the same
   $ hg log -r 'max(all())' -T '{rev}\n'
   3210
   $ hg debug::heads-bucket-fingerprints
-   fingerprint bucket-id head-count
-      8ad425b4      2048          9
-      5d988be1      2560         15
-      97aacdfe      2816         17
-      dcd9a578      3072         21
-      dcd9a578      3136         21
-      09b89345      3168         22
-      09b89345      3184         22
-      09b89345      3200         22
-      09b89345      3204         22
-      09b89345      3208         22
-      09b89345      3209         22
-      c3fc2540      3210         23
+                                                       fingerprint bucket-id head-count
+  ab0dc45eab553bbcf4759be1e7a97c05b1f3034347bc3b3f3ac67b6b18b50a37      2048          9
+  63a99e605c8848f822217664dfcc582f2cfbc1ed580f965887f2ea65dbbf580b      2560         15
+  e1cdeaafa64cd14004eeecdaef74ef3190f24cb4e4013f265954644f5a6adcc5      2816         17
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3072         21
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3136         21
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3168         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3184         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3200         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3204         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3208         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3209         22
+  0f39ea0be34e1c5c61ffa42edd916dabf77aea945f4ce9b8dc834ca9b485b931      3210         23
   $ multi_line_buckets 01
   $ changed 00 01
   ### Common bucket ###
@@ -259,54 +259,54 @@ When adding a few more changeset, the lower buckets should remain the same
   3072
   
   ### Difference ###
-  $TESTTMP/list-00.txt $TESTTMP/list-01.txt differ: char 141, line 10
+  $TESTTMP/list-00.txt $TESTTMP/list-01.txt differ: char 309, line 10
   --- $TESTTMP/list-00.txt
   +++ $TESTTMP/list-01.txt
   @@ -9,8 +9,2 @@
    
   -bucket:       2944
-  -fingerprint: 97aacdfe
+  -fingerprint: e1cdeaafa64cd14004eeecdaef74ef3190f24cb4e4013f265954644f5a6adcc5
   -
   -bucket:       3008
-  -fingerprint: b87e8dc5
+  -fingerprint: 2f8db82d27583c27702b78cc980b1d59814859428823766acddacce3e560eb76
   -
    bucket:       3072
   @@ -18,19 +12,25 @@
    
   -bucket:       3104
   +bucket:       3136
-   fingerprint: dcd9a578
+   fingerprint: fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83
    
   -bucket:       3120
-  -fingerprint: dcd9a578
+  -fingerprint: fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83
   +bucket:       3168
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3128
-  -fingerprint: dcd9a578
+  -fingerprint: fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83
   +bucket:       3184
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3132
-  -fingerprint: dcd9a578
+  -fingerprint: fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83
   +bucket:       3200
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3134
-  -fingerprint: dcd9a578
+  -fingerprint: fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83
   +bucket:       3204
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3135
-  -fingerprint: b37762e3
+  -fingerprint: d36461ec85243c333908fe91419031e22ab20a437aca2e70a5472cbf47f63854
   +bucket:       3208
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +
   +bucket:       3209
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +
   +bucket:       3210
-  +fingerprint: c3fc2540
+  +fingerprint: 0f39ea0be34e1c5c61ffa42edd916dabf77aea945f4ce9b8dc834ca9b485b931
    
 
 Getting bigger bucket
@@ -318,19 +318,19 @@ Adding many more changeset will result in the usage of larger bucket over time
   $ hg log -r 'max(all())' -T '{rev}\n'
   3710
   $ hg debug::heads-bucket-fingerprints
-   fingerprint bucket-id head-count
-      8ad425b4      2048          9
-      dcd9a578      3072         21
-      09b89345      3328         22
-      09b89345      3456         22
-      09b89345      3584         22
-      09b89345      3648         22
-      09b89345      3680         22
-      09b89345      3696         22
-      09b89345      3704         22
-      09b89345      3708         22
-      09b89345      3709         22
-      5da9a54a      3710         23
+                                                       fingerprint bucket-id head-count
+  ab0dc45eab553bbcf4759be1e7a97c05b1f3034347bc3b3f3ac67b6b18b50a37      2048          9
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3072         21
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3328         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3456         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3584         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3648         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3680         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3696         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3704         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3708         22
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3709         22
+  9f35cc73c822a794e969e10c1342cdc784c9148fa12addcfcbece9fc5b78570d      3710         23
   $ multi_line_buckets 02
   $ changed 01 02
   ### Common bucket ###
@@ -338,79 +338,79 @@ Adding many more changeset will result in the usage of larger bucket over time
   3072
   
   ### Difference ###
-  $TESTTMP/list-01.txt $TESTTMP/list-02.txt differ: char 57, line 4
+  $TESTTMP/list-01.txt $TESTTMP/list-02.txt differ: char 113, line 4
   --- $TESTTMP/list-01.txt
   +++ $TESTTMP/list-02.txt
   @@ -3,8 +3,2 @@
    
   -bucket:       2560
-  -fingerprint: 5d988be1
+  -fingerprint: 63a99e605c8848f822217664dfcc582f2cfbc1ed580f965887f2ea65dbbf580b
   -
   -bucket:       2816
-  -fingerprint: 97aacdfe
+  -fingerprint: e1cdeaafa64cd14004eeecdaef74ef3190f24cb4e4013f265954644f5a6adcc5
   -
    bucket:       3072
   @@ -12,25 +6,31 @@
    
   -bucket:       3136
-  -fingerprint: dcd9a578
+  -fingerprint: fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83
   +bucket:       3328
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3168
   +bucket:       3456
-   fingerprint: 09b89345
+   fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3184
   +bucket:       3584
-   fingerprint: 09b89345
+   fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3200
   +bucket:       3648
-   fingerprint: 09b89345
+   fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3204
   +bucket:       3680
-   fingerprint: 09b89345
+   fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3208
   +bucket:       3696
-   fingerprint: 09b89345
+   fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3209
   +bucket:       3704
-   fingerprint: 09b89345
+   fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3210
-  -fingerprint: c3fc2540
+  -fingerprint: 0f39ea0be34e1c5c61ffa42edd916dabf77aea945f4ce9b8dc834ca9b485b931
   +bucket:       3708
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +
   +bucket:       3709
-  +fingerprint: 09b89345
+  +fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +
   +bucket:       3710
-  +fingerprint: 5da9a54a
+  +fingerprint: 9f35cc73c822a794e969e10c1342cdc784c9148fa12addcfcbece9fc5b78570d
    
 
   $ hg debugbuilddag --from-existing "+100<66+400"
   $ hg log -r 'max(all())' -T '{rev}\n'
   4210
   $ hg debug::heads-bucket-fingerprints
-   fingerprint bucket-id head-count
-      8ad425b4      2048          9
-      dcd9a578      3072         21
-      09b89345      3584         22
-      41f733bd      3840         23
-      41f733bd      3968         23
-      41f733bd      4096         23
-      41f733bd      4160         23
-      41f733bd      4192         23
-      41f733bd      4200         23
-      41f733bd      4204         23
-      41f733bd      4208         23
-      41f733bd      4209         23
-      77e4cc2e      4210         24
+                                                       fingerprint bucket-id head-count
+  ab0dc45eab553bbcf4759be1e7a97c05b1f3034347bc3b3f3ac67b6b18b50a37      2048          9
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3072         21
+  7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac      3584         22
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      3840         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      3968         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4096         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4160         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4192         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4200         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4204         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4208         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4209         23
+  3ca6f55dabade0860302c574f09eee53a9a8fe6ef1d60fb5c8118968be27598e      4210         24
   $ multi_line_buckets 03
   $ changed 02 03
   ### Common bucket ###
@@ -419,82 +419,82 @@ Adding many more changeset will result in the usage of larger bucket over time
   3584
   
   ### Difference ###
-  $TESTTMP/list-02.txt $TESTTMP/list-03.txt differ: char 100, line 7
+  $TESTTMP/list-02.txt $TESTTMP/list-03.txt differ: char 212, line 7
   --- $TESTTMP/list-02.txt
   +++ $TESTTMP/list-03.txt
   @@ -6,31 +6,34 @@
    
   -bucket:       3328
   +bucket:       3584
-   fingerprint: 09b89345
+   fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
    
   -bucket:       3456
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       3840
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3584
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       3968
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3648
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       4096
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3680
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       4160
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3696
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       4192
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3704
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       4200
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3708
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       4204
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3709
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       4208
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3710
-  -fingerprint: 5da9a54a
+  -fingerprint: 9f35cc73c822a794e969e10c1342cdc784c9148fa12addcfcbece9fc5b78570d
   +bucket:       4209
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +
   +bucket:       4210
-  +fingerprint: 77e4cc2e
+  +fingerprint: 3ca6f55dabade0860302c574f09eee53a9a8fe6ef1d60fb5c8118968be27598e
    
 
   $ hg debugbuilddag --from-existing "+500"
   $ hg log -r 'max(all())' -T '{rev}\n'
   4710
   $ hg debug::heads-bucket-fingerprints
-   fingerprint bucket-id head-count
-      8ad425b4      2048          9
-      dcd9a578      3072         21
-      41f733bd      4096         23
-      41f733bd      4352         23
-      41f733bd      4480         23
-      41f733bd      4608         23
-      41f733bd      4672         23
-      41f733bd      4688         23
-      41f733bd      4696         23
-      41f733bd      4704         23
-      41f733bd      4708         23
-      41f733bd      4709         23
-      d1f033f2      4710         24
+                                                       fingerprint bucket-id head-count
+  ab0dc45eab553bbcf4759be1e7a97c05b1f3034347bc3b3f3ac67b6b18b50a37      2048          9
+  fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83      3072         21
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4096         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4352         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4480         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4608         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4672         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4688         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4696         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4704         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4708         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4709         23
+  804875e93eed7aa4ad6ab3ec98a3c435c6b684f5126dac3d6ed95f56868a3729      4710         24
   $ multi_line_buckets 04
   $ changed 03 04
   ### Common bucket ###
@@ -503,76 +503,76 @@ Adding many more changeset will result in the usage of larger bucket over time
   4096
   
   ### Difference ###
-  $TESTTMP/list-03.txt $TESTTMP/list-04.txt differ: char 99, line 7
+  $TESTTMP/list-03.txt $TESTTMP/list-04.txt differ: char 211, line 7
   --- $TESTTMP/list-03.txt
   +++ $TESTTMP/list-04.txt
   @@ -6,34 +6,34 @@
    
   -bucket:       3584
-  -fingerprint: 09b89345
+  -fingerprint: 7fc09edd1215d0290861a1f7279fa25ae9ab06ae8b7838851d1b1feba9c9f9ac
   +bucket:       4096
-  +fingerprint: 41f733bd
+  +fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3840
   +bucket:       4352
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       3968
   +bucket:       4480
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4096
   +bucket:       4608
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4160
   +bucket:       4672
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4192
   +bucket:       4688
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4200
   +bucket:       4696
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4204
   +bucket:       4704
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4208
   +bucket:       4708
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4209
   +bucket:       4709
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4210
-  -fingerprint: 77e4cc2e
+  -fingerprint: 3ca6f55dabade0860302c574f09eee53a9a8fe6ef1d60fb5c8118968be27598e
   +bucket:       4710
-  +fingerprint: d1f033f2
+  +fingerprint: 804875e93eed7aa4ad6ab3ec98a3c435c6b684f5126dac3d6ed95f56868a3729
    
 
   $ hg debugbuilddag --from-existing "+75<25+125<25+300"
   $ hg log -r 'max(all())' -T '{rev}\n'
   5210
   $ hg debug::heads-bucket-fingerprints
-   fingerprint bucket-id head-count
-      8ad425b4      2048          9
-      41f733bd      4096         23
-      41f733bd      4608         23
-      f171b049      4864         24
-      113ee5ff      4992         25
-      113ee5ff      5120         25
-      113ee5ff      5152         25
-      113ee5ff      5184         25
-      113ee5ff      5200         25
-      113ee5ff      5204         25
-      113ee5ff      5208         25
-      113ee5ff      5209         25
-      322b8056      5210         26
+                                                       fingerprint bucket-id head-count
+  ab0dc45eab553bbcf4759be1e7a97c05b1f3034347bc3b3f3ac67b6b18b50a37      2048          9
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4096         23
+  6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6      4608         23
+  54dfdb3f20318b290b4164adc02529ce8399cd4360336519dd3db737b461fcb2      4864         24
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      4992         25
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      5120         25
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      5152         25
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      5184         25
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      5200         25
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      5204         25
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      5208         25
+  dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff      5209         25
+  68657cb0a1ed1b4f91fcc03e7924ac1afb4d7e8a0ab925d75f3ae463560a0413      5210         26
   $ multi_line_buckets 05
   $ changed 04 05
   ### Common bucket ###
@@ -581,68 +581,68 @@ Adding many more changeset will result in the usage of larger bucket over time
   4608
   
   ### Difference ###
-  $TESTTMP/list-04.txt $TESTTMP/list-05.txt differ: char 57, line 4
+  $TESTTMP/list-04.txt $TESTTMP/list-05.txt differ: char 113, line 4
   --- $TESTTMP/list-04.txt
   +++ $TESTTMP/list-05.txt
   @@ -3,5 +3,2 @@
    
   -bucket:       3072
-  -fingerprint: dcd9a578
+  -fingerprint: fad133e4192a23705351e2b988ef460097ea63fb70029eb9932f966565181e83
   -
    bucket:       4096
   @@ -9,31 +6,34 @@
    
   -bucket:       4352
   +bucket:       4608
-   fingerprint: 41f733bd
+   fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
    
   -bucket:       4480
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       4864
-  +fingerprint: f171b049
+  +fingerprint: 54dfdb3f20318b290b4164adc02529ce8399cd4360336519dd3db737b461fcb2
    
   -bucket:       4608
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       4992
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
    
   -bucket:       4672
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       5120
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
    
   -bucket:       4688
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       5152
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
    
   -bucket:       4696
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       5184
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
    
   -bucket:       4704
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       5200
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
    
   -bucket:       4708
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       5204
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
    
   -bucket:       4709
-  -fingerprint: 41f733bd
+  -fingerprint: 6f2b91bd6c520ff804a1ec2237bdd3f09f2dc1d9cc3b7decdeaf9bac162d25c6
   +bucket:       5208
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
    
   -bucket:       4710
-  -fingerprint: d1f033f2
+  -fingerprint: 804875e93eed7aa4ad6ab3ec98a3c435c6b684f5126dac3d6ed95f56868a3729
   +bucket:       5209
-  +fingerprint: 113ee5ff
+  +fingerprint: dba8ab979c63994495ef69075d04815511d06cdf737536ddeb71c1ec940579ff
   +
   +bucket:       5210
-  +fingerprint: 322b8056
+  +fingerprint: 68657cb0a1ed1b4f91fcc03e7924ac1afb4d7e8a0ab925d75f3ae463560a0413
    
 
 

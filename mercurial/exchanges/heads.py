@@ -6,7 +6,6 @@
 from __future__ import annotations
 
 import array
-import binascii
 import hashlib
 import struct
 
@@ -154,8 +153,8 @@ def _bucket_boundary(max_value: int) -> list[int]:
     return tiers
 
 
-FP_SPEC = struct.Struct('I')
-"""serialization specification for the fingerprint
+FP_SIZE = hashlib.sha256().digest_size
+"""size of a bucket fingerprint
 
 The fingerprint computation is not designed as a shared logic and can be safely
 updated from one version to the next. The fact the encoding is
@@ -220,8 +219,8 @@ def _bucket_fingerprints(
 
     # we assume the heads are sorted
     all_heads = memoryview(array.array('i', heads))
-    prev_crc32 = 0
-    prev_fp = FP_SPEC.pack(prev_crc32)
+    hasher = hashlib.sha256()
+    prev_fp = hasher.digest()
     bucket_start = 0
     bucket_end = 0
 
@@ -234,8 +233,8 @@ def _bucket_fingerprints(
         while r > current_tier:
             if bucket_start != bucket_end:
                 bucket_heads = all_heads[bucket_start:bucket_end]
-                prev_crc32 = binascii.crc32(bucket_heads, prev_crc32)
-                prev_fp = FP_SPEC.pack(prev_crc32)
+                hasher.update(bucket_heads)
+                prev_fp = hasher.copy().digest()
                 bucket_start = bucket_end
             info[current_tier] = (bucket_end, prev_fp)
             current_tier = tiers.pop()
@@ -243,8 +242,8 @@ def _bucket_fingerprints(
     assert not tiers
     if bucket_start != bucket_end:
         bucket_heads = all_heads[bucket_start:bucket_end]
-        prev_crc32 = binascii.crc32(bucket_heads, prev_crc32)
-        prev_fp = FP_SPEC.pack(prev_crc32)
+        hasher.update(bucket_heads)
+        prev_fp = hasher.digest()
     info[current_tier] = (bucket_end, prev_fp)
     return info
 
@@ -332,7 +331,7 @@ def encoded_bucket_info(repo, cached=None) -> bytes:
     to_node = cl.index.node
     head_revs = cl.headrevs()
 
-    bfps = FP_SPEC.size
+    bfps = FP_SIZE
     hns = repo.nodeconstants.nodelen
 
     pieces.append(

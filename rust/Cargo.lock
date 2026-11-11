@@ -930,7 +930,6 @@ dependencies = [
  "cc",
  "chrono",
  "clap",
- "crc32fast",
  "crossbeam-channel",
  "ctrlc",
  "dashmap",

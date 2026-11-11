@@ -19,6 +19,8 @@ use std::collections::VecDeque;
 use rand::Rng as RngTrait;
 use rand::SeedableRng;
 use rand::seq::SliceRandom;
+use sha2::Digest;
+use sha2::Sha256;
 
 use super::BaseRevision;
 use super::Graph;
@@ -89,13 +91,13 @@ pub fn bucket_boundary(max_value: BaseRevision) -> Vec<BaseRevision> {
 }
 
 /// Size of a bucket fingerprint.
-pub const FINGERPRINT_SIZE: usize = 4;
+pub const FINGERPRINT_SIZE: usize = 32;
 
 /// A bucket fingerprint.
 pub type Fingerprint = [u8; FINGERPRINT_SIZE];
 
 /// Feed the native-endian bytes of a slice of revs to `hasher`.
-fn hash_revs(hasher: &mut crc32fast::Hasher, revs: &[Revision]) {
+fn hash_revs(hasher: &mut Sha256, revs: &[Revision]) {
     // Safety: `Revision` is a `repr(transparent)` wrapper around a plain
     // integer, so a slice of revisions is initialized, padding-free memory
     // that can be viewed as bytes.
@@ -139,8 +141,8 @@ pub fn bucket_fingerprints(
     let mut current_tier =
         tiers.next().expect("there is always at least one tier");
 
-    let mut hasher = crc32fast::Hasher::new();
-    let mut prev_fp: Fingerprint = hasher.clone().finalize().to_ne_bytes();
+    let mut hasher = Sha256::new();
+    let mut prev_fp: Fingerprint = hasher.clone().finalize().into();
     let mut bucket_start = 0;
     let mut bucket_end = 0;
 
@@ -152,7 +154,7 @@ pub fn bucket_fingerprints(
         while rev.0 > current_tier {
             if bucket_start != bucket_end {
                 hash_revs(&mut hasher, &heads[bucket_start..bucket_end]);
-                prev_fp = hasher.clone().finalize().to_ne_bytes();
+                prev_fp = hasher.clone().finalize().into();
                 bucket_start = bucket_end;
             }
             info.insert(current_tier as usize, (bucket_end, prev_fp));
@@ -164,7 +166,7 @@ pub fn bucket_fingerprints(
     assert!(tiers.next().is_none(), "the largest tier covers all the heads");
     if bucket_start != bucket_end {
         hash_revs(&mut hasher, &heads[bucket_start..bucket_end]);
-        prev_fp = hasher.finalize().to_ne_bytes();
+        prev_fp = hasher.finalize().into();
     }
     info.insert(current_tier as usize, (bucket_end, prev_fp));
     info
@@ -827,7 +829,7 @@ mod tests {
     fn test_bucket_fingerprints_empty() {
         let info = bucket_fingerprints(bucket_boundary(-1), &[]);
         let mut expected = HashMap::new();
-        expected.insert(0, (0, crc32fast::hash(b"").to_ne_bytes()));
+        expected.insert(0, (0, Sha256::digest(b"").into()));
         assert_eq!(info, expected);
     }
 
@@ -841,9 +843,9 @@ mod tests {
 
         // a fingerprint covers all heads up to its bucket
         let fp = |end| -> Fingerprint {
-            let mut hasher = crc32fast::Hasher::new();
+            let mut hasher = Sha256::new();
             hash_revs(&mut hasher, &heads[0..end]);
-            hasher.finalize().to_ne_bytes()
+            hasher.finalize().into()
         };
         let fp_10 = fp(1);
         let fp_30 = fp(4);

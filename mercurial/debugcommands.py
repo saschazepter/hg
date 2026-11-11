@@ -1848,10 +1848,10 @@ def debug_heads_hash(ui, repo, **opts):
     b_opts = pycompat.byteskwargs(opts)
     fm = ui.formatter(b'debug::head-bucket-fingerprints', b_opts)
     hashes = exch_heads.buckets_info(repo)
-    fm.plain(b'%12s %9s %10s\n' % (b"fingerprint", b"bucket-id", b"head-count"))
+    fm.plain(b'%64s %9s %10s\n' % (b"fingerprint", b"bucket-id", b"head-count"))
     for bucket, (count, fp) in sorted(hashes.items()):
         fm.startitem()
-        fm.plain(b'%12s %9d %10d\n' % (hex(fp), bucket, count))
+        fm.plain(b'%s %9d %10d\n' % (hex(fp), bucket, count))
         fm.data(
             fingerprint=hex(fp),
             bucket_id=bucket,
