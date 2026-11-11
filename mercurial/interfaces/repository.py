@@ -2337,10 +2337,6 @@ class IRepo(Protocol):
         pass
 
     @abc.abstractmethod
-    def wread(self, filename: bytes) -> bytes:
-        """Read a file from wvfs, using data filters."""
-
-    @abc.abstractmethod
     def wwrite(
         self,
         filename: bytes,
