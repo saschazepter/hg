@@ -19,6 +19,9 @@ use self_cell::self_cell;
 
 use super::FileToken;
 use crate::errors::HgBacktrace;
+use crate::errors::HgError;
+use crate::utils::docket::DocketError;
+use crate::utils::docket::DocketErrorKind;
 use crate::utils::docket::FileUid;
 use crate::utils::hg_path::HgPath;
 use crate::utils::u_u16;
@@ -29,9 +32,6 @@ use crate::utils::u32_u;
 /// A list specifying general categories of file index errors
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ErrorKind {
-    BadFormatMarker,
-    DocketFileEof,
-    DataFileTooSmall,
     BadMetaFilesize,
     ListFileOutOfBounds,
     MetaFileOutOfBounds,
@@ -55,6 +55,12 @@ impl From<ErrorKind> for Error {
     }
 }
 
+impl From<ErrorKind> for HgError {
+    fn from(kind: ErrorKind) -> Self {
+        Error::from(kind).into()
+    }
+}
+
 /// The contents of the docket file.
 pub struct Docket {
     pub header: DocketHeader,
@@ -62,14 +68,23 @@ pub struct Docket {
 }
 
 impl Docket {
-    /// Reads a [`Docket`] from bytes.
-    pub fn read(on_disk: &[u8]) -> Result<Self, Error> {
-        let (header, rest) = DocketHeader::from_bytes(on_disk)
-            .or(Err(ErrorKind::DocketFileEof))?;
+    /// Reads a [`Docket`] from the bytes of the file at `docket_path`.
+    pub fn read(
+        on_disk: &[u8],
+        docket_path: &Path,
+    ) -> Result<Self, DocketError> {
+        let corrupted =
+            || DocketError::new(docket_path, DocketErrorKind::Corrupted);
+        let (header, rest) =
+            DocketHeader::from_bytes(on_disk).map_err(|_| corrupted())?;
         if header.marker != *FORMAT_MARKER {
-            return Err(ErrorKind::BadFormatMarker)?;
+            return Err(DocketError::new(
+                docket_path,
+                DocketErrorKind::BadFormatMarker,
+            ));
         }
-        let (garbage_entries, _rest) = parse_garbage_list(rest)?;
+        let (garbage_entries, _rest) =
+            parse_garbage_list(rest).ok_or_else(corrupted)?;
         Ok(Docket { header: header.clone(), garbage_entries })
     }
 
@@ -164,24 +179,20 @@ impl Default for Docket {
 
 /// The garbage list parsed from the [`Docket`]. It consists of a
 /// [`GarbageListHeader`], an array of [`GarbageIndexEntry`], and a buffer of
-/// paths that the index entries point into.
-fn parse_garbage_list(
-    bytes: &[u8],
-) -> Result<(Vec<GarbageEntry>, &[u8]), Error> {
-    let (header, rest) = GarbageListHeader::from_bytes(bytes)
-        .or(Err(ErrorKind::DocketFileEof))?;
+/// paths that the index entries point into. Returns `None` if `bytes` is too
+/// short.
+fn parse_garbage_list(bytes: &[u8]) -> Option<(Vec<GarbageEntry>, &[u8])> {
+    let (header, rest) = GarbageListHeader::from_bytes(bytes).ok()?;
     let num_entries = u32_u(header.num_entries.get());
     let (index_entries, rest) =
-        GarbageIndexEntry::slice_from_bytes(rest, num_entries)
-            .or(Err(ErrorKind::DocketFileEof))?;
-    let (path_buf, rest) = rest
-        .split_at_checked(u32_u(header.path_buf_size.get()))
-        .ok_or(ErrorKind::DocketFileEof)?;
+        GarbageIndexEntry::slice_from_bytes(rest, num_entries).ok()?;
+    let (path_buf, rest) =
+        rest.split_at_checked(u32_u(header.path_buf_size.get()))?;
     let entries = index_entries
         .iter()
         .map(|entry| GarbageEntry::from_index(entry, path_buf))
         .collect();
-    Ok((entries, rest))
+    Some((entries, rest))
 }
 
 /// Serializes garbage entries. Inverse of [`parse_garbage_list`].
@@ -479,7 +490,10 @@ self_cell!(
 );
 
 impl OwnedFileIndexView {
-    pub fn open(docket: &Docket, files: OwnedDataFiles) -> Result<Self, Error> {
+    pub fn open(
+        docket: &Docket,
+        files: OwnedDataFiles,
+    ) -> Result<Self, HgError> {
         Self::try_new(files, |files| {
             FileIndexView::open(
                 docket,
@@ -505,13 +519,36 @@ impl<'on_disk> FileIndexView<'on_disk> {
     fn open(
         docket: &Docket,
         files: DataFiles<'on_disk>,
-    ) -> Result<Self, Error> {
-        let limit = |bytes: &'on_disk [u8], size: U32Be| {
-            bytes.get(..u32_u(size.get())).ok_or(ErrorKind::DataFileTooSmall)
+    ) -> Result<Self, HgError> {
+        let limit = |bytes: &'on_disk [u8], size: U32Be, path| {
+            bytes.get(..u32_u(size.get())).ok_or_else(|| {
+                // A data file without a path that should not be empty means
+                // that the docket itself is inconsistent. This docket may only
+                // exist in memory, so we name it after the one on disk.
+                let kind = match path {
+                    Some(data_path) => {
+                        DocketErrorKind::DataFileTooSmall { data_path }
+                    }
+                    None => DocketErrorKind::Corrupted,
+                };
+                DocketError::new(Docket::path(), kind)
+            })
         };
-        let list_file = limit(files.list_file, docket.header.list_file_size)?;
-        let meta_file = limit(files.meta_file, docket.header.meta_file_size)?;
-        let tree_file = limit(files.tree_file, docket.header.tree_file_size)?;
+        let list_file = limit(
+            files.list_file,
+            docket.header.list_file_size,
+            docket.list_file_path(),
+        )?;
+        let meta_file = limit(
+            files.meta_file,
+            docket.header.meta_file_size,
+            docket.meta_file_path(),
+        )?;
+        let tree_file = limit(
+            files.tree_file,
+            docket.header.tree_file_size,
+            docket.tree_file_path(),
+        )?;
         let meta_file = if meta_file.is_empty() {
             &EMPTY_META_BYTES
         } else {

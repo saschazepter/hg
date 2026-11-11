@@ -158,7 +158,7 @@ impl FileIndex {
         let meta_file = Self::read_file(vfs, docket.meta_file_path())?;
         let tree_file = Self::read_file(vfs, docket.tree_file_path())?;
         let files = OwnedDataFiles { list_file, meta_file, tree_file };
-        Ok(OwnedFileIndexView::open(docket, files)?)
+        OwnedFileIndexView::open(docket, files)
     }
 
     /// Returns the file index docket.
@@ -172,15 +172,13 @@ impl FileIndex {
         vfs: &VfsImpl,
         try_pending: bool,
     ) -> Result<Docket, HgError> {
-        let mut data = None;
-        if try_pending {
-            data = vfs.try_read(Docket::pending_path())?;
+        if try_pending
+            && let Some(data) = vfs.try_read(Docket::pending_path())?
+        {
+            return Ok(Docket::read(&data, Docket::pending_path())?);
         }
-        if data.is_none() {
-            data = vfs.try_read(Docket::path())?;
-        }
-        Ok(match data {
-            Some(data) => Docket::read(&data)?,
+        Ok(match vfs.try_read(Docket::path())? {
+            Some(data) => Docket::read(&data, Docket::path())?,
             None => Docket::default(),
         })
     }

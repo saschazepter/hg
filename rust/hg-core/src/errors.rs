@@ -749,18 +749,6 @@ impl fmt::Display for HgError {
             HgError::FileIndex(error) => {
                 write!(f, "{}corrupted fileindex: ", &error.backtrace)?;
                 match &error.kind {
-                    FileIndexErrorKind::BadFormatMarker => {
-                        write!(f, "unrecognized format marker in docket")
-                    }
-                    FileIndexErrorKind::DocketFileEof => {
-                        write!(f, "unexpected EOF while reading docket file")
-                    }
-                    FileIndexErrorKind::DataFileTooSmall => {
-                        write!(
-                            f,
-                            "file is smaller than its 'used size' docket field"
-                        )
-                    }
                     FileIndexErrorKind::BadMetaFilesize => {
                         write!(
                             f,
