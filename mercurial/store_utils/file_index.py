@@ -279,13 +279,15 @@ class FileIndex(int_file_index.IFileIndex):
         data = None
         if try_pending:
             # Written by transaction.writepending.
-            data = opener.tryread(b"fileindex.pending")
+            path = b"fileindex.pending"
+            data = opener.tryread(path)
         if not data:
+            path = b"fileindex"
             try:
-                data = opener.read(b"fileindex")
+                data = opener.read(path)
             except FileNotFoundError:
                 return file_index_util.Docket()
-        return file_index_util.Docket.parse_from(data)
+        return file_index_util.Docket.parse_from(data, path)
 
     def _list_file_path(self) -> HgPathT | None:
         id = self._docket.list_file_id
@@ -337,6 +339,12 @@ class FileIndex(int_file_index.IFileIndex):
     def _mapfile(self, path: bytes, size: int) -> memoryview:
         """Read a file up to the given size using mmap if possible."""
         with self._opener(path) as fp:
+            if util.fstat(fp).st_size < size:
+                msg = _(
+                    b"data file %s is smaller than its 'used size' in docket "
+                    b"fileindex"
+                )
+                raise error.Abort(msg % path)
             # TODO: using mmap on Windows creates issue during upgrade because
             # we can't rename the upgraded store with the file-index files
             # still open.

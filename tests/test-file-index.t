@@ -863,14 +863,8 @@ Test truncation error
   $ listfile=$(ls .hg/store/fileindex-list*)
   $ rm $listfile
   $ touch $listfile
-#if rust
   $ hg debug::file-index --path a
   abort: data file fileindex-list.* is smaller than its 'used size' in docket fileindex (glob)
   [255]
-#else
-  $ hg debug::file-index --path a
-  abort: corrupted fileindex: file is smaller than its 'used size' docket field
-  [255]
-#endif
 
   $ cd ..

@@ -72,15 +72,17 @@ class Docket:
     garbage_entries = attr.ib(type=List["GarbageEntry"], factory=list)
 
     @classmethod
-    def parse_from(cls, data: memoryview) -> Docket:
-        """Parse a file index docket from bytes."""
+    def parse_from(cls, data: memoryview, path: bytes) -> Docket:
+        """Parse a file index docket from the bytes of the file at `path`."""
         if len(data) < cls.STRUCT.size:
-            raise error.CorruptedState("file index docket file too short")
+            raise error.CorruptedState(b"corrupted docket: %s" % path)
         fields = cls.STRUCT.unpack_from(data)
         garbage_list = GarbageList.parse_from(data[cls.STRUCT.size :])
         docket = cls(*fields, garbage_entries=garbage_list.entries)
         if docket.marker != V1_FORMAT_MARKER:
-            raise error.CorruptedState("file index docket has wrong marker")
+            raise error.CorruptedState(
+                b"unrecognized format marker in docket %s" % path
+            )
         docket.reserved_flags = 0
         return docket
 
