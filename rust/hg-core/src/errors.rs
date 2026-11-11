@@ -383,18 +383,6 @@ impl fmt::Display for HgError {
                     )
                 }
                 RevlogError::Docket(error) => format_docket_error(f, error),
-                RevlogError::TooLittleData {
-                    docket_path,
-                    index_path,
-                    backtrace,
-                } => {
-                    write!(
-                        f,
-                        "{backtrace}too few bytes in index {} (docket {})",
-                        index_path.display(),
-                        docket_path.display(),
-                    )
-                }
                 RevlogError::CorruptedManifest { backtrace } => {
                     write!(f, "{backtrace}corrupted manifest")
                 }
@@ -881,6 +869,15 @@ fn format_docket_error(
             write!(
                 f,
                 "{backtrace}unrecognized format marker in docket {}",
+                docket_path.display()
+            )
+        }
+        DocketErrorKind::DataFileTooSmall { data_path } => {
+            write!(
+                f,
+                "{backtrace}data file {} is smaller than its 'used size' in \
+                docket {}",
+                data_path.display(),
                 docket_path.display()
             )
         }

@@ -8,7 +8,6 @@ use memmap2::Mmap;
 use super::Node;
 use super::UncheckedRevision;
 use crate::BaseRevision;
-use crate::errors::HgBacktrace;
 use crate::errors::HgResultExt;
 use crate::revlog::RevlogError;
 use crate::utils::docket::DocketError;
@@ -99,16 +98,16 @@ impl NodeMapDocket {
         // TODO: use `vfs.read()` here when the `persistent-nodemap.mmap`
         // config is false?
         if let Some(mmap) =
-            store_vfs.mmap_open(data_path).io_not_found_as_none()?
+            store_vfs.mmap_open(&data_path).io_not_found_as_none()?
         {
             if mmap.len() >= data_length {
                 Ok(Some((docket, mmap)))
             } else {
-                Err(RevlogError::TooLittleData {
+                Err(DocketError::new(
                     docket_path,
-                    index_path: index_path.to_path_buf(),
-                    backtrace: HgBacktrace::capture(),
-                })
+                    DocketErrorKind::DataFileTooSmall { data_path },
+                )
+                .into())
             }
         } else {
             // Even if .hg/requires opted in, some revlogs are deemed small

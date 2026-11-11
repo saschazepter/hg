@@ -90,4 +90,6 @@ pub enum DocketErrorKind {
     Corrupted,
     /// The docket does not start with the marker of its format
     BadFormatMarker,
+    /// A data file is smaller than the size the docket records for it
+    DataFileTooSmall { data_path: PathBuf },
 }

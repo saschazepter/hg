@@ -36,7 +36,6 @@ pub mod patch;
 use std::io::ErrorKind;
 use std::io::Read;
 use std::path::Path;
-use std::path::PathBuf;
 
 use self::nodemap_docket::NodeMapDocket;
 use crate::dyn_bytes::DynBytes;
@@ -439,12 +438,6 @@ pub enum RevlogError {
     /// An error about the docket of the persistent nodemap
     #[from]
     Docket(DocketError),
-    /// The docket points to a data file which is too short
-    TooLittleData {
-        docket_path: PathBuf,
-        index_path: PathBuf,
-        backtrace: HgBacktrace,
-    },
     /// A manifest revision is somehow corrupted
     ///
     /// TODO There is no revision information because it's not available in most
