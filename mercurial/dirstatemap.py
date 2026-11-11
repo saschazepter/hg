@@ -47,6 +47,19 @@ else:
 
 rangemask = 0x7FFFFFFF
 
+
+def _masked_parent_file_data(parentfiledata):
+    """reduce the size in `parentfiledata` to the 31 bits the dirstate stores
+
+    Larger sizes would overflow the dirstate entries, `set_clean` masks the
+    size it gets the same way.
+    """
+    if parentfiledata is None:
+        return None
+    mode, size, mtime = parentfiledata
+    return (mode, size & rangemask, mtime)
+
+
 WRITE_MODE_AUTO = 0
 WRITE_MODE_FORCE_NEW = 1
 WRITE_MODE_FORCE_APPEND = 2
@@ -620,7 +633,7 @@ class dirstatemap(_dirstatemapcommon):
             p1_tracked=p1_tracked,
             p2_info=p2_info,
             has_meaningful_mtime=has_meaningful_mtime,
-            parentfiledata=parentfiledata,
+            parentfiledata=_masked_parent_file_data(parentfiledata),
         )
         self._map[filename] = entry
 
@@ -937,5 +950,5 @@ if rustmod is not None:
                 p1_tracked,
                 p2_info,
                 has_meaningful_mtime,
-                parentfiledata,
+                _masked_parent_file_data(parentfiledata),
             )

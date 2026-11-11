@@ -37,6 +37,18 @@ purge without the extension
   $ hg purge --no-confirm
   $ hg st
 
+purge with the extension explicitly disabled
+
+  $ touch foo
+  $ hg purge --config extensions.purge=!
+  permanently delete 1 unknown files? (yN) n
+  abort: removal cancelled
+  [250]
+  $ hg st
+  ? foo
+  $ hg purge --no-confirm
+  $ hg st
+
 now enabling the extension
 
   $ cat <<EOF >> $HGRCPATH
