@@ -344,7 +344,7 @@ pub fn adjust_link_revision(
 
 /// Converts a [`GraphError`] to an [`HgError`].
 fn from_graph_error(err: GraphError) -> HgError {
-    HgError::corrupted(err.to_string())
+    RevlogError::Graph(err).into()
 }
 
 /// Link revs keyed by file path and file nodeid.
