@@ -82,7 +82,7 @@ class DataFilter(i_repo.IDataFilter):
         ui: UiT,
         root: bytes,
         data_filters: dict[bytes, FilterFnT],
-    ) -> DataFilter:
+    ) -> DataFilter | None:
         """build the encode and decode filters configured for the working copy
 
         The `[encode]` and `[decode]` config sections map file patterns to
@@ -90,9 +90,14 @@ class DataFilter(i_repo.IDataFilter):
         registered through `repo.adddatafilter` runs that filter, with the rest
         of the command as parameters. Any other command runs in a shell, see
         `procutil.filter`.
+
+        Returns None when no filter is configured, the common case, so that
+        callers can skip the filtering entirely.
         """
         encode_filters = _load_filters(ui, root, data_filters, b'encode')
         decode_filters = _load_filters(ui, root, data_filters, b'decode')
+        if not encode_filters and not decode_filters:
+            return None
         return cls(encode_filters, decode_filters)
 
     def __init__(

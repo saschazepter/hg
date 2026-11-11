@@ -93,7 +93,7 @@ from .utils import (
 )
 from .repo import (
     creation,
-    data_filter,
+    data_filter as data_filter_mod,
     requirements as req_util,
     vfs_options as vfs_opts,
 )
@@ -2274,14 +2274,16 @@ class localrepository(_localrepo_base_classes):
         return scmutil.path_to(self, f, cwd)
 
     @unfilteredpropertycache
-    def _data_filter(self) -> data_filter.DataFilter:
+    def _data_filter(self) -> data_filter_mod.DataFilter | None:
         """the encode and decode filters of the working copy files
+
+        None when no filter is configured, the common case.
 
         They are built from the config on first use: drop this cached property
         when the `[encode]` or `[decode]` config, or the registered filters,
         change.
         """
-        return data_filter.DataFilter.load(
+        return data_filter_mod.DataFilter.load(
             self.ui,
             self.root,
             self._datafilters,
@@ -2296,7 +2298,9 @@ class localrepository(_localrepo_base_classes):
             data = self.wvfs.readlink(filename)
         else:
             data = self.wvfs.read(filename)
-        return self._data_filter.encode(self, filename, data)
+        if (data_filter := self._data_filter) is not None:
+            data = data_filter.encode(self, filename, data)
+        return data
 
     def wwrite(
         self,
@@ -2310,7 +2314,8 @@ class localrepository(_localrepo_base_classes):
 
         This returns length of written (maybe decoded) data.
         """
-        data = self._data_filter.decode(self, filename, data)
+        if (data_filter := self._data_filter) is not None:
+            data = data_filter.decode(self, filename, data)
         if b'l' in flags:
             self.wvfs.symlink(data, filename)
         else:
@@ -2324,7 +2329,9 @@ class localrepository(_localrepo_base_classes):
         return len(data)
 
     def wwritedata(self, filename: bytes, data: bytes) -> bytes:
-        return self._data_filter.decode(self, filename, data)
+        if (data_filter := self._data_filter) is not None:
+            data = data_filter.decode(self, filename, data)
+        return data
 
     def currenttransaction(self) -> TransactionT | None:
         """return the current transaction or None if non exists"""

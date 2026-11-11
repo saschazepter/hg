@@ -777,12 +777,14 @@ def kwfilectx_cmp(orig, self, fctx):
     kwt = getattr(self._repo, '_keywordkwt', None)
     if kwt is None:
         return orig(self, fctx)
+    data_filter = self._repo._data_filter
+    has_filter = data_filter is not None and data_filter.has_filter(fctx.path())
     # keyword affects data size, comparing wdir and filelog size does
     # not make sense
     if (
         fctx._filenode is None
         and (
-            self._repo._data_filter.has_filter(fctx.path())
+            has_filter
             or kwt.match(fctx.path())
             and b'l' not in fctx.flags()
             or self.size() - 4 == fctx.size()

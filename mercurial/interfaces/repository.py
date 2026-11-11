@@ -2121,8 +2121,11 @@ class IRepo(Protocol):
     _branchcaches: IBranchMapCache
     """hold branchmak information for each view of the repository"""
 
-    _data_filter: IDataFilter
+    _data_filter: IDataFilter | None
     """the encode and decode filters of the working copy files
+
+    None when no filter is configured, the common case, so that callers can
+    skip the filtering entirely.
 
     A property cached on the unfiltered repository, built from the config on
     first use: drop it when the `[encode]` or `[decode]` config changes.

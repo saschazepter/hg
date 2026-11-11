@@ -1064,6 +1064,8 @@ class basefilectx(abc.ABC):
 
         The content on disk then differs from the stored one.
         """
+        if self._repo._data_filter is None:
+            return False
         return self._repo._data_filter.has_filter(self._path)
 
     def isabsent(self) -> bool:
@@ -1089,7 +1091,8 @@ class basefilectx(abc.ABC):
             )
 
         if fctx._filenode is None:
-            if self._repo._data_filter.has_filter(fctx.path()):
+            data_filter = self._repo._data_filter
+            if data_filter is not None and data_filter.has_filter(fctx.path()):
                 # can't rely on size() because wdir content may be decoded
                 return self._filelog.cmp(self._filenode, fctx.data())
             # filelog.size() has two special cases:
