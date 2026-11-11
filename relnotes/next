@@ -38,6 +38,9 @@ Mercurial XXX.
 * commit: the dirstate now records the mode and size of the committed files, so
   a later status no longer reads a committed file again when its size differs
   (issue10100).
+* eol: commands updating the working copy several times, like rebase, now use
+  the line endings configured for each update, instead of the ones of the
+  first update.
 
 == Backwards Compatibility Changes ==
 

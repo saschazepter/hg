@@ -326,13 +326,8 @@ the stored line endings.
 The second rebased revision comes after the switch to CRLF, its a.txt is
 written and committed with CRLF line endings.
 
-However the filters built for the first rebased revision are current used for
-the second one too
-
   $ hg cat -r tip a.txt
-  babar\r (esc) (missing-correct-output !)
-  celeste\r (esc) (missing-correct-output !)
-  babar (known-bad-output !)
-  celeste (known-bad-output !)
+  babar\r (esc)
+  celeste\r (esc)
 
   $ cd ..
