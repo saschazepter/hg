@@ -394,10 +394,7 @@ def reposetup(ui, repo):
             eol.copytoui(self.ui)
             # The repository builds its filters from the config on their first
             # use, and keeps them: drop them, so that the new config applies.
-            unfi = self.unfiltered()
-            unfi._filterpats.clear()
-            util.clearcachedproperty(unfi, b'_encodefilterpats')
-            util.clearcachedproperty(unfi, b'_decodefilterpats')
+            util.clearcachedproperty(self.unfiltered(), b'_data_filter')
             return eol.match
 
         def _hgcleardirstate(self):

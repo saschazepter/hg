@@ -87,13 +87,13 @@ from .interfaces import (
 from .upgrade_utils import auto_upgrade, share_safe as share_safe_upgrade
 from .utils import (
     hashutil,
-    procutil,
     repoviewutil,
     stringutil,
     urlutil,
 )
 from .repo import (
     creation,
+    data_filter,
     requirements as req_util,
     vfs_options as vfs_opts,
 )
@@ -1237,7 +1237,6 @@ class localrepository(_localrepo_base_classes):
 
         self._branchcaches = branchmap.BranchMapCache()
         self._revbranchcache = None
-        self._filterpats = {}
         self._datafilters = {}
         self._transref: weakref.ref[TransactionT] | None = None
         self._wlockref: weakref.ref[lockmod.lock] | None = None
@@ -2274,61 +2273,30 @@ class localrepository(_localrepo_base_classes):
     def pathto(self, f: bytes, cwd: bytes | None = None) -> bytes:
         return scmutil.path_to(self, f, cwd)
 
-    def _loadfilter(self, filter):
-        if filter not in self._filterpats:
-            l = []
-            for pat, cmd in self.ui.configitems(filter):
-                if cmd == b'!':
-                    continue
-                mf = matchmod.match(self.root, b'', [pat], warn=self.ui.warn)
-                fn = None
-                params = cmd
-                for name, filterfn in self._datafilters.items():
-                    if cmd.startswith(name):
-                        fn = filterfn
-                        params = cmd[len(name) :].lstrip()
-                        break
-                if not fn:
-                    fn = lambda s, c, **kwargs: procutil.filter(s, c)
-                    fn.__name__ = 'commandfilter'
-                # Wrap old filters not supporting keyword arguments
-                if not pycompat.getargspec(fn)[2]:
-                    oldfn = fn
-                    fn = lambda s, c, oldfn=oldfn, **kwargs: oldfn(s, c)
-                    fn.__name__ = 'compat-' + oldfn.__name__
-                l.append((mf, fn, params))
-            self._filterpats[filter] = l
-        return self._filterpats[filter]
-
-    def _filter(self, filterpats, filename, data):
-        for mf, fn, cmd in filterpats:
-            if mf(filename):
-                self.ui.debug(
-                    b"filtering %s through %s\n"
-                    % (filename, cmd or pycompat.sysbytes(fn.__name__))
-                )
-                data = fn(data, cmd, ui=self.ui, repo=self, filename=filename)
-                break
-
-        return data
-
     @unfilteredpropertycache
-    def _encodefilterpats(self):
-        return self._loadfilter(b'encode')
+    def _data_filter(self) -> data_filter.DataFilter:
+        """the encode and decode filters of the working copy files
 
-    @unfilteredpropertycache
-    def _decodefilterpats(self):
-        return self._loadfilter(b'decode')
+        They are built from the config on first use: drop this cached property
+        when the `[encode]` or `[decode]` config, or the registered filters,
+        change.
+        """
+        return data_filter.DataFilter.load(
+            self.ui,
+            self.root,
+            self._datafilters,
+        )
 
     def adddatafilter(self, name, filter):
         self._datafilters[name] = filter
+        util.clearcachedproperty(self.unfiltered(), b'_data_filter')
 
     def wread(self, filename: bytes) -> bytes:
         if self.wvfs.islink(filename):
             data = self.wvfs.readlink(filename)
         else:
             data = self.wvfs.read(filename)
-        return self._filter(self._encodefilterpats, filename, data)
+        return self._data_filter.encode(self, filename, data)
 
     def wwrite(
         self,
@@ -2342,7 +2310,7 @@ class localrepository(_localrepo_base_classes):
 
         This returns length of written (maybe decoded) data.
         """
-        data = self._filter(self._decodefilterpats, filename, data)
+        data = self._data_filter.decode(self, filename, data)
         if b'l' in flags:
             self.wvfs.symlink(data, filename)
         else:
@@ -2356,7 +2324,7 @@ class localrepository(_localrepo_base_classes):
         return len(data)
 
     def wwritedata(self, filename: bytes, data: bytes) -> bytes:
-        return self._filter(self._decodefilterpats, filename, data)
+        return self._data_filter.decode(self, filename, data)
 
     def currenttransaction(self) -> TransactionT | None:
         """return the current transaction or None if non exists"""

@@ -1064,12 +1064,7 @@ class basefilectx(abc.ABC):
 
         The content on disk then differs from the stored one.
         """
-        repo = self._repo
-        for filterpats in (repo._encodefilterpats, repo._decodefilterpats):
-            for mf, fn, cmd in filterpats:
-                if mf(self._path):
-                    return True
-        return False
+        return self._repo._data_filter.has_filter(self._path)
 
     def isabsent(self) -> bool:
         """whether this filectx represents a file not in self._changectx
@@ -1094,7 +1089,7 @@ class basefilectx(abc.ABC):
             )
 
         if fctx._filenode is None:
-            if self._repo._encodefilterpats:
+            if self._repo._data_filter.has_filter(fctx.path()):
                 # can't rely on size() because wdir content may be decoded
                 return self._filelog.cmp(self._filenode, fctx.data())
             # filelog.size() has two special cases:

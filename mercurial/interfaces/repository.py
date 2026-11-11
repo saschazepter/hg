@@ -1940,6 +1940,32 @@ class IRepoFileFn(Protocol):
         """The signature of IRepo.file()."""
 
 
+class IDataFilter(Protocol):
+    """The encode and decode filters of the working copy files.
+
+    Encoding turns the content of a working copy file into the one to store,
+    decoding does the reverse.
+    """
+
+    @abc.abstractmethod
+    def encode(self, repo: IRepo, path: HgPathT, decoded_data: bytes) -> bytes:
+        """Turn the content of a working copy file into the one to store.
+
+        The filters are called with the given repository.
+        """
+
+    @abc.abstractmethod
+    def decode(self, repo: IRepo, path: HgPathT, encoded_data: bytes) -> bytes:
+        """Turn stored content into the one of a working copy file.
+
+        The filters are called with the given repository.
+        """
+
+    @abc.abstractmethod
+    def has_filter(self, path: HgPathT) -> bool:
+        """Whether an encode or decode filter applies to this path."""
+
+
 class IRepo(Protocol):
     """Main interface for local repositories.
 
@@ -2094,6 +2120,13 @@ class IRepo(Protocol):
 
     _branchcaches: IBranchMapCache
     """hold branchmak information for each view of the repository"""
+
+    _data_filter: IDataFilter
+    """the encode and decode filters of the working copy files
+
+    A property cached on the unfiltered repository, built from the config on
+    first use: drop it when the `[encode]` or `[decode]` config changes.
+    """
 
     @abc.abstractmethod
     def close(self):

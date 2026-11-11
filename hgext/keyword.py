@@ -782,7 +782,7 @@ def kwfilectx_cmp(orig, self, fctx):
     if (
         fctx._filenode is None
         and (
-            self._repo._encodefilterpats
+            self._repo._data_filter.has_filter(fctx.path())
             or kwt.match(fctx.path())
             and b'l' not in fctx.flags()
             or self.size() - 4 == fctx.size()
