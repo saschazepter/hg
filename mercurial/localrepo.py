@@ -2298,6 +2298,8 @@ class localrepository(_localrepo_base_classes):
 
         Shorthand for `self[None][filename].data()`, which does the work.
         """
+        msg = b'replace `repo.wread(f)` with `repo[None][f].data()`'
+        self.ui.deprecwarn(msg, b'7.3')
         return self[None][filename].data()
 
     def wwrite(
