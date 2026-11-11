@@ -965,17 +965,21 @@ impl Index {
             }
         {
             match self.check_revision(base) {
-                None => Err(HgError::corrupted(format!(
-                    "bad base {} <- {}",
-                    base, rev
-                ))),
+                None => Err(RevlogError::BadDeltaBase {
+                    base,
+                    rev,
+                    backtrace: HgBacktrace::capture(),
+                }
+                .into()),
                 Some(base) => Ok(Some(base)),
             }
         } else if rev.0 <= 0 {
-            Err(HgError::corrupted(format!(
-                "unbound delta chain {} <- {}",
-                base, rev
-            )))
+            Err(RevlogError::UnboundDeltaChain {
+                base,
+                rev,
+                backtrace: HgBacktrace::capture(),
+            }
+            .into())
         } else {
             Ok(Some(Revision(rev.0 - 1)))
         }

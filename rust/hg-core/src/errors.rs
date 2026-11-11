@@ -402,6 +402,12 @@ impl fmt::Display for HgError {
                          written to"
                     )
                 }
+                RevlogError::BadDeltaBase { base, rev, backtrace } => {
+                    write!(f, "{backtrace}bad base {base} <- {rev}")
+                }
+                RevlogError::UnboundDeltaChain { base, rev, backtrace } => {
+                    write!(f, "{backtrace}unbound delta chain {base} <- {rev}")
+                }
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {

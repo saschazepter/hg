@@ -452,6 +452,18 @@ pub enum RevlogError {
     /// A read-only bulk scan of a revlog was requested while the revlog had
     /// writes in flight.
     BulkReadDuringWrite { backtrace: HgBacktrace },
+    /// The base of a delta is not a valid revision
+    BadDeltaBase {
+        base: UncheckedRevision,
+        rev: Revision,
+        backtrace: HgBacktrace,
+    },
+    /// A delta chain does not end with a full snapshot
+    UnboundDeltaChain {
+        base: UncheckedRevision,
+        rev: Revision,
+        backtrace: HgBacktrace,
+    },
 }
 
 impl From<HgIoError> for RevlogError {
