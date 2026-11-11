@@ -334,7 +334,7 @@ class kwtemplater:
             if self.restrict:
                 data = self.repo.file(f).read(mf[f])
             else:
-                data = self.repo.wread(f)
+                data = wctx[f].data()
             if stringutil.binary(data):
                 continue
             if expand:
@@ -546,7 +546,7 @@ def demo(ui, repo, *args, **opts):
         ui.notenoi18n(b"hg ci -m '%s'\n" % msg)
         repo.commit(text=msg)
     ui.status(_(b'\n\tkeywords expanded\n'))
-    ui.write(repo.wread(fn))
+    ui.write(repo[None][fn].data())
     repo.wvfs.rmtree(repo.root)
 
 
