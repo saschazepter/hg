@@ -503,15 +503,6 @@ impl fmt::Display for HgError {
             },
             HgError::Dirstate(dirstate_error) => match dirstate_error {
                 DirstateError::V2ParseError(parse) => match parse {
-                    DirstateV2ParseError::CorruptedDocket(
-                        message,
-                        backtrace,
-                    ) => {
-                        write!(
-                            f,
-                            "{backtrace}corrupted dirstate docket: {message}"
-                        )
-                    }
                     DirstateV2ParseError::CorruptedTreeMetadata(
                         message,
                         backtrace,

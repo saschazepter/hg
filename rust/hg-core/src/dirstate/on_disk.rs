@@ -37,6 +37,8 @@ use crate::requirements::DIRSTATE_TRACKED_HINT_V1;
 use crate::revlog::manifest::ManifestFlags;
 use crate::segmented_bytes::Error as SegmentedBytesError;
 use crate::segmented_bytes::SegmentedBytesSlice;
+use crate::utils::docket::DocketError;
+use crate::utils::docket::DocketErrorKind;
 use crate::utils::hg_path::HgPath;
 use crate::utils::u_u32;
 use crate::utils::u_u64;
@@ -199,8 +201,6 @@ type OptPathSlice = PathSlice;
 /// This should only happen if Mercurial is buggy or a repository is corrupted.
 #[derive(Debug, PartialEq)]
 pub enum DirstateV2ParseError {
-    /// The docket is corrupted and cannot be parsed
-    CorruptedDocket(String, HgBacktrace),
     /// The tree is somehow corrupted
     CorruptedTreeMetadata(String, HgBacktrace),
     /// The docket does not have the valid "magic" marker or a valid uuid
@@ -287,18 +287,18 @@ impl Docket<'_> {
     }
 }
 
-pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, DirstateError> {
-    let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|e| {
-        DirstateV2ParseError::CorruptedDocket(
-            e.to_string(),
-            HgBacktrace::capture(),
-        )
+pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, HgError> {
+    let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|_| {
+        DocketError::new("dirstate", DocketErrorKind::Corrupted)
     })?;
     let uuid_size = header.uuid_size as usize;
     if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
         Ok(Docket { header, uuid })
     } else {
-        Err(DirstateV2ParseError::InvalidMarkerOrUuid(HgBacktrace::capture()))?
+        Err(DirstateError::from(DirstateV2ParseError::InvalidMarkerOrUuid(
+            HgBacktrace::capture(),
+        ))
+        .into())
     }
 }
 
