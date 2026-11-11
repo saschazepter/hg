@@ -635,6 +635,13 @@ impl fmt::Display for HgError {
                         does not start with its parent's path '{path}'"
                     )
                 }
+                DirstateError::ParentNodeNotFound(backtrace) => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate points to non-existent parent \
+                        node"
+                    )
+                }
             },
             HgError::Pattern(pattern_error) => {
                 format_pattern_error(f, pattern_error)

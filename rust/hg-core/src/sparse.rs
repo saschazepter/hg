@@ -9,6 +9,8 @@ use crate::FastHashSet;
 use crate::NULL_REVISION;
 use crate::Node;
 use crate::Revision;
+use crate::dirstate::DirstateError;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::exit_codes::STATE_ERROR;
 use crate::file_patterns::FilePattern;
@@ -291,9 +293,9 @@ fn patterns_for_rev(
                 warnings,
             )
             .map_err(|_| {
-                HgError::corrupted(
-                    "dirstate points to non-existent parent node".to_string(),
-                )
+                HgError::from(DirstateError::ParentNodeNotFound(
+                    HgBacktrace::capture(),
+                ))
             })?;
             if output.results.is_empty() {
                 warnings.send(SparseNarrowWarning::ProfileNotFound {
@@ -397,18 +399,18 @@ fn dirstate_parent_revs(
     let mut revs = vec![];
     let p1_rev =
         repo.changelog()?.rev_from_node(parents.p1.into()).map_err(|_| {
-            HgError::corrupted(
-                "dirstate points to non-existent parent node".to_string(),
-            )
+            HgError::from(DirstateError::ParentNodeNotFound(
+                HgBacktrace::capture(),
+            ))
         })?;
     if p1_rev != NULL_REVISION {
         revs.push(p1_rev)
     }
     let p2_rev =
         repo.changelog()?.rev_from_node(parents.p2.into()).map_err(|_| {
-            HgError::corrupted(
-                "dirstate points to non-existent parent node".to_string(),
-            )
+            HgError::from(DirstateError::ParentNodeNotFound(
+                HgBacktrace::capture(),
+            ))
         })?;
     if p2_rev != NULL_REVISION {
         revs.push(p2_rev)
