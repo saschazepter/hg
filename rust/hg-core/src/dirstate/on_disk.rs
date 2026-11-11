@@ -203,8 +203,6 @@ type OptPathSlice = PathSlice;
 pub enum DirstateV2ParseError {
     /// The tree is somehow corrupted
     CorruptedTreeMetadata(String, HgBacktrace),
-    /// The docket does not have the valid "magic" marker or a valid uuid
-    InvalidMarkerOrUuid(HgBacktrace),
     /// Not enough bytes to parse whatever needs to be parse
     NotEnoughBytes { start: usize, len: usize, backtrace: HgBacktrace },
     /// This slice is invalid and cannot be parsed
@@ -291,15 +289,19 @@ pub fn read_docket(on_disk: &[u8]) -> Result<Docket<'_>, HgError> {
     let (header, uuid) = DocketHeader::from_bytes(on_disk).map_err(|_| {
         DocketError::new("dirstate", DocketErrorKind::Corrupted)
     })?;
-    let uuid_size = header.uuid_size as usize;
-    if header.marker == *V2_FORMAT_MARKER && uuid.len() == uuid_size {
-        Ok(Docket { header, uuid })
-    } else {
-        Err(DirstateError::from(DirstateV2ParseError::InvalidMarkerOrUuid(
-            HgBacktrace::capture(),
-        ))
-        .into())
+    if header.marker != *V2_FORMAT_MARKER {
+        return Err(DocketError::new(
+            "dirstate",
+            DocketErrorKind::BadFormatMarker,
+        )
+        .into());
     }
+    if uuid.len() != header.uuid_size as usize {
+        return Err(
+            DocketError::new("dirstate", DocketErrorKind::Corrupted).into()
+        );
+    }
+    Ok(Docket { header, uuid })
 }
 
 pub(super) fn read<'on_disk>(

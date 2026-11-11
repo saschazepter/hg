@@ -512,9 +512,6 @@ impl fmt::Display for HgError {
                             "{backtrace}corrupted dirstate tree: {message}"
                         )
                     }
-                    DirstateV2ParseError::InvalidMarkerOrUuid(backtrace) => {
-                        write!(f, "{backtrace}invalid dirstate marker or UUID")
-                    }
                     DirstateV2ParseError::NotEnoughBytes {
                         start,
                         len,
@@ -879,6 +876,13 @@ fn format_docket_error(
     match kind {
         DocketErrorKind::Corrupted => {
             write!(f, "{backtrace}corrupted docket: {}", docket_path.display())
+        }
+        DocketErrorKind::BadFormatMarker => {
+            write!(
+                f,
+                "{backtrace}unrecognized format marker in docket {}",
+                docket_path.display()
+            )
         }
     }
 }

@@ -88,4 +88,6 @@ impl DocketError {
 pub enum DocketErrorKind {
     /// The docket cannot be parsed
     Corrupted,
+    /// The docket does not start with the marker of its format
+    BadFormatMarker,
 }
