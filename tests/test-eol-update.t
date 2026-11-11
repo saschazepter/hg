@@ -277,3 +277,62 @@ Things were clean, and updating again will not change anything:
   $ cd ..
 
   $ rm -r repo
+
+Updating several times in one process
+=====================================
+
+The extension configures the filters from the .hgeol of each update. A rebase
+updates the working copy once per rebased revision, within the same process.
+Each of these updates must use the filters configured for it.
+
+Rebasing across a change of .hgeol
+----------------------------------
+
+The first rebased revision switches the .txt files from LF to CRLF, the second
+one modifies such a file. They are committed without the extension, to control
+the stored line endings.
+
+  $ hg init rebase-repo
+  $ cd rebase-repo
+  $ cat > .hgeol <<EOF
+  > [patterns]
+  > **.txt = LF
+  > EOF
+  $ printf 'babar\n' > a.txt
+  $ hg commit -Aqm 'LF'
+  $ echo celeste > other
+  $ hg commit -Aqm 'destination'
+  $ hg update -q 0
+  $ cat > .hgeol <<EOF
+  > [patterns]
+  > **.txt = CRLF
+  > EOF
+  $ hg commit -qm 'switch to CRLF'
+  $ printf 'babar\r\nceleste\r\n' > a.txt
+  $ hg commit -qm 'modify a.txt'
+
+  $ cat >> .hg/hgrc <<EOF
+  > [extensions]
+  > eol =
+  > rebase =
+  > EOF
+  $ hg update -q 1
+
+  $ hg rebase -s 2 -d 1
+  rebasing 2:4f6bc3d748d9 "switch to CRLF"
+  rebasing 3:dc37a473d1d3 tip "modify a.txt"
+  saved backup bundle to $TESTTMP/rebase-repo/.hg/strip-backup/4f6bc3d748d9-16b30702-rebase.hg
+
+The second rebased revision comes after the switch to CRLF, its a.txt is
+written and committed with CRLF line endings.
+
+However the filters built for the first rebased revision are current used for
+the second one too
+
+  $ hg cat -r tip a.txt
+  babar\r (esc) (missing-correct-output !)
+  celeste\r (esc) (missing-correct-output !)
+  babar (known-bad-output !)
+  celeste (known-bad-output !)
+
+  $ cd ..
