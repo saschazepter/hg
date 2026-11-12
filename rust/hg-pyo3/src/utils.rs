@@ -1,8 +1,8 @@
 use std::path::Path;
 
+use hg::error_display::hg_path_error_to_string;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
-use hg::errors::hg_path_error_to_string;
 use hg::revlog::RevlogError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;

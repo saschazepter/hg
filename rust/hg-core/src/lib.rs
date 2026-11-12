@@ -8,6 +8,7 @@ pub mod ancestors;
 mod bdiff;
 pub mod dagops;
 pub mod encoding;
+pub mod error_display;
 pub mod errors;
 pub mod linkrev;
 pub mod narrow;

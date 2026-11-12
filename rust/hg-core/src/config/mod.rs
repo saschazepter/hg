@@ -99,10 +99,10 @@ pub struct ConfigValueParseErrorDetails {
 // boxed to avoid very large Result types
 pub type ConfigValueParseError = Box<ConfigValueParseErrorDetails>;
 
-// Temporary, until all users ask for the text of errors explicitly
+// Temporary, until all users call the functions from `error_display`
 impl fmt::Display for ConfigValueParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        crate::errors::write_config_value_parse_error(f, self)
+        crate::error_display::write_config_value_parse_error(f, self)
     }
 }
 
