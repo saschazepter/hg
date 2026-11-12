@@ -168,3 +168,35 @@ Errors in the narrowspec are reported like Python does.
   abort: narrow config entry outside of section: path:dir1
   (add an [include] or [exclude] line to declare the entry type)
   [255]
+
+A section of includes after one of excludes is refused, while a second section
+of includes is fine.
+
+  $ cat > .hg/store/narrowspec << EOF
+  > [exclude]
+  > path:dir1/y
+  > [include]
+  > path:dir1
+  > EOF
+  $ cp .hg/store/narrowspec .hg/narrowspec.dirstate
+  $ $NO_FALLBACK rhg files
+  dir1/x (known-bad-output !)
+  abort: narrow config cannot have includes after excludes (missing-correct-output !)
+  $ "$real_hg" files
+  abort: narrow config cannot have includes after excludes
+  [255]
+  $ cat > .hg/store/narrowspec << EOF
+  > [include]
+  > path:dir1/x
+  > [include]
+  > path:dir1/y
+  > EOF
+  $ cp .hg/store/narrowspec .hg/narrowspec.dirstate
+  $ $NO_FALLBACK rhg files
+  abort: narrow config cannot have includes after excludes (known-bad-output !)
+  dir1/x (missing-correct-output !)
+  dir1/y (missing-correct-output !)
+  [255]
+  $ "$real_hg" files
+  dir1/x
+  dir1/y
