@@ -34,6 +34,9 @@ def make_uid() -> bytes:
     The identifier is random and composed of UID_SIZE ascii characters.
     It will never be equal to UNSET_UID.
     """
+    # some special test logic to avoid anoying random output in the test
+    if stable_docket_file := encoding.environ.get(b'HGTEST_UUIDFILE'):
+        return _stable_uid(stable_docket_file)
     n = 0
     while n == 0:
         # Since we "hex" the result we need half the number of bits to have a
@@ -42,12 +45,12 @@ def make_uid() -> bytes:
     return node.hex(n)
 
 
-# some special test logic to avoid anoying random output in the test
-stable_docket_file = encoding.environ.get(b'HGTEST_UUIDFILE')
+def _stable_uid(stable_docket_file: bytes) -> bytes:
+    """Return a predictable identifier seeded from `stable_docket_file`.
 
-if stable_docket_file:
-
-    def make_uid():
+    Each call advances the seed stored in that file.
+    """
+    if True:
         try:
             with open(stable_docket_file, mode='rb') as f:
                 seed = f.read().strip()
