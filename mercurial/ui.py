@@ -717,6 +717,59 @@ class ui:
         self.fixconfig(section=section)
         self._maybetweakdefaults()
 
+    def register_config_write(
+        self,
+        section,
+        name,
+        value,
+        managed_file: bytes,
+        base_file: bytes,
+        root=None,
+    ):
+        """insert a value freshly written to `managed_file` in the config
+
+        `managed_file` is a machine managed file included from `base_file`,
+        which this configuration must read. The value lands at the priority
+        of the managed file, so sources with higher priority may shadow it.
+
+        The managed file is usually not part of what this process read, as
+        it may have just been created; it is then inserted right below
+        `base_file`, where its content would be read from.
+
+        `root` is the directory a configuration read would use for that
+        file: the repository root for a repository level file, the user
+        home for the others. Relative paths are resolved against it, so a
+        wrong `root` points them at the wrong location.
+
+        NOTE: `_maybetweakdefaults` is not re-run, as tweaking defaults
+        only applies to the initial configuration loading. This is likely
+        to become a problem, but dealing with it is outside the scope of
+        this series.
+
+        Return None when the value is the one in use, or the item that
+        shadows it, as a (value, source, level) tuple.
+
+        Items that plain mode ignores in configuration files are left out,
+        and None is returned for them.
+        """
+        if self._plain_ignores(section, name):
+            return None
+        shadowing = None
+        for cfg in (self._tcfg, self._ucfg):
+            cfg.insert_source_before(managed_file, base_file)
+            previous = cfg.set_at_source(section, name, value, managed_file)
+            if cfg is self._tcfg:
+                # the previous definition only shadows the new value if it
+                # is still the one in use.
+                if cfg.source(section, name) == managed_file:
+                    shadowing = None
+                else:
+                    shadowing = previous
+        if root is None:
+            root = os.path.expanduser(b'~')
+        self.fixconfig(root=root, section=section)
+        return shadowing
+
     def _data(self, untrusted: bool) -> config.config:
         return self._ucfg if untrusted else self._tcfg
 
