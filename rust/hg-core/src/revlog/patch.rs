@@ -234,7 +234,13 @@ pub type SrcToken = u32;
 /// A Edit with information about  source and position within that source
 #[derive(Clone, Debug)]
 pub struct RichEdit<'a> {
-    inner: PlainEdit<'a>,
+    /// The start position of the chunk of data to replace
+    start: u32,
+    /// The end position of the chunk of data to replace (open end interval)
+    end: u32,
+    /// The data replacing the chunk
+    data: &'a [u8],
+
     src: SrcToken,
     data_pos: u32,
 }
@@ -265,28 +271,27 @@ impl<'a> Edit<'a> for RichEdit<'a> {
         data_pos: u32,
         data: &'a [u8],
     ) -> Self {
-        let inner = PlainEdit::new_rich(src, start, end, data_pos, data);
-        Self { inner, src, data_pos }
+        Self { start, end, data, src, data_pos }
     }
 
     /// The start position of the chunk of data to replace
     fn start(&self) -> u32 {
-        self.inner.start()
+        self.start
     }
 
     /// The end position of the chunk of data to replace (open end interval)
     fn end(&self) -> u32 {
-        self.inner.end()
+        self.end
     }
 
     /// The data replacing the chunk
     fn data(&self) -> &'a [u8] {
-        self.inner.data()
+        self.data
     }
 
     /// Length of the replacing data.
     fn size(&self) -> u32 {
-        self.inner.size()
+        u_u32(self.data.len())
     }
 
     /// cut this Edit into two
@@ -296,18 +301,45 @@ impl<'a> Edit<'a> for RichEdit<'a> {
     fn cut_at(&mut self, cut_start: u32) -> Self {
         let old_pos = self.data_pos;
         self.data_pos += cut_start;
-        let right = self.inner.cut_at(cut_start);
-        Self { inner: right, src: self.src, data_pos: old_pos }
+
+        assert!(cut_start > 0);
+        assert!(cut_start < self.size());
+        let (left_data, right_data) = self.data.split_at(u32_u(cut_start));
+        self.data = right_data;
+
+        Self {
+            // there is no need to think too hard about which section of the
+            // replaced part goes in the prefix and which goes in
+            // the suffix. So lets use a zero size replacement for
+            // the suffix
+            start: self.start,
+            end: self.start,
+            src: self.src,
+            data_pos: old_pos,
+            data: left_data,
+        }
     }
 
     fn trim_prefix(&mut self, size: u32) -> i32 {
+        assert!(size < self.size());
+
         self.data_pos += size;
-        self.inner.trim_prefix(size)
+        self.data = &self.data[u32_u(size)..];
+        let old_replace = self.replaced_len();
+        if old_replace < size {
+            self.start = self.end;
+            size as i32 - old_replace as i32
+        } else {
+            self.start += size;
+            0
+        }
     }
 
     fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self {
         Self {
-            inner: self.inner.apply_offset(start_offset, end_offset),
+            start: (self.start as i32 - start_offset) as u32,
+            end: (self.end as i32 - end_offset) as u32,
+            data: self.data,
             src: self.src,
             data_pos: self.data_pos,
         }
