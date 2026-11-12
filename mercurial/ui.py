@@ -615,18 +615,12 @@ class ui:
         self._applyconfig(cfg, True, root)
 
     def _applyconfig(self, cfg, trusted: bool, root) -> None:
+        # nothing is ignored outside of plain mode, whatever the feature
         if self.plain():
-            for k in _PLAIN_UI_ITEMS:
-                if k in cfg[b'ui']:
-                    del cfg[b'ui'][k]
-            for section in _PLAIN_SECTIONS:
+            for section in (b'ui',) + _PLAIN_SECTIONS + _PLAIN_FEATURE_SECTIONS:
                 for k, v in cfg.items(section):
-                    del cfg[section][k]
-        # Don't remove aliases from the configuration if in the exceptionlist
-        for section in _PLAIN_FEATURE_SECTIONS:
-            if self.plain(section):
-                for k, v in cfg.items(section):
-                    del cfg[section][k]
+                    if self._plain_ignores(section, k):
+                        del cfg[section][k]
 
         if trusted:
             self._tcfg.update(cfg)
@@ -637,6 +631,17 @@ class ui:
         if root is None:
             root = os.path.expanduser(b'~')
         self.fixconfig(root=root)
+
+    def _plain_ignores(self, section: bytes, name: bytes) -> bool:
+        """whether plain mode ignores `section.name` in configuration files"""
+        if section in _PLAIN_FEATURE_SECTIONS:
+            return self.plain(section)
+        elif section in _PLAIN_SECTIONS:
+            return self.plain()
+        elif section == b'ui' and name in _PLAIN_UI_ITEMS:
+            return self.plain()
+        else:
+            return False
 
     def fixconfig(self, root=None, section: bytes | None = None) -> None:
         if section in (None, b'paths'):

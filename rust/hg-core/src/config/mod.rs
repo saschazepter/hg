@@ -115,7 +115,7 @@ impl fmt::Display for ConfigValueParseError {
 
 /// Returns true if the config item is disabled by PLAIN or PLAINEXCEPT
 fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
-    // duplication with [_applyconfig] in [ui.py],
+    // duplication with [_plain_ignores] in [ui.py],
     if !plain.is_plain() {
         return false;
     }
