@@ -91,3 +91,11 @@ Test errors from `hg-core`, which `jf` describes on its own
   [255]
   $ chmod 644 .hg/requires
 #endif
+
+  $ cat >> .hg/hgrc << EOF
+  > [format]
+  > chunkcachesize = bogus
+  > EOF
+  $ jf status
+  abort: invalid value for config `format.chunkcachesize`: expected a byte quantity, got 'bogus'
+  [255]

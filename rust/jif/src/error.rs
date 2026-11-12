@@ -217,9 +217,16 @@ pub fn hg_message(error: &HgError) -> Message {
             directory {path}",
             path = get_bytes_from_path(shared_path)
         ),
+        HgError::ConfigValueParseError(error) => message!(
+            "invalid value for config `{section}.{item}`: expected a \
+            {expected}, got '{value}'",
+            section = error.section.clone(),
+            item = error.item.clone(),
+            expected = Utf8(error.expected_type),
+            value = error.value.clone()
+        ),
         // TODO render these once `hg-core` gives them structure
-        HgError::ConfigValueParseError(_)
-        | HgError::Revlog(_)
+        HgError::Revlog(_)
         | HgError::Dirstate(_)
         | HgError::Shape(_)
         | HgError::Pattern(_)
