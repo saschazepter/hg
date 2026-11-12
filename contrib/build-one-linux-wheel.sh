@@ -23,6 +23,8 @@ elif [[ "$flavor" == "rust" ]]; then
     flavor_arg="--config-setting=--global-option=--rust"
 elif [[ "$flavor" == "rhg" ]]; then
     flavor_arg="--config-setting=--global-option=--rust --config-setting=--global-option=--rhg  --config-setting=--global-option=--jif"
+elif [[ "$flavor" == "chg-ready" ]]; then
+    flavor_arg="--config-setting=--global-option=--hg-exec-type --config-setting=--global-option=rust-front"
 else
     echo "unknown flavor: \"$flavor\""
     exit 96
