@@ -253,12 +253,6 @@ class gitdirstate(intdirstate.IDirstate):
             mtime_boundary,
         )
 
-    def flagfunc(
-        self, buildfallback: intdirstate.FlagFuncFallbackT
-    ) -> intdirstate.FlagFuncReturnT:
-        # TODO we can do better
-        return buildfallback()
-
     def getcwd(self) -> bytes:
         # TODO is this a good way to do this?
         return os.path.dirname(

@@ -1814,7 +1814,61 @@ class workingctx(committablectx, i_context.IWorkingContext):
 
     @propertycache
     def _flagfunc(self):
-        return self._repo.dirstate.flagfunc(self._buildflagfunc)
+        """build a callable that returns flags associated with a filename
+
+        The information is extracted from three possible layers:
+        1. the file system if it supports the information
+        2. the "fallback" information stored in the dirstate if any
+        3. a more expensive mechanism inferring the flags from the parents.
+        """
+        wvfs = self._repo.wvfs
+        dirstate = self._repo.dirstate
+
+        # small hack to cache the result of _buildflagfunc()
+        fallback_func = []
+
+        def get_flags(x: bytes) -> bytes:
+            entry = None
+            fallback_value = None
+            try:
+                st = wvfs.lstat(x)
+            except OSError:
+                return b''
+
+            if wvfs.has_link:
+                if util.statislink(st):
+                    return b'l'
+            else:
+                entry = dirstate.get_entry(x)
+                if entry.has_fallback_symlink:
+                    if entry.fallback_symlink:
+                        return b'l'
+                else:
+                    if not fallback_func:
+                        fallback_func.append(self._buildflagfunc())
+                    fallback_value = fallback_func[0](x)
+                    if b'l' in fallback_value:
+                        return b'l'
+
+            if wvfs.has_exec:
+                if util.statisexec(st):
+                    return b'x'
+            else:
+                if entry is None:
+                    entry = dirstate.get_entry(x)
+                if entry.has_fallback_exec:
+                    if entry.fallback_exec:
+                        return b'x'
+                else:
+                    if fallback_value is None:
+                        if not fallback_func:
+                            fallback_func.append(self._buildflagfunc())
+                        fallback_value = fallback_func[0](x)
+                    if b'x' in fallback_value:
+                        return b'x'
+            return b''
+
+        return get_flags
 
     def flags(self, path: bytes) -> bytes:
         try:

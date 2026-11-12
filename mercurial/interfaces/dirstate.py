@@ -52,12 +52,6 @@ if typing.TYPE_CHECKING:
     ]
     """The callback type for dirstate.addparentchangecallback()."""
 
-    FlagFuncFallbackT = Callable[[], "FlagFuncReturnT"]
-    """The type for the dirstate.flagfunc() fallback function."""
-
-    FlagFuncReturnT = Callable[[bytes], bytes]
-    """The return type of dirstate.flagfunc()."""
-
     HgFsStateT = tuple[int, int, Optional["TimestampT"]]
     """The ``(mode, size, mtime)`` of a file matching its parent content, in
     the form Mercurial records it, as passed to dirstate.update_file().
@@ -287,16 +281,6 @@ class IDirstate(Protocol):
     @abc.abstractmethod
     def hasdir(self, d: bytes) -> bool:
         pass
-
-    @abc.abstractmethod
-    def flagfunc(self, buildfallback: FlagFuncFallbackT) -> FlagFuncReturnT:
-        """build a callable that returns flags associated with a filename
-
-        The information is extracted from three possible layers:
-        1. the file system if it supports the information
-        2. the "fallback" information stored in the dirstate if any
-        3. a more expensive mechanism inferring the flags from the parents.
-        """
 
     @abc.abstractmethod
     def getcwd(self) -> bytes:

@@ -541,63 +541,6 @@ class dirstate(intdirstate.IDirstate):
         # it's safe because f is always a relative path
         return self._rootdir + f
 
-    def flagfunc(
-        self, buildfallback: intdirstate.FlagFuncFallbackT
-    ) -> intdirstate.FlagFuncReturnT:
-        """build a callable that returns flags associated with a filename
-
-        The information is extracted from three possible layers:
-        1. the file system if it supports the information
-        2. the "fallback" information stored in the dirstate if any
-        3. a more expensive mechanism inferring the flags from the parents.
-        """
-
-        # small hack to cache the result of buildfallback()
-        fallback_func = []
-
-        def get_flags(x: bytes) -> bytes:
-            entry = None
-            fallback_value = None
-            try:
-                st = os.lstat(self._join(x))
-            except OSError:
-                return b''
-
-            if self._checklink:
-                if util.statislink(st):
-                    return b'l'
-            else:
-                entry = self.get_entry(x)
-                if entry.has_fallback_symlink:
-                    if entry.fallback_symlink:
-                        return b'l'
-                else:
-                    if not fallback_func:
-                        fallback_func.append(buildfallback())
-                    fallback_value = fallback_func[0](x)
-                    if b'l' in fallback_value:
-                        return b'l'
-
-            if self._checkexec:
-                if util.statisexec(st):
-                    return b'x'
-            else:
-                if entry is None:
-                    entry = self.get_entry(x)
-                if entry.has_fallback_exec:
-                    if entry.fallback_exec:
-                        return b'x'
-                else:
-                    if fallback_value is None:
-                        if not fallback_func:
-                            fallback_func.append(buildfallback())
-                        fallback_value = fallback_func[0](x)
-                    if b'x' in fallback_value:
-                        return b'x'
-            return b''
-
-        return get_flags
-
     @propertycache
     def _cwd(self):
         # internal config: ui.forcecwd
