@@ -202,7 +202,7 @@ def openlfdirstate(ui, repo, create=True):
     lfdirstate = largefilesdirstate(
         opener,
         ui,
-        repo.root,
+        repo.wvfs,
         repo.dirstate._validate,
         lambda: sparse.matcher(repo),
         repo.nodeconstants,

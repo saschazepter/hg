@@ -185,11 +185,12 @@ class statichttprepository(localrepo.localrepository):
         self._url = path
         self.ui = ui
 
-        self.root = path
         u = urlutil.url(path.rstrip(b'/') + b"/.hg")
         self.path, authinfo = u.authinfo()
 
         vfsclass = build_opener(ui, authinfo)
+        self.wvfs = vfsclass(path)
+        self.root = self.wvfs.base
         self.vfs = vfsclass(self.path)
         self.cachevfs = vfsclass(self.vfs.join(b'cache'))
         self._phasedefaults = []

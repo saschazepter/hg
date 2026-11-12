@@ -25,6 +25,7 @@ from .interfaces.types import (
     MatcherT,
     NodeIdT,
     TransactionT,
+    WorkingVfsT,
 )
 
 from hgdemandimport import tracing
@@ -169,7 +170,7 @@ class dirstate(intdirstate.IDirstate):
         self,
         opener,
         ui,
-        root,
+        wvfs: WorkingVfsT,
         validate,
         sparsematchfn,
         nodeconstants,
@@ -179,9 +180,10 @@ class dirstate(intdirstate.IDirstate):
         """Create a new dirstate object.
 
         opener is an open()-like callable that can be used to open the
-        dirstate file; root is the root of the directory tracked by
-        the dirstate.
+        dirstate file; wvfs is the vfs of the directory tracked by the
+        dirstate.
         """
+        root = wvfs.base
         if use_dirstate_v2:
             self.version = intdirstate.DirstateVersion.V2
         else:

@@ -201,7 +201,7 @@ class ThinRepo:
         return dirstate_mod.dirstate(
             self.vfs,
             self.ui,
-            self.root,
+            self.wvfs,
             lambda node: node,  # XXX assume anynode is valid
             sparsematchfn,
             self.nodeconstants,
@@ -667,7 +667,7 @@ def create_thin_wc(ui, repo, root):
     dirstate = dirstate_mod.dirstate(
         vfs,
         ui,
-        root,
+        wvfs,
         validate=lambda node: node,
         sparsematchfn=None,
         nodeconstants=repo.nodeconstants,

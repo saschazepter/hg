@@ -211,7 +211,7 @@ class IDirstate(Protocol):
     #     self,
     #     opener,
     #     ui,
-    #     root,
+    #     wvfs,
     #     validate,
     #     sparsematchfn,
     #     nodeconstants,
@@ -221,8 +221,8 @@ class IDirstate(Protocol):
     #     """Create a new dirstate object.
     #
     #     opener is an open()-like callable that can be used to open the
-    #     dirstate file; root is the root of the directory tracked by
-    #     the dirstate.
+    #     dirstate file; wvfs is the vfs of the directory tracked by the
+    #     dirstate.
     #     """
 
     version: DirstateVersion

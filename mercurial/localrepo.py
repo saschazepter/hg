@@ -1616,7 +1616,7 @@ class localrepository(_localrepo_base_classes):
         return dirstate.dirstate(
             self.vfs,
             self.ui,
-            self.root,
+            self.wvfs,
             self._dirstatevalidate,
             sparsematchfn,
             self.nodeconstants,
