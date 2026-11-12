@@ -120,11 +120,17 @@ Narrowspecs that cannot be fingerprinted
   > foo
   > EOF
 
+#if rhg
   $ hg debug::narrow-fingerprint < no-prefix
-  abort: invalid prefix on narrow pattern: foo (no-rhg !)
-  (narrow patterns must begin with one of the following: path:, rootfilesin:) (no-rhg !)
-  invalid prefix on narrow pattern: foo (rhg !)
+  abort: invalid prefix on narrow pattern: foo
+  (narrow patterns must begin with one of the following: path:, rootfilesin:)
+  [20]
+#else
+  $ hg debug::narrow-fingerprint < no-prefix
+  abort: invalid prefix on narrow pattern: foo
+  (narrow patterns must begin with one of the following: path:, rootfilesin:)
   [255]
+#endif
 
 Only "path:" patterns have a shape.
 

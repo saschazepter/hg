@@ -312,8 +312,6 @@ impl From<SparseConfigError> for CommandError {
                 "including other spec files using '%include' \
                     is not supported in narrowspec",
             ),
-            SparseConfigError::HgError(e) => Self::from(e),
-            SparseConfigError::PatternError(e) => e.into(),
         }
     }
 }

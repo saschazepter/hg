@@ -53,7 +53,7 @@ fn cmp_patterns(lhs: &FilePattern, rhs: &FilePattern) -> Ordering {
 pub fn matcher(
     repo: &Repo,
     warnings: &HgWarningSender,
-) -> Result<Box<dyn Matcher + Send>, SparseConfigError> {
+) -> Result<Box<dyn Matcher + Send>, HgError> {
     if !repo.requirements().contains(NARROW_REQUIREMENT) {
         return Ok(Box::new(AlwaysMatcher));
     }
@@ -130,7 +130,7 @@ type NarrowPatterns = (Vec<FilePattern>, Vec<FilePattern>);
 pub fn patterns_from_spec(
     warnings: &HgWarningSender,
     spec: &[u8],
-) -> Result<Option<NarrowPatterns>, SparseConfigError> {
+) -> Result<Option<NarrowPatterns>, HgError> {
     let config = sparse::parse_config(
         spec,
         sparse::SparseConfigContext::Narrow,
@@ -138,7 +138,7 @@ pub fn patterns_from_spec(
     )?;
     if !config.profiles.is_empty() {
         // TODO (from Python impl) maybe do something with profiles?
-        return Err(SparseConfigError::IncludesInNarrow);
+        return Err(SparseConfigError::IncludesInNarrow.into());
     }
     validate_patterns(&config.includes)?;
     validate_patterns(&config.excludes)?;
@@ -176,21 +176,22 @@ fn starts_or_ends_with_whitespace(s: &[u8]) -> bool {
     w(s.first()) || w(s.last())
 }
 
-fn validate_pattern(pattern: &[u8]) -> Result<(), SparseConfigError> {
+fn validate_pattern(pattern: &[u8]) -> Result<(), HgError> {
     if starts_or_ends_with_whitespace(pattern) {
         return Err(SparseConfigError::WhitespaceAtEdgeOfPattern(
             pattern.to_owned(),
-        ));
+        )
+        .into());
     }
     for prefix in VALID_PREFIXES.iter() {
         if pattern.starts_with(prefix.as_bytes()) {
             return Ok(());
         }
     }
-    Err(SparseConfigError::InvalidNarrowPrefix(pattern.to_owned()))
+    Err(SparseConfigError::InvalidNarrowPrefix(pattern.to_owned()).into())
 }
 
-fn validate_patterns(patterns: &[u8]) -> Result<(), SparseConfigError> {
+fn validate_patterns(patterns: &[u8]) -> Result<(), HgError> {
     for pattern in patterns.split(|c| *c == b'\n') {
         if pattern.is_empty() {
             // TODO: probably not intentionally allowed (only because `split`

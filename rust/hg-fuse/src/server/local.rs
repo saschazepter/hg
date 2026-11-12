@@ -280,8 +280,7 @@ impl StoreBackend<LocalToken> for LocalBackend {
             &self.repo,
             Some(vec![changeset_rev]),
             warnings.sender(),
-        )
-        .map_err(HgError::from)?;
+        )?;
         let _ = warnings.finish(|warning| -> Result<(), Infallible> {
             // TODO better warnings
             tracing::warn!("sparse warning: {:?}", warning);
@@ -321,8 +320,7 @@ impl StoreBackend<LocalToken> for LocalBackend {
             &self.repo,
             Some(vec![changeset_rev_from, changeset_rev_to]),
             warnings.sender(),
-        )
-        .map_err(HgError::from)?;
+        )?;
         let _ = warnings.finish(|warning| -> Result<(), Infallible> {
             // TODO better warnings
             tracing::warn!("sparse warning: {:?}", warning);

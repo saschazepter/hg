@@ -78,7 +78,7 @@ pub struct SparseConfig {
 }
 
 /// All possible errors when reading sparse/narrow config
-#[derive(Debug, derive_more::From)]
+#[derive(Debug)]
 pub enum SparseConfigError {
     IncludesAfterExcludes {
         context: SparseConfigContext,
@@ -96,10 +96,6 @@ pub enum SparseConfigError {
     /// because the Python parser strips the whitespace when parsing
     /// the config file.
     WhitespaceAtEdgeOfPattern(Vec<u8>),
-    #[from]
-    HgError(HgError),
-    #[from]
-    PatternError(PatternError),
 }
 
 impl From<SparseConfigError> for HgError {
@@ -159,10 +155,6 @@ impl From<SparseConfigError> for HgError {
                     ),
                 )
             }
-            SparseConfigError::HgError(hg_error) => hg_error,
-            SparseConfigError::PatternError(pattern_error) => {
-                HgError::from(pattern_error)
-            }
         }
     }
 }
@@ -172,7 +164,7 @@ pub(crate) fn parse_config(
     raw: &[u8],
     context: SparseConfigContext,
     warnings: &HgWarningSender,
-) -> Result<SparseConfig, SparseConfigError> {
+) -> Result<SparseConfig, HgError> {
     let mut includes = vec![];
     let mut excludes = vec![];
     let mut profiles = FastHashSet::default();
@@ -202,7 +194,8 @@ pub(crate) fn parse_config(
             if in_section && current == Current::Includes {
                 return Err(SparseConfigError::IncludesAfterExcludes {
                     context,
-                });
+                }
+                .into());
             }
             in_section = true;
             current = Current::Includes;
@@ -215,7 +208,8 @@ pub(crate) fn parse_config(
                 return Err(SparseConfigError::EntryOutsideSection {
                     context,
                     line: line.into(),
-                });
+                }
+                .into());
             }
             if line.trim().starts_with(b"/") {
                 warnings.send(SparseNarrowWarning::RootWarning {
@@ -241,14 +235,8 @@ pub(crate) fn parse_config(
     Ok(SparseConfig { includes, excludes, profiles })
 }
 
-fn read_temporary_includes(
-    repo: &Repo,
-) -> Result<Vec<Vec<u8>>, SparseConfigError> {
-    let raw = repo
-        .hg_vfs()
-        .try_read("tempsparse")
-        .map_err(HgError::from)?
-        .unwrap_or_default();
+fn read_temporary_includes(repo: &Repo) -> Result<Vec<Vec<u8>>, HgError> {
+    let raw = repo.hg_vfs().try_read("tempsparse")?.unwrap_or_default();
     if raw.is_empty() {
         return Ok(vec![]);
     }
@@ -260,15 +248,11 @@ fn patterns_for_rev(
     repo: &Repo,
     rev: Revision,
     warnings: &HgWarningSender,
-) -> Result<Option<SparseConfig>, SparseConfigError> {
+) -> Result<Option<SparseConfig>, HgError> {
     if !repo.has_sparse() {
         return Ok(None);
     }
-    let raw = repo
-        .hg_vfs()
-        .try_read("sparse")
-        .map_err(HgError::from)?
-        .unwrap_or_default();
+    let raw = repo.hg_vfs().try_read("sparse")?.unwrap_or_default();
 
     if raw.is_empty() {
         return Ok(None);
@@ -331,7 +315,7 @@ pub fn matcher(
     repo: &Repo,
     revs: Option<Vec<Revision>>,
     warnings: &HgWarningSender,
-) -> Result<Box<dyn Matcher + Send>, SparseConfigError> {
+) -> Result<Box<dyn Matcher + Send>, HgError> {
     if !repo.requirements().contains(SPARSE_REQUIREMENT) {
         return Ok(Box::new(AlwaysMatcher));
     }
@@ -387,9 +371,7 @@ pub fn matcher(
 }
 
 /// Return the revs for non-null dirstate parents
-fn dirstate_parent_revs(
-    repo: &Repo,
-) -> Result<Vec<Revision>, SparseConfigError> {
+fn dirstate_parent_revs(repo: &Repo) -> Result<Vec<Revision>, HgError> {
     let parents = repo.dirstate_parents()?;
     let mut revs = vec![];
     let p1_rev =
