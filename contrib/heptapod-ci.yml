@@ -199,6 +199,19 @@ trigger-wheel-linux:
     needs:
       - "trigger-wheel-linux"
 
+# only used by the test-chg job, so a single Python version is enough
+build-chg-wheel-libc:
+  extends: .build-wheel
+  variables:
+    ARCH: "x86_64"
+    WHEEL_IMG: "rust"
+    WHEEL_TYPE: "chg-ready"
+    CI_CLEVER_CLOUD_FLAVOR: "M"
+  parallel:
+    matrix:
+      - BUILD_PY_ID:
+          - cp311-cp311
+
 # build linux wheel for amd64
 build-c-wheel-libc:
   extends: .build-wheel
@@ -454,8 +467,14 @@ test-rhg:
 
 test-chg:
     extends: .runtests-no-check
-    image: "$HG_CI_REG/hg-core-test-py-dev-rust-dev:$HG_CI_IMAGE_TAG"
+    image: "$HG_CI_REG/hg-core-test:$HG_CI_IMAGE_TAG"
+    needs:
+      - job: build-chg-wheel-libc
+        parallel:
+          matrix:
+            - BUILD_PY_ID: "cp311-cp311"
     variables:
+        WHEEL_TYPE: "chg-ready"
         FLAVOR: "--chg"
 
 
