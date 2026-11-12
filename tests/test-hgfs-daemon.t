@@ -91,7 +91,14 @@ Mounting a nonexistent mount point fails
 ----------------------------------------
 
   $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/source" --mount "$TESTTMP/does-not-exist" --storage-dir "$TESTTMP/storage" --revision $REV0
-  abort: * (glob)
+  abort: $ENOENT$ while writing '$TESTTMP/does-not-exist'
+  [255]
+
+Mounting a nonexistent clone fails
+----------------------------------
+
+  $ jf hgfs-client --socket "$SOCK" mount --clone "$TESTTMP/nowhere" --mount "$TESTTMP/mnt" --storage-dir "$TESTTMP/storage" --revision $REV0
+  abort: no repository at clone path: no repository found in $TESTTMP/nowhere
   [255]
 
 Re-mount so graceful shutdown has a live mount to clean up.

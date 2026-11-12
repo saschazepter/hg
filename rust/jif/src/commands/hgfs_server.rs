@@ -38,8 +38,10 @@ use vfs_api::vfs::vfs_control_server::VfsControl;
 use vfs_api::vfs::vfs_control_server::VfsControlServer;
 
 use crate::error::CommandError;
+use crate::error::hg_message;
 use crate::output::Output;
 use crate::record;
+use crate::terminal;
 use crate::warning::Warning;
 
 /// Run the hg virtual filesystem control server (EXPERIMENTAL)
@@ -98,10 +100,16 @@ impl VfsControl for VfsControlService {
             move || -> Result<hg_vfs::MountInfo, Status> {
                 let repo = Repo::find(&config, Some(clone_path)).map_err(
                     |e| match e {
-                        HgError::RepoNotFound { .. } => Status::not_found(
-                            format!("no repository at clone path: {e}"),
-                        ),
-                        _ => Status::internal(format!("opening clone: {e}")),
+                        HgError::RepoNotFound { .. } => {
+                            Status::not_found(format!(
+                                "no repository at clone path: {}",
+                                terminal::render(&hg_message(&e))
+                            ))
+                        }
+                        _ => Status::internal(format!(
+                            "opening clone: {}",
+                            terminal::render(&hg_message(&e))
+                        )),
                     },
                 )?;
                 manager
@@ -162,7 +170,9 @@ fn mount_error_to_status(e: MountError) -> Status {
             "already mounted at {}",
             path.display()
         )),
-        MountError::Hg(e) => Status::internal(e.to_string()),
+        MountError::Hg(e) => {
+            Status::internal(terminal::render(&hg_message(&e)))
+        }
         MountError::Share(e) => {
             Status::internal(format!("share error: {:?}", e))
         }
