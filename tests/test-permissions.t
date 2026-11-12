@@ -80,3 +80,21 @@ Reenable perm to allow deletion:
   $ chmod +rx dir
 
   $ cd ..
+
+Paths in the errors of the Rust revlogs are shown as bytes
+
+#if rust
+  $ "$PYTHON" -c "import os; os.mkdir(b'caf\\xe9')"
+  $ cd caf*
+  $ hg init
+  $ echo foo > a
+  $ hg commit -qAm 1
+  $ chmod -w .hg/store/data/a.i
+  $ echo bar > a
+  $ hg commit -m 2
+  abort: when writing $TESTTMP/caf\xef\xbf\xbd/.hg/store/data/a.i: $EACCES$ (esc) (known-bad-output !)
+  abort: when writing $TESTTMP/caf\xe9/.hg/store/data/a.i: $EACCES$ (esc) (missing-correct-output !)
+  [50]
+  $ chmod +w .hg/store/data/a.i
+  $ cd ..
+#endif
