@@ -13,7 +13,6 @@ use crate::dirstate::DirstateError;
 use crate::dirstate::status::StatusError;
 use crate::encoding::EncodingError;
 use crate::encoding::EncodingErrorKind;
-use crate::error_display;
 use crate::exit_codes;
 use crate::file_index::Error as FileIndexError;
 use crate::file_patterns::PatternError;
@@ -302,27 +301,6 @@ impl HgIoError {
             HgIoError::IO { kind, .. } => Some(*kind),
             _ => None,
         }
-    }
-}
-
-// Temporary, until all users call the functions from `error_display`
-impl fmt::Display for HgError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let bytes = if f.alternate() {
-            error_display::hg_error_to_bytes_without_unsupported_prefix(self)
-        } else {
-            error_display::hg_error_to_bytes(self)
-        };
-        f.write_str(&String::from_utf8_lossy(&bytes))
-    }
-}
-
-// Temporary, until all users call the functions from `error_display`
-impl fmt::Display for HgIoError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&String::from_utf8_lossy(
-            &error_display::io_error_to_bytes(self),
-        ))
     }
 }
 

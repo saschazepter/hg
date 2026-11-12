@@ -14,7 +14,6 @@ mod layer;
 mod plain_info;
 mod values;
 use std::env;
-use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
@@ -98,16 +97,6 @@ pub struct ConfigValueParseErrorDetails {
 
 // boxed to avoid very large Result types
 pub type ConfigValueParseError = Box<ConfigValueParseErrorDetails>;
-
-// Temporary, until all users call the functions from `error_display`
-impl fmt::Display for ConfigValueParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(&String::from_utf8_lossy(
-            &crate::error_display::config_value_parse_error_to_bytes(self),
-        ))
-    }
-}
-
 /// Returns true if the config item is disabled by PLAIN or PLAINEXCEPT
 fn should_ignore(plain: &PlainInfo, section: &[u8], item: &[u8]) -> bool {
     // duplication with [_plain_ignores] in [ui.py],

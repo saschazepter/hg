@@ -1,5 +1,9 @@
 //! The user-facing text for the errors of this crate.
 //!
+//! None of the error types implement [`std::fmt::Display`]: turning an error
+//! into text is a decision for the user interface to make, and it has to be
+//! made explicitly by calling one of the functions of this module.
+//!
 //! The output of these functions is the one expected from `hg` itself (with
 //! regards to backwards compatibility), which makes them suitable for `rhg`
 //! and for anything that gets called from Python.
