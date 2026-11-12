@@ -100,4 +100,27 @@ mod delta_folding {
 
         bencher.with_inputs(build_deltas).bench_values(fold_deltas);
     }
+
+    /// This is a sample benchmark for delta folding, which will be replaced
+    /// by more complex benchmarking cases in the future.
+    /// Each benchmark iteration will create 10 deltas to fold, which in this
+    /// case, only contain a single Edit each, that are non-overlapping small
+    /// deletions.
+    #[divan::bench]
+    fn sample_bench(bencher: divan::Bencher) {
+        let delta_count = 10;
+
+        let generators: Vec<DeltaGenerator> = (0..delta_count)
+            .map(|idx| {
+                // N deletions of length 4 (6 -> 2)
+                DeltaGenerator::SingleEditDeltaGenerator {
+                    start: idx * 4,
+                    end: idx * 4 + 6,
+                    final_length: 2,
+                }
+            })
+            .collect();
+
+        bench_plain(bencher, generators);
+    }
 }
