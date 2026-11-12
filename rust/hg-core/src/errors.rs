@@ -286,839 +286,780 @@ fn unsupported_prefix(f: &fmt::Formatter) -> &'static str {
 
 // TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
 fn write_hg_error(f: &mut fmt::Formatter, error: &HgError) -> fmt::Result {
-    // Temporary block, keeping the indentation of the former `Display`
-    // implementation to make the diff readable. The next changeset removes it.
-    {
-        match error {
-            HgError::IO(io_err) => write_io_error(f, io_err),
-            HgError::UnsupportedFeature(kind, backtrace) => {
-                let prefix = unsupported_prefix(f);
-                write!(f, "{}{}", backtrace, prefix)?;
-                match kind {
-                    UnsupportedFeatureKind::BundleRepo => {
-                        write!(f, "bundle repository")
-                    }
-                    UnsupportedFeatureKind::WdirCat => {
-                        write!(f, "cat wdir not implemented")
-                    }
-                    UnsupportedFeatureKind::WdirFiles => {
-                        write!(f, "list wdir files not implemented")
-                    }
-                    UnsupportedFeatureKind::Revset(revset) => {
-                        write!(f, "cannot parse revset '{revset}'")
-                    }
+    match error {
+        HgError::IO(io_err) => write_io_error(f, io_err),
+        HgError::UnsupportedFeature(kind, backtrace) => {
+            let prefix = unsupported_prefix(f);
+            write!(f, "{}{}", backtrace, prefix)?;
+            match kind {
+                UnsupportedFeatureKind::BundleRepo => {
+                    write!(f, "bundle repository")
+                }
+                UnsupportedFeatureKind::WdirCat => {
+                    write!(f, "cat wdir not implemented")
+                }
+                UnsupportedFeatureKind::WdirFiles => {
+                    write!(f, "list wdir files not implemented")
+                }
+                UnsupportedFeatureKind::Revset(revset) => {
+                    write!(f, "cannot parse revset '{revset}'")
                 }
             }
-            HgError::AllocationFailed { function, backtrace } => {
-                write!(f, "{backtrace}{function} failed to allocate")
-            }
-            HgError::ConfigValueParseError(error) => {
-                write_config_value_parse_error(f, error)
-            }
-            HgError::Config(config_error) => match &**config_error {
-                ConfigError::Parse(ConfigParseError { origin, line, kind }) => {
-                    // TODO: make `ConfigOrigin` not bytes-only
-                    let mut origin_bytes = vec![];
-                    origin
-                        .display_bytes(&mut origin_bytes)
-                        .map_err(|_| fmt::Error)?;
-                    write!(
-                        f,
-                        "config error at {}",
-                        String::from_utf8_lossy(&origin_bytes)
-                    )?;
-                    if let Some(line) = line {
-                        write!(f, ":{line}")?;
-                    }
-                    f.write_str(": ")?;
-                    match kind {
-                        ConfigParseErrorKind::CannotInclude {
-                            filename,
-                            error,
-                        } => write!(
+        }
+        HgError::AllocationFailed { function, backtrace } => {
+            write!(f, "{backtrace}{function} failed to allocate")
+        }
+        HgError::ConfigValueParseError(error) => {
+            write_config_value_parse_error(f, error)
+        }
+        HgError::Config(config_error) => match &**config_error {
+            ConfigError::Parse(ConfigParseError { origin, line, kind }) => {
+                // TODO: make `ConfigOrigin` not bytes-only
+                let mut origin_bytes = vec![];
+                origin
+                    .display_bytes(&mut origin_bytes)
+                    .map_err(|_| fmt::Error)?;
+                write!(
+                    f,
+                    "config error at {}",
+                    String::from_utf8_lossy(&origin_bytes)
+                )?;
+                if let Some(line) = line {
+                    write!(f, ":{line}")?;
+                }
+                f.write_str(": ")?;
+                match kind {
+                    ConfigParseErrorKind::CannotInclude { filename, error } => {
+                        write!(
                             f,
                             "cannot include {} ({})",
                             String::from_utf8_lossy(filename),
                             error
-                        ),
-                        ConfigParseErrorKind::UnexpectedLeadingWhitespace(
-                            line,
-                        ) => write!(
+                        )
+                    }
+                    ConfigParseErrorKind::UnexpectedLeadingWhitespace(line) => {
+                        write!(
                             f,
                             "unexpected leading whitespace: {}",
                             String::from_utf8_lossy(line)
-                        ),
-                        ConfigParseErrorKind::InvalidLine(line) => {
-                            f.write_str(&String::from_utf8_lossy(line))
-                        }
+                        )
+                    }
+                    ConfigParseErrorKind::InvalidLine(line) => {
+                        f.write_str(&String::from_utf8_lossy(line))
                     }
                 }
-                ConfigError::MalformedCliOption { arg, backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}malformed --config option: '{}' \
-                        (use --config section.name=value)",
-                        String::from_utf8_lossy(arg),
-                    )
-                }
-                ConfigError::NoUsername { backtrace } => {
-                    write!(f, "{backtrace}no username supplied")
-                }
-                ConfigError::WrongQueryType {
-                    section,
-                    item,
-                    backtrace,
-                    ..
-                } => {
-                    write!(
-                        f,
-                        "{backtrace}programming error: wrong query on config \
-                        item '{}.{}'",
-                        String::from_utf8_lossy(section),
-                        String::from_utf8_lossy(item)
-                    )
-                }
-                ConfigError::InvalidValue { item, expected, backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}{item} not valid, expected {expected}"
-                    )
-                }
-                ConfigError::Items(items_error) => {
-                    format_config_items_error(f, items_error)
-                }
-                ConfigError::DefaultItems(items_error) => {
-                    format_config_items_error(f, items_error)
-                }
-            },
-            HgError::Path(error) => {
-                f.write_str(&hg_path_error_to_string(error, None)?)
             }
-            HgError::InterruptReceived => write!(f, "interrupt received"),
-            HgError::RepoNotFound { at, backtrace } => {
+            ConfigError::MalformedCliOption { arg, backtrace } => {
                 write!(
                     f,
-                    "{backtrace}no repository found in '{}' (.hg not found)!",
-                    at.display()
+                    "{backtrace}malformed --config option: '{}' \
+                    (use --config section.name=value)",
+                    String::from_utf8_lossy(arg),
                 )
             }
-            HgError::SharedPathNotFound { shared_path, backtrace } => {
+            ConfigError::NoUsername { backtrace } => {
+                write!(f, "{backtrace}no username supplied")
+            }
+            ConfigError::WrongQueryType {
+                section, item, backtrace, ..
+            } => {
                 write!(
                     f,
-                    "{backtrace}.hg/sharedpath points to nonexistent \
-                    directory {}",
-                    shared_path.display()
+                    "{backtrace}programming error: wrong query on config \
+                    item '{}.{}'",
+                    String::from_utf8_lossy(section),
+                    String::from_utf8_lossy(item)
                 )
             }
-            HgError::Revlog(revlog_error) => match revlog_error {
-                RevlogError::InvalidRevision { backtrace, string } => {
-                    write!(
-                        f,
-                        "{backtrace}invalid revision identifier: {string}"
-                    )
-                }
-                RevlogError::WDirUnsupported { backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}working directory revision cannot be specified",
-                    )
-                }
-                RevlogError::AmbiguousPrefix { backtrace, prefix } => {
-                    write!(
-                        f,
-                        "{backtrace}ambiguous revision identifier: {prefix}"
-                    )
-                }
-                RevlogError::IO(hg_io_error) => write_io_error(f, hg_io_error),
-                RevlogError::CorruptedRevisionData { rev, backtrace } => {
-                    write!(f, "{}invalid data for revision: {}", backtrace, rev)
-                }
-                RevlogError::CorruptedDelta { backtrace } => {
-                    write!(f, "{}patch cannot be decoded", backtrace)
-                }
-                RevlogError::DeltaInsertsTooMuch {
-                    backtrace,
-                    len,
-                    available,
-                } => {
-                    write!(
-                        f,
-                        "{}patch inserts more data than available: {} < {}",
-                        backtrace, len, available
-                    )
-                }
-                RevlogError::InvalidLinkRev { rev, backtrace } => {
-                    write!(f, "{}linkrev for rev {} is invalid", backtrace, rev)
-                }
-                RevlogError::Graph(graph_error) => {
-                    write_graph_error(f, graph_error)
-                }
-                RevlogError::UnknownFlags { flags, backtrace } => {
-                    write!(
-                        f,
-                        "{}unknown revlog index flags: {}",
-                        backtrace, flags
-                    )
-                }
-                RevlogError::InvalidCompressionMode { backtrace, mode } => {
-                    write!(
-                        f,
-                        "{}invalid data compression mode: {}",
-                        backtrace, mode
-                    )
-                }
-                RevlogError::InvalidSidedataCompressionMode {
-                    backtrace,
-                    mode,
-                } => write!(
+            ConfigError::InvalidValue { item, expected, backtrace } => {
+                write!(f, "{backtrace}{item} not valid, expected {expected}")
+            }
+            ConfigError::Items(items_error) => {
+                format_config_items_error(f, items_error)
+            }
+            ConfigError::DefaultItems(items_error) => {
+                format_config_items_error(f, items_error)
+            }
+        },
+        HgError::Path(error) => {
+            f.write_str(&hg_path_error_to_string(error, None)?)
+        }
+        HgError::InterruptReceived => write!(f, "interrupt received"),
+        HgError::RepoNotFound { at, backtrace } => {
+            write!(
+                f,
+                "{backtrace}no repository found in '{}' (.hg not found)!",
+                at.display()
+            )
+        }
+        HgError::SharedPathNotFound { shared_path, backtrace } => {
+            write!(
+                f,
+                "{backtrace}.hg/sharedpath points to nonexistent \
+                directory {}",
+                shared_path.display()
+            )
+        }
+        HgError::Revlog(revlog_error) => match revlog_error {
+            RevlogError::InvalidRevision { backtrace, string } => {
+                write!(f, "{backtrace}invalid revision identifier: {string}")
+            }
+            RevlogError::WDirUnsupported { backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}working directory revision cannot be specified",
+                )
+            }
+            RevlogError::AmbiguousPrefix { backtrace, prefix } => {
+                write!(f, "{backtrace}ambiguous revision identifier: {prefix}")
+            }
+            RevlogError::IO(hg_io_error) => write_io_error(f, hg_io_error),
+            RevlogError::CorruptedRevisionData { rev, backtrace } => {
+                write!(f, "{}invalid data for revision: {}", backtrace, rev)
+            }
+            RevlogError::CorruptedDelta { backtrace } => {
+                write!(f, "{}patch cannot be decoded", backtrace)
+            }
+            RevlogError::DeltaInsertsTooMuch { backtrace, len, available } => {
+                write!(
+                    f,
+                    "{}patch inserts more data than available: {} < {}",
+                    backtrace, len, available
+                )
+            }
+            RevlogError::InvalidLinkRev { rev, backtrace } => {
+                write!(f, "{}linkrev for rev {} is invalid", backtrace, rev)
+            }
+            RevlogError::Graph(graph_error) => {
+                write_graph_error(f, graph_error)
+            }
+            RevlogError::UnknownFlags { flags, backtrace } => {
+                write!(f, "{}unknown revlog index flags: {}", backtrace, flags)
+            }
+            RevlogError::InvalidCompressionMode { backtrace, mode } => {
+                write!(
+                    f,
+                    "{}invalid data compression mode: {}",
+                    backtrace, mode
+                )
+            }
+            RevlogError::InvalidSidedataCompressionMode { backtrace, mode } => {
+                write!(
                     f,
                     "{}invalid sidedata compression mode: {}",
                     backtrace, mode
-                ),
-                RevlogError::InvalidPhase { backtrace, value } => {
-                    write!(f, "{}invalid phase value: {}", backtrace, value)
-                }
-                RevlogError::HashCheckFailed { backtrace, rev } => {
-                    write!(
-                        f,
-                        "{}hash check failed for revision {}",
-                        backtrace, rev
-                    )
-                }
-                RevlogError::Compression { backtrace, error } => {
-                    write!(f, "{}compression error: {}", backtrace, error)
-                }
-                RevlogError::Decompression { backtrace, error } => {
-                    write!(f, "{}decompression error: {}", backtrace, error)
-                }
-                RevlogError::UncompressedLengthMismatch {
-                    backtrace,
-                    expected,
-                    got,
-                } => write!(
+                )
+            }
+            RevlogError::InvalidPhase { backtrace, value } => {
+                write!(f, "{}invalid phase value: {}", backtrace, value)
+            }
+            RevlogError::HashCheckFailed { backtrace, rev } => {
+                write!(f, "{}hash check failed for revision {}", backtrace, rev)
+            }
+            RevlogError::Compression { backtrace, error } => {
+                write!(f, "{}compression error: {}", backtrace, error)
+            }
+            RevlogError::Decompression { backtrace, error } => {
+                write!(f, "{}decompression error: {}", backtrace, error)
+            }
+            RevlogError::UncompressedLengthMismatch {
+                backtrace,
+                expected,
+                got,
+            } => write!(
+                f,
+                "{}uncompressed length does not match: expected {}, got {}",
+                backtrace, expected, got
+            ),
+            RevlogError::PythonCache { backtrace, message } => {
+                write!(f, "{}{}", backtrace, message)
+            }
+            RevlogError::PythonIncompleteBuffer { backtrace, message } => {
+                write!(
                     f,
-                    "{}uncompressed length does not match: expected {}, got {}",
+                    "{}failed to fill Python buffer: {}",
+                    backtrace, message
+                )
+            }
+            RevlogError::EllipsisNode { backtrace } => {
+                let prefix = unsupported_prefix(f);
+                write!(f, "{}{}encountered an ellipsis node", backtrace, prefix)
+            }
+            RevlogError::InlineDelayedWrite { backtrace } => {
+                write!(
+                    f,
+                    "{}revlog with delayed write should not be inline",
+                    backtrace
+                )
+            }
+            RevlogError::UnsupportedRevlogVersion { version, backtrace } => {
+                write!(f, "{backtrace}unsupported revlog version '{version}'",)
+            }
+            RevlogError::InvalidInlineRevlogLength {
+                backtrace,
+                expected,
+                got,
+            } => {
+                write!(
+                    f,
+                    "{}unexpected inline revlog length: expected {}, got {}",
                     backtrace, expected, got
-                ),
-                RevlogError::PythonCache { backtrace, message } => {
-                    write!(f, "{}{}", backtrace, message)
-                }
-                RevlogError::PythonIncompleteBuffer { backtrace, message } => {
-                    write!(
-                        f,
-                        "{}failed to fill Python buffer: {}",
-                        backtrace, message
-                    )
-                }
-                RevlogError::EllipsisNode { backtrace } => {
-                    let prefix = unsupported_prefix(f);
-                    write!(
-                        f,
-                        "{}{}encountered an ellipsis node",
-                        backtrace, prefix
-                    )
-                }
-                RevlogError::InlineDelayedWrite { backtrace } => {
-                    write!(
-                        f,
-                        "{}revlog with delayed write should not be inline",
-                        backtrace
-                    )
-                }
-                RevlogError::UnsupportedRevlogVersion {
-                    version,
+                )
+            }
+            RevlogError::TooLittleDataForHeader { backtrace } => {
+                write!(f, "{backtrace}too little data for revlog header")
+            }
+            RevlogError::CensoredRevision { node, backtrace } => {
+                write!(
+                    f,
+                    "{}censored node: {:x}\n\
+                    (set censor.policy to ignore errors)",
                     backtrace,
-                } => {
-                    write!(
-                        f,
-                        "{backtrace}unsupported revlog version '{version}'",
-                    )
+                    node.short()
+                )
+            }
+            RevlogError::Docket(error) => format_docket_error(f, error),
+            RevlogError::CorruptedManifest { backtrace } => {
+                write!(f, "{backtrace}corrupted manifest")
+            }
+            RevlogError::BulkReadDuringWrite { backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}cannot bulk read a revlog that is being \
+                     written to"
+                )
+            }
+            RevlogError::CorruptedChangelog { kind, backtrace } => {
+                write!(f, "{}", backtrace)?;
+                match kind {
+                    ChangelogErrorKind::TimestampNotUtf8(error) => {
+                        write!(f, "timestamp is not valid UTF-8: {error}")
+                    }
+                    ChangelogErrorKind::InvalidTimestamp(error) => {
+                        write!(f, "failed to parse timestamp: {error}")
+                    }
+                    ChangelogErrorKind::TimestampOutOfRange(timestamp) => {
+                        write!(
+                            f,
+                            "float timestamp out of valid range: \
+                            {timestamp}"
+                        )
+                    }
+                    ChangelogErrorKind::MissingTimezone => {
+                        write!(f, "missing timezone")
+                    }
+                    ChangelogErrorKind::TimezoneNotUtf8(error) => {
+                        write!(f, "timezone is not valid UTF-8: {error}")
+                    }
+                    ChangelogErrorKind::InvalidTimezone(error) => {
+                        write!(f, "timezone is not an integer: {error}")
+                    }
+                    ChangelogErrorKind::TimezoneOutOfBounds(_) => {
+                        write!(f, "timezone offset out of bounds")
+                    }
+                    ChangelogErrorKind::EmptyExtraKey => {
+                        write!(f, "empty key in changeset extras")
+                    }
+                    ChangelogErrorKind::InvalidExtraKey(key) => {
+                        write!(
+                            f,
+                            "invalid key in changeset extras: {}",
+                            String::from_utf8_lossy(key)
+                        )
+                    }
+                    ChangelogErrorKind::MissingExtraValue(key) => {
+                        write!(f, "missing value for changeset extra: {key}")
+                    }
                 }
-                RevlogError::InvalidInlineRevlogLength {
-                    backtrace,
-                    expected,
+            }
+            RevlogError::BadDeltaBase { base, rev, backtrace } => {
+                write!(f, "{backtrace}bad base {base} <- {rev}")
+            }
+            RevlogError::UnboundDeltaChain { base, rev, backtrace } => {
+                write!(f, "{backtrace}unbound delta chain {base} <- {rev}")
+            }
+            RevlogError::WriteOutsideContext { backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}adding revision outside of the \
+                    `with_write` context"
+                )
+            }
+            RevlogError::NoDelayNorDivert { backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}neither delay nor divert found on this \
+                    revlog"
+                )
+            }
+            RevlogError::UnknownRevlogType { value, backtrace } => {
+                write!(f, "{backtrace}Unknown revlog type {value}")
+            }
+            RevlogError::UnexpectedRevlogType { kind, backtrace } => {
+                write!(f, "{backtrace}invalid revlog type {kind}")
+            }
+            RevlogError::UnsupportedCompressionEngine { name, backtrace } => {
+                let prefix = unsupported_prefix(f);
+                write!(
+                    f,
+                    "{backtrace}{prefix}Unsupported compression engine \
+                    '{name}'"
+                )
+            }
+            RevlogError::InvalidCompressionLevel {
+                config_item,
+                level,
+                max,
+                backtrace,
+            } => {
+                write!(
+                    f,
+                    "{backtrace}invalid value for `storage.{config_item}` \
+                    config: {level}, expected between 0 and {max} included",
+                )
+            }
+        },
+        HgError::Dirstate(dirstate_error) => match dirstate_error {
+            DirstateError::V2ParseError(parse) => match parse {
+                DirstateV2ParseError::CorruptedTreeMetadata {
+                    expected_len,
                     got,
-                } => {
-                    write!(
-                        f,
-                        "{}unexpected inline revlog length: expected {}, got {}",
-                        backtrace, expected, got
-                    )
-                }
-                RevlogError::TooLittleDataForHeader { backtrace } => {
-                    write!(f, "{backtrace}too little data for revlog header")
-                }
-                RevlogError::CensoredRevision { node, backtrace } => {
-                    write!(
-                        f,
-                        "{}censored node: {:x}\n\
-                        (set censor.policy to ignore errors)",
-                        backtrace,
-                        node.short()
-                    )
-                }
-                RevlogError::Docket(error) => format_docket_error(f, error),
-                RevlogError::CorruptedManifest { backtrace } => {
-                    write!(f, "{backtrace}corrupted manifest")
-                }
-                RevlogError::BulkReadDuringWrite { backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}cannot bulk read a revlog that is being \
-                         written to"
-                    )
-                }
-                RevlogError::CorruptedChangelog { kind, backtrace } => {
-                    write!(f, "{}", backtrace)?;
-                    match kind {
-                        ChangelogErrorKind::TimestampNotUtf8(error) => {
-                            write!(f, "timestamp is not valid UTF-8: {error}")
-                        }
-                        ChangelogErrorKind::InvalidTimestamp(error) => {
-                            write!(f, "failed to parse timestamp: {error}")
-                        }
-                        ChangelogErrorKind::TimestampOutOfRange(timestamp) => {
-                            write!(
-                                f,
-                                "float timestamp out of valid range: \
-                                {timestamp}"
-                            )
-                        }
-                        ChangelogErrorKind::MissingTimezone => {
-                            write!(f, "missing timezone")
-                        }
-                        ChangelogErrorKind::TimezoneNotUtf8(error) => {
-                            write!(f, "timezone is not valid UTF-8: {error}")
-                        }
-                        ChangelogErrorKind::InvalidTimezone(error) => {
-                            write!(f, "timezone is not an integer: {error}")
-                        }
-                        ChangelogErrorKind::TimezoneOutOfBounds(_) => {
-                            write!(f, "timezone offset out of bounds")
-                        }
-                        ChangelogErrorKind::EmptyExtraKey => {
-                            write!(f, "empty key in changeset extras")
-                        }
-                        ChangelogErrorKind::InvalidExtraKey(key) => {
-                            write!(
-                                f,
-                                "invalid key in changeset extras: {}",
-                                String::from_utf8_lossy(key)
-                            )
-                        }
-                        ChangelogErrorKind::MissingExtraValue(key) => {
-                            write!(
-                                f,
-                                "missing value for changeset extra: {key}"
-                            )
-                        }
-                    }
-                }
-                RevlogError::BadDeltaBase { base, rev, backtrace } => {
-                    write!(f, "{backtrace}bad base {base} <- {rev}")
-                }
-                RevlogError::UnboundDeltaChain { base, rev, backtrace } => {
-                    write!(f, "{backtrace}unbound delta chain {base} <- {rev}")
-                }
-                RevlogError::WriteOutsideContext { backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}adding revision outside of the \
-                        `with_write` context"
-                    )
-                }
-                RevlogError::NoDelayNorDivert { backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}neither delay nor divert found on this \
-                        revlog"
-                    )
-                }
-                RevlogError::UnknownRevlogType { value, backtrace } => {
-                    write!(f, "{backtrace}Unknown revlog type {value}")
-                }
-                RevlogError::UnexpectedRevlogType { kind, backtrace } => {
-                    write!(f, "{backtrace}invalid revlog type {kind}")
-                }
-                RevlogError::UnsupportedCompressionEngine {
-                    name,
-                    backtrace,
-                } => {
-                    let prefix = unsupported_prefix(f);
-                    write!(
-                        f,
-                        "{backtrace}{prefix}Unsupported compression engine \
-                        '{name}'"
-                    )
-                }
-                RevlogError::InvalidCompressionLevel {
-                    config_item,
-                    level,
-                    max,
                     backtrace,
                 } => {
                     write!(
                         f,
-                        "{backtrace}invalid value for `storage.{config_item}` \
-                        config: {level}, expected between 0 and {max} included",
+                        "{backtrace}corrupted dirstate tree: \
+                        Expected at least {expected_len} bytes, got {got}"
                     )
                 }
-            },
-            HgError::Dirstate(dirstate_error) => match dirstate_error {
-                DirstateError::V2ParseError(parse) => match parse {
-                    DirstateV2ParseError::CorruptedTreeMetadata {
-                        expected_len,
-                        got,
-                        backtrace,
-                    } => {
-                        write!(
+                DirstateV2ParseError::NotEnoughBytes {
+                    start,
+                    len,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}not enough bytes for dirstate: \
+                        expected {len} bytes at offset {start}"
+                    )
+                }
+                DirstateV2ParseError::InvalidSlice {
+                    expected_len,
+                    got,
+                    backtrace,
+                } => {
+                    write!(f, "{backtrace}invalid dirstate slice: ")?;
+                    match expected_len {
+                        Some(expected_len) => write!(
                             f,
-                            "{backtrace}corrupted dirstate tree: \
-                            Expected at least {expected_len} bytes, got {got}"
-                        )
+                            "Expected at least {expected_len} bytes, \
+                            got {got}"
+                        ),
+                        None => write!(f, "Expected byte size overflowed"),
                     }
-                    DirstateV2ParseError::NotEnoughBytes {
-                        start,
-                        len,
-                        backtrace,
-                    } => {
-                        write!(
-                            f,
-                            "{backtrace}not enough bytes for dirstate: \
-                            expected {len} bytes at offset {start}"
-                        )
-                    }
-                    DirstateV2ParseError::InvalidSlice {
-                        expected_len,
-                        got,
-                        backtrace,
-                    } => {
-                        write!(f, "{backtrace}invalid dirstate slice: ")?;
-                        match expected_len {
-                            Some(expected_len) => write!(
+                }
+                DirstateV2ParseError::TimestampNotInRange {
+                    truncated_seconds,
+                    nanoseconds,
+                    backtrace,
+                } => {
+                    write!(
+                        f,
+                        "{backtrace}dirstate timestamp not in range \
+                        ({truncated_seconds} truncated seconds, \
+                        {nanoseconds} nanoseconds)"
+                    )
+                }
+                DirstateV2ParseError::SegmentedBytes(error) => {
+                    let backtrace = &error.backtrace;
+                    match error.kind {
+                        SegmentedBytesErrorKind::StartAfterEnd {
+                            start,
+                            end,
+                        } => {
+                            write!(
                                 f,
-                                "Expected at least {expected_len} bytes, \
-                                got {got}"
-                            ),
-                            None => write!(f, "Expected byte size overflowed"),
+                                "{backtrace}range with start > end: \
+                                {start} > {end}"
+                            )
                         }
-                    }
-                    DirstateV2ParseError::TimestampNotInRange {
-                        truncated_seconds,
-                        nanoseconds,
-                        backtrace,
-                    } => {
-                        write!(
-                            f,
-                            "{backtrace}dirstate timestamp not in range \
-                            ({truncated_seconds} truncated seconds, \
-                            {nanoseconds} nanoseconds)"
-                        )
-                    }
-                    DirstateV2ParseError::SegmentedBytes(error) => {
-                        let backtrace = &error.backtrace;
-                        match error.kind {
-                            SegmentedBytesErrorKind::StartAfterEnd {
-                                start,
-                                end,
-                            } => {
-                                write!(
-                                    f,
-                                    "{backtrace}range with start > end: \
-                                    {start} > {end}"
-                                )
-                            }
-                            SegmentedBytesErrorKind::OutOfBounds {
-                                end,
-                                len,
-                            } => write!(
+                        SegmentedBytesErrorKind::OutOfBounds { end, len } => {
+                            write!(
                                 f,
                                 "{backtrace}range out of bounds {end} > {len}"
-                            ),
-                            SegmentedBytesErrorKind::SpansExtents {
-                                start,
-                                end,
-                            } => {
-                                write!(
-                                    f,
-                                    "{backtrace}slice spans extents: \
-                                    {start} to {end}"
-                                )
-                            }
+                            )
+                        }
+                        SegmentedBytesErrorKind::SpansExtents {
+                            start,
+                            end,
+                        } => {
+                            write!(
+                                f,
+                                "{backtrace}slice spans extents: \
+                                {start} to {end}"
+                            )
                         }
                     }
-                },
-                DirstateError::PathNotFound(path, backtrace) => {
-                    write!(f, "{}path not found: {}", backtrace, path)
-                }
-                DirstateError::InvalidPath(error) => {
-                    f.write_str(&hg_path_error_to_string(error, None)?)
-                }
-                DirstateError::TooLittleData(size, backtrace) => {
-                    write!(
-                        f,
-                        "{}too little data for dirstate: got {} bytes",
-                        backtrace, size
-                    )
-                }
-                DirstateError::IncompleteEntry {
-                    entry_idx,
-                    at_byte,
-                    backtrace,
-                } => {
-                    write!(
-                        f,
-                        "{backtrace}dirstate corrupted: ran out of bytes at \
-                        entry header {entry_idx}, offset {at_byte}",
-                    )
-                }
-                DirstateError::IncompletePath {
-                    entry_idx,
-                    at_byte,
-                    expected_len,
-                    backtrace,
-                } => {
-                    write!(
-                        f,
-                        "{backtrace}dirstate corrupted: ran out of bytes at \
-                        entry header {entry_idx}, offset {at_byte} \
-                        (expected {expected_len} bytes)",
-                    )
-                }
-                DirstateError::BadEntryState(state, backtrace) => {
-                    write!(
-                        f,
-                        "{backtrace}incorrect dirstate entry state '{state}'"
-                    )
-                }
-                DirstateError::RootNotAtRoot(path, backtrace) => {
-                    write!(
-                        f,
-                        "{backtrace}dirstate root node '{path}' \
-                        is not at the root"
-                    )
-                }
-                DirstateError::BadChildPrefix {
-                    path,
-                    child_path,
-                    backtrace,
-                } => {
-                    write!(
-                        f,
-                        "{backtrace}path of dirstate child node '{child_path}' \
-                        does not start with its parent's path '{path}'"
-                    )
-                }
-                DirstateError::ParentNodeNotFound { node, backtrace } => {
-                    write!(
-                        f,
-                        "{backtrace}working directory has unknown parent \
-                        '{:x}'!",
-                        node.short()
-                    )
                 }
             },
-            HgError::Pattern(pattern_error) => {
-                format_pattern_error(f, pattern_error)
+            DirstateError::PathNotFound(path, backtrace) => {
+                write!(f, "{}path not found: {}", backtrace, path)
             }
-            HgError::Shape(shape_err) => {
-                let backtrace = &shape_err.backtrace;
-                let msg = match &*shape_err.kind {
-                    ShapeErrorKind::EmptyShardName => {
-                        format!("{backtrace}shard names must not be empty")
-                    }
-                    ShapeErrorKind::DotOrHyphenOnlyShardName(name) => format!(
-                        "{backtrace}invalid shard name '{name}': \
-                        missing lowercase alphanumeric character"
-                    ),
-                    ShapeErrorKind::InvalidShardName(name) => format!(
-                        "{backtrace}invalid shard name '{name}': \
-                        only lowercase alphanumeric, hyphen or dot are accepted"
-                    ),
-                    ShapeErrorKind::ReservedName(name) => {
-                        format!("{backtrace}shard name '{name}' is reserved")
-                    }
-                    ShapeErrorKind::CycleInShards(shard_names) => {
-                        let cycle = itertools::Itertools::join(
-                            &mut shard_names.iter(),
-                            "->",
-                        );
-                        format!("{backtrace}shards form a cycle: {cycle}")
-                    }
-                    ShapeErrorKind::PathInMultipleShards(path) => {
-                        format!(
-                            "{backtrace}path is found in multiple shards: {}",
-                            String::from_utf8_lossy(path.as_bytes())
-                        )
-                    }
-                    ShapeErrorKind::DuplicateShard(name) => {
-                        format!(
-                            "{backtrace}shard '{name}' defined multiple times"
-                        )
-                    }
-                    ShapeErrorKind::ShardMissingPaths(name) => {
-                        format!("{backtrace}shard '{name}' needs `paths`")
-                    }
-                    ShapeErrorKind::ProfileMissingIncludes(name) => {
-                        format!("{backtrace}profile '{name}' needs `includes`")
-                    }
-                    ShapeErrorKind::NoShards => {
-                        format!(
-                            "{backtrace}`server-sharding` must include at \
-                            least one shard"
-                        )
-                    }
-                    ShapeErrorKind::UnknownInclude { profile, include } => {
-                        format!(
-                            "{backtrace}profile '{profile}' includes unknown \
-                            name '{include}'"
-                        )
-                    }
-                    ShapeErrorKind::InvalidReadWriteAccess { shard, value } => {
-                        format!(
-                            "{backtrace}invalid read-write-access value \
-                            '{value}' for shard '{shard}': only lowercase \
-                            alphanumeric, hyphen or dot are accepted, with at \
-                            least one alphanumeric character"
-                        )
-                    }
-                    ShapeErrorKind::InvalidPath(err) => {
-                        let prefix = Some(
-                            "`server-sharding` contains an invalid path: ",
-                        );
-                        hg_path_error_to_string(err, prefix)?
-                    }
-                    ShapeErrorKind::UnknownVersion(version) => {
-                        format!(
-                            "{backtrace}unknown `server-sharding` \
-                            version '{version}'"
-                        )
-                    }
-                    ShapeErrorKind::ParseError(err) => {
-                        format!(
-                            "{backtrace}error parsing \
-                            `server-sharding`:\n{err}"
-                        )
-                    }
-                    ShapeErrorKind::PatternError(err) => {
-                        return format_pattern_error(f, err);
-                    }
-                    ShapeErrorKind::UnknownProfile(name) => {
-                        format!("{backtrace}unknown profile '{name}'")
-                    }
-                    ShapeErrorKind::NoProfileNames => {
-                        format!(
-                            "{backtrace}at least one profile name is needed"
-                        )
-                    }
-                    ShapeErrorKind::Deserialization(deserialization_error) => {
-                        let mut msg =
-                            format!("{backtrace}error deserializing shape: ");
-                        match deserialization_error {
-                            DeserializationError::InvalidLength {
-                                expected,
-                                got,
-                            } => {
-                                write!(
-                                    msg,
-                                    "invalid length \
-                                     (expected {}, got {})",
-                                    expected, got
-                                )?;
-                            }
-                            DeserializationError::InvalidPath { path } => {
-                                let path = String::from_utf8_lossy(path);
-                                write!(msg, "invalid path '{}'", path)?;
-                            }
+            DirstateError::InvalidPath(error) => {
+                f.write_str(&hg_path_error_to_string(error, None)?)
+            }
+            DirstateError::TooLittleData(size, backtrace) => {
+                write!(
+                    f,
+                    "{}too little data for dirstate: got {} bytes",
+                    backtrace, size
+                )
+            }
+            DirstateError::IncompleteEntry {
+                entry_idx,
+                at_byte,
+                backtrace,
+            } => {
+                write!(
+                    f,
+                    "{backtrace}dirstate corrupted: ran out of bytes at \
+                    entry header {entry_idx}, offset {at_byte}",
+                )
+            }
+            DirstateError::IncompletePath {
+                entry_idx,
+                at_byte,
+                expected_len,
+                backtrace,
+            } => {
+                write!(
+                    f,
+                    "{backtrace}dirstate corrupted: ran out of bytes at \
+                    entry header {entry_idx}, offset {at_byte} \
+                    (expected {expected_len} bytes)",
+                )
+            }
+            DirstateError::BadEntryState(state, backtrace) => {
+                write!(f, "{backtrace}incorrect dirstate entry state '{state}'")
+            }
+            DirstateError::RootNotAtRoot(path, backtrace) => {
+                write!(
+                    f,
+                    "{backtrace}dirstate root node '{path}' \
+                    is not at the root"
+                )
+            }
+            DirstateError::BadChildPrefix { path, child_path, backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}path of dirstate child node '{child_path}' \
+                    does not start with its parent's path '{path}'"
+                )
+            }
+            DirstateError::ParentNodeNotFound { node, backtrace } => {
+                write!(
+                    f,
+                    "{backtrace}working directory has unknown parent \
+                    '{:x}'!",
+                    node.short()
+                )
+            }
+        },
+        HgError::Pattern(pattern_error) => {
+            format_pattern_error(f, pattern_error)
+        }
+        HgError::Shape(shape_err) => {
+            let backtrace = &shape_err.backtrace;
+            let msg = match &*shape_err.kind {
+                ShapeErrorKind::EmptyShardName => {
+                    format!("{backtrace}shard names must not be empty")
+                }
+                ShapeErrorKind::DotOrHyphenOnlyShardName(name) => format!(
+                    "{backtrace}invalid shard name '{name}': \
+                    missing lowercase alphanumeric character"
+                ),
+                ShapeErrorKind::InvalidShardName(name) => format!(
+                    "{backtrace}invalid shard name '{name}': \
+                    only lowercase alphanumeric, hyphen or dot are accepted"
+                ),
+                ShapeErrorKind::ReservedName(name) => {
+                    format!("{backtrace}shard name '{name}' is reserved")
+                }
+                ShapeErrorKind::CycleInShards(shard_names) => {
+                    let cycle = itertools::Itertools::join(
+                        &mut shard_names.iter(),
+                        "->",
+                    );
+                    format!("{backtrace}shards form a cycle: {cycle}")
+                }
+                ShapeErrorKind::PathInMultipleShards(path) => {
+                    format!(
+                        "{backtrace}path is found in multiple shards: {}",
+                        String::from_utf8_lossy(path.as_bytes())
+                    )
+                }
+                ShapeErrorKind::DuplicateShard(name) => {
+                    format!("{backtrace}shard '{name}' defined multiple times")
+                }
+                ShapeErrorKind::ShardMissingPaths(name) => {
+                    format!("{backtrace}shard '{name}' needs `paths`")
+                }
+                ShapeErrorKind::ProfileMissingIncludes(name) => {
+                    format!("{backtrace}profile '{name}' needs `includes`")
+                }
+                ShapeErrorKind::NoShards => {
+                    format!(
+                        "{backtrace}`server-sharding` must include at \
+                        least one shard"
+                    )
+                }
+                ShapeErrorKind::UnknownInclude { profile, include } => {
+                    format!(
+                        "{backtrace}profile '{profile}' includes unknown \
+                        name '{include}'"
+                    )
+                }
+                ShapeErrorKind::InvalidReadWriteAccess { shard, value } => {
+                    format!(
+                        "{backtrace}invalid read-write-access value \
+                        '{value}' for shard '{shard}': only lowercase \
+                        alphanumeric, hyphen or dot are accepted, with at \
+                        least one alphanumeric character"
+                    )
+                }
+                ShapeErrorKind::InvalidPath(err) => {
+                    let prefix =
+                        Some("`server-sharding` contains an invalid path: ");
+                    hg_path_error_to_string(err, prefix)?
+                }
+                ShapeErrorKind::UnknownVersion(version) => {
+                    format!(
+                        "{backtrace}unknown `server-sharding` \
+                        version '{version}'"
+                    )
+                }
+                ShapeErrorKind::ParseError(err) => {
+                    format!(
+                        "{backtrace}error parsing \
+                        `server-sharding`:\n{err}"
+                    )
+                }
+                ShapeErrorKind::PatternError(err) => {
+                    return format_pattern_error(f, err);
+                }
+                ShapeErrorKind::UnknownProfile(name) => {
+                    format!("{backtrace}unknown profile '{name}'")
+                }
+                ShapeErrorKind::NoProfileNames => {
+                    format!("{backtrace}at least one profile name is needed")
+                }
+                ShapeErrorKind::Deserialization(deserialization_error) => {
+                    let mut msg =
+                        format!("{backtrace}error deserializing shape: ");
+                    match deserialization_error {
+                        DeserializationError::InvalidLength {
+                            expected,
+                            got,
+                        } => {
+                            write!(
+                                msg,
+                                "invalid length \
+                                 (expected {}, got {})",
+                                expected, got
+                            )?;
                         }
-                        msg
+                        DeserializationError::InvalidPath { path } => {
+                            let path = String::from_utf8_lossy(path);
+                            write!(msg, "invalid path '{}'", path)?;
+                        }
                     }
-                };
-                f.write_str(&msg)
-            }
-            HgError::Update(error) => {
-                fmt::Display::fmt(&error.backtrace, f)?;
-                match &error.kind {
-                    UpdateErrorKind::UntrackedFilesDiffer => {
-                        write!(
-                            f,
-                            "untracked files in working directory differ \
-                            from files in requested revision"
-                        )
-                    }
-                    UpdateErrorKind::ThreadPool(error) => {
-                        fmt::Display::fmt(error, f)
-                    }
-                    UpdateErrorKind::UnknownDirectoryNotEmpty(path) => {
-                        write!(
-                            f,
-                            "conflicting unknown directory '{}' is not empty",
-                            path.display()
-                        )
-                    }
-                    UpdateErrorKind::SimulatedDirstateError => {
-                        write!(
-                            f,
-                            "simulated error while recording dirstate updates"
-                        )
-                    }
+                    msg
                 }
-            }
-            HgError::Sparse(sparse_error) => match sparse_error {
-                SparseConfigError::IncludesAfterExcludes { context } => {
+            };
+            f.write_str(&msg)
+        }
+        HgError::Update(error) => {
+            fmt::Display::fmt(&error.backtrace, f)?;
+            match &error.kind {
+                UpdateErrorKind::UntrackedFilesDiffer => {
                     write!(
                         f,
-                        "{context} config cannot have includes after excludes"
+                        "untracked files in working directory differ \
+                        from files in requested revision"
                     )
                 }
-                SparseConfigError::EntryOutsideSection { context, line } => {
+                UpdateErrorKind::ThreadPool(error) => {
+                    fmt::Display::fmt(error, f)
+                }
+                UpdateErrorKind::UnknownDirectoryNotEmpty(path) => {
                     write!(
                         f,
-                        "{context} config entry outside of section: {}",
-                        String::from_utf8_lossy(line)
+                        "conflicting unknown directory '{}' is not empty",
+                        path.display()
                     )
                 }
-                SparseConfigError::IncludesInNarrow => {
+                UpdateErrorKind::SimulatedDirstateError => {
                     write!(
                         f,
-                        "including other spec files using '%include' is not \
-                        supported in narrowspec"
+                        "simulated error while recording dirstate updates"
                     )
-                }
-                SparseConfigError::InvalidNarrowPrefix(pattern) => {
-                    write!(
-                        f,
-                        "invalid prefix on narrow pattern: {}",
-                        String::from_utf8_lossy(pattern)
-                    )
-                }
-                SparseConfigError::StaleNarrowspec => {
-                    write!(f, "working copy's narrowspec is stale")
-                }
-            },
-            HgError::Encoding(error) => {
-                write!(f, "{}", error.backtrace)?;
-                match &error.kind {
-                    EncodingErrorKind::UnsupportedEncoding(value) => {
-                        write!(
-                            f,
-                            "{}HGENCODING value '{}' is not supported",
-                            unsupported_prefix(f),
-                            value.to_string_lossy()
-                        )
-                    }
-                    EncodingErrorKind::UnsupportedMode(value) => {
-                        write!(
-                            f,
-                            "HGENCODINGMODE value '{}' is not supported",
-                            value.to_string_lossy()
-                        )
-                    }
-                    EncodingErrorKind::UnsupportedAmbiguousWidth(value) => {
-                        write!(
-                            f,
-                            "HGENCODINGAMBIGUOUS value '{}' is not supported",
-                            value.to_string_lossy()
-                        )
-                    }
-                    EncodingErrorKind::InvalidUtf8 { bytes, valid_up_to } => {
-                        write!(
-                            f,
-                            "invalid UTF-8 at offset {}: \"{}\"",
-                            valid_up_to,
-                            String::from_utf8_lossy(&bytes.escaped_bytes())
-                        )
-                    }
-                    EncodingErrorKind::InvalidAscii { bytes } => {
-                        write!(
-                            f,
-                            "invalid ASCII: \"{}\"",
-                            String::from_utf8_lossy(&bytes.escaped_bytes())
-                        )
-                    }
                 }
             }
-            HgError::Requirements(error) => {
-                write!(f, "{}", error.backtrace)?;
-                if error.is_unsupported() {
-                    f.write_str(unsupported_prefix(f))?;
+        }
+        HgError::Sparse(sparse_error) => match sparse_error {
+            SparseConfigError::IncludesAfterExcludes { context } => {
+                write!(
+                    f,
+                    "{context} config cannot have includes after excludes"
+                )
+            }
+            SparseConfigError::EntryOutsideSection { context, line } => {
+                write!(
+                    f,
+                    "{context} config entry outside of section: {}",
+                    String::from_utf8_lossy(line)
+                )
+            }
+            SparseConfigError::IncludesInNarrow => {
+                write!(
+                    f,
+                    "including other spec files using '%include' is not \
+                    supported in narrowspec"
+                )
+            }
+            SparseConfigError::InvalidNarrowPrefix(pattern) => {
+                write!(
+                    f,
+                    "invalid prefix on narrow pattern: {}",
+                    String::from_utf8_lossy(pattern)
+                )
+            }
+            SparseConfigError::StaleNarrowspec => {
+                write!(f, "working copy's narrowspec is stale")
+            }
+        },
+        HgError::Encoding(error) => {
+            write!(f, "{}", error.backtrace)?;
+            match &error.kind {
+                EncodingErrorKind::UnsupportedEncoding(value) => {
+                    write!(
+                        f,
+                        "{}HGENCODING value '{}' is not supported",
+                        unsupported_prefix(f),
+                        value.to_string_lossy()
+                    )
                 }
-                match &error.kind {
-                    RequirementsErrorKind::ParseError => {
-                        write!(f, "parse error in 'requires' file")
-                    }
-                    RequirementsErrorKind::Unknown(unknown) => {
-                        write!(
-                            f,
-                            "repository requires feature unknown to this \
-                            Mercurial: {}",
-                            join_display(unknown, ", ")
-                        )
-                    }
-                    RequirementsErrorKind::Missing(missing) => {
-                        write!(
-                            f,
-                            "repository is missing feature required by this \
-                            Mercurial: {}",
-                            join_display(missing, ", ")
-                        )
-                    }
-                    RequirementsErrorKind::NeedExactlyOneOf(one, other) => {
-                        write!(
-                            f,
-                            "bad requirements, need exactly one of {one} or \
-                            {other}"
-                        )
-                    }
-                    RequirementsErrorKind::MutuallyExclusive(one, other) => {
-                        write!(
-                            f,
-                            "bad requirements, {one} and {other} are \
-                            mutually exclusive"
-                        )
-                    }
-                    RequirementsErrorKind::ThinWorkingCopy => {
-                        write!(f, "rhg does not support thin working copies")
-                    }
-                    RequirementsErrorKind::ShareSafeMismatch => {
-                        write!(f, "share-safe mismatch")
-                    }
-                    RequirementsErrorKind::Changed => {
-                        write!(f, "requirements have changed")
-                    }
+                EncodingErrorKind::UnsupportedMode(value) => {
+                    write!(
+                        f,
+                        "HGENCODINGMODE value '{}' is not supported",
+                        value.to_string_lossy()
+                    )
+                }
+                EncodingErrorKind::UnsupportedAmbiguousWidth(value) => {
+                    write!(
+                        f,
+                        "HGENCODINGAMBIGUOUS value '{}' is not supported",
+                        value.to_string_lossy()
+                    )
+                }
+                EncodingErrorKind::InvalidUtf8 { bytes, valid_up_to } => {
+                    write!(
+                        f,
+                        "invalid UTF-8 at offset {}: \"{}\"",
+                        valid_up_to,
+                        String::from_utf8_lossy(&bytes.escaped_bytes())
+                    )
+                }
+                EncodingErrorKind::InvalidAscii { bytes } => {
+                    write!(
+                        f,
+                        "invalid ASCII: \"{}\"",
+                        String::from_utf8_lossy(&bytes.escaped_bytes())
+                    )
                 }
             }
-            HgError::Docket(error) => format_docket_error(f, error),
-            HgError::FileIndex(error) => {
-                write!(f, "{}corrupted fileindex: ", &error.backtrace)?;
-                match &error.kind {
-                    FileIndexErrorKind::BadMetaFilesize => {
-                        write!(
-                            f,
-                            "meta file 'used size' is not a multiple of the record size"
-                        )
-                    }
-                    FileIndexErrorKind::ListFileOutOfBounds => {
-                        write!(f, "list file access out of bounds")
-                    }
-                    FileIndexErrorKind::MetaFileOutOfBounds => {
-                        write!(f, "meta file access out of bounds")
-                    }
-                    FileIndexErrorKind::TreeFileOutOfBounds => {
-                        write!(f, "tree file access out of bounds")
-                    }
-                    FileIndexErrorKind::TreeFileEof => {
-                        write!(f, "unexpected EOF while parsing tree file")
-                    }
-                    FileIndexErrorKind::BadRootNode => {
-                        write!(f, "invalid root node in tree")
-                    }
-                    FileIndexErrorKind::BadSingletonTree => {
-                        write!(f, "invalid singleton tree")
-                    }
-                    FileIndexErrorKind::BadLeafLabel => {
-                        write!(f, "invalid label for leaf node")
-                    }
+        }
+        HgError::Requirements(error) => {
+            write!(f, "{}", error.backtrace)?;
+            if error.is_unsupported() {
+                f.write_str(unsupported_prefix(f))?;
+            }
+            match &error.kind {
+                RequirementsErrorKind::ParseError => {
+                    write!(f, "parse error in 'requires' file")
+                }
+                RequirementsErrorKind::Unknown(unknown) => {
+                    write!(
+                        f,
+                        "repository requires feature unknown to this \
+                        Mercurial: {}",
+                        join_display(unknown, ", ")
+                    )
+                }
+                RequirementsErrorKind::Missing(missing) => {
+                    write!(
+                        f,
+                        "repository is missing feature required by this \
+                        Mercurial: {}",
+                        join_display(missing, ", ")
+                    )
+                }
+                RequirementsErrorKind::NeedExactlyOneOf(one, other) => {
+                    write!(
+                        f,
+                        "bad requirements, need exactly one of {one} or \
+                        {other}"
+                    )
+                }
+                RequirementsErrorKind::MutuallyExclusive(one, other) => {
+                    write!(
+                        f,
+                        "bad requirements, {one} and {other} are \
+                        mutually exclusive"
+                    )
+                }
+                RequirementsErrorKind::ThinWorkingCopy => {
+                    write!(f, "rhg does not support thin working copies")
+                }
+                RequirementsErrorKind::ShareSafeMismatch => {
+                    write!(f, "share-safe mismatch")
+                }
+                RequirementsErrorKind::Changed => {
+                    write!(f, "requirements have changed")
+                }
+            }
+        }
+        HgError::Docket(error) => format_docket_error(f, error),
+        HgError::FileIndex(error) => {
+            write!(f, "{}corrupted fileindex: ", &error.backtrace)?;
+            match &error.kind {
+                FileIndexErrorKind::BadMetaFilesize => {
+                    write!(
+                        f,
+                        "meta file 'used size' is not a multiple of the record size"
+                    )
+                }
+                FileIndexErrorKind::ListFileOutOfBounds => {
+                    write!(f, "list file access out of bounds")
+                }
+                FileIndexErrorKind::MetaFileOutOfBounds => {
+                    write!(f, "meta file access out of bounds")
+                }
+                FileIndexErrorKind::TreeFileOutOfBounds => {
+                    write!(f, "tree file access out of bounds")
+                }
+                FileIndexErrorKind::TreeFileEof => {
+                    write!(f, "unexpected EOF while parsing tree file")
+                }
+                FileIndexErrorKind::BadRootNode => {
+                    write!(f, "invalid root node in tree")
+                }
+                FileIndexErrorKind::BadSingletonTree => {
+                    write!(f, "invalid singleton tree")
+                }
+                FileIndexErrorKind::BadLeafLabel => {
+                    write!(f, "invalid label for leaf node")
                 }
             }
         }
