@@ -13,6 +13,7 @@ fn main() {
 mod delta_folding {
     use hg::revlog::patch::Delta;
     use hg::revlog::patch::Edit;
+    use hg::revlog::patch::PlainEdit;
     use hg::revlog::patch::bench::fold_deltas;
 
     /// Describes how to generate one synthetic `Delta`.
@@ -62,5 +63,41 @@ mod delta_folding {
                 } => final_length,
             }
         }
+    }
+
+    /// Allocate a data pool large enough for every generator.
+    fn data_pool_for(generators: &[DeltaGenerator]) -> Vec<u8> {
+        let max_size = generators
+            .iter()
+            .map(DeltaGenerator::max_data_size)
+            .max()
+            .expect("Call max on empty generator list");
+        vec![0u8; max_size]
+    }
+
+    /// Turn a list of generators into a closure building one delta per
+    /// generator, borrowing their data from `data_pool`.
+    fn generators_to_builder<'a, P>(
+        generators: Vec<DeltaGenerator>,
+        data_pool: &'a [u8],
+    ) -> impl Fn() -> Vec<Delta<'a, P>> + Sync + 'a
+    where
+        P: Edit<'a> + 'a,
+    {
+        move || {
+            generators
+                .iter()
+                .map(|generator| generator.generate_delta(data_pool))
+                .collect()
+        }
+    }
+
+    /// Execute a benchmark with the provided Delta specification (generators).
+    fn bench_plain(bencher: divan::Bencher, generators: Vec<DeltaGenerator>) {
+        let data_pool = data_pool_for(&generators);
+        let build_deltas =
+            generators_to_builder::<PlainEdit>(generators, &data_pool);
+
+        bencher.with_inputs(build_deltas).bench_values(fold_deltas);
     }
 }
