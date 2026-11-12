@@ -107,8 +107,5 @@ other I/O errors
   $ hg clone -qU update-source read-only-wc
   $ chmod -w read-only-wc
   $ hg -R read-only-wc update 2>&1 | "$PYTHON" "$TESTDIR/filtertraceback.py"
-  Traceback (most recent call last): (rust known-bad-output !)
-  OSError: abort: when writing $TESTTMP/read-only-wc/a: $EACCES$ (rust known-bad-output !)
-  abort: $EACCES$: '$TESTTMP/read-only-wc/a' (no-rust !)
-  abort: $EACCES$: '$TESTTMP/read-only-wc/a' (rust missing-correct-output !)
+  abort: $EACCES$: '$TESTTMP/read-only-wc/a'
   $ chmod +w read-only-wc

@@ -2,13 +2,17 @@ use std::path::Path;
 
 use hg::error_display::hg_error_to_bytes;
 use hg::error_display::hg_path_error_to_bytes;
+use hg::error_display::io_error_to_bytes;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
+use hg::errors::HgIoError;
+use hg::errors::IoErrorContext;
 use hg::revlog::RevlogError;
 use hg::revlog::index::Index as CoreIndex;
 use hg::revlog::inner_revlog::RevisionBuffer;
 use hg::utils::docket::DocketError;
 use hg::utils::docket::DocketErrorKind;
+use hg::utils::files::get_bytes_from_path;
 use hg::warnings::HgWarningContext;
 use hg::warnings::format::write_warning;
 use pyo3::buffer::Element;
@@ -419,11 +423,50 @@ where
     }
 }
 
+/// An `OSError` like the one Python raises for the same failure, with the
+/// error number, its description and the paths involved, so that callers can
+/// catch subclasses like `FileNotFoundError`, and that `scmutil.callcatch`
+/// reports it like Python's own.
+fn io_error_to_py_err(py: Python<'_>, error: &HgIoError) -> PyErr {
+    let HgIoError::IO { raw_os_error, kind, context, .. } = error else {
+        // These are not errors from the OS, and only have a message, which
+        // already has the `abort: ` prefix that Python adds
+        let text = io_error_to_bytes(error);
+        let message = text.strip_prefix(b"abort: ").unwrap_or(&text);
+        return PyIOError::new_err((None::<i32>, lossy_string(message)));
+    };
+    let description = match raw_os_error {
+        Some(errno) => py
+            .import(intern!(py, "os"))
+            .and_then(|os| os.getattr(intern!(py, "strerror")))
+            .and_then(|strerror| strerror.call1((errno,)))
+            .and_then(|description| description.extract::<String>())
+            .expect("`os.strerror` describes any error number"),
+        None => kind.to_string(),
+    };
+    let (path, other_path) = match context {
+        IoErrorContext::ReadingMetadata(path)
+        | IoErrorContext::ReadingFile(path)
+        | IoErrorContext::WritingFile(path)
+        | IoErrorContext::RemovingFile(path)
+        | IoErrorContext::CanonicalizingPath(path) => (Some(path), None),
+        IoErrorContext::RenamingFile { from, to }
+        | IoErrorContext::CopyingFile { from, to } => (Some(from), Some(to)),
+        IoErrorContext::CurrentDir | IoErrorContext::CurrentExe => (None, None),
+    };
+    // `OSError(errno, strerror, filename, winerror, filename2)`
+    PyIOError::new_err((
+        *raw_os_error,
+        description,
+        path.map(get_bytes_from_path),
+        None::<i32>,
+        other_path.map(get_bytes_from_path),
+    ))
+}
+
 pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
     match e.into() {
-        err @ HgError::IO { .. } => {
-            PyIOError::new_err(lossy_string(&hg_error_to_bytes(&err)))
-        }
+        HgError::IO(error) => io_error_to_py_err(py, &error),
         // All pattern errors fall back, see below
         err if err.is_unsupported() && !matches!(err, HgError::Pattern(_)) => {
             FallbackError::new_err(lossy_string(&hg_error_to_bytes(&err)))
