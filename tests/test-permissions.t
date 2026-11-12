@@ -97,3 +97,18 @@ Paths in the errors of the Rust revlogs are shown as bytes
   $ chmod +w .hg/store/data/a.i
   $ cd ..
 #endif
+
+I/O errors of the Rust update of an empty working copy are reported like
+other I/O errors
+
+  $ hg init update-source
+  $ echo a > update-source/a
+  $ hg -R update-source commit -qAm a
+  $ hg clone -qU update-source read-only-wc
+  $ chmod -w read-only-wc
+  $ hg -R read-only-wc update 2>&1 | "$PYTHON" "$TESTDIR/filtertraceback.py"
+  Traceback (most recent call last): (rust known-bad-output !)
+  OSError: abort: when writing $TESTTMP/read-only-wc/a: $EACCES$ (rust known-bad-output !)
+  abort: $EACCES$: '$TESTTMP/read-only-wc/a' (no-rust !)
+  abort: $EACCES$: '$TESTTMP/read-only-wc/a' (rust missing-correct-output !)
+  $ chmod +w read-only-wc
