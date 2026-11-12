@@ -658,8 +658,8 @@ impl fmt::Display for HgError {
                 DirstateError::ParentNodeNotFound { node, backtrace } => {
                     write!(
                         f,
-                        "{backtrace}dirstate points to non-existent parent \
-                        node {:x}",
+                        "{backtrace}working directory has unknown parent \
+                        '{:x}'!",
                         node.short()
                     )
                 }

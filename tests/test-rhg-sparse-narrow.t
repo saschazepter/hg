@@ -50,7 +50,7 @@ warns about it and carries on.
   $ cp repo-ahead/.hg/dirstate* repo-unknown-parent/.hg/
   $ cd repo-unknown-parent
   $ $NO_FALLBACK rhg --config rhg.status=true status
-  abort: dirstate points to non-existent parent node 696150d0499d
+  abort: working directory has unknown parent '696150d0499d'!
   [255]
   $ "$RHG_FALLBACK_EXECUTABLE" status
   warning: ignoring unknown working parent 696150d0499d!
