@@ -68,12 +68,12 @@ pub fn revlog_error_from_io(err: impl Into<HgError>) -> PyErr {
     let hg_error = err.into();
     match hg_error {
         HgError::IO(err) => mercurial_py_errors::RustRevlogError::new_err(
-            lossy_string(&io_error_to_bytes(&err)),
+            io_error_to_bytes(&err),
         ),
         // Still handle other cases in case we're missing anything. This
         // should get cleaned up along the rest of the error refactor.
-        _ => mercurial_py_errors::RevlogError::new_err(lossy_string(
-            &hg_error_to_bytes(&hg_error),
+        _ => mercurial_py_errors::RevlogError::new_err(hg_error_to_bytes(
+            &hg_error,
         )),
     }
 }
@@ -83,8 +83,8 @@ pub fn revlog_error_bare() -> PyErr {
 }
 
 pub fn revlog_error(revlog_error: RevlogError) -> PyErr {
-    mercurial_py_errors::RustRevlogError::new_err(lossy_string(
-        &hg_error_to_bytes(&HgError::from(revlog_error)),
+    mercurial_py_errors::RustRevlogError::new_err(hg_error_to_bytes(
+        &HgError::from(revlog_error),
     ))
 }
 

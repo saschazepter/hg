@@ -92,8 +92,7 @@ Paths in the errors of the Rust revlogs are shown as bytes
   $ chmod -w .hg/store/data/a.i
   $ echo bar > a
   $ hg commit -m 2
-  abort: when writing $TESTTMP/caf\xef\xbf\xbd/.hg/store/data/a.i: $EACCES$ (esc) (known-bad-output !)
-  abort: when writing $TESTTMP/caf\xe9/.hg/store/data/a.i: $EACCES$ (esc) (missing-correct-output !)
+  abort: when writing $TESTTMP/caf\xe9/.hg/store/data/a.i: $EACCES$ (esc)
   [50]
   $ chmod +w .hg/store/data/a.i
   $ cd ..
