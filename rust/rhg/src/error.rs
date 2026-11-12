@@ -300,6 +300,9 @@ impl From<SparseConfigError> for CommandError {
             SparseConfigError::IncludesInNarrow => b"including other spec \
                 files using '%include' is not supported in narrowspec"
                 .to_vec(),
+            SparseConfigError::StaleNarrowspec => {
+                b"working copy's narrowspec is stale".to_vec()
+            }
         };
         let error = HgError::from(error);
         CommandError::Abort {

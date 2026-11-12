@@ -2,7 +2,6 @@ use std::cmp::Ordering;
 use std::path::Path;
 
 use crate::errors::HgError;
-use crate::exit_codes;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternSyntax;
 use crate::file_patterns::parse_pattern_file_contents;
@@ -109,11 +108,7 @@ pub fn store_patterns(
         &repo.hg_vfs().try_read(DIRSTATE_FILENAME)?.unwrap_or_default(),
     )?;
     if store_patterns != working_copy_patterns {
-        return Err(HgError::abort(
-            "working copy's narrowspec is stale",
-            exit_codes::STATE_ERROR,
-            Some("run 'hg tracked --update-working-copy'".into()),
-        ));
+        return Err(SparseConfigError::StaleNarrowspec.into());
     }
     Ok(store_patterns)
 }

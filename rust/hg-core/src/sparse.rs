@@ -93,6 +93,8 @@ pub enum SparseConfigError {
     /// because the Python parser strips the whitespace when parsing
     /// the config file.
     WhitespaceAtEdgeOfPattern(Vec<u8>),
+    /// The narrowspec of the working copy differs from the one of the store
+    StaleNarrowspec,
 }
 
 /// Parse sparse config file content.

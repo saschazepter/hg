@@ -202,6 +202,9 @@ impl HgError {
                         "narrow patterns can't begin or end in whitespace",
                     ))
                 }
+                SparseConfigError::StaleNarrowspec => Some(Cow::Borrowed(
+                    "run 'hg tracked --update-working-copy'",
+                )),
                 SparseConfigError::IncludesAfterExcludes { .. }
                 | SparseConfigError::EntryOutsideSection { .. }
                 | SparseConfigError::IncludesInNarrow => None,
@@ -839,6 +842,9 @@ impl fmt::Display for HgError {
                         "narrow pattern with whitespace at the edge: {}",
                         String::from_utf8_lossy(pattern)
                     )
+                }
+                SparseConfigError::StaleNarrowspec => {
+                    write!(f, "working copy's narrowspec is stale")
                 }
             },
             HgError::Encoding(error) => {
