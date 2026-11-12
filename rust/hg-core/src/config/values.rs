@@ -9,6 +9,7 @@
 //! invalid inside the value).
 
 use crate::utils::strings::SliceExt;
+use crate::utils::strings::is_python_space;
 
 pub(super) fn parse_bool(v: &[u8]) -> Option<bool> {
     match v.to_ascii_lowercase().as_slice() {
@@ -87,7 +88,7 @@ fn parse_list_without_trim_start(input: &[u8]) -> Vec<Vec<u8>> {
                 // Start of port of Python’s `_parse_plain`
                 let mut whitespace = false;
                 while let Some(&byte) = input.get(offset) {
-                    if is_space(byte) || byte == b',' {
+                    if is_python_space(byte) || byte == b',' {
                         whitespace = true;
                         offset += 1;
                     } else {
@@ -122,7 +123,7 @@ fn parse_list_without_trim_start(input: &[u8]) -> Vec<Vec<u8>> {
                     values.push(std::mem::take(&mut next_value));
                     offset += 1;
                     while let Some(&byte) = input.get(offset) {
-                        if is_space(byte) || byte == b',' {
+                        if is_python_space(byte) || byte == b',' {
                             offset += 1;
                         } else {
                             break;
@@ -195,11 +196,6 @@ fn parse_list_without_trim_start(input: &[u8]) -> Vec<Vec<u8>> {
                 mode = ParserMode::Plain;
             }
         }
-    }
-
-    // https://docs.python.org/3/library/stdtypes.html?#bytes.isspace
-    fn is_space(byte: u8) -> bool {
-        matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b'\x0b' | b'\x0c')
     }
 }
 

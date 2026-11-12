@@ -112,6 +112,15 @@ where
     result
 }
 
+/// Whether `byte` is whitespace for Python, as in `bytes.isspace`, which
+/// `bytes.strip` and `bytes.split` without arguments also rely on.
+///
+/// Unlike [`u8::is_ascii_whitespace`], this includes the vertical tab.
+pub fn is_python_space(byte: u8) -> bool {
+    // https://docs.python.org/3/library/stdtypes.html#bytes.isspace
+    matches!(byte, b' ' | b'\t' | b'\n' | b'\r' | b'\x0b' | b'\x0c')
+}
+
 /// Returns the length of the common prefix of two strings.
 pub fn common_prefix_length(xs: &[u8], ys: &[u8]) -> usize {
     xs.iter().zip(ys).take_while(|(x, y)| x == y).count()
