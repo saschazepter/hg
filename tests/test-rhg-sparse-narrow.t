@@ -40,6 +40,27 @@ Rhg works well when sparse working copy is enabled.
 
   $ cd ..
 
+rhg aborts on a working copy parent that the changelog does not know. Python
+only warns about it and carries on.
+
+  $ cp -R repo-sparse repo-unknown-parent
+  $ hg clone -q repo-sparse repo-ahead
+  $ echo b > repo-ahead/show
+  $ hg -R repo-ahead commit -qm 'ahead'
+  $ cp repo-ahead/.hg/dirstate* repo-unknown-parent/.hg/
+  $ cd repo-unknown-parent
+  $ $NO_FALLBACK rhg --config rhg.status=true status
+  abort: dirstate points to non-existent parent node
+  [255]
+  $ "$RHG_FALLBACK_EXECUTABLE" status
+  warning: ignoring unknown working parent 696150d0499d!
+  M show
+  ! dir1/x
+  ! dir1/y
+  ! dir2/z
+  ! hide
+  $ cd ..
+
 We support most things when narrow is enabled, too, with a couple of caveats.
 
   $ . "$TESTDIR/narrow-library.sh"
