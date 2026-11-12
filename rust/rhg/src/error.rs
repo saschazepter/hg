@@ -141,6 +141,8 @@ impl From<HgError> for CommandError {
                     backtrace,
                 )
             }
+            // Has filenames, which are formatted as bytes
+            HgError::Sparse(sparse_error) => sparse_error.into(),
             HgError::RepoNotFound { at, backtrace } => {
                 CommandError::abort_with_exit_code_bytes(
                     format_bytes!(

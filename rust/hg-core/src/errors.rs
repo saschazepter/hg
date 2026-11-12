@@ -18,6 +18,7 @@ use crate::file_index::Error as FileIndexError;
 use crate::file_index::ErrorKind as FileIndexErrorKind;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::RegexBuildError;
+use crate::narrow::VALID_PREFIXES;
 use crate::narrow::shape::DeserializationError;
 use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
@@ -26,6 +27,7 @@ use crate::requirements::RequirementsErrorKind;
 use crate::revlog::RevlogError;
 use crate::revlog::changelog::ChangelogErrorKind;
 use crate::segmented_bytes::ErrorKind as SegmentedBytesErrorKind;
+use crate::sparse::SparseConfigError;
 use crate::utils::docket::DocketError;
 use crate::utils::docket::DocketErrorKind;
 use crate::utils::hg_path::HgPathError;
@@ -85,6 +87,9 @@ pub enum HgError {
     Pattern(PatternError),
     #[from]
     FileIndex(FileIndexError),
+    /// The sparse or narrow configuration of the repository is invalid
+    #[from]
+    Sparse(SparseConfigError),
     /// Setting up or using the character encoding has failed
     #[from]
     Encoding(EncodingError),
@@ -175,6 +180,7 @@ impl HgError {
         match self {
             HgError::Abort { detailed_exit_code, .. } => *detailed_exit_code,
             HgError::ConfigValueParseError(_) => exit_codes::CONFIG_ERROR_ABORT,
+            HgError::Sparse(_) => exit_codes::STATE_ERROR,
             _ => exit_codes::ABORT,
         }
     }
@@ -183,6 +189,23 @@ impl HgError {
     pub fn hint(&self) -> Option<Cow<'_, str>> {
         match self {
             HgError::Abort { hint, .. } => hint.as_deref().map(Cow::Borrowed),
+            HgError::Sparse(sparse_error) => match sparse_error {
+                SparseConfigError::InvalidNarrowPrefix(_) => {
+                    Some(Cow::Owned(format!(
+                        "narrow patterns must begin with one of the \
+                        following: {}",
+                        VALID_PREFIXES.join(", ")
+                    )))
+                }
+                SparseConfigError::WhitespaceAtEdgeOfPattern(_) => {
+                    Some(Cow::Borrowed(
+                        "narrow patterns can't begin or end in whitespace",
+                    ))
+                }
+                SparseConfigError::IncludesAfterExcludes { .. }
+                | SparseConfigError::EntryOutsideSection { .. }
+                | SparseConfigError::IncludesInNarrow => None,
+            },
             _ => None,
         }
     }
@@ -782,6 +805,42 @@ impl fmt::Display for HgError {
                 };
                 f.write_str(&msg)
             }
+            HgError::Sparse(sparse_error) => match sparse_error {
+                SparseConfigError::IncludesAfterExcludes { context } => {
+                    write!(
+                        f,
+                        "{context} config cannot have includes after excludes"
+                    )
+                }
+                SparseConfigError::EntryOutsideSection { context, line } => {
+                    write!(
+                        f,
+                        "{context} config entry outside of section: {}",
+                        String::from_utf8_lossy(line)
+                    )
+                }
+                SparseConfigError::IncludesInNarrow => {
+                    write!(
+                        f,
+                        "including other spec files using '%include' is not \
+                        supported in narrowspec"
+                    )
+                }
+                SparseConfigError::InvalidNarrowPrefix(pattern) => {
+                    write!(
+                        f,
+                        "invalid prefix on narrow pattern: {}",
+                        String::from_utf8_lossy(pattern)
+                    )
+                }
+                SparseConfigError::WhitespaceAtEdgeOfPattern(pattern) => {
+                    write!(
+                        f,
+                        "narrow pattern with whitespace at the edge: {}",
+                        String::from_utf8_lossy(pattern)
+                    )
+                }
+            },
             HgError::Encoding(error) => {
                 error.backtrace.fmt(f)?;
                 match &error.kind {

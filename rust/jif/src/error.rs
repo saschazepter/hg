@@ -115,7 +115,8 @@ impl ErrorKind {
                 | HgError::Pattern(_)
                 | HgError::FileIndex(_)
                 | HgError::Docket(_)
-                | HgError::Path(_) => ErrorCode::Abort,
+                | HgError::Path(_)
+                | HgError::Sparse(_) => ErrorCode::Abort,
             },
         }
     }
@@ -222,7 +223,8 @@ pub fn hg_message(error: &HgError) -> Message {
         | HgError::Path(_)
         | HgError::Requirements(_)
         | HgError::Docket(_)
-        | HgError::Encoding(_) => {
+        | HgError::Encoding(_)
+        | HgError::Sparse(_) => {
             message!("{error}", error = Utf8(format!("{error:?}")))
         }
     }

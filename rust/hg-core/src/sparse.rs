@@ -2,7 +2,6 @@ use std::fmt::Display;
 use std::path::Path;
 
 use format_bytes::DisplayBytes;
-use format_bytes::format_bytes;
 use format_bytes::write_bytes;
 
 use crate::FastHashSet;
@@ -12,7 +11,6 @@ use crate::Revision;
 use crate::dirstate::DirstateError;
 use crate::errors::HgBacktrace;
 use crate::errors::HgError;
-use crate::exit_codes::STATE_ERROR;
 use crate::file_patterns::FilePattern;
 use crate::file_patterns::PatternError;
 use crate::file_patterns::PatternSyntax;
@@ -22,7 +20,6 @@ use crate::matchers::DifferenceMatcher;
 use crate::matchers::IncludeMatcher;
 use crate::matchers::Matcher;
 use crate::matchers::UnionMatcher;
-use crate::narrow::VALID_PREFIXES;
 use crate::operations::cat;
 use crate::repo::Repo;
 use crate::requirements::SPARSE_REQUIREMENT;
@@ -31,7 +28,7 @@ use crate::utils::strings::SliceExt;
 use crate::warnings::HgWarningSender;
 
 /// Command which is triggering the config read
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SparseConfigContext {
     Sparse,
     Narrow,
@@ -78,7 +75,7 @@ pub struct SparseConfig {
 }
 
 /// All possible errors when reading sparse/narrow config
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SparseConfigError {
     IncludesAfterExcludes {
         context: SparseConfigContext,
@@ -96,67 +93,6 @@ pub enum SparseConfigError {
     /// because the Python parser strips the whitespace when parsing
     /// the config file.
     WhitespaceAtEdgeOfPattern(Vec<u8>),
-}
-
-impl From<SparseConfigError> for HgError {
-    fn from(value: SparseConfigError) -> Self {
-        match value {
-            SparseConfigError::IncludesAfterExcludes { context } => {
-                HgError::abort(
-                    format!(
-                        "{} config cannot have includes after excludes",
-                        context,
-                    ),
-                    STATE_ERROR,
-                    None,
-                )
-            }
-            SparseConfigError::EntryOutsideSection { context, line } => {
-                HgError::abort(
-                    format!(
-                        "{} config entry outside of section: {}",
-                        context,
-                        String::from_utf8_lossy(&line)
-                    ),
-                    STATE_ERROR,
-                    None,
-                )
-            }
-            SparseConfigError::IncludesInNarrow => HgError::abort(
-                "including other spec files using '%include' is not \
-                supported in narrowspec"
-                    .to_string(),
-                STATE_ERROR,
-                None,
-            ),
-            SparseConfigError::InvalidNarrowPrefix(vec) => HgError::abort(
-                String::from_utf8_lossy(&format_bytes!(
-                    b"invalid prefix on narrow pattern: {}",
-                    vec
-                ))
-                .to_string(),
-                STATE_ERROR,
-                Some(format!(
-                    "narrow patterns must begin with one of the following: {}",
-                    VALID_PREFIXES.join(", ")
-                )),
-            ),
-            SparseConfigError::WhitespaceAtEdgeOfPattern(vec) => {
-                HgError::abort(
-                    String::from_utf8_lossy(&format_bytes!(
-                        b"narrow pattern with whitespace at the edge: {}",
-                        vec
-                    ))
-                    .to_string(),
-                    STATE_ERROR,
-                    Some(
-                        "narrow patterns can't begin or end in whitespace"
-                            .to_string(),
-                    ),
-                )
-            }
-        }
-    }
 }
 
 /// Parse sparse config file content.
