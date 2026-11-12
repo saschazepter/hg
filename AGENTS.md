@@ -1,6 +1,6 @@
 # Agentic work in Mercurial
 
-The skill to work on this repo is at `.agents/skills/mercurial-development`.
+Read `.agents/skills/mercurial-development/SKILL.md` before building, running tests (jif included) or rewriting history: it has this repository's commands and flags.
 
 ## Calibration
 - Core (storage, exchange, transactions…): a human vouches for every line; write for line-by-line review.
@@ -26,7 +26,7 @@ The skill to work on this repo is at `.agents/skills/mercurial-development`.
 
 ## Commit messages
 - `subject: summary of what is done` in the first line, subject must be a single word, hyphenated if needed (e.g. `rust-errors`, `changegroup-v4`). The body contains why and what behavior changes, then how if non-obvious. Only trivial changes skip the body; "easier to read" or "prepares the next change" is often enough.
-- Focus on the important, use examples rather than a long sentence
+- Prefer an example to a long sentence.
 - Must match the diff: right subsystem, right names, nothing claimed that isn't done. Update when reworking.
 - Say where it fits: what comes next, why the work is split, any temporary state.
 - Justification lives in the commit, not the MR (MR description is for meta, e.g. dependencies). Explanations of the code go in docstrings; the body may say "Explanations inline".
@@ -66,7 +66,7 @@ The skill to work on this repo is at `.agents/skills/mercurial-development`.
 - No `unwrap` outside tests; `expect("<invariant>")`. User input or repo data yields errors, never panics.
 - `hg-core` errors carry typed data; library crates don't implement `Display`. Convert with `From` and the existing extension traits.
 - Named constants, reusing existing ones. `// Safety:` on every `unsafe`. Checked conversions (`hg-core` helpers like `u_u32`), not `as`.
-- Format with the toolchain in `rust/README`; no compiler or clippy warnings; suppress with `#[expect(..., reason = "...")]`. MSRV = Debian testing at cycle start.
+- Format with the toolchain in `rust/README.md`; no compiler or clippy warnings; suppress with `#[expect(..., reason = "...")]`. MSRV is `msrv` in `rust/clippy.toml`, bumped at cycle start to at most Debian testing's Rust.
 - Private items use visibility, not leading underscores.
 
 ## Performance
