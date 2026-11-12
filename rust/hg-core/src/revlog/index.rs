@@ -22,6 +22,7 @@ use crate::Graph;
 use crate::GraphError;
 use crate::GraphErrorKind;
 use crate::UncheckedRevision;
+use crate::discovery::Fingerprint;
 use crate::discovery::bucket_boundary;
 use crate::discovery::bucket_fingerprints;
 use crate::discovery::cached_head_count;
@@ -895,7 +896,7 @@ impl Index {
     pub fn heads_buckets_info(
         &self,
         filtered_revs: &FastHashSet<Revision>,
-    ) -> Result<HashMap<usize, (usize, [u8; 4])>, GraphError> {
+    ) -> Result<HashMap<usize, (usize, Fingerprint)>, GraphError> {
         let mut heads = self
             .head_revs_advanced(filtered_revs, None, false)?
             .expect("no python shortcut was requested");

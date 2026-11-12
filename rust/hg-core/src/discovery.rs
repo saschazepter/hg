@@ -88,6 +88,12 @@ pub fn bucket_boundary(max_value: BaseRevision) -> Vec<BaseRevision> {
     tiers
 }
 
+/// Size of a bucket fingerprint.
+pub const FINGERPRINT_SIZE: usize = 4;
+
+/// A bucket fingerprint.
+pub type Fingerprint = [u8; FINGERPRINT_SIZE];
+
 /// crc32 of the native-endian bytes of a slice of revs
 fn heads_crc32(heads: &[Revision], initial: u32) -> u32 {
     // create a new hasher should be virtually free, it only contains a u32.
@@ -127,7 +133,7 @@ fn heads_crc32(heads: &[Revision], initial: u32) -> u32 {
 pub fn bucket_fingerprints(
     tiers: Vec<BaseRevision>,
     heads: &[Revision],
-) -> HashMap<usize, (usize, [u8; 4])> {
+) -> HashMap<usize, (usize, Fingerprint)> {
     let mut info = HashMap::with_capacity(tiers.len());
 
     // consume the tiers in ascending order
@@ -172,7 +178,7 @@ pub fn bucket_fingerprints(
 ///
 /// This should always be an unchanged prefix of the server heads list.
 pub fn cached_head_count(
-    bucket_info: &HashMap<usize, (usize, [u8; 4])>,
+    bucket_info: &HashMap<usize, (usize, Fingerprint)>,
     cached_fingerprints: Option<&HashMap<usize, Vec<u8>>>,
 ) -> usize {
     match cached_fingerprints {
@@ -216,20 +222,15 @@ pub fn cached_head_count(
 /// Used by the wireprotocol to serialize the data (see
 /// `encoded_bucket_info` in `mercurial/exchanges/heads.py`).
 pub fn encode_bucket_info<'a>(
-    bucket_info: HashMap<usize, (usize, [u8; 4])>,
+    bucket_info: HashMap<usize, (usize, Fingerprint)>,
     skipped_heads: usize,
     head_revs: &[Revision],
     to_node: impl Fn(Revision) -> &'a Node,
 ) -> Vec<u8> {
-    // sizes of the serialized fingerprint and nodeid (`FP_SPEC` size
-    // and `nodelen` on the Python side)
-    let fingerprint_size = 4;
-    let node_size = NODE_BYTES_LENGTH;
-
     let mut data = Vec::with_capacity(
         3 + size_of::<u32>()
-            + bucket_info.len() * (2 * size_of::<u32>() + fingerprint_size)
-            + head_revs.len() * node_size,
+            + bucket_info.len() * (2 * size_of::<u32>() + FINGERPRINT_SIZE)
+            + head_revs.len() * NODE_BYTES_LENGTH,
     );
 
     // the wire header: number of buckets, fingerprint size and nodeid
@@ -237,8 +238,8 @@ pub fn encode_bucket_info<'a>(
     // (`BUCKET_WIRE_HEADER` on the Python side)
     // `bucket_boundary` yields at most 32 buckets, so the count fits
     data.push(u_u8(bucket_info.len()));
-    data.push(u_u8(fingerprint_size));
-    data.push(u_u8(node_size));
+    data.push(u_u8(FINGERPRINT_SIZE));
+    data.push(u_u8(NODE_BYTES_LENGTH));
     data.extend_from_slice(&u_u32(skipped_heads).to_be_bytes());
 
     // for each bucket: bucket-id (u32), number of new heads (i32) and

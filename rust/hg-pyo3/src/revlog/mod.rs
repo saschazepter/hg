@@ -22,6 +22,7 @@ use hg::Graph;
 use hg::NULL_REVISION;
 use hg::Revision;
 use hg::UncheckedRevision;
+use hg::discovery::Fingerprint;
 use hg::dyn_bytes::DynBytes;
 use hg::errors::HgBacktrace;
 use hg::revlog::RevlogError;
@@ -1464,7 +1465,7 @@ impl InnerRevlog {
     fn _index_heads_buckets_info(
         slf: &Bound<'_, Self>,
         filtered_revs: &Bound<'_, PyAny>,
-    ) -> PyResult<HashMap<usize, (usize, [u8; 4])>> {
+    ) -> PyResult<HashMap<usize, (usize, Fingerprint)>> {
         Self::with_index_read(slf, |idx| {
             let filtered_revs: FastHashSet<Revision> =
                 rev_pyiter_collect(filtered_revs, idx)?;
