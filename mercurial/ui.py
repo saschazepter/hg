@@ -122,6 +122,35 @@ showfunc = 1
 word-diff = 1
 """
 
+# The `ui` items that plain mode ignores in configuration files.
+_PLAIN_UI_ITEMS: tuple[bytes, ...] = (
+    b'debug',
+    b'fallbackencoding',
+    b'quiet',
+    b'slash',
+    b'logtemplate',
+    b'message-output',
+    b'statuscopies',
+    b'style',
+    b'traceback',
+    b'verbose',
+)
+
+# The sections that plain mode ignores in configuration files.
+_PLAIN_SECTIONS: tuple[bytes, ...] = (
+    b'defaults',
+    b'commands',
+    b'command-templates',
+)
+
+# The sections that plain mode ignores in configuration files, unless listed
+# in HGPLAINEXCEPT.
+_PLAIN_FEATURE_SECTIONS: tuple[bytes, ...] = (
+    b'alias',
+    b'revsetalias',
+    b'templatealias',
+)
+
 samplehgrcs: dict[bytes, bytes] = {
     b'user': b"""# example user config (see 'hg help config' for more info)
 [ui]
@@ -587,36 +616,17 @@ class ui:
 
     def _applyconfig(self, cfg, trusted: bool, root) -> None:
         if self.plain():
-            for k in (
-                b'debug',
-                b'fallbackencoding',
-                b'quiet',
-                b'slash',
-                b'logtemplate',
-                b'message-output',
-                b'statuscopies',
-                b'style',
-                b'traceback',
-                b'verbose',
-            ):
+            for k in _PLAIN_UI_ITEMS:
                 if k in cfg[b'ui']:
                     del cfg[b'ui'][k]
-            for k, v in cfg.items(b'defaults'):
-                del cfg[b'defaults'][k]
-            for k, v in cfg.items(b'commands'):
-                del cfg[b'commands'][k]
-            for k, v in cfg.items(b'command-templates'):
-                del cfg[b'command-templates'][k]
+            for section in _PLAIN_SECTIONS:
+                for k, v in cfg.items(section):
+                    del cfg[section][k]
         # Don't remove aliases from the configuration if in the exceptionlist
-        if self.plain(b'alias'):
-            for k, v in cfg.items(b'alias'):
-                del cfg[b'alias'][k]
-        if self.plain(b'revsetalias'):
-            for k, v in cfg.items(b'revsetalias'):
-                del cfg[b'revsetalias'][k]
-        if self.plain(b'templatealias'):
-            for k, v in cfg.items(b'templatealias'):
-                del cfg[b'templatealias'][k]
+        for section in _PLAIN_FEATURE_SECTIONS:
+            if self.plain(section):
+                for k, v in cfg.items(section):
+                    del cfg[section][k]
 
         if trusted:
             self._tcfg.update(cfg)
