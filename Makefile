@@ -218,13 +218,13 @@ rust-tests:
 .PHONY: rust-benchmark
 rust-benchmark:
 	cd $(HGROOT)/rust \
-		&& $(CARGO) bench -p hg-core --bench patch
+		&& $(CARGO) bench -p hg-core --features bench --bench patch
 
 .PHONY: cargo-clippy
 cargo-clippy:
 	cd $(HGROOT)/rust \
 		&& $(CARGO) clippy --workspace --all-targets -- -D warnings \
-		&& $(CARGO) clippy --workspace --all-targets --features "full-tracing" -- -D warnings
+		&& $(CARGO) clippy --workspace --all-targets --features "full-tracing bench" -- -D warnings
 
 .PHONY: check-code
 check-code:

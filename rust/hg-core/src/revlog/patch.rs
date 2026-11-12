@@ -638,6 +638,24 @@ where
     }
 }
 
+/// Internals of this module exposed to the `patch` benchmark.
+///
+/// Only compiled with the `bench` feature, so that these functions stay
+/// private in regular builds.
+#[cfg(feature = "bench")]
+pub mod bench {
+    use super::Delta;
+    use super::Edit;
+
+    /// Public entry point to [`super::fold_deltas`].
+    pub fn fold_deltas<'a, P>(deltas: Vec<Delta<'a, P>>) -> Delta<'a, P>
+    where
+        P: Edit<'a>,
+    {
+        super::fold_deltas(deltas)
+    }
+}
+
 /// Build the full data of a revision out its snapshot
 /// and its deltas.
 pub fn build_data_from_deltas<T>(
