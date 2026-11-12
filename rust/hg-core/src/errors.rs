@@ -253,8 +253,13 @@ impl HgError {
                 SparseConfigError::StaleNarrowspec => Some(Cow::Borrowed(
                     "run 'hg tracked --update-working-copy'",
                 )),
+                SparseConfigError::EntryOutsideSection { .. } => {
+                    Some(Cow::Borrowed(
+                        "add an [include] or [exclude] line to declare the \
+                        entry type",
+                    ))
+                }
                 SparseConfigError::IncludesAfterExcludes { .. }
-                | SparseConfigError::EntryOutsideSection { .. }
                 | SparseConfigError::IncludesInNarrow => None,
             },
             _ => None,

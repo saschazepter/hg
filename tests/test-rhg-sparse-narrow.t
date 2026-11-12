@@ -134,8 +134,7 @@ Adding "orphaned" index files:
   $ "$real_hg" cat -r "$tip" dir2/z
   [1]
 
-Errors in the narrowspec are reported like Python does, apart from the hint of
-an entry outside of a section, which `hg-core` does not have yet.
+Errors in the narrowspec are reported like Python does.
 
   $ cd ..
   $ hg clone -q --narrow ./repo-sparse repo-bad-narrowspec --include dir1
@@ -163,6 +162,7 @@ an entry outside of a section, which `hg-core` does not have yet.
   $ cp .hg/store/narrowspec .hg/narrowspec.dirstate
   $ $NO_FALLBACK rhg files
   abort: narrow config entry outside of section: path:dir1
+  (add an [include] or [exclude] line to declare the entry type)
   [255]
   $ "$real_hg" files
   abort: narrow config entry outside of section: path:dir1
