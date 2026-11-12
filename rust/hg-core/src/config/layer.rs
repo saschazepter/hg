@@ -20,7 +20,6 @@ use regex::bytes::Regex;
 
 use crate::errors::HgError;
 use crate::errors::HgIoError;
-use crate::exit_codes::CONFIG_ERROR_ABORT;
 use crate::exit_codes::CONFIG_PARSE_ERROR_ABORT;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
@@ -346,23 +345,7 @@ pub struct ConfigParseError {
 
 impl From<ConfigParseError> for HgError {
     fn from(error: ConfigParseError) -> Self {
-        let ConfigParseError { origin, line, message } = error;
-        let line_message = if let Some(line_number) = line {
-            format_bytes!(b":{}", line_number.to_string().into_bytes())
-        } else {
-            Vec::new()
-        };
-        HgError::abort(
-            String::from_utf8_lossy(&format_bytes!(
-                b"config error at {}{}: {}",
-                origin,
-                line_message,
-                message
-            ))
-            .to_string(),
-            CONFIG_ERROR_ABORT,
-            None,
-        )
+        ConfigError::Parse(error).into()
     }
 }
 
@@ -371,18 +354,6 @@ pub enum ConfigError {
     Parse(ConfigParseError),
     Other(HgError),
     IO(HgIoError),
-}
-
-impl From<ConfigError> for HgError {
-    fn from(error: ConfigError) -> Self {
-        match error {
-            ConfigError::Parse(config_parse_error) => {
-                Self::from(config_parse_error)
-            }
-            ConfigError::Other(hg_error) => hg_error,
-            ConfigError::IO(hg_io_error) => hg_io_error.into(),
-        }
-    }
 }
 
 fn make_regex(pattern: &'static str) -> Regex {

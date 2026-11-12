@@ -21,8 +21,7 @@ Invalid syntax: no value
   > novaluekey
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: novaluekey (no-rhg !)
-  abort: config error at $TESTTMP/.hg/hgrc:1: novaluekey (rhg !)
+  config error at $TESTTMP/.hg/hgrc:1: novaluekey
   [30]
 
 Invalid syntax: no key
@@ -31,8 +30,7 @@ Invalid syntax: no key
   > =nokeyvalue
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: =nokeyvalue (no-rhg !)
-  abort: config error at $TESTTMP/.hg/hgrc:1: =nokeyvalue (rhg !)
+  config error at $TESTTMP/.hg/hgrc:1: =nokeyvalue
   [30]
 
 Test hint about invalid syntax from leading white space
@@ -41,8 +39,7 @@ Test hint about invalid syntax from leading white space
   >  key=value
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  key=value (no-rhg !)
-  abort: config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  key=value (rhg !)
+  config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  key=value
   [30]
 
   $ cat > .hg/hgrc << EOF
@@ -50,8 +47,7 @@ Test hint about invalid syntax from leading white space
   > key=value
   > EOF
   $ hg showconfig
-  config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  [section] (no-rhg !)
-  abort: config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  [section] (rhg !)
+  config error at $TESTTMP/.hg/hgrc:1: unexpected leading whitespace:  [section]
   [30]
 
 Reset hgrc

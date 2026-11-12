@@ -286,8 +286,7 @@ Test we can skip the user configuration
   > EOF
 
   $ hg path
-  config error at $TESTTMP/.hg/hgrc:3: [broken (no-rhg !)
-  abort: config error at $TESTTMP/.hg/hgrc:3: [broken (rhg !)
+  config error at $TESTTMP/.hg/hgrc:3: [broken
   [255]
   $ HGRCSKIPREPO=1 hg path
   foo = $TESTTMP/bar
@@ -295,8 +294,7 @@ Test we can skip the user configuration
 Check that hgweb respect HGRCSKIPREPO=1
 
   $ hg serve -n test -p $HGPORT -d --pid-file=hg.pid -A access.log -E errors.log
-  config error at $TESTTMP/.hg/hgrc:3: [broken (no-rhg !)
-  abort: config error at $TESTTMP/.hg/hgrc:3: [broken (rhg !)
+  config error at $TESTTMP/.hg/hgrc:3: [broken
   [255]
   $ test -f hg.pid && (cat hg.pid >> $DAEMON_PIDS)
   [1]
@@ -315,8 +313,7 @@ Check that hgweb respect HGRCSKIPREPO=1
 Check that zeroconf respect HGRCSKIPREPO=1
 
   $ hg paths --config extensions.zeroconf=
-  config error at $TESTTMP/.hg/hgrc:3: [broken (no-rhg !)
-  abort: config error at $TESTTMP/.hg/hgrc:3: [broken (rhg !)
+  config error at $TESTTMP/.hg/hgrc:3: [broken
   [255]
 
 XXX: This occasionally crashes with a bytes vs str problem when processing a

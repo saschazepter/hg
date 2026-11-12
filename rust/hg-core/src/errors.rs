@@ -7,6 +7,10 @@ use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
 
+use format_bytes::DisplayBytes;
+
+use crate::config::ConfigError;
+use crate::config::ConfigParseError;
 use crate::config::ConfigValueParseError;
 use crate::dirstate::DirstateError;
 use crate::dirstate::on_disk::DirstateV2ParseError;
@@ -76,6 +80,9 @@ pub enum HgError {
     /// and syntax of each value.
     #[from]
     ConfigValueParseError(ConfigValueParseError),
+    /// An error that happened when reading or querying the config.
+    /// Boxed to avoid very large `Result` types.
+    Config(Box<ConfigError>),
     /// An error at the revlog layer
     Revlog(RevlogError),
     /// An error occured in the dirstate
@@ -108,6 +115,16 @@ pub enum HgError {
     RepoNotFound { at: PathBuf, backtrace: HgBacktrace },
     /// The repository is a share whose source does not exist
     SharedPathNotFound { shared_path: PathBuf, backtrace: HgBacktrace },
+}
+
+impl From<ConfigError> for HgError {
+    fn from(value: ConfigError) -> Self {
+        match value {
+            ConfigError::Other(error) => error,
+            ConfigError::IO(error) => error.into(),
+            error @ ConfigError::Parse(_) => Self::Config(Box::new(error)),
+        }
+    }
 }
 
 impl From<StatusError> for HgError {
@@ -180,6 +197,11 @@ impl HgError {
         match self {
             HgError::Abort { detailed_exit_code, .. } => *detailed_exit_code,
             HgError::ConfigValueParseError(_) => exit_codes::CONFIG_ERROR_ABORT,
+            HgError::Config(config_error) => match &**config_error {
+                ConfigError::Parse(_) => exit_codes::CONFIG_ERROR_ABORT,
+                ConfigError::Other(error) => error.exit_code(),
+                ConfigError::IO(_) => exit_codes::ABORT,
+            },
             HgError::Sparse(_) => exit_codes::STATE_ERROR,
             _ => exit_codes::ABORT,
         }
@@ -265,6 +287,31 @@ impl fmt::Display for HgError {
                 write!(f, "{}{}{}", backtrace, prefix, explanation)
             }
             HgError::ConfigValueParseError(error) => error.fmt(f),
+            HgError::Config(config_error) => match &**config_error {
+                ConfigError::Parse(ConfigParseError {
+                    origin,
+                    line,
+                    message,
+                }) => {
+                    // TODO: make `ConfigOrigin` not bytes-only
+                    let mut origin_bytes = vec![];
+                    origin
+                        .display_bytes(&mut origin_bytes)
+                        .map_err(|_| fmt::Error)?;
+                    write!(
+                        f,
+                        "config error at {}",
+                        String::from_utf8_lossy(&origin_bytes)
+                    )?;
+                    if let Some(line) = line {
+                        write!(f, ":{line}")?;
+                    }
+                    f.write_str(": ")?;
+                    f.write_str(&String::from_utf8_lossy(message))
+                }
+                ConfigError::Other(error) => error.fmt(f),
+                ConfigError::IO(error) => error.fmt(f),
+            },
             HgError::Path(error) => {
                 f.write_str(&hg_path_error_to_string(error, None)?)
             }
