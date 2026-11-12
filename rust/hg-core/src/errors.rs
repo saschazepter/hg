@@ -202,7 +202,10 @@ impl HgError {
                 }
                 _ => exit_codes::ABORT,
             },
-            HgError::Sparse(_) => exit_codes::STATE_ERROR,
+            // Like Python, where only this one is a `StateError`
+            HgError::Sparse(SparseConfigError::StaleNarrowspec) => {
+                exit_codes::STATE_ERROR
+            }
             _ => exit_codes::ABORT,
         }
     }
