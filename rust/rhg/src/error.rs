@@ -103,6 +103,17 @@ impl CommandError {
         }
     }
 
+    /// The generic way of aborting because of an `hg-core` error
+    fn prefixed_abort(error: HgError) -> Self {
+        CommandError::abort_with_exit_code_and_hint(
+            format!("abort: {error}"),
+            error.exit_code(),
+            error.hint(),
+            // The backtrace is part of the message
+            HgBacktrace::disabled(),
+        )
+    }
+
     pub fn unsupported(message: impl AsRef<str>) -> Self {
         CommandError::UnsupportedFeature {
             message: message.as_ref().as_bytes().to_owned(),
@@ -164,13 +175,7 @@ impl From<HgError> for CommandError {
                     error.exit_code(),
                 )
             }
-            _ => CommandError::abort_with_exit_code_and_hint(
-                format!("abort: {error}"),
-                error.exit_code(),
-                error.hint(),
-                // The backtrace is part of the message
-                HgBacktrace::disabled(),
-            ),
+            _ => CommandError::prefixed_abort(error),
         }
     }
 }
