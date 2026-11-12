@@ -18,7 +18,7 @@ use hg::dirstate::dirstate_map::DirstateIdentity as CoreDirstateIdentity;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
 use hg::dirstate::dirstate_map::PathData;
 use hg::dirstate::entry::DirstateEntry;
-use hg::dirstate::entry::ParentFileData;
+use hg::dirstate::entry::HgFsState;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::DirstateV2ParseError;
 use hg::dirstate::on_disk::V2SerializationInfo;
@@ -267,7 +267,7 @@ impl DirstateMap {
                     has_meaningful_mtime = false;
                     None
                 };
-                Some(ParentFileData { mode_size: Some((mode, size)), mtime })
+                Some(HgFsState { mode_size: Some((mode, size)), mtime })
             }
         };
 

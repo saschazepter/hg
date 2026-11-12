@@ -27,7 +27,7 @@ use crate::checkexec::is_executable;
 use crate::config::ConfigError;
 use crate::dirstate::dirstate_map::DirstateEntryReset;
 use crate::dirstate::dirstate_map::DirstateMap;
-use crate::dirstate::entry::ParentFileData;
+use crate::dirstate::entry::HgFsState;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::owning::OwningDirstateMap;
 use crate::errors::HgBacktrace;
@@ -1515,7 +1515,7 @@ fn update_dirstate(
             p1_tracked: true,
             p2_info: false,
             has_meaningful_mtime,
-            parent_file_data_opt: Some(ParentFileData {
+            parent_file_data_opt: Some(HgFsState {
                 mode_size: Some((
                     mode,
                     size.try_into().expect("invalid file size in manifest"),

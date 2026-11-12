@@ -265,8 +265,18 @@ pub struct DirstateV2Data {
     pub expected_state_is_modified: bool,
 }
 
+/// The mode, size and mtime of a file matching its parent content, in the
+/// form Mercurial records them, as passed to
+/// [`OwningDirstateMap::reset_state`](crate::dirstate::owning::OwningDirstateMap::reset_state).
+///
+/// The mode may be idealized: built from the flags in the manifest rather than
+/// read from the file system, it then carries the exec and symlink bits even
+/// when the file system cannot represent them. Only these bits of the mode
+/// matter to the dirstate. Code using this mode from the manifest ignores them
+/// if the file system does not support them, so it is fine to store and use
+/// the idealized version of the mode here.
 #[derive(Debug, Default, Copy, Clone)]
-pub struct ParentFileData {
+pub struct HgFsState {
     pub mode_size: Option<(u32, u32)>,
     pub mtime: Option<TruncatedTimestamp>,
 }

@@ -20,7 +20,7 @@ use crate::dirstate::CopyMapIter;
 use crate::dirstate::StateMapIter;
 use crate::dirstate::entry::DirstateEntry;
 use crate::dirstate::entry::DirstateV2Data;
-use crate::dirstate::entry::ParentFileData;
+use crate::dirstate::entry::HgFsState;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::on_disk::WriteNodeVisit;
 use crate::dirstate::parsers::pack_entry;
@@ -800,7 +800,7 @@ impl<'on_disk> DirstateMap<'on_disk> {
         p1_tracked: bool,
         p2_info: bool,
         has_meaningful_mtime: bool,
-        parent_file_data_opt: Option<ParentFileData>,
+        parent_file_data_opt: Option<HgFsState>,
         set_parents_mtime: bool,
     ) -> Result<(), DirstateError> {
         let (had_entry, was_tracked) = match old_entry_opt {
@@ -1283,7 +1283,7 @@ pub struct DirstateEntryReset<'a> {
     /// Whether the entry's mtime should be trusted
     pub has_meaningful_mtime: bool,
     /// Information from the parent file data (from the manifest)
-    pub parent_file_data_opt: Option<ParentFileData>,
+    pub parent_file_data_opt: Option<HgFsState>,
     /// Set this to `true` if you are *certain* that there is no old entry for
     /// this filename. Yield better performance in cases where we do a lot
     /// of additions to the dirstate.

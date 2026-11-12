@@ -21,7 +21,7 @@ use hg::dirstate::dirstate_map::DirstateFuseExt;
 use hg::dirstate::dirstate_map::DirstateMapWriteMode;
 use hg::dirstate::dirstate_map::FuseNodeInfo;
 use hg::dirstate::dirstate_map::PathData;
-use hg::dirstate::entry::ParentFileData;
+use hg::dirstate::entry::HgFsState;
 use hg::dirstate::entry::TruncatedTimestamp;
 use hg::dirstate::on_disk::Docket;
 use hg::dirstate::on_disk::V2SerializationInfo;
@@ -375,7 +375,7 @@ impl<T: FileToken> RevisionTree<T> {
                         p1_tracked: true,
                         p2_info: false, // We're never in an active merge
                         has_meaningful_mtime: true,
-                        parent_file_data_opt: Some(ParentFileData {
+                        parent_file_data_opt: Some(HgFsState {
                             mode_size,
                             mtime: Some(start_time),
                         }),
@@ -449,7 +449,7 @@ impl<T: FileToken> RevisionTree<T> {
                             p1_tracked: true,
                             p2_info: false, /* We're never in an active merge */
                             has_meaningful_mtime: true,
-                            parent_file_data_opt: Some(ParentFileData {
+                            parent_file_data_opt: Some(HgFsState {
                                 mode_size,
                                 mtime: Some(start_time),
                             }),
