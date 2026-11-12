@@ -102,7 +102,9 @@ pub type ConfigValueParseError = Box<ConfigValueParseErrorDetails>;
 // Temporary, until all users call the functions from `error_display`
 impl fmt::Display for ConfigValueParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        crate::error_display::write_config_value_parse_error(f, self)
+        f.write_str(&String::from_utf8_lossy(
+            &crate::error_display::config_value_parse_error_to_bytes(self),
+        ))
     }
 }
 

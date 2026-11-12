@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use hg::error_display::hg_path_error_to_string;
+use hg::error_display::hg_path_error_to_bytes;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
 use hg::revlog::RevlogError;
@@ -14,7 +14,6 @@ use pyo3::buffer::Element;
 use pyo3::buffer::PyBuffer;
 use pyo3::exceptions::PyIOError;
 use pyo3::exceptions::PyKeyboardInterrupt;
-use pyo3::exceptions::PyRuntimeError;
 use pyo3::exceptions::PyValueError;
 use pyo3::intern;
 use pyo3::prelude::*;
@@ -432,14 +431,8 @@ pub fn hg_err_to_py_err<E: Into<HgError>>(py: Python<'_>, e: E) -> PyErr {
             unreachable!("must not surface to the user")
         }
         HgError::Path(path_error) => {
-            let as_string = match hg_path_error_to_string(&path_error, None) {
-                Ok(s) => s,
-                Err(e) => {
-                    // This probably never happens, but let's be safe
-                    return PyErr::new::<PyRuntimeError, _>(e.to_string());
-                }
-            };
-            let msg = PyBytes::new(py, as_string.as_bytes());
+            let msg =
+                PyBytes::new(py, &hg_path_error_to_bytes(&path_error, None));
             let cls = py
                 .import(intern!(py, "mercurial.error"))
                 .and_then(|m| m.getattr(intern!(py, "InputError")))

@@ -5,8 +5,8 @@
 //! and for anything that gets called from Python.
 //! Other user interfaces are free to come up with their own.
 
-use std::fmt;
-use std::fmt::Write;
+use std::io;
+use std::io::Write;
 
 use format_bytes::DisplayBytes;
 
@@ -42,26 +42,78 @@ use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::strings::Escaped;
 use crate::utils::strings::join_display;
 
-/// The prefix for errors where [`HgError::is_unsupported`] is true. The
-/// alternate form (`{:#}`) can be used to omit it, for callers that have
-/// their own way of reporting such errors.
-fn unsupported_prefix(f: &fmt::Formatter) -> &'static str {
-    if f.alternate() {
-        ""
-    } else {
+const INFALLIBLE: &str = "writing to a `Vec` cannot fail";
+
+/// The text that `hg` is expected to show for this error, without the
+/// `abort: ` prefix (except for I/O errors, which have it for historical
+/// reasons), the exit code or the hint: see the methods of [`HgError`] for
+/// those.
+///
+/// This is bytes and not a string because errors can contain things like
+/// paths or config values, which are in an arbitrary encoding.
+pub fn hg_error_to_bytes(error: &HgError) -> Vec<u8> {
+    let mut buf = vec![];
+    write_hg_error(&mut buf, error, true).expect(INFALLIBLE);
+    buf
+}
+
+/// Same as [`hg_error_to_bytes`], but without the "unsupported feature"
+/// prefix of the errors where [`HgError::is_unsupported`] is true, for callers
+/// that have their own way of reporting such errors.
+pub fn hg_error_to_bytes_without_unsupported_prefix(
+    error: &HgError,
+) -> Vec<u8> {
+    let mut buf = vec![];
+    write_hg_error(&mut buf, error, false).expect(INFALLIBLE);
+    buf
+}
+
+/// The text that `hg` is expected to show for this I/O error
+pub fn io_error_to_bytes(error: &HgIoError) -> Vec<u8> {
+    let mut buf = vec![];
+    write_io_error(&mut buf, error).expect(INFALLIBLE);
+    buf
+}
+
+/// The text that `hg` is expected to show for this config parsing error
+pub fn config_value_parse_error_to_bytes(
+    error: &ConfigValueParseError,
+) -> Vec<u8> {
+    let mut buf = vec![];
+    write_config_value_parse_error(&mut buf, error).expect(INFALLIBLE);
+    buf
+}
+
+/// The text that `hg` is expected to show for this path error, with an
+/// optional prefix.
+pub fn hg_path_error_to_bytes(
+    error: &HgPathError,
+    prefix: Option<&str>,
+) -> Vec<u8> {
+    let mut buf = vec![];
+    write_hg_path_error(&mut buf, error, prefix).expect(INFALLIBLE);
+    buf
+}
+
+/// The prefix for errors where [`HgError::is_unsupported`] is true.
+fn unsupported_prefix(with_prefix: bool) -> &'static str {
+    if with_prefix {
         "unsupported feature: "
+    } else {
+        ""
     }
 }
 
 // TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
-pub(crate) fn write_hg_error(
-    f: &mut fmt::Formatter,
+fn write_hg_error(
+    f: &mut Vec<u8>,
     error: &HgError,
-) -> fmt::Result {
+    with_unsupported_prefix: bool,
+) -> io::Result<()> {
     match error {
         HgError::IO(io_err) => write_io_error(f, io_err),
         HgError::UnsupportedFeature(kind, backtrace) => {
-            let prefix = unsupported_prefix(f);
+            let prefix = unsupported_prefix(with_unsupported_prefix);
             write!(f, "{}{}", backtrace, prefix)?;
             match kind {
                 UnsupportedFeatureKind::BundleRepo => {
@@ -88,9 +140,7 @@ pub(crate) fn write_hg_error(
             ConfigError::Parse(ConfigParseError { origin, line, kind }) => {
                 // TODO: make `ConfigOrigin` not bytes-only
                 let mut origin_bytes = vec![];
-                origin
-                    .display_bytes(&mut origin_bytes)
-                    .map_err(|_| fmt::Error)?;
+                origin.display_bytes(&mut origin_bytes)?;
                 write!(
                     f,
                     "config error at {}",
@@ -99,7 +149,7 @@ pub(crate) fn write_hg_error(
                 if let Some(line) = line {
                     write!(f, ":{line}")?;
                 }
-                f.write_str(": ")?;
+                f.write_all(b": ")?;
                 match kind {
                     ConfigParseErrorKind::CannotInclude { filename, error } => {
                         write!(
@@ -117,7 +167,7 @@ pub(crate) fn write_hg_error(
                         )
                     }
                     ConfigParseErrorKind::InvalidLine(line) => {
-                        f.write_str(&String::from_utf8_lossy(line))
+                        f.write_all(String::from_utf8_lossy(line).as_bytes())
                     }
                 }
             }
@@ -153,9 +203,7 @@ pub(crate) fn write_hg_error(
                 format_config_items_error(f, items_error)
             }
         },
-        HgError::Path(error) => {
-            f.write_str(&hg_path_error_to_string(error, None)?)
-        }
+        HgError::Path(error) => write_hg_path_error(f, error, None),
         HgError::InterruptReceived => write!(f, "interrupt received"),
         HgError::RepoNotFound { at, backtrace } => {
             write!(
@@ -254,7 +302,7 @@ pub(crate) fn write_hg_error(
                 )
             }
             RevlogError::EllipsisNode { backtrace } => {
-                let prefix = unsupported_prefix(f);
+                let prefix = unsupported_prefix(with_unsupported_prefix);
                 write!(f, "{}{}encountered an ellipsis node", backtrace, prefix)
             }
             RevlogError::InlineDelayedWrite { backtrace } => {
@@ -290,7 +338,7 @@ pub(crate) fn write_hg_error(
                     node.short()
                 )
             }
-            RevlogError::Docket(error) => format_docket_error(f, error),
+            RevlogError::Docket(error) => write_docket_error(f, error),
             RevlogError::CorruptedManifest { backtrace } => {
                 write!(f, "{backtrace}corrupted manifest")
             }
@@ -371,7 +419,7 @@ pub(crate) fn write_hg_error(
                 write!(f, "{backtrace}invalid revlog type {kind}")
             }
             RevlogError::UnsupportedCompressionEngine { name, backtrace } => {
-                let prefix = unsupported_prefix(f);
+                let prefix = unsupported_prefix(with_unsupported_prefix);
                 write!(
                     f,
                     "{backtrace}{prefix}Unsupported compression engine \
@@ -478,7 +526,7 @@ pub(crate) fn write_hg_error(
                 write!(f, "{}path not found: {}", backtrace, path)
             }
             DirstateError::InvalidPath(error) => {
-                f.write_str(&hg_path_error_to_string(error, None)?)
+                write_hg_path_error(f, error, None)
             }
             DirstateError::TooLittleData(size, backtrace) => {
                 write!(
@@ -542,57 +590,66 @@ pub(crate) fn write_hg_error(
         }
         HgError::Shape(shape_err) => {
             let backtrace = &shape_err.backtrace;
-            let msg = match &*shape_err.kind {
+            match &*shape_err.kind {
                 ShapeErrorKind::EmptyShardName => {
-                    format!("{backtrace}shard names must not be empty")
+                    write!(f, "{backtrace}shard names must not be empty")
                 }
-                ShapeErrorKind::DotOrHyphenOnlyShardName(name) => format!(
+                ShapeErrorKind::DotOrHyphenOnlyShardName(name) => write!(
+                    f,
                     "{backtrace}invalid shard name '{name}': \
                     missing lowercase alphanumeric character"
                 ),
-                ShapeErrorKind::InvalidShardName(name) => format!(
+                ShapeErrorKind::InvalidShardName(name) => write!(
+                    f,
                     "{backtrace}invalid shard name '{name}': \
                     only lowercase alphanumeric, hyphen or dot are accepted"
                 ),
                 ShapeErrorKind::ReservedName(name) => {
-                    format!("{backtrace}shard name '{name}' is reserved")
+                    write!(f, "{backtrace}shard name '{name}' is reserved")
                 }
                 ShapeErrorKind::CycleInShards(shard_names) => {
                     let cycle = itertools::Itertools::join(
                         &mut shard_names.iter(),
                         "->",
                     );
-                    format!("{backtrace}shards form a cycle: {cycle}")
+                    write!(f, "{backtrace}shards form a cycle: {cycle}")
                 }
                 ShapeErrorKind::PathInMultipleShards(path) => {
-                    format!(
+                    write!(
+                        f,
                         "{backtrace}path is found in multiple shards: {}",
                         String::from_utf8_lossy(path.as_bytes())
                     )
                 }
                 ShapeErrorKind::DuplicateShard(name) => {
-                    format!("{backtrace}shard '{name}' defined multiple times")
+                    write!(
+                        f,
+                        "{backtrace}shard '{name}' defined multiple times"
+                    )
                 }
                 ShapeErrorKind::ShardMissingPaths(name) => {
-                    format!("{backtrace}shard '{name}' needs `paths`")
+                    write!(f, "{backtrace}shard '{name}' needs `paths`")
                 }
                 ShapeErrorKind::ProfileMissingIncludes(name) => {
-                    format!("{backtrace}profile '{name}' needs `includes`")
+                    write!(f, "{backtrace}profile '{name}' needs `includes`")
                 }
                 ShapeErrorKind::NoShards => {
-                    format!(
+                    write!(
+                        f,
                         "{backtrace}`server-sharding` must include at \
                         least one shard"
                     )
                 }
                 ShapeErrorKind::UnknownInclude { profile, include } => {
-                    format!(
+                    write!(
+                        f,
                         "{backtrace}profile '{profile}' includes unknown \
                         name '{include}'"
                     )
                 }
                 ShapeErrorKind::InvalidReadWriteAccess { shard, value } => {
-                    format!(
+                    write!(
+                        f,
                         "{backtrace}invalid read-write-access value \
                         '{value}' for shard '{shard}': only lowercase \
                         alphanumeric, hyphen or dot are accepted, with at \
@@ -602,56 +659,53 @@ pub(crate) fn write_hg_error(
                 ShapeErrorKind::InvalidPath(err) => {
                     let prefix =
                         Some("`server-sharding` contains an invalid path: ");
-                    hg_path_error_to_string(err, prefix)?
+                    write_hg_path_error(f, err, prefix)
                 }
                 ShapeErrorKind::UnknownVersion(version) => {
-                    format!(
+                    write!(
+                        f,
                         "{backtrace}unknown `server-sharding` \
                         version '{version}'"
                     )
                 }
                 ShapeErrorKind::ParseError(err) => {
-                    format!(
-                        "{backtrace}error parsing \
-                        `server-sharding`:\n{err}"
+                    write!(
+                        f,
+                        "{backtrace}error parsing `server-sharding`:\n{err}"
                     )
                 }
                 ShapeErrorKind::PatternError(err) => {
-                    return format_pattern_error(f, err);
+                    format_pattern_error(f, err)
                 }
                 ShapeErrorKind::UnknownProfile(name) => {
-                    format!("{backtrace}unknown profile '{name}'")
+                    write!(f, "{backtrace}unknown profile '{name}'")
                 }
                 ShapeErrorKind::NoProfileNames => {
-                    format!("{backtrace}at least one profile name is needed")
+                    write!(f, "{backtrace}at least one profile name is needed")
                 }
                 ShapeErrorKind::Deserialization(deserialization_error) => {
-                    let mut msg =
-                        format!("{backtrace}error deserializing shape: ");
+                    write!(f, "{backtrace}error deserializing shape: ")?;
                     match deserialization_error {
                         DeserializationError::InvalidLength {
                             expected,
                             got,
                         } => {
                             write!(
-                                msg,
-                                "invalid length \
-                                 (expected {}, got {})",
+                                f,
+                                "invalid length (expected {}, got {})",
                                 expected, got
-                            )?;
+                            )
                         }
                         DeserializationError::InvalidPath { path } => {
                             let path = String::from_utf8_lossy(path);
-                            write!(msg, "invalid path '{}'", path)?;
+                            write!(f, "invalid path '{}'", path)
                         }
                     }
-                    msg
                 }
-            };
-            f.write_str(&msg)
+            }
         }
         HgError::Update(error) => {
-            fmt::Display::fmt(&error.backtrace, f)?;
+            write!(f, "{}", error.backtrace)?;
             match &error.kind {
                 UpdateErrorKind::UntrackedFilesDiffer => {
                     write!(
@@ -661,7 +715,7 @@ pub(crate) fn write_hg_error(
                     )
                 }
                 UpdateErrorKind::ThreadPool(error) => {
-                    fmt::Display::fmt(error, f)
+                    write!(f, "{}", error)
                 }
                 UpdateErrorKind::UnknownDirectoryNotEmpty(path) => {
                     write!(
@@ -717,7 +771,7 @@ pub(crate) fn write_hg_error(
                     write!(
                         f,
                         "{}HGENCODING value '{}' is not supported",
-                        unsupported_prefix(f),
+                        unsupported_prefix(with_unsupported_prefix),
                         value.to_string_lossy()
                     )
                 }
@@ -755,7 +809,9 @@ pub(crate) fn write_hg_error(
         HgError::Requirements(error) => {
             write!(f, "{}", error.backtrace)?;
             if error.is_unsupported() {
-                f.write_str(unsupported_prefix(f))?;
+                f.write_all(
+                    unsupported_prefix(with_unsupported_prefix).as_bytes(),
+                )?;
             }
             match &error.kind {
                 RequirementsErrorKind::ParseError => {
@@ -802,9 +858,9 @@ pub(crate) fn write_hg_error(
                 }
             }
         }
-        HgError::Docket(error) => format_docket_error(f, error),
+        HgError::Docket(error) => write_docket_error(f, error),
         HgError::FileIndex(error) => {
-            write!(f, "{}corrupted fileindex: ", &error.backtrace)?;
+            write!(f, "{}corrupted fileindex: ", error.backtrace)?;
             match &error.kind {
                 FileIndexErrorKind::BadMetaFilesize => {
                     write!(
@@ -838,72 +894,69 @@ pub(crate) fn write_hg_error(
     }
 }
 
-pub fn hg_path_error_to_string(
+fn write_hg_path_error(
+    f: &mut Vec<u8>,
     error: &HgPathError,
     prefix: Option<&str>,
-) -> Result<String, fmt::Error> {
-    let mut buf = error.backtrace.to_string();
+) -> io::Result<()> {
+    write!(f, "{}", error.backtrace)?;
     if let Some(prefix) = prefix {
-        buf.write_str(prefix)?;
+        f.write_all(prefix.as_bytes())?;
     }
 
     match &error.kind {
         HgPathErrorKind::LeadingSlash(bytes) => {
-            write!(buf, "invalid HgPath '{:?}': has a leading slash.", bytes)
+            write!(f, "invalid HgPath '{:?}': has a leading slash.", bytes)
         }
         HgPathErrorKind::ConsecutiveSlashes {
             bytes,
             second_slash_index: pos,
         } => write!(
-            buf,
+            f,
             "invalid HgPath '{:?}': consecutive slashes at pos {}.",
             bytes, pos
         ),
         HgPathErrorKind::ContainsNullByte { bytes, null_byte_index: pos } => {
             write!(
-                buf,
+                f,
                 "invalid HgPath '{:?}': contains null byte at pos {}.",
                 bytes, pos
             )
         }
         HgPathErrorKind::DecodeError(bytes) => {
-            write!(buf, "invalid HgPath '{:?}': could not be decoded.", bytes)
+            write!(f, "invalid HgPath '{:?}': could not be decoded.", bytes)
         }
         HgPathErrorKind::EndsWithSlash(path) => {
-            write!(buf, "path '{}': ends with a slash", path)
+            write!(f, "path '{}': ends with a slash", path)
         }
         HgPathErrorKind::ContainsIllegalComponent(path) => {
-            write!(buf, "path contains illegal component: {}", path)
+            write!(f, "path contains illegal component: {}", path)
         }
         HgPathErrorKind::InsideDotHg(path) => {
-            write!(buf, "path '{}' is inside the '.hg' folder", path)
+            write!(f, "path '{}' is inside the '.hg' folder", path)
         }
         HgPathErrorKind::IsInsideNestedRepo { path, nested_repo: nested } => {
-            write!(buf, "path '{}' is inside nested repo '{}'", path, nested)
+            write!(f, "path '{}' is inside nested repo '{}'", path, nested)
         }
         HgPathErrorKind::TraversesSymbolicLink { path, symlink } => {
-            write!(buf, "path '{}' traverses symbolic link '{}'", path, symlink)
+            write!(f, "path '{}' traverses symbolic link '{}'", path, symlink)
         }
         HgPathErrorKind::NotFsCompliant(path) => write!(
-            buf,
+            f,
             "path '{}' cannot be turned into a \
                  filesystem path",
             path
         ),
         HgPathErrorKind::NotUnderRoot { path, root } => write!(
-            buf,
+            f,
             "path '{}' not under root {}",
             path.display(),
             root.display()
         ),
-    }?;
-    Ok(buf)
+    }
 }
 
-fn format_docket_error(
-    f: &mut std::fmt::Formatter<'_>,
-    error: &DocketError,
-) -> Result<(), std::fmt::Error> {
+fn write_docket_error(f: &mut Vec<u8>, error: &DocketError) -> io::Result<()> {
     let DocketError { docket_path, kind, backtrace } = error;
     match kind {
         DocketErrorKind::Corrupted => {
@@ -958,11 +1011,11 @@ fn format_docket_error(
 }
 
 fn format_config_items_error(
-    f: &mut std::fmt::Formatter<'_>,
+    f: &mut Vec<u8>,
     items_error: &ConfigItemsError,
-) -> Result<(), std::fmt::Error> {
+) -> io::Result<()> {
     match items_error {
-        ConfigItemsError::Toml(error) => fmt::Display::fmt(error, f),
+        ConfigItemsError::Toml(error) => write!(f, "{}", error),
         ConfigItemsError::LambdaWithoutReturn => {
             write!(f, "lambda defined with no return value")
         }
@@ -995,9 +1048,9 @@ fn format_config_items_error(
 }
 
 fn format_pattern_error(
-    f: &mut std::fmt::Formatter<'_>,
+    f: &mut Vec<u8>,
     pattern_error: &PatternError,
-) -> Result<(), std::fmt::Error> {
+) -> io::Result<()> {
     match pattern_error {
         PatternError::UnsupportedSyntax(syntax, backtrace) => {
             write!(
@@ -1006,10 +1059,8 @@ fn format_pattern_error(
                 String::from_utf8_lossy(syntax)
             )
         }
-        PatternError::IO(error) => fmt::Display::fmt(&error, f),
-        PatternError::Path(error) => {
-            f.write_str(&hg_path_error_to_string(error, None)?)
-        }
+        PatternError::IO(error) => write_io_error(f, error),
+        PatternError::Path(error) => write_hg_path_error(f, error, None),
         PatternError::NonRegexPattern(pattern, backtrace) => {
             write!(
                 f,
@@ -1029,8 +1080,8 @@ fn format_pattern_error(
             // be safe
             writeln!(f, "{backtrace}invalid regex '{needle}':")?;
             match error {
-                RegexBuildError::Syntax(error) => fmt::Display::fmt(error, f),
-                RegexBuildError::Build(error) => fmt::Display::fmt(error, f),
+                RegexBuildError::Syntax(error) => write!(f, "{}", error),
+                RegexBuildError::Build(error) => write!(f, "{}", error),
             }
         }
         PatternError::NonUtf8Pattern { pattern, valid_up_to, backtrace } => {
@@ -1054,10 +1105,7 @@ fn format_pattern_error(
     }
 }
 
-pub(crate) fn write_io_error(
-    f: &mut fmt::Formatter,
-    error: &HgIoError,
-) -> fmt::Result {
+fn write_io_error(f: &mut Vec<u8>, error: &HgIoError) -> io::Result<()> {
     match error {
         HgIoError::IO { kind, context, backtrace, raw_os_error: _ } => {
             write!(f, "{}abort: ", backtrace)?;
@@ -1073,10 +1121,7 @@ pub(crate) fn write_io_error(
     }
 }
 
-fn write_graph_error(
-    f: &mut fmt::Formatter,
-    error: &GraphError,
-) -> fmt::Result {
+fn write_graph_error(f: &mut Vec<u8>, error: &GraphError) -> io::Result<()> {
     match error.kind {
         GraphErrorKind::ParentOutOfRange(revision) => {
             write!(f, "parent out of range ({})", revision)
@@ -1096,10 +1141,10 @@ fn write_graph_error(
     }
 }
 
-pub(crate) fn write_config_value_parse_error(
-    f: &mut fmt::Formatter,
+fn write_config_value_parse_error(
+    f: &mut Vec<u8>,
     error: &ConfigValueParseError,
-) -> fmt::Result {
+) -> io::Result<()> {
     // TODO: add origin and line number information, here and in
     // corresponding python code
     write!(
@@ -1114,9 +1159,9 @@ pub(crate) fn write_config_value_parse_error(
 
 // TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
 fn write_io_error_context(
-    f: &mut fmt::Formatter,
+    f: &mut Vec<u8>,
     context: &IoErrorContext,
-) -> fmt::Result {
+) -> io::Result<()> {
     match context {
         IoErrorContext::ReadingMetadata(path) => {
             write!(f, "when reading metadata of {}", path.display())

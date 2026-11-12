@@ -308,14 +308,21 @@ impl HgIoError {
 // Temporary, until all users call the functions from `error_display`
 impl fmt::Display for HgError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        error_display::write_hg_error(f, self)
+        let bytes = if f.alternate() {
+            error_display::hg_error_to_bytes_without_unsupported_prefix(self)
+        } else {
+            error_display::hg_error_to_bytes(self)
+        };
+        f.write_str(&String::from_utf8_lossy(&bytes))
     }
 }
 
 // Temporary, until all users call the functions from `error_display`
 impl fmt::Display for HgIoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        error_display::write_io_error(f, self)
+        f.write_str(&String::from_utf8_lossy(
+            &error_display::io_error_to_bytes(self),
+        ))
     }
 }
 
