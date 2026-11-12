@@ -215,28 +215,6 @@ impl From<GraphErrorKind> for GraphError {
     }
 }
 
-impl std::fmt::Display for GraphError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.kind {
-            GraphErrorKind::ParentOutOfRange(revision) => {
-                write!(f, "parent out of range ({})", revision)
-            }
-            GraphErrorKind::ParentOutOfOrder(revision) => {
-                write!(f, "parent out of order ({})", revision)
-            }
-            GraphErrorKind::P1OutOfRange(revision) => {
-                write!(f, "p1 out of range ({})", revision)
-            }
-            GraphErrorKind::P2OutOfRange(revision) => {
-                write!(f, "p2 out of range ({})", revision)
-            }
-            GraphErrorKind::InconsistentGraphData => {
-                write!(f, "inconsistent graph data")
-            }
-        }
-    }
-}
-
 impl<T: Graph> Graph for &T {
     fn parents(&self, rev: Revision) -> Result<[Revision; 2], GraphError> {
         (*self).parents(rev)

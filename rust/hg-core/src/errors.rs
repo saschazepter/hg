@@ -30,6 +30,8 @@ use crate::narrow::shape::Error as ShapeError;
 use crate::narrow::shape::ErrorKind as ShapeErrorKind;
 use crate::requirements::RequirementsError;
 use crate::requirements::RequirementsErrorKind;
+use crate::revlog::GraphError;
+use crate::revlog::GraphErrorKind;
 use crate::revlog::RevlogError;
 use crate::revlog::changelog::ChangelogErrorKind;
 use crate::segmented_bytes::ErrorKind as SegmentedBytesErrorKind;
@@ -283,10 +285,12 @@ fn unsupported_prefix(f: &fmt::Formatter) -> &'static str {
 }
 
 // TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
-impl fmt::Display for HgError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            HgError::IO(io_err) => io_err.fmt(f),
+fn write_hg_error(f: &mut fmt::Formatter, error: &HgError) -> fmt::Result {
+    // Temporary block, keeping the indentation of the former `Display`
+    // implementation to make the diff readable. The next changeset removes it.
+    {
+        match error {
+            HgError::IO(io_err) => write_io_error(f, io_err),
             HgError::UnsupportedFeature(kind, backtrace) => {
                 let prefix = unsupported_prefix(f);
                 write!(f, "{}{}", backtrace, prefix)?;
@@ -308,7 +312,9 @@ impl fmt::Display for HgError {
             HgError::AllocationFailed { function, backtrace } => {
                 write!(f, "{backtrace}{function} failed to allocate")
             }
-            HgError::ConfigValueParseError(error) => error.fmt(f),
+            HgError::ConfigValueParseError(error) => {
+                write_config_value_parse_error(f, error)
+            }
             HgError::Config(config_error) => match &**config_error {
                 ConfigError::Parse(ConfigParseError { origin, line, kind }) => {
                     // TODO: make `ConfigOrigin` not bytes-only
@@ -423,7 +429,7 @@ impl fmt::Display for HgError {
                         "{backtrace}ambiguous revision identifier: {prefix}"
                     )
                 }
-                RevlogError::IO(hg_io_error) => hg_io_error.fmt(f),
+                RevlogError::IO(hg_io_error) => write_io_error(f, hg_io_error),
                 RevlogError::CorruptedRevisionData { rev, backtrace } => {
                     write!(f, "{}invalid data for revision: {}", backtrace, rev)
                 }
@@ -444,7 +450,9 @@ impl fmt::Display for HgError {
                 RevlogError::InvalidLinkRev { rev, backtrace } => {
                     write!(f, "{}linkrev for rev {} is invalid", backtrace, rev)
                 }
-                RevlogError::Graph(graph_error) => graph_error.fmt(f),
+                RevlogError::Graph(graph_error) => {
+                    write_graph_error(f, graph_error)
+                }
                 RevlogError::UnknownFlags { flags, backtrace } => {
                     write!(
                         f,
@@ -561,7 +569,7 @@ impl fmt::Display for HgError {
                     )
                 }
                 RevlogError::CorruptedChangelog { kind, backtrace } => {
-                    backtrace.fmt(f)?;
+                    write!(f, "{}", backtrace)?;
                     match kind {
                         ChangelogErrorKind::TimestampNotUtf8(error) => {
                             write!(f, "timestamp is not valid UTF-8: {error}")
@@ -989,7 +997,7 @@ impl fmt::Display for HgError {
                 }
             },
             HgError::Encoding(error) => {
-                error.backtrace.fmt(f)?;
+                write!(f, "{}", error.backtrace)?;
                 match &error.kind {
                     EncodingErrorKind::UnsupportedEncoding(value) => {
                         write!(
@@ -1031,7 +1039,7 @@ impl fmt::Display for HgError {
                 }
             }
             HgError::Requirements(error) => {
-                error.backtrace.fmt(f)?;
+                write!(f, "{}", error.backtrace)?;
                 if error.is_unsupported() {
                     f.write_str(unsupported_prefix(f))?;
                 }
@@ -1333,40 +1341,93 @@ fn format_pattern_error(
     }
 }
 
+fn write_io_error(f: &mut fmt::Formatter, error: &HgIoError) -> fmt::Result {
+    match error {
+        HgIoError::IO { kind, context, backtrace, raw_os_error: _ } => {
+            write!(f, "{}abort: ", backtrace)?;
+            write_io_error_context(f, context)?;
+            write!(f, ": {}", kind)
+        }
+        HgIoError::WriteAttemptInReadonlyVfs(backtrace) => {
+            write!(f, "{}abort: attempted write in a readonly vfs", backtrace)
+        }
+        HgIoError::NonUTF8Lock(backtrace) => {
+            write!(f, "{}abort: lock contains non-UTF8 bytes", backtrace)
+        }
+    }
+}
+
+fn write_graph_error(
+    f: &mut fmt::Formatter,
+    error: &GraphError,
+) -> fmt::Result {
+    match error.kind {
+        GraphErrorKind::ParentOutOfRange(revision) => {
+            write!(f, "parent out of range ({})", revision)
+        }
+        GraphErrorKind::ParentOutOfOrder(revision) => {
+            write!(f, "parent out of order ({})", revision)
+        }
+        GraphErrorKind::P1OutOfRange(revision) => {
+            write!(f, "p1 out of range ({})", revision)
+        }
+        GraphErrorKind::P2OutOfRange(revision) => {
+            write!(f, "p2 out of range ({})", revision)
+        }
+        GraphErrorKind::InconsistentGraphData => {
+            write!(f, "inconsistent graph data")
+        }
+    }
+}
+
+pub(crate) fn write_config_value_parse_error(
+    f: &mut fmt::Formatter,
+    error: &ConfigValueParseError,
+) -> fmt::Result {
+    // TODO: add origin and line number information, here and in
+    // corresponding python code
+    write!(
+        f,
+        "config error: {}.{} is not a {} ('{}')",
+        String::from_utf8_lossy(&error.section),
+        String::from_utf8_lossy(&error.item),
+        error.expected_type,
+        String::from_utf8_lossy(&error.value)
+    )
+}
+
 // TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
-impl fmt::Display for IoErrorContext {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            IoErrorContext::ReadingMetadata(path) => {
-                write!(f, "when reading metadata of {}", path.display())
-            }
-            IoErrorContext::ReadingFile(path) => {
-                write!(f, "when reading {}", path.display())
-            }
-            IoErrorContext::WritingFile(path) => {
-                write!(f, "when writing {}", path.display())
-            }
-            IoErrorContext::RemovingFile(path) => {
-                write!(f, "when removing {}", path.display())
-            }
-            IoErrorContext::RenamingFile { from, to } => write!(
-                f,
-                "when renaming {} to {}",
-                from.display(),
-                to.display()
-            ),
-            IoErrorContext::CopyingFile { from, to } => {
-                write!(f, "when copying {} to {}", from.display(), to.display())
-            }
-            IoErrorContext::CanonicalizingPath(path) => {
-                write!(f, "when canonicalizing {}", path.display())
-            }
-            IoErrorContext::CurrentDir => {
-                write!(f, "error getting current working directory")
-            }
-            IoErrorContext::CurrentExe => {
-                write!(f, "error getting current executable")
-            }
+fn write_io_error_context(
+    f: &mut fmt::Formatter,
+    context: &IoErrorContext,
+) -> fmt::Result {
+    match context {
+        IoErrorContext::ReadingMetadata(path) => {
+            write!(f, "when reading metadata of {}", path.display())
+        }
+        IoErrorContext::ReadingFile(path) => {
+            write!(f, "when reading {}", path.display())
+        }
+        IoErrorContext::WritingFile(path) => {
+            write!(f, "when writing {}", path.display())
+        }
+        IoErrorContext::RemovingFile(path) => {
+            write!(f, "when removing {}", path.display())
+        }
+        IoErrorContext::RenamingFile { from, to } => {
+            write!(f, "when renaming {} to {}", from.display(), to.display())
+        }
+        IoErrorContext::CopyingFile { from, to } => {
+            write!(f, "when copying {} to {}", from.display(), to.display())
+        }
+        IoErrorContext::CanonicalizingPath(path) => {
+            write!(f, "when canonicalizing {}", path.display())
+        }
+        IoErrorContext::CurrentDir => {
+            write!(f, "error getting current working directory")
+        }
+        IoErrorContext::CurrentExe => {
+            write!(f, "error getting current executable")
         }
     }
 }
@@ -1421,25 +1482,17 @@ impl HgIoError {
     }
 }
 
-// TODO remove this once all users have their Display impls removed
-// Only top-level code (like `rhg` or `hg-pyo3`) should care about this
-impl std::fmt::Display for HgIoError {
+// Temporary, until all users ask for the text of errors explicitly
+impl fmt::Display for HgError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write_hg_error(f, self)
+    }
+}
+
+// Temporary, until all users ask for the text of errors explicitly
+impl fmt::Display for HgIoError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            HgIoError::IO { kind, context, backtrace, raw_os_error: _ } => {
-                write!(f, "{}abort: {}: {}", backtrace, context, kind)
-            }
-            HgIoError::WriteAttemptInReadonlyVfs(backtrace) => {
-                write!(
-                    f,
-                    "{}abort: attempted write in a readonly vfs",
-                    backtrace
-                )
-            }
-            HgIoError::NonUTF8Lock(backtrace) => {
-                write!(f, "{}abort: lock contains non-UTF8 bytes", backtrace)
-            }
-        }
+        write_io_error(f, self)
     }
 }
 
