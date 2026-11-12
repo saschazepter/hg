@@ -271,49 +271,42 @@ impl From<DirstateError> for CommandError {
 }
 
 impl From<SparseConfigError> for CommandError {
-    fn from(e: SparseConfigError) -> Self {
-        match e {
+    fn from(error: SparseConfigError) -> Self {
+        // The message is formatted here since it has patterns and lines,
+        // which are bytes, unlike the `Display` of `HgError`.
+        let message = match &error {
             SparseConfigError::IncludesAfterExcludes { context } => {
-                Self::abort_with_exit_code_bytes(
-                    format_bytes!(
-                        b"{} config cannot have includes after excludes",
-                        context
-                    ),
-                    exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                format_bytes!(
+                    b"{} config cannot have includes after excludes",
+                    context
                 )
             }
             SparseConfigError::EntryOutsideSection { context, line } => {
-                Self::abort_with_exit_code_bytes(
-                    format_bytes!(
-                        b"{} config entry outside of section: {}",
-                        context,
-                        &line,
-                    ),
-                    exit_codes::CONFIG_PARSE_ERROR_ABORT,
+                format_bytes!(
+                    b"{} config entry outside of section: {}",
+                    context,
+                    line,
                 )
             }
             SparseConfigError::InvalidNarrowPrefix(prefix) => {
-                Self::abort_with_exit_code_bytes(
-                    format_bytes!(
-                        b"invalid prefix on narrow pattern: {}",
-                        &prefix
-                    ),
-                    exit_codes::ABORT,
-                )
+                format_bytes!(b"invalid prefix on narrow pattern: {}", prefix)
             }
             SparseConfigError::WhitespaceAtEdgeOfPattern(prefix) => {
-                Self::abort_with_exit_code_bytes(
-                    format_bytes!(
-                        b"narrow pattern with whitespace at the edge: {}",
-                        &prefix
-                    ),
-                    exit_codes::ABORT,
+                format_bytes!(
+                    b"narrow pattern with whitespace at the edge: {}",
+                    prefix
                 )
             }
-            SparseConfigError::IncludesInNarrow => Self::abort(
-                "including other spec files using '%include' \
-                    is not supported in narrowspec",
-            ),
+            SparseConfigError::IncludesInNarrow => b"including other spec \
+                files using '%include' is not supported in narrowspec"
+                .to_vec(),
+        };
+        let error = HgError::from(error);
+        CommandError::Abort {
+            message: format_bytes!(b"abort: {}", message),
+            detailed_exit_code: error.exit_code(),
+            hint: error.hint().map(|hint| hint.into_owned().into_bytes()),
+            backtrace: HgBacktrace::capture(),
         }
     }
 }
