@@ -669,6 +669,12 @@ class IVfs(Protocol):
 class IWorkingVfs(IVfs, Protocol):
     """A vfs with the extra operations needed to manage a working copy"""
 
+    has_link: bool
+    """True if the file system under ``base`` supports symlinks."""
+
+    has_exec: bool
+    """True if the file system under ``base`` supports the exec bit."""
+
     @abc.abstractmethod
     def symlink(self, src: FsPathT, dst: HgPathT) -> None:
         """create a ``dst`` symlink pointing to ``src``
