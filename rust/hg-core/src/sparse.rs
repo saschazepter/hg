@@ -129,7 +129,7 @@ pub(crate) fn parse_config(
                 profiles.insert(profile.into());
             }
         } else if line == b"[include]" {
-            if in_section && current == Current::Includes {
+            if in_section && current != Current::Includes {
                 return Err(SparseConfigError::IncludesAfterExcludes {
                     context,
                 }
