@@ -8,7 +8,8 @@
 use std::io;
 use std::io::Write;
 
-use format_bytes::DisplayBytes;
+use format_bytes::Utf8;
+use format_bytes::write_bytes;
 
 use crate::config::ConfigError;
 use crate::config::ConfigItemsError;
@@ -37,6 +38,7 @@ use crate::sparse::SparseConfigError;
 use crate::update::UpdateErrorKind;
 use crate::utils::docket::DocketError;
 use crate::utils::docket::DocketErrorKind;
+use crate::utils::files::get_bytes_from_path;
 use crate::utils::hg_path::HgPathError;
 use crate::utils::hg_path::HgPathErrorKind;
 use crate::utils::strings::Escaped;
@@ -104,7 +106,6 @@ fn unsupported_prefix(with_prefix: bool) -> &'static str {
     }
 }
 
-// TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
 fn write_hg_error(
     f: &mut Vec<u8>,
     error: &HgError,
@@ -138,45 +139,39 @@ fn write_hg_error(
         }
         HgError::Config(config_error) => match &**config_error {
             ConfigError::Parse(ConfigParseError { origin, line, kind }) => {
-                // TODO: make `ConfigOrigin` not bytes-only
-                let mut origin_bytes = vec![];
-                origin.display_bytes(&mut origin_bytes)?;
-                write!(
-                    f,
-                    "config error at {}",
-                    String::from_utf8_lossy(&origin_bytes)
-                )?;
+                write_bytes!(f, b"config error at {}", origin)?;
                 if let Some(line) = line {
                     write!(f, ":{line}")?;
                 }
                 f.write_all(b": ")?;
                 match kind {
                     ConfigParseErrorKind::CannotInclude { filename, error } => {
-                        write!(
+                        write_bytes!(
                             f,
-                            "cannot include {} ({})",
-                            String::from_utf8_lossy(filename),
-                            error
+                            b"cannot include {} ({})",
+                            filename,
+                            Utf8(error)
                         )
                     }
                     ConfigParseErrorKind::UnexpectedLeadingWhitespace(line) => {
-                        write!(
+                        write_bytes!(
                             f,
-                            "unexpected leading whitespace: {}",
-                            String::from_utf8_lossy(line)
+                            b"unexpected leading whitespace: {}",
+                            line
                         )
                     }
                     ConfigParseErrorKind::InvalidLine(line) => {
-                        f.write_all(String::from_utf8_lossy(line).as_bytes())
+                        f.write_all(line)
                     }
                 }
             }
             ConfigError::MalformedCliOption { arg, backtrace } => {
-                write!(
+                write_bytes!(
                     f,
-                    "{backtrace}malformed --config option: '{}' \
+                    b"{}malformed --config option: '{}' \
                     (use --config section.name=value)",
-                    String::from_utf8_lossy(arg),
+                    backtrace,
+                    arg,
                 )
             }
             ConfigError::NoUsername { backtrace } => {
@@ -185,12 +180,13 @@ fn write_hg_error(
             ConfigError::WrongQueryType {
                 section, item, backtrace, ..
             } => {
-                write!(
+                write_bytes!(
                     f,
-                    "{backtrace}programming error: wrong query on config \
+                    b"{}programming error: wrong query on config \
                     item '{}.{}'",
-                    String::from_utf8_lossy(section),
-                    String::from_utf8_lossy(item)
+                    backtrace,
+                    section,
+                    item
                 )
             }
             ConfigError::InvalidValue { item, expected, backtrace } => {
@@ -206,18 +202,19 @@ fn write_hg_error(
         HgError::Path(error) => write_hg_path_error(f, error, None),
         HgError::InterruptReceived => write!(f, "interrupt received"),
         HgError::RepoNotFound { at, backtrace } => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}no repository found in '{}' (.hg not found)!",
-                at.display()
+                b"{}no repository found in '{}' (.hg not found)!",
+                backtrace,
+                get_bytes_from_path(at)
             )
         }
         HgError::SharedPathNotFound { shared_path, backtrace } => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}.hg/sharedpath points to nonexistent \
-                directory {}",
-                shared_path.display()
+                b"{}.hg/sharedpath points to nonexistent directory {}",
+                backtrace,
+                get_bytes_from_path(shared_path)
             )
         }
         HgError::Revlog(revlog_error) => match revlog_error {
@@ -381,10 +378,10 @@ fn write_hg_error(
                         write!(f, "empty key in changeset extras")
                     }
                     ChangelogErrorKind::InvalidExtraKey(key) => {
-                        write!(
+                        write_bytes!(
                             f,
-                            "invalid key in changeset extras: {}",
-                            String::from_utf8_lossy(key)
+                            b"invalid key in changeset extras: {}",
+                            key
                         )
                     }
                     ChangelogErrorKind::MissingExtraValue(key) => {
@@ -523,7 +520,12 @@ fn write_hg_error(
                 }
             },
             DirstateError::PathNotFound(path, backtrace) => {
-                write!(f, "{}path not found: {}", backtrace, path)
+                write_bytes!(
+                    f,
+                    b"{}path not found: {}",
+                    backtrace,
+                    path.as_bytes()
+                )
             }
             DirstateError::InvalidPath(error) => {
                 write_hg_path_error(f, error, None)
@@ -563,17 +565,21 @@ fn write_hg_error(
                 write!(f, "{backtrace}incorrect dirstate entry state '{state}'")
             }
             DirstateError::RootNotAtRoot(path, backtrace) => {
-                write!(
+                write_bytes!(
                     f,
-                    "{backtrace}dirstate root node '{path}' \
-                    is not at the root"
+                    b"{}dirstate root node '{}' is not at the root",
+                    backtrace,
+                    path.as_bytes()
                 )
             }
             DirstateError::BadChildPrefix { path, child_path, backtrace } => {
-                write!(
+                write_bytes!(
                     f,
-                    "{backtrace}path of dirstate child node '{child_path}' \
-                    does not start with its parent's path '{path}'"
+                    b"{}path of dirstate child node '{}' \
+                    does not start with its parent's path '{}'",
+                    backtrace,
+                    child_path.as_bytes(),
+                    path.as_bytes()
                 )
             }
             DirstateError::ParentNodeNotFound { node, backtrace } => {
@@ -615,10 +621,11 @@ fn write_hg_error(
                     write!(f, "{backtrace}shards form a cycle: {cycle}")
                 }
                 ShapeErrorKind::PathInMultipleShards(path) => {
-                    write!(
+                    write_bytes!(
                         f,
-                        "{backtrace}path is found in multiple shards: {}",
-                        String::from_utf8_lossy(path.as_bytes())
+                        b"{}path is found in multiple shards: {}",
+                        backtrace,
+                        path.as_bytes()
                     )
                 }
                 ShapeErrorKind::DuplicateShard(name) => {
@@ -697,8 +704,7 @@ fn write_hg_error(
                             )
                         }
                         DeserializationError::InvalidPath { path } => {
-                            let path = String::from_utf8_lossy(path);
-                            write!(f, "invalid path '{}'", path)
+                            write_bytes!(f, b"invalid path '{}'", path)
                         }
                     }
                 }
@@ -718,10 +724,10 @@ fn write_hg_error(
                     write!(f, "{}", error)
                 }
                 UpdateErrorKind::UnknownDirectoryNotEmpty(path) => {
-                    write!(
+                    write_bytes!(
                         f,
-                        "conflicting unknown directory '{}' is not empty",
-                        path.display()
+                        b"conflicting unknown directory '{}' is not empty",
+                        get_bytes_from_path(path)
                     )
                 }
                 UpdateErrorKind::SimulatedDirstateError => {
@@ -734,16 +740,18 @@ fn write_hg_error(
         }
         HgError::Sparse(sparse_error) => match sparse_error {
             SparseConfigError::IncludesAfterExcludes { context } => {
-                write!(
+                write_bytes!(
                     f,
-                    "{context} config cannot have includes after excludes"
+                    b"{} config cannot have includes after excludes",
+                    context
                 )
             }
             SparseConfigError::EntryOutsideSection { context, line } => {
-                write!(
+                write_bytes!(
                     f,
-                    "{context} config entry outside of section: {}",
-                    String::from_utf8_lossy(line)
+                    b"{} config entry outside of section: {}",
+                    context,
+                    line
                 )
             }
             SparseConfigError::IncludesInNarrow => {
@@ -754,10 +762,10 @@ fn write_hg_error(
                 )
             }
             SparseConfigError::InvalidNarrowPrefix(pattern) => {
-                write!(
+                write_bytes!(
                     f,
-                    "invalid prefix on narrow pattern: {}",
-                    String::from_utf8_lossy(pattern)
+                    b"invalid prefix on narrow pattern: {}",
+                    pattern
                 )
             }
             SparseConfigError::StaleNarrowspec => {
@@ -768,40 +776,40 @@ fn write_hg_error(
             write!(f, "{}", error.backtrace)?;
             match &error.kind {
                 EncodingErrorKind::UnsupportedEncoding(value) => {
-                    write!(
+                    write_bytes!(
                         f,
-                        "{}HGENCODING value '{}' is not supported",
-                        unsupported_prefix(with_unsupported_prefix),
-                        value.to_string_lossy()
+                        b"{}HGENCODING value '{}' is not supported",
+                        unsupported_prefix(with_unsupported_prefix).as_bytes(),
+                        value.as_encoded_bytes()
                     )
                 }
                 EncodingErrorKind::UnsupportedMode(value) => {
-                    write!(
+                    write_bytes!(
                         f,
-                        "HGENCODINGMODE value '{}' is not supported",
-                        value.to_string_lossy()
+                        b"HGENCODINGMODE value '{}' is not supported",
+                        value.as_encoded_bytes()
                     )
                 }
                 EncodingErrorKind::UnsupportedAmbiguousWidth(value) => {
-                    write!(
+                    write_bytes!(
                         f,
-                        "HGENCODINGAMBIGUOUS value '{}' is not supported",
-                        value.to_string_lossy()
+                        b"HGENCODINGAMBIGUOUS value '{}' is not supported",
+                        value.as_encoded_bytes()
                     )
                 }
                 EncodingErrorKind::InvalidUtf8 { bytes, valid_up_to } => {
-                    write!(
+                    write_bytes!(
                         f,
-                        "invalid UTF-8 at offset {}: \"{}\"",
+                        b"invalid UTF-8 at offset {}: \"{}\"",
                         valid_up_to,
-                        String::from_utf8_lossy(&bytes.escaped_bytes())
+                        bytes.escaped_bytes()
                     )
                 }
                 EncodingErrorKind::InvalidAscii { bytes } => {
-                    write!(
+                    write_bytes!(
                         f,
-                        "invalid ASCII: \"{}\"",
-                        String::from_utf8_lossy(&bytes.escaped_bytes())
+                        b"invalid ASCII: \"{}\"",
+                        bytes.escaped_bytes()
                     )
                 }
             }
@@ -927,84 +935,109 @@ fn write_hg_path_error(
             write!(f, "invalid HgPath '{:?}': could not be decoded.", bytes)
         }
         HgPathErrorKind::EndsWithSlash(path) => {
-            write!(f, "path '{}': ends with a slash", path)
+            write_bytes!(f, b"path '{}': ends with a slash", path.as_bytes())
         }
         HgPathErrorKind::ContainsIllegalComponent(path) => {
-            write!(f, "path contains illegal component: {}", path)
+            write_bytes!(
+                f,
+                b"path contains illegal component: {}",
+                path.as_bytes()
+            )
         }
         HgPathErrorKind::InsideDotHg(path) => {
-            write!(f, "path '{}' is inside the '.hg' folder", path)
+            write_bytes!(
+                f,
+                b"path '{}' is inside the '.hg' folder",
+                path.as_bytes()
+            )
         }
         HgPathErrorKind::IsInsideNestedRepo { path, nested_repo: nested } => {
-            write!(f, "path '{}' is inside nested repo '{}'", path, nested)
+            write_bytes!(
+                f,
+                b"path '{}' is inside nested repo '{}'",
+                path.as_bytes(),
+                nested.as_bytes()
+            )
         }
         HgPathErrorKind::TraversesSymbolicLink { path, symlink } => {
-            write!(f, "path '{}' traverses symbolic link '{}'", path, symlink)
+            write_bytes!(
+                f,
+                b"path '{}' traverses symbolic link '{}'",
+                path.as_bytes(),
+                symlink.as_bytes()
+            )
         }
-        HgPathErrorKind::NotFsCompliant(path) => write!(
+        HgPathErrorKind::NotFsCompliant(path) => write_bytes!(
             f,
-            "path '{}' cannot be turned into a \
-                 filesystem path",
-            path
+            b"path '{}' cannot be turned into a filesystem path",
+            path.as_bytes()
         ),
-        HgPathErrorKind::NotUnderRoot { path, root } => write!(
+        HgPathErrorKind::NotUnderRoot { path, root } => write_bytes!(
             f,
-            "path '{}' not under root {}",
-            path.display(),
-            root.display()
+            b"path '{}' not under root {}",
+            get_bytes_from_path(path),
+            get_bytes_from_path(root)
         ),
     }
 }
 
 fn write_docket_error(f: &mut Vec<u8>, error: &DocketError) -> io::Result<()> {
     let DocketError { docket_path, kind, backtrace } = error;
+    let docket_path = get_bytes_from_path(docket_path);
     match kind {
         DocketErrorKind::Corrupted => {
-            write!(f, "{backtrace}corrupted docket: {}", docket_path.display())
+            write_bytes!(f, b"{}corrupted docket: {}", backtrace, docket_path)
         }
         DocketErrorKind::BadFormatMarker => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}unrecognized format marker in docket {}",
-                docket_path.display()
+                b"{}unrecognized format marker in docket {}",
+                backtrace,
+                docket_path
             )
         }
         DocketErrorKind::DataFileTooSmall { data_path } => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}data file {} is smaller than its 'used size' in \
+                b"{}data file {} is smaller than its 'used size' in \
                 docket {}",
-                data_path.display(),
-                docket_path.display()
+                backtrace,
+                get_bytes_from_path(data_path),
+                docket_path
             )
         }
         DocketErrorKind::ReadRace => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}encountered a race condition between reading \
+                b"{}encountered a race condition between reading \
                 docket {} and its data file",
-                docket_path.display()
+                backtrace,
+                docket_path
             )
         }
         DocketErrorKind::ReadRaceExhausted { tries } => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}{} read race happened {tries} times in a row",
-                docket_path.display()
+                b"{}{} read race happened {} times in a row",
+                backtrace,
+                docket_path,
+                tries
             )
         }
         DocketErrorKind::NonUtf8DataFileId => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}non-UTF-8 {} data file ID",
-                docket_path.display()
+                b"{}non-UTF-8 {} data file ID",
+                backtrace,
+                docket_path
             )
         }
         DocketErrorKind::Overflow => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace}overflow in {} docket serialization",
-                docket_path.display()
+                b"{}overflow in {} docket serialization",
+                backtrace,
+                docket_path
             )
         }
     }
@@ -1036,12 +1069,12 @@ fn format_config_items_error(
             )
         }
         ConfigItemsError::InvalidPattern { section, name, error } => {
-            write!(
+            write_bytes!(
                 f,
-                "invalid pattern for config item '{}.{}': {}",
-                String::from_utf8_lossy(section),
-                String::from_utf8_lossy(name),
-                error
+                b"invalid pattern for config item '{}.{}': {}",
+                section,
+                name,
+                Utf8(error)
             )
         }
     }
@@ -1053,11 +1086,7 @@ fn format_pattern_error(
 ) -> io::Result<()> {
     match pattern_error {
         PatternError::UnsupportedSyntax(syntax, backtrace) => {
-            write!(
-                f,
-                "{backtrace}unsupported syntax '{}'",
-                String::from_utf8_lossy(syntax)
-            )
+            write_bytes!(f, b"{}unsupported syntax '{}'", backtrace, syntax)
         }
         PatternError::IO(error) => write_io_error(f, error),
         PatternError::Path(error) => write_hg_path_error(f, error, None),
@@ -1069,10 +1098,11 @@ fn format_pattern_error(
             )
         }
         PatternError::UnclosedGlobAlternation(pattern, backtrace) => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace} unclosed glob alternation in pattern '{}'",
-                String::from_utf8_lossy(pattern)
+                b"{} unclosed glob alternation in pattern '{}'",
+                backtrace,
+                pattern
             )
         }
         PatternError::RegexError { needle, error, backtrace } => {
@@ -1085,18 +1115,12 @@ fn format_pattern_error(
             }
         }
         PatternError::NonUtf8Pattern { pattern, valid_up_to, backtrace } => {
-            write!(
+            write_bytes!(
                 f,
-                "{backtrace} non-utf8 regex pattern {}, \
-                    valid up to byte {valid_up_to}",
-                // This is kind of dumb at face value, but it's
-                // better than
-                // nothing if we *have* to give a UTF8 output and
-                // don't
-                // know the encoding, since we may give *some* info
-                // about
-                // what the pattern is.
-                String::from_utf8_lossy(pattern)
+                b"{} non-utf8 regex pattern {}, valid up to byte {}",
+                backtrace,
+                pattern,
+                valid_up_to
             )
         }
         PatternError::UnsupportedSyntaxNarrow(_, backtrace) => {
@@ -1147,42 +1171,59 @@ fn write_config_value_parse_error(
 ) -> io::Result<()> {
     // TODO: add origin and line number information, here and in
     // corresponding python code
-    write!(
+    write_bytes!(
         f,
-        "config error: {}.{} is not a {} ('{}')",
-        String::from_utf8_lossy(&error.section),
-        String::from_utf8_lossy(&error.item),
-        error.expected_type,
-        String::from_utf8_lossy(&error.value)
+        b"config error: {}.{} is not a {} ('{}')",
+        error.section,
+        error.item,
+        error.expected_type.as_bytes(),
+        error.value
     )
 }
 
-// TODO: use `DisplayBytes` instead to show non-Unicode filenames losslessly?
 fn write_io_error_context(
     f: &mut Vec<u8>,
     context: &IoErrorContext,
 ) -> io::Result<()> {
     match context {
         IoErrorContext::ReadingMetadata(path) => {
-            write!(f, "when reading metadata of {}", path.display())
+            write_bytes!(
+                f,
+                b"when reading metadata of {}",
+                get_bytes_from_path(path)
+            )
         }
         IoErrorContext::ReadingFile(path) => {
-            write!(f, "when reading {}", path.display())
+            write_bytes!(f, b"when reading {}", get_bytes_from_path(path))
         }
         IoErrorContext::WritingFile(path) => {
-            write!(f, "when writing {}", path.display())
+            write_bytes!(f, b"when writing {}", get_bytes_from_path(path))
         }
         IoErrorContext::RemovingFile(path) => {
-            write!(f, "when removing {}", path.display())
+            write_bytes!(f, b"when removing {}", get_bytes_from_path(path))
         }
         IoErrorContext::RenamingFile { from, to } => {
-            write!(f, "when renaming {} to {}", from.display(), to.display())
+            write_bytes!(
+                f,
+                b"when renaming {} to {}",
+                get_bytes_from_path(from),
+                get_bytes_from_path(to)
+            )
         }
         IoErrorContext::CopyingFile { from, to } => {
-            write!(f, "when copying {} to {}", from.display(), to.display())
+            write_bytes!(
+                f,
+                b"when copying {} to {}",
+                get_bytes_from_path(from),
+                get_bytes_from_path(to)
+            )
         }
         IoErrorContext::CanonicalizingPath(path) => {
-            write!(f, "when canonicalizing {}", path.display())
+            write_bytes!(
+                f,
+                b"when canonicalizing {}",
+                get_bytes_from_path(path)
+            )
         }
         IoErrorContext::CurrentDir => {
             write!(f, "error getting current working directory")
