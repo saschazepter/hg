@@ -184,6 +184,7 @@ class dirstate(intdirstate.IDirstate):
         dirstate.
         """
         root = wvfs.base
+        self._wvfs = wvfs
         if use_dirstate_v2:
             self.version = intdirstate.DirstateVersion.V2
         else:
@@ -523,13 +524,13 @@ class dirstate(intdirstate.IDirstate):
         pats = [b'include:%s' % f for f in files]
         return matchmod.match(self._root, b'', [], pats, warn=self._ui.warn)
 
-    @propertycache
+    @property
     def _checklink(self) -> bool:
-        return util.checklink(self._root)
+        return self._wvfs.has_link
 
-    @propertycache
+    @property
     def _checkexec(self) -> bool:
-        return bool(util.checkexec(self._root))
+        return self._wvfs.has_exec
 
     @propertycache
     def _checkcase(self):
