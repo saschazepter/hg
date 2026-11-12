@@ -8,6 +8,8 @@ use format_bytes::message;
 use hg::encoding::EncodingErrorKind;
 use hg::errors::HgBacktrace;
 use hg::errors::HgError;
+use hg::errors::HgIoError;
+use hg::errors::IoErrorContext;
 use hg::requirements::RequirementsErrorKind;
 use hg::utils::files::get_bytes_from_path;
 
@@ -186,10 +188,15 @@ impl<T, E: Into<CommandError>> ResultExt<T> for Result<T, E> {
 
 /// We do our own formatting of `HgError`, since `hg-core` shouldn't care about
 /// the presentation layer.
+///
+/// `jf` has no backwards compatibility to uphold with the output of `hg`, so
+/// this purposefully does not use `hg::error_display`: we are free to come up
+/// with better errors here.
 pub fn hg_message(error: &HgError) -> Message {
     // `HgError` must be matched exhaustively here, we want breakage to make
     // us think about the new error type and its implications for the end user.
     match error {
+        HgError::IO(error) => io_message(error),
         HgError::UnsupportedFeature(feature, _) => message!(
             "unsupported feature: {feature}",
             feature = Utf8(format!("{feature:?}"))
@@ -211,8 +218,7 @@ pub fn hg_message(error: &HgError) -> Message {
             path = get_bytes_from_path(shared_path)
         ),
         // TODO render these once `hg-core` gives them structure
-        HgError::IO(_)
-        | HgError::ConfigValueParseError(_)
+        HgError::ConfigValueParseError(_)
         | HgError::Revlog(_)
         | HgError::Dirstate(_)
         | HgError::Shape(_)
@@ -226,6 +232,59 @@ pub fn hg_message(error: &HgError) -> Message {
         | HgError::Config(_)
         | HgError::Update(_) => {
             message!("{error}", error = Utf8(format!("{error:?}")))
+        }
+    }
+}
+
+/// What went wrong with an I/O operation, then what the operation was
+fn io_message(error: &HgIoError) -> Message {
+    match error {
+        HgIoError::IO { kind, context, .. } => {
+            let kind = Utf8(kind.to_string());
+            match context {
+                IoErrorContext::ReadingMetadata(path) => message!(
+                    "{kind} while reading the metadata of '{path}'",
+                    path = get_bytes_from_path(path)
+                ),
+                IoErrorContext::ReadingFile(path) => message!(
+                    "{kind} while reading '{path}'",
+                    path = get_bytes_from_path(path)
+                ),
+                IoErrorContext::WritingFile(path) => message!(
+                    "{kind} while writing '{path}'",
+                    path = get_bytes_from_path(path)
+                ),
+                IoErrorContext::RemovingFile(path) => message!(
+                    "{kind} while removing '{path}'",
+                    path = get_bytes_from_path(path)
+                ),
+                IoErrorContext::RenamingFile { from, to } => message!(
+                    "{kind} while renaming '{from}' to '{to}'",
+                    from = get_bytes_from_path(from),
+                    to = get_bytes_from_path(to)
+                ),
+                IoErrorContext::CopyingFile { from, to } => message!(
+                    "{kind} while copying '{from}' to '{to}'",
+                    from = get_bytes_from_path(from),
+                    to = get_bytes_from_path(to)
+                ),
+                IoErrorContext::CanonicalizingPath(path) => message!(
+                    "{kind} while canonicalizing '{path}'",
+                    path = get_bytes_from_path(path)
+                ),
+                IoErrorContext::CurrentDir => {
+                    message!("{kind} while getting the current directory")
+                }
+                IoErrorContext::CurrentExe => {
+                    message!("{kind} while getting the current executable")
+                }
+            }
+        }
+        HgIoError::WriteAttemptInReadonlyVfs(_) => {
+            message!("attempted to write in a read-only location")
+        }
+        HgIoError::NonUTF8Lock(_) => {
+            message!("a lock file contains non-UTF8 data")
         }
     }
 }

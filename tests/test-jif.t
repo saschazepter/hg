@@ -81,3 +81,13 @@ Test warnings
   {"_internal_jf_kind":"status","path":"foo","status":"R"}
   {"_internal_jf_kind":"status","copy_source":"bar","path":"baz","status":"A"}
   {"_internal_jf_kind":"status","path":".hgignore","status":"?"}
+
+Test errors from `hg-core`, which `jf` describes on its own
+
+#if unix-permissions no-root
+  $ chmod 000 .hg/requires
+  $ jf status
+  abort: $EACCES$ while reading '$TESTTMP/repo/.hg/requires'
+  [255]
+  $ chmod 644 .hg/requires
+#endif
