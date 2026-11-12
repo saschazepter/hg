@@ -245,11 +245,6 @@ impl HgError {
                         VALID_PREFIXES.join(", ")
                     )))
                 }
-                SparseConfigError::WhitespaceAtEdgeOfPattern(_) => {
-                    Some(Cow::Borrowed(
-                        "narrow patterns can't begin or end in whitespace",
-                    ))
-                }
                 SparseConfigError::StaleNarrowspec => Some(Cow::Borrowed(
                     "run 'hg tracked --update-working-copy'",
                 )),
@@ -956,13 +951,6 @@ impl fmt::Display for HgError {
                     write!(
                         f,
                         "invalid prefix on narrow pattern: {}",
-                        String::from_utf8_lossy(pattern)
-                    )
-                }
-                SparseConfigError::WhitespaceAtEdgeOfPattern(pattern) => {
-                    write!(
-                        f,
-                        "narrow pattern with whitespace at the edge: {}",
                         String::from_utf8_lossy(pattern)
                     )
                 }

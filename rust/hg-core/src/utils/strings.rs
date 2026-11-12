@@ -132,6 +132,7 @@ pub trait SliceExt {
     fn trim_end_matches(&self, f: impl FnMut(u8) -> bool) -> &Self;
     fn trim_start_matches(&self, f: impl FnMut(u8) -> bool) -> &Self;
     fn trim(&self) -> &Self;
+    fn python_strip(&self) -> &Self;
     fn drop_prefix(&self, needle: &Self) -> Option<&Self>;
     fn split_2(&self, separator: u8) -> Option<(&[u8], &[u8])>;
     fn split_2_by_slice(&self, separator: &[u8]) -> Option<(&[u8], &[u8])>;
@@ -180,6 +181,18 @@ impl SliceExt for [u8] {
     /// ```
     fn trim(&self) -> &[u8] {
         self.trim_start().trim_end()
+    }
+
+    /// Strips whitespace at both ends like Python's `bytes.strip` without
+    /// arguments, which unlike [`Self::trim`] includes vertical tabs.
+    ///
+    /// ```
+    /// use hg::utils::strings::SliceExt;
+    /// assert_eq!(b"\x0b to strip\t\x0b".python_strip(), b"to strip");
+    /// ```
+    fn python_strip(&self) -> &[u8] {
+        self.trim_start_matches(is_python_space)
+            .trim_end_matches(is_python_space)
     }
 
     fn drop_prefix(&self, needle: &Self) -> Option<&Self> {

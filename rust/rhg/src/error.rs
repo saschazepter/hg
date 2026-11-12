@@ -310,12 +310,6 @@ impl From<SparseConfigError> for CommandError {
             SparseConfigError::InvalidNarrowPrefix(prefix) => {
                 format_bytes!(b"invalid prefix on narrow pattern: {}", prefix)
             }
-            SparseConfigError::WhitespaceAtEdgeOfPattern(prefix) => {
-                format_bytes!(
-                    b"narrow pattern with whitespace at the edge: {}",
-                    prefix
-                )
-            }
             SparseConfigError::IncludesInNarrow => b"including other spec \
                 files using '%include' is not supported in narrowspec"
                 .to_vec(),

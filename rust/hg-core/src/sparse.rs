@@ -89,10 +89,6 @@ pub enum SparseConfigError {
     /// An invalid pattern prefix was given to the narrow spec. Includes the
     /// entire pattern for context.
     InvalidNarrowPrefix(Vec<u8>),
-    /// Narrow/sparse patterns can not begin or end in whitespace
-    /// because the Python parser strips the whitespace when parsing
-    /// the config file.
-    WhitespaceAtEdgeOfPattern(Vec<u8>),
     /// The narrowspec of the working copy differs from the one of the store
     StaleNarrowspec,
 }
@@ -118,13 +114,13 @@ pub(crate) fn parse_config(
     let mut in_section = false;
 
     for line in raw.split(|c| *c == b'\n') {
-        let line = line.trim();
+        let line = line.python_strip();
         if line.is_empty() || line[0] == b'#' {
             // empty or comment line, skip
             continue;
         }
         if line.starts_with(b"%include ") {
-            let profile = line[b"%include ".len()..].trim();
+            let profile = line[b"%include ".len()..].python_strip();
             if !profile.is_empty() {
                 profiles.insert(profile.into());
             }
@@ -149,7 +145,7 @@ pub(crate) fn parse_config(
                 }
                 .into());
             }
-            if line.trim().starts_with(b"/") {
+            if line.starts_with(b"/") {
                 warnings.send(SparseNarrowWarning::RootWarning {
                     context,
                     line: line.into(),

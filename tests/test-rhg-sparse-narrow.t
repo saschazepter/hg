@@ -205,11 +205,8 @@ included.
   $ printf '[include]\npath:dir1\v\n' > .hg/store/narrowspec
   $ cp .hg/store/narrowspec .hg/narrowspec.dirstate
   $ $NO_FALLBACK rhg files
-  abort: narrow pattern with whitespace at the edge: path:dir1\x0b (esc) (known-bad-output !)
-  (narrow patterns can't begin or end in whitespace) (known-bad-output !)
-  dir1/x (missing-correct-output !)
-  dir1/y (missing-correct-output !)
-  [255]
+  dir1/x
+  dir1/y
   $ "$real_hg" files
   dir1/x
   dir1/y

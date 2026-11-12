@@ -161,23 +161,7 @@ pub fn patterns_from_spec(
     Ok(Some((include_patterns, exclude_patterns)))
 }
 
-fn is_whitespace(b: &u8) -> bool {
-    // should match what .strip() in Python does
-    b.is_ascii_whitespace() || *b == 0x0b
-}
-
-fn starts_or_ends_with_whitespace(s: &[u8]) -> bool {
-    let w = |b: Option<&u8>| b.map(is_whitespace).unwrap_or(false);
-    w(s.first()) || w(s.last())
-}
-
 fn validate_pattern(pattern: &[u8]) -> Result<(), HgError> {
-    if starts_or_ends_with_whitespace(pattern) {
-        return Err(SparseConfigError::WhitespaceAtEdgeOfPattern(
-            pattern.to_owned(),
-        )
-        .into());
-    }
     for prefix in VALID_PREFIXES.iter() {
         if pattern.starts_with(prefix.as_bytes()) {
             return Ok(());
