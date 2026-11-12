@@ -8,6 +8,7 @@ from __future__ import annotations
 import array
 import hashlib
 import struct
+import sys
 
 from typing import (
     Dict,
@@ -157,9 +158,7 @@ FP_SIZE = hashlib.sha256().digest_size
 """size of a bucket fingerprint
 
 The fingerprint computation is not designed as a shared logic and can be safely
-updated from one version to the next. The fact the encoding is
-endianess-dependent is on purpose, the computation of the fingerprint is
-already endianess-dependent.
+updated from one version to the next.
 """
 
 
@@ -176,11 +175,6 @@ def _bucket_fingerprints(
     heads. The strategy for buckets selection and fingerprinting is entirely
     the responsability of the server so the strategy used by this function can
     be safely updated.
-
-    For example, the current function will be affected by the machine
-    endianess. This is expected to be fine, as it is unlikely for a server to
-    flip-flop between endianess. This sensitivity to endianess have been kept
-    on purpose to highlight the possible differences.
 
     The information returned for each bucket is the number of heads associated
     with this bucket in this bucket and they fingerprint.
@@ -218,7 +212,10 @@ def _bucket_fingerprints(
     tiers.sort(reverse=True)
 
     # we assume the heads are sorted
-    all_heads = memoryview(array.array('i', heads))
+    heads_array = array.array('i', heads)
+    if sys.byteorder != 'little':
+        heads_array.byteswap()
+    all_heads = memoryview(heads_array)
     hasher = hashlib.sha256()
     prev_fp = hasher.digest()
     bucket_start = 0

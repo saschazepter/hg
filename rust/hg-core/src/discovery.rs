@@ -96,21 +96,41 @@ pub const FINGERPRINT_SIZE: usize = 32;
 /// A bucket fingerprint.
 pub type Fingerprint = [u8; FINGERPRINT_SIZE];
 
-/// Feed the native-endian bytes of a slice of revs to `hasher`.
+/// Size of the buffer used by [`hash_revs_buffered`]
+const HASH_BUFFER_SIZE: usize = 4096;
+
+/// Feed the little-endian bytes of a slice of revs to `hasher`.
 fn hash_revs(hasher: &mut Sha256, revs: &[Revision]) {
-    // Safety: `Revision` is a `repr(transparent)` wrapper around a plain
-    // integer, so a slice of revisions is initialized, padding-free memory
-    // that can be viewed as bytes.
-    //
-    // BytesCast wasn't a good option as it want a `from_bytes` method no
-    // suitable here.
-    let bytes = unsafe {
-        std::slice::from_raw_parts(
-            revs.as_ptr().cast::<u8>(),
-            size_of_val(revs),
-        )
-    };
-    hasher.update(bytes);
+    if cfg!(target_endian = "little") {
+        // Safety: `Revision` is a `repr(transparent)` wrapper around a plain
+        // integer, so a slice of revisions is initialized, padding-free memory
+        // that can be viewed as bytes.
+        //
+        // BytesCast wasn't a good option as it want a `from_bytes` method no
+        // suitable here.
+        let bytes = unsafe {
+            std::slice::from_raw_parts(
+                revs.as_ptr().cast::<u8>(),
+                size_of_val(revs),
+            )
+        };
+        hasher.update(bytes);
+    } else {
+        hash_revs_buffered(hasher, revs);
+    }
+}
+
+/// Like `hash_revs`, but without the optimization for little-endian.
+fn hash_revs_buffered(hasher: &mut Sha256, revs: &[Revision]) {
+    let mut buf = [0u8; HASH_BUFFER_SIZE];
+    for chunk in revs.chunks(buf.len() / size_of::<BaseRevision>()) {
+        for (dst, rev) in
+            buf.chunks_exact_mut(size_of::<BaseRevision>()).zip(chunk)
+        {
+            dst.copy_from_slice(&rev.0.to_le_bytes());
+        }
+        hasher.update(&buf[..size_of_val(chunk)]);
+    }
 }
 
 /// Compute heads fingerprint for the provided tier values
@@ -125,10 +145,7 @@ fn hash_revs(hasher: &mut Sha256, revs: &[Revision]) {
 /// The strategy for buckets selection and fingerprinting is entirely the
 /// responsibility of the server so the strategy used by this function can be
 /// safely updated (see `_bucket_fingerprints` in
-/// `mercurial/exchanges/heads.py` for a discussion of the alternatives). In
-/// particular, the current fingerprint is affected by the machine
-/// endianness. This sensitivity to endianness has been kept on purpose to
-/// highlight the possible differences.
+/// `mercurial/exchanges/heads.py` for a discussion of the alternatives).
 pub fn bucket_fingerprints(
     tiers: Vec<BaseRevision>,
     heads: &[Revision],
@@ -861,6 +878,20 @@ mod tests {
         expected.insert(41, (5, fp_40));
         expected.insert(42, (6, fp_42));
         assert_eq!(info, expected);
+    }
+
+    #[test]
+    /// Test that both ways of hashing revs agree
+    fn test_hash_revs_buffered() {
+        // one full buffer, plus a partial one
+        let count = HASH_BUFFER_SIZE / size_of::<BaseRevision>() + 1;
+        let revs: Vec<_> =
+            (0..u_i32(count)).map(|r| Revision(r * 37 - 1)).collect();
+        let mut direct = Sha256::new();
+        hash_revs(&mut direct, &revs);
+        let mut buffered = Sha256::new();
+        hash_revs_buffered(&mut buffered, &revs);
+        assert_eq!(direct.finalize(), buffered.finalize());
     }
 
     /// A PartialDiscovery as for pushing all the heads of `SampleGraph`
