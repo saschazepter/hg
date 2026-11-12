@@ -58,9 +58,16 @@ if typing.TYPE_CHECKING:
     FlagFuncReturnT = Callable[[bytes], bytes]
     """The return type of dirstate.flagfunc()."""
 
-    ParentFileDataT = tuple[int, int, Optional["TimestampT"]]
-    """The ``(mode, size, mtime)`` of a file matching its parent content, as
-    passed to dirstate.update_file()."""
+    HgFsStateT = tuple[int, int, Optional["TimestampT"]]
+    """The ``(mode, size, mtime)`` of a file matching its parent content, in
+    the form Mercurial records it, as passed to dirstate.update_file().
+
+    The mode may be idealized: built from the flags in the manifest rather than
+    read from the file system, it then carries the exec and symlink bits even
+    when the file system cannot represent them. Only these bits of the mode
+    matter to the dirstate. Code using this mode from the manifest ignores them
+    if the file system does not support them, so it is fine to store and use
+    the idealized version of the mode here."""
 
     StatusReturnT = tuple[list[HgPathT], istatus.Status, Optional["TimestampT"]]
     """The return type of dirstate.status()."""
@@ -439,7 +446,7 @@ class IDirstate(Protocol):
         p1_tracked: bool,
         p2_info: bool = False,
         possibly_dirty: bool = False,
-        parentfiledata: ParentFileDataT | None = None,
+        parentfiledata: HgFsStateT | None = None,
     ) -> None:
         """update the information about a file in the dirstate
 
@@ -484,7 +491,7 @@ class IDirstate(Protocol):
     def set_clean(
         self,
         filename: HgPathT,
-        parentfiledata: ParentFileDataT,
+        parentfiledata: HgFsStateT,
     ) -> None:
         """record that the current state of the file on disk is known to be
         clean

@@ -358,7 +358,7 @@ class gitdirstate(intdirstate.IDirstate):
     def set_clean(
         self,
         f: HgPathT,
-        parentfiledata: intdirstate.ParentFileDataT,
+        parentfiledata: intdirstate.HgFsStateT,
     ) -> None:
         """Mark a file normal and clean."""
         # TODO: for now we just let libgit2 re-stat the file. We can

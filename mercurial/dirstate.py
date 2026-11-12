@@ -834,7 +834,7 @@ class dirstate(intdirstate.IDirstate):
     def set_clean(
         self,
         filename: HgPathT,
-        parentfiledata: intdirstate.ParentFileDataT,
+        parentfiledata: intdirstate.HgFsStateT,
     ) -> None:
         """record that the current state of the file on disk is known to be clean"""
         self._dirty = True
@@ -907,7 +907,7 @@ class dirstate(intdirstate.IDirstate):
         p1_tracked: bool,
         p2_info: bool = False,
         possibly_dirty: bool = False,
-        parentfiledata: intdirstate.ParentFileDataT | None = None,
+        parentfiledata: intdirstate.HgFsStateT | None = None,
     ) -> None:
         """update the information about a file in the dirstate
 

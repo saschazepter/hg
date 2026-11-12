@@ -57,7 +57,7 @@ if typing.TYPE_CHECKING:
         Iterable,
     )
     from .interfaces.dirstate import (
-        ParentFileDataT,
+        HgFsStateT,
         TimestampT,
     )
     from .interfaces.types import (
@@ -66,7 +66,7 @@ if typing.TYPE_CHECKING:
         StatusT,
     )
 
-    FixupT = list[tuple[bytes, ParentFileDataT]]
+    FixupT = list[tuple[bytes, HgFsStateT]]
     """The files a status lookup settled, with what the dirstate should record
     about them."""
 
@@ -2299,7 +2299,7 @@ class workingctx(committablectx, i_context.IWorkingContext):
         ds = self._repo.dirstate
         return sorted(f for f in ds.matches(match) if ds.get_entry(f).tracked)
 
-    def _committed_file_data(self, path: HgPathT) -> ParentFileDataT | None:
+    def _committed_file_data(self, path: HgPathT) -> HgFsStateT | None:
         """return what the dirstate should record about a committed file
 
         Only the mode and size the file is expected to have on disk are
