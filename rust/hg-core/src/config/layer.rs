@@ -19,7 +19,6 @@ use lazy_static::lazy_static;
 use regex::bytes::Regex;
 
 use crate::errors::HgError;
-use crate::errors::HgIoError;
 use crate::exit_codes::CONFIG_PARSE_ERROR_ABORT;
 use crate::utils::files::get_bytes_from_path;
 use crate::utils::files::get_path_from_bytes;
@@ -63,7 +62,7 @@ impl ConfigLayer {
     /// Parse `--config` CLI arguments and return a layer if there’s any
     pub(crate) fn parse_cli_args(
         cli_config_args: impl IntoIterator<Item = impl AsRef<[u8]>>,
-    ) -> Result<Option<Self>, ConfigError> {
+    ) -> Result<Option<Self>, HgError> {
         fn parse_one(arg: &[u8]) -> Option<(Vec<u8>, Vec<u8>, Vec<u8>)> {
             use crate::utils::strings::SliceExt;
 
@@ -154,7 +153,7 @@ impl ConfigLayer {
 
     /// Returns a `Vec` of layers in order of precedence (so, in read order),
     /// recursively parsing the `%include` directives if any.
-    pub fn parse(src: &Path, data: &[u8]) -> Result<Vec<Self>, ConfigError> {
+    pub fn parse(src: &Path, data: &[u8]) -> Result<Vec<Self>, HgError> {
         let mut layers = vec![];
 
         // Discard byte order mark if any
@@ -349,11 +348,12 @@ impl From<ConfigParseError> for HgError {
     }
 }
 
+/// An error that happened when reading or querying the config
 #[derive(Debug, derive_more::From)]
 pub enum ConfigError {
+    /// A config file failed to parse
+    #[from]
     Parse(ConfigParseError),
-    Other(HgError),
-    IO(HgIoError),
 }
 
 fn make_regex(pattern: &'static str) -> Regex {

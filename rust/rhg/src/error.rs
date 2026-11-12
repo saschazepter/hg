@@ -142,7 +142,9 @@ impl From<HgError> for CommandError {
                 )
             }
             // These have filenames, which are formatted as bytes
-            HgError::Config(config_error) => (*config_error).into(),
+            HgError::Config(config_error) => match *config_error {
+                ConfigError::Parse(parse_error) => parse_error.into(),
+            },
             HgError::Sparse(sparse_error) => sparse_error.into(),
             HgError::RepoNotFound { at, backtrace } => {
                 CommandError::abort_with_exit_code_bytes(
@@ -212,11 +214,7 @@ impl<'a> From<&'a NoRepoInCwdError> for CommandError {
 
 impl From<ConfigError> for CommandError {
     fn from(error: ConfigError) -> Self {
-        match error {
-            ConfigError::Parse(error) => error.into(),
-            ConfigError::Other(error) => error.into(),
-            ConfigError::IO(error) => error.into(),
-        }
+        HgError::from(error).into()
     }
 }
 

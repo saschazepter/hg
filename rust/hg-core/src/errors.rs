@@ -119,11 +119,7 @@ pub enum HgError {
 
 impl From<ConfigError> for HgError {
     fn from(value: ConfigError) -> Self {
-        match value {
-            ConfigError::Other(error) => error,
-            ConfigError::IO(error) => error.into(),
-            error @ ConfigError::Parse(_) => Self::Config(Box::new(error)),
-        }
+        Self::Config(Box::new(value))
     }
 }
 
@@ -197,10 +193,8 @@ impl HgError {
         match self {
             HgError::Abort { detailed_exit_code, .. } => *detailed_exit_code,
             HgError::ConfigValueParseError(_) => exit_codes::CONFIG_ERROR_ABORT,
-            HgError::Config(config_error) => match &**config_error {
+            HgError::Config(config_error) => match **config_error {
                 ConfigError::Parse(_) => exit_codes::CONFIG_ERROR_ABORT,
-                ConfigError::Other(error) => error.exit_code(),
-                ConfigError::IO(_) => exit_codes::ABORT,
             },
             HgError::Sparse(_) => exit_codes::STATE_ERROR,
             _ => exit_codes::ABORT,
@@ -309,8 +303,6 @@ impl fmt::Display for HgError {
                     f.write_str(": ")?;
                     f.write_str(&String::from_utf8_lossy(message))
                 }
-                ConfigError::Other(error) => error.fmt(f),
-                ConfigError::IO(error) => error.fmt(f),
             },
             HgError::Path(error) => {
                 f.write_str(&hg_path_error_to_string(error, None)?)

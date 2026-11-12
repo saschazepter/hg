@@ -157,7 +157,7 @@ impl Config {
     /// Load system and user configuration from various files.
     ///
     /// This is also affected by some environment variables.
-    pub fn load_non_repo() -> Result<Self, ConfigError> {
+    pub fn load_non_repo() -> Result<Self, HgError> {
         let mut config = Self::empty();
         let opt_rc_path = env::var_os("HGRCPATH");
         // HGRCPATH replaces system config
@@ -207,7 +207,7 @@ impl Config {
         &mut self,
         cli_config_args: impl IntoIterator<Item = impl AsRef<[u8]>>,
         color_arg: Option<Vec<u8>>,
-    ) -> Result<(), ConfigError> {
+    ) -> Result<(), HgError> {
         if let Some(layer) = ConfigLayer::parse_cli_args(cli_config_args)? {
             self.layers.push(layer)
         }
@@ -219,7 +219,7 @@ impl Config {
         Ok(())
     }
 
-    fn add_trusted_dir(&mut self, path: &Path) -> Result<(), ConfigError> {
+    fn add_trusted_dir(&mut self, path: &Path) -> Result<(), HgError> {
         if let Some(entries) = std::fs::read_dir(path)
             .when_reading_file(path)
             .io_not_found_as_none()?
@@ -239,7 +239,7 @@ impl Config {
         Ok(())
     }
 
-    fn add_trusted_file(&mut self, path: &Path) -> Result<(), ConfigError> {
+    fn add_trusted_file(&mut self, path: &Path) -> Result<(), HgError> {
         if let Some(data) = std::fs::read(path)
             .when_reading_file(path)
             .io_not_found_as_none()?
@@ -269,8 +269,8 @@ impl Config {
     }
 
     #[cfg(unix)] // TODO: other platforms
-    fn add_system_config(&mut self) -> Result<(), ConfigError> {
-        let mut add_for_prefix = |prefix: &Path| -> Result<(), ConfigError> {
+    fn add_system_config(&mut self) -> Result<(), HgError> {
+        let mut add_for_prefix = |prefix: &Path| -> Result<(), HgError> {
             let etc = prefix.join("etc").join("mercurial");
             self.add_trusted_file(&etc.join("hgrc"))?;
             self.add_trusted_dir(&etc.join("hgrc.d"))
@@ -292,7 +292,7 @@ impl Config {
     }
 
     #[cfg(unix)] // TODO: other plateforms
-    fn add_user_config(&mut self) -> Result<(), ConfigError> {
+    fn add_user_config(&mut self) -> Result<(), HgError> {
         let opt_home = home::home_dir();
         if let Some(home) = &opt_home {
             self.add_trusted_file(&home.join(".hgrc"))?
@@ -312,7 +312,7 @@ impl Config {
     /// as the order of `sources`.
     pub fn load_from_explicit_sources(
         sources: Vec<ConfigSource>,
-    ) -> Result<Self, ConfigError> {
+    ) -> Result<Self, HgError> {
         let mut layers = vec![];
 
         for source in sources.into_iter() {
@@ -338,7 +338,7 @@ impl Config {
     pub(crate) fn combine_with_repo(
         &self,
         repo_config_files: &[PathBuf],
-    ) -> Result<Self, ConfigError> {
+    ) -> Result<Self, HgError> {
         let (cli_layers, other_layers) = self
             .layers
             .iter()
