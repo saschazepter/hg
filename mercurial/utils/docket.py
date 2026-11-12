@@ -50,27 +50,26 @@ def _stable_uid(stable_docket_file: bytes) -> bytes:
 
     Each call advances the seed stored in that file.
     """
-    if True:
-        try:
-            with open(stable_docket_file, mode='rb') as f:
-                seed = f.read().strip()
-        except FileNotFoundError:
-            seed = b'04'  # chosen by a fair dice roll. garanteed to be random
-        iter_seed = iter(seed)
-        # some basic circular sum hashing on 64 bits
-        int_seed = 0
-        low_mask = int('1' * 35, 2)
-        for i in iter_seed:
-            high_part = int_seed >> 35
-            low_part = (int_seed & low_mask) << 28
-            int_seed = high_part + low_part + i
-        r = random.Random()
-        r.seed(int_seed, version=1)
-        # once we drop python 3.8 support we can simply use r.randbytes
-        raw = r.getrandbits(UID_SIZE * 4)
-        assert UID_SIZE == 8
-        p = struct.pack('>L', raw)
-        new = node.hex(p)
-        with open(stable_docket_file, 'wb') as f:
-            f.write(new)
-        return new
+    try:
+        with open(stable_docket_file, mode='rb') as f:
+            seed = f.read().strip()
+    except FileNotFoundError:
+        seed = b'04'  # chosen by a fair dice roll. garanteed to be random
+    iter_seed = iter(seed)
+    # some basic circular sum hashing on 64 bits
+    int_seed = 0
+    low_mask = int('1' * 35, 2)
+    for i in iter_seed:
+        high_part = int_seed >> 35
+        low_part = (int_seed & low_mask) << 28
+        int_seed = high_part + low_part + i
+    r = random.Random()
+    r.seed(int_seed, version=1)
+    # once we drop python 3.8 support we can simply use r.randbytes
+    raw = r.getrandbits(UID_SIZE * 4)
+    assert UID_SIZE == 8
+    p = struct.pack('>L', raw)
+    new = node.hex(p)
+    with open(stable_docket_file, 'wb') as f:
+        f.write(new)
+    return new
