@@ -99,3 +99,13 @@ Test errors from `hg-core`, which `jf` describes on its own
   $ jf status
   abort: invalid value for config `format.chunkcachesize`: expected a byte quantity, got 'bogus'
   [255]
+
+Errors specific to a part of `hg-core` are only named for now
+
+  $ cd ..
+  $ hg init unknown-requirement
+  $ echo bogus-requirement >> unknown-requirement/.hg/requires
+  $ cd unknown-requirement
+  $ jf status
+  abort: unsuitable repository requirements: Unknown(["bogus-requirement"])
+  [255]

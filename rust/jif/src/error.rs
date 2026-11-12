@@ -192,6 +192,9 @@ impl<T, E: Into<CommandError>> ResultExt<T> for Result<T, E> {
 /// `jf` has no backwards compatibility to uphold with the output of `hg`, so
 /// this purposefully does not use `hg::error_display`: we are free to come up
 /// with better errors here.
+///
+/// TODO this is only a starting point: the domain-specific errors only get
+/// a description of their category followed by their debug representation.
 pub fn hg_message(error: &HgError) -> Message {
     // `HgError` must be matched exhaustively here, we want breakage to make
     // us think about the new error type and its implications for the end user.
@@ -225,21 +228,59 @@ pub fn hg_message(error: &HgError) -> Message {
             expected = Utf8(error.expected_type),
             value = error.value.clone()
         ),
-        // TODO render these once `hg-core` gives them structure
-        HgError::Revlog(_)
-        | HgError::Dirstate(_)
-        | HgError::Shape(_)
-        | HgError::Pattern(_)
-        | HgError::FileIndex(_)
-        | HgError::Path(_)
-        | HgError::Requirements(_)
-        | HgError::Docket(_)
-        | HgError::Encoding(_)
-        | HgError::Sparse(_)
-        | HgError::Config(_)
-        | HgError::Update(_) => {
-            message!("{error}", error = Utf8(format!("{error:?}")))
+        HgError::Requirements(error) => message!(
+            "unsuitable repository requirements: {kind}",
+            kind = Utf8(format!("{:?}", error.kind))
+        ),
+        HgError::Encoding(error) => message!(
+            "encoding error: {kind}",
+            kind = Utf8(format!("{:?}", error.kind))
+        ),
+        HgError::Update(error) => message!(
+            "working copy update failed: {kind}",
+            kind = Utf8(format!("{:?}", error.kind))
+        ),
+        HgError::Docket(error) => message!(
+            "docket error for '{path}': {kind}",
+            path = get_bytes_from_path(&error.docket_path),
+            kind = Utf8(format!("{:?}", error.kind))
+        ),
+        HgError::Shape(error) => message!(
+            "invalid store shapes: {kind}",
+            kind = Utf8(format!("{:?}", error.kind))
+        ),
+        HgError::FileIndex(error) => message!(
+            "corrupted file index: {kind}",
+            kind = Utf8(format!("{:?}", error.kind))
+        ),
+        HgError::Path(error) => message!(
+            "invalid path: {kind}",
+            kind = Utf8(format!("{:?}", error.kind))
+        ),
+        HgError::Config(error) => {
+            message!(
+                "config error: {error}",
+                error = Utf8(format!("{error:?}"))
+            )
         }
+        HgError::Revlog(error) => {
+            message!(
+                "revlog error: {error}",
+                error = Utf8(format!("{error:?}"))
+            )
+        }
+        HgError::Dirstate(error) => message!(
+            "dirstate error: {error}",
+            error = Utf8(format!("{error:?}"))
+        ),
+        HgError::Pattern(error) => message!(
+            "invalid pattern: {error}",
+            error = Utf8(format!("{error:?}"))
+        ),
+        HgError::Sparse(error) => message!(
+            "invalid sparse or narrow config: {error}",
+            error = Utf8(format!("{error:?}"))
+        ),
     }
 }
 
