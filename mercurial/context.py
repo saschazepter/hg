@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import abc
+import contextlib
 import filecmp
 import os
 import stat
@@ -55,6 +56,7 @@ from .dirstateutils import (
 if typing.TYPE_CHECKING:
     from typing import (
         Iterable,
+        Iterator,
     )
     from .interfaces.dirstate import (
         HgFsStateT,
@@ -63,6 +65,7 @@ if typing.TYPE_CHECKING:
     from .interfaces.types import (
         LocalRepoCompleteT,
         MatcherT,
+        NodeIdT,
         StatusT,
     )
 
@@ -1679,6 +1682,32 @@ class committablectx(basectx):
         accordingly.
         """
         self._committed_files_data[path] = (flags, size)
+
+    # set by `register_committed_node`
+    _committed_node: NodeIdT | None = None
+
+    def register_committed_node(self, node: NodeIdT) -> None:
+        """register the node of the changeset committed from this context
+
+        The commit logic calls it, so that `committing` knows which changeset
+        the post-commit cleanup is for.
+        """
+        self._committed_node = node
+
+    @contextlib.contextmanager
+    def committing(self) -> Iterator[None]:
+        """wrap the commit of this context
+
+        Once the commit is done without error, it performs the post-commit
+        cleanup with `markcommitted`, for the changeset registered by the
+        commit logic through `register_committed_node`.
+        """
+        yield
+        node = self._committed_node
+        if node is None:
+            msg = b'committing() exited without a committed changeset'
+            raise error.ProgrammingError(msg)
+        self.markcommitted(node)
 
     def markcommitted(self, node):
         """Perform post-commit cleanup necessary after committing this ctx

@@ -1336,6 +1336,9 @@ def commitctx_for_commit(
     else:
         ui.status(_(b"skipping human commit since there are no changes\n"))
         main_node = ai_node
+        # The working copy now matches the AI commit, made from another
+        # context: `cctx.committing()` must clean up for that one.
+        cctx.register_committed_node(main_node)
 
     # Make a new phantom commit with the remaining changes if there are any.
     # Note that we only need to make an AI one. There may be remaining human

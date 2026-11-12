@@ -3324,10 +3324,10 @@ class localrepository(_localrepo_base_classes):
                     b"precommit", throw=True, parent1=hookp1, parent2=hookp2
                 )
                 with self.transaction(b'commit'):
-                    ret = unfi.commitctx_for_commit(cctx, status)
-                    # update bookmarks, dirstate and mergestate
-                    bookmarks.update(self, [p1, p2], ret)
-                    cctx.markcommitted(ret)
+                    # update bookmarks, dirstate (on exit) and mergestate
+                    with cctx.committing():
+                        ret = unfi.commitctx_for_commit(cctx, status)
+                        bookmarks.update(self, [p1, p2], ret)
                     ms.reset()
             except:  # re-raises
                 if edited:

@@ -111,6 +111,7 @@ def commitctx(repo, ctx, origctx=None, skip_empty=False):
             #
             # if minimal phase was 0 we don't need to retract anything
             phases.registernew(repo, tr, targetphase, [rev])
+        ctx.register_committed_node(n)
         return n
 
 
