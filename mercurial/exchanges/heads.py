@@ -221,6 +221,7 @@ def _bucket_fingerprints(
     # we assume the heads are sorted
     all_heads = memoryview(array.array('i', heads))
     prev_crc32 = 0
+    prev_fp = FP_SPEC.pack(prev_crc32)
     bucket_start = 0
     bucket_end = 0
 
@@ -231,23 +232,20 @@ def _bucket_fingerprints(
     # implementation.
     for r in heads:
         while r > current_tier:
-            if bucket_start == bucket_end:
-                info[current_tier] = (bucket_end, FP_SPEC.pack(prev_crc32))
-            else:
+            if bucket_start != bucket_end:
                 bucket_heads = all_heads[bucket_start:bucket_end]
-                bucket_hash = binascii.crc32(bucket_heads, prev_crc32)
-                info[current_tier] = (bucket_end, FP_SPEC.pack(bucket_hash))
-                prev_crc32 = bucket_hash
+                prev_crc32 = binascii.crc32(bucket_heads, prev_crc32)
+                prev_fp = FP_SPEC.pack(prev_crc32)
                 bucket_start = bucket_end
+            info[current_tier] = (bucket_end, prev_fp)
             current_tier = tiers.pop()
         bucket_end += 1
     assert not tiers
-    if bucket_start == bucket_end:
-        info[current_tier] = (bucket_end, FP_SPEC.pack(prev_crc32))
-    else:
+    if bucket_start != bucket_end:
         bucket_heads = all_heads[bucket_start:bucket_end]
-        bucket_hash = binascii.crc32(bucket_heads, prev_crc32)
-        info[current_tier] = (bucket_end, FP_SPEC.pack(bucket_hash))
+        prev_crc32 = binascii.crc32(bucket_heads, prev_crc32)
+        prev_fp = FP_SPEC.pack(prev_crc32)
+    info[current_tier] = (bucket_end, prev_fp)
     return info
 
 

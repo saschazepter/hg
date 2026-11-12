@@ -94,10 +94,8 @@ pub const FINGERPRINT_SIZE: usize = 4;
 /// A bucket fingerprint.
 pub type Fingerprint = [u8; FINGERPRINT_SIZE];
 
-/// crc32 of the native-endian bytes of a slice of revs
-fn heads_crc32(heads: &[Revision], initial: u32) -> u32 {
-    // create a new hasher should be virtually free, it only contains a u32.
-    let mut hasher = crc32fast::Hasher::new_with_initial(initial);
+/// Feed the native-endian bytes of a slice of revs to `hasher`.
+fn hash_revs(hasher: &mut crc32fast::Hasher, revs: &[Revision]) {
     // Safety: `Revision` is a `repr(transparent)` wrapper around a plain
     // integer, so a slice of revisions is initialized, padding-free memory
     // that can be viewed as bytes.
@@ -106,12 +104,11 @@ fn heads_crc32(heads: &[Revision], initial: u32) -> u32 {
     // suitable here.
     let bytes = unsafe {
         std::slice::from_raw_parts(
-            heads.as_ptr().cast::<u8>(),
-            std::mem::size_of_val(heads),
+            revs.as_ptr().cast::<u8>(),
+            size_of_val(revs),
         )
     };
     hasher.update(bytes);
-    hasher.finalize()
 }
 
 /// Compute heads fingerprint for the provided tier values
@@ -142,7 +139,8 @@ pub fn bucket_fingerprints(
     let mut current_tier =
         tiers.next().expect("there is always at least one tier");
 
-    let mut prev_crc32: u32 = 0;
+    let mut hasher = crc32fast::Hasher::new();
+    let mut prev_fp: Fingerprint = hasher.clone().finalize().to_ne_bytes();
     let mut bucket_start = 0;
     let mut bucket_end = 0;
 
@@ -153,14 +151,11 @@ pub fn bucket_fingerprints(
     for rev in heads {
         while rev.0 > current_tier {
             if bucket_start != bucket_end {
-                prev_crc32 =
-                    heads_crc32(&heads[bucket_start..bucket_end], prev_crc32);
+                hash_revs(&mut hasher, &heads[bucket_start..bucket_end]);
+                prev_fp = hasher.clone().finalize().to_ne_bytes();
                 bucket_start = bucket_end;
             }
-            info.insert(
-                current_tier as usize,
-                (bucket_end, prev_crc32.to_ne_bytes()),
-            );
+            info.insert(current_tier as usize, (bucket_end, prev_fp));
             current_tier =
                 tiers.next().expect("the largest tier covers all the heads");
         }
@@ -168,9 +163,10 @@ pub fn bucket_fingerprints(
     }
     assert!(tiers.next().is_none(), "the largest tier covers all the heads");
     if bucket_start != bucket_end {
-        prev_crc32 = heads_crc32(&heads[bucket_start..bucket_end], prev_crc32);
+        hash_revs(&mut hasher, &heads[bucket_start..bucket_end]);
+        prev_fp = hasher.finalize().to_ne_bytes();
     }
-    info.insert(current_tier as usize, (bucket_end, prev_crc32.to_ne_bytes()));
+    info.insert(current_tier as usize, (bucket_end, prev_fp));
     info
 }
 
@@ -831,7 +827,7 @@ mod tests {
     fn test_bucket_fingerprints_empty() {
         let info = bucket_fingerprints(bucket_boundary(-1), &[]);
         let mut expected = HashMap::new();
-        expected.insert(0, (0, 0u32.to_ne_bytes()));
+        expected.insert(0, (0, crc32fast::hash(b"").to_ne_bytes()));
         assert_eq!(info, expected);
     }
 
@@ -843,20 +839,25 @@ mod tests {
         let heads = [R!(10), R!(20), R!(22), R!(30), R!(40), R!(42)];
         let info = bucket_fingerprints(tiers, &heads);
 
-        // fingerprints chain from one bucket to the next
-        let crc_10 = heads_crc32(&heads[0..1], 0);
-        let crc_30 = heads_crc32(&heads[0..4], 0);
-        let crc_40 = heads_crc32(&heads[0..5], 0);
-        let crc_42 = heads_crc32(&heads[0..6], 0);
+        // a fingerprint covers all heads up to its bucket
+        let fp = |end| -> Fingerprint {
+            let mut hasher = crc32fast::Hasher::new();
+            hash_revs(&mut hasher, &heads[0..end]);
+            hasher.finalize().to_ne_bytes()
+        };
+        let fp_10 = fp(1);
+        let fp_30 = fp(4);
+        let fp_40 = fp(5);
+        let fp_42 = fp(6);
 
         let mut expected = HashMap::new();
-        expected.insert(16, (1, crc_10.to_ne_bytes()));
-        expected.insert(32, (4, crc_30.to_ne_bytes()));
+        expected.insert(16, (1, fp_10));
+        expected.insert(32, (4, fp_30));
         // buckets without new heads reuse the previous fingerprint
-        expected.insert(36, (4, crc_30.to_ne_bytes()));
-        expected.insert(40, (5, crc_40.to_ne_bytes()));
-        expected.insert(41, (5, crc_40.to_ne_bytes()));
-        expected.insert(42, (6, crc_42.to_ne_bytes()));
+        expected.insert(36, (4, fp_30));
+        expected.insert(40, (5, fp_40));
+        expected.insert(41, (5, fp_40));
+        expected.insert(42, (6, fp_42));
         assert_eq!(info, expected);
     }
 
