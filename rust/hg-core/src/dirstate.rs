@@ -100,7 +100,11 @@ pub enum DirstateError {
         backtrace: HgBacktrace,
     },
     /// The changelog does not know about (one of) the dirstate's parents
-    ParentNodeNotFound(HgBacktrace),
+    ParentNodeNotFound {
+        /// The parent that is missing from the changelog
+        node: Node,
+        backtrace: HgBacktrace,
+    },
 }
 
 impl DirstateError {

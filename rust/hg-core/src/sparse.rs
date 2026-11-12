@@ -277,6 +277,7 @@ fn patterns_for_rev(
     let mut config = parse_config(&raw, SparseConfigContext::Sparse, warnings)?;
 
     if !config.profiles.is_empty() {
+        let node = *repo.changelog()?.node_from_rev(rev);
         let mut profiles: Vec<Vec<u8>> = config.profiles.into_iter().collect();
         let mut visited = FastHashSet::default();
 
@@ -293,9 +294,10 @@ fn patterns_for_rev(
                 warnings,
             )
             .map_err(|_| {
-                HgError::from(DirstateError::ParentNodeNotFound(
-                    HgBacktrace::capture(),
-                ))
+                HgError::from(DirstateError::ParentNodeNotFound {
+                    node,
+                    backtrace: HgBacktrace::capture(),
+                })
             })?;
             if output.results.is_empty() {
                 warnings.send(SparseNarrowWarning::ProfileNotFound {
@@ -399,18 +401,20 @@ fn dirstate_parent_revs(
     let mut revs = vec![];
     let p1_rev =
         repo.changelog()?.rev_from_node(parents.p1.into()).map_err(|_| {
-            HgError::from(DirstateError::ParentNodeNotFound(
-                HgBacktrace::capture(),
-            ))
+            HgError::from(DirstateError::ParentNodeNotFound {
+                node: parents.p1,
+                backtrace: HgBacktrace::capture(),
+            })
         })?;
     if p1_rev != NULL_REVISION {
         revs.push(p1_rev)
     }
     let p2_rev =
         repo.changelog()?.rev_from_node(parents.p2.into()).map_err(|_| {
-            HgError::from(DirstateError::ParentNodeNotFound(
-                HgBacktrace::capture(),
-            ))
+            HgError::from(DirstateError::ParentNodeNotFound {
+                node: parents.p2,
+                backtrace: HgBacktrace::capture(),
+            })
         })?;
     if p2_rev != NULL_REVISION {
         revs.push(p2_rev)

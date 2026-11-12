@@ -40,8 +40,8 @@ Rhg works well when sparse working copy is enabled.
 
   $ cd ..
 
-rhg aborts on a working copy parent that the changelog does not know. Python
-only warns about it and carries on.
+rhg names a working copy parent that the changelog does not know. Python only
+warns about it and carries on.
 
   $ cp -R repo-sparse repo-unknown-parent
   $ hg clone -q repo-sparse repo-ahead
@@ -50,7 +50,7 @@ only warns about it and carries on.
   $ cp repo-ahead/.hg/dirstate* repo-unknown-parent/.hg/
   $ cd repo-unknown-parent
   $ $NO_FALLBACK rhg --config rhg.status=true status
-  abort: dirstate points to non-existent parent node
+  abort: dirstate points to non-existent parent node 696150d0499d
   [255]
   $ "$RHG_FALLBACK_EXECUTABLE" status
   warning: ignoring unknown working parent 696150d0499d!
