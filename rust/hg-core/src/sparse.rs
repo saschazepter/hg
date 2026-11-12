@@ -277,7 +277,6 @@ fn patterns_for_rev(
     let mut config = parse_config(&raw, SparseConfigContext::Sparse, warnings)?;
 
     if !config.profiles.is_empty() {
-        let node = *repo.changelog()?.node_from_rev(rev);
         let mut profiles: Vec<Vec<u8>> = config.profiles.into_iter().collect();
         let mut visited = FastHashSet::default();
 
@@ -292,13 +291,7 @@ fn patterns_for_rev(
                 &rev.to_string(),
                 vec![HgPath::new(&profile)],
                 warnings,
-            )
-            .map_err(|_| {
-                HgError::from(DirstateError::ParentNodeNotFound {
-                    node,
-                    backtrace: HgBacktrace::capture(),
-                })
-            })?;
+            )?;
             if output.results.is_empty() {
                 warnings.send(SparseNarrowWarning::ProfileNotFound {
                     profile: profile.to_owned(),
