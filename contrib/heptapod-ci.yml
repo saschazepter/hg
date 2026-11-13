@@ -274,6 +274,7 @@ build-c-wheel-arm64-musl:
   tags:
     - arm64
 
+# only used by the test-rhg job, so a single Python version is enough
 build-rhg-wheel-libc:
   extends: .build-wheel
   variables:
@@ -281,6 +282,10 @@ build-rhg-wheel-libc:
     WHEEL_IMG: "rust"
     WHEEL_TYPE: "rhg"
     CI_CLEVER_CLOUD_FLAVOR: "M"
+  parallel:
+    matrix:
+      - BUILD_PY_ID:
+          - cp311-cp311
 
 trigger-rpm-rockylinux:
   extends: .extra-builds-trigger
