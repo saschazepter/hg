@@ -341,6 +341,20 @@ def has_icasefs():
         os.remove(path)
 
 
+@check("ns-mtime", "file system with sub-second modification times")
+def has_ns_mtime():
+    fd, path = tempfile.mkstemp(dir='.', prefix=tempprefix)
+    os.close(fd)
+    try:
+        # an arbitrary date with a sub-second part, to see if it is preserved
+        mtime_ns = 1_000_000_000_123_456_789
+        os.utime(path, ns=(mtime_ns, mtime_ns))
+        ns_mtime = os.stat(path).st_mtime_ns % 1_000_000_000
+        return ns_mtime != 0
+    finally:
+        os.remove(path)
+
+
 @check("fifo", "named pipes")
 def has_fifo():
     if getattr(os, "mkfifo", None) is None:
