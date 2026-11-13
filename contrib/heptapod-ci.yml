@@ -161,6 +161,15 @@ trigger-nightly-build:
     # what one cache holds: only the entries left over by older builds get
     # evicted. The C wheel jobs, with much smaller caches, lower it.
     SCCACHE_CACHE_SIZE: "300M"
+    # By default, Cargo builds in the sdist the wheel is built from, unpacked
+    # in a temporary directory with a random name. sccache then misses the
+    # crates including a file their build script generates there, despite
+    # `SCCACHE_BASEDIRS`. Use a fixed path instead.
+    #
+    # In the checkout, a build left by a previous job of the runner can be
+    # reused: it was built from that same checkout, and the sdist keeps the
+    # mtimes Cargo checks, so the files the update changed get rebuilt.
+    CARGO_TARGET_DIR: "$CI_PROJECT_DIR/rust/target"
   parallel:
     matrix:
       - BUILD_PY_ID:
