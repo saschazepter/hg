@@ -41,6 +41,12 @@
   $ hg debugrebuilddirstate # fixes dirstate non-determinism
   $ hg add a
   $ clearcache
+
+# z was written by the clone, maybe within the same second as the diff below.
+# Its mtime would then be ambiguous and the commit below would need a second
+# fetch to check it, so wait for the diff to be able to record z as clean.
+  $ sleep 1
+
   $ hg diff
   diff -r f3d0bb0d1e48 x
   --- a/x* (glob)
