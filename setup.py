@@ -1,5 +1,6 @@
 # This is the mercurial setup script.
 
+import atexit  # no-atexit-check
 import ctypes
 import logging
 import os
@@ -178,6 +179,78 @@ def write_if_changed(path, content):
             fh.write(content)
 
 
+# the longest path a Unix socket can bind to, on macOS (108 bytes on Linux)
+_UNIX_SOCKET_PATH_MAX = 103
+
+
+def _isolate_sccache_server():
+    """make the builds use an sccache server of their own
+
+    sccache only reuses a crate built at the same absolute path.  setuptools
+    run each build in a random directory, defeating the cache.
+
+    The SCCACHE_BASEDIRS variable an be used to strips base directories from
+    the paths sccache uses for its caching. However SCCACHE_BASEDIRS is read
+    when the sccache server start, and since the build directory is random, we
+    know what to set it to within each build.
+
+    So we need each build to use it's own sccache server (sharing its
+    SCCACHE_DIR with other servers).
+
+    This function make sure we set `SCCACHE_BASEDIRS` appropriatly and use
+    SCCACHE_SERVER_UDS to ensure a new server will be started for this build.
+    It also make sure the server will be shutdown at the end of the build.
+
+    This happens whether or not the build uses sccache, since it can be set up
+    in ways this script cannot see (a Cargo config, a `CC` wrapper…). These
+    variables mean nothing to other tools, and no server starts unless a
+    compilation goes through sccache.
+
+    To keep using a server started beforehand, for example one whose storage
+    settings only exist in the environment it started in, set
+    `SCCACHE_SERVER_PORT` (4226 by default) or `SCCACHE_SERVER_UDS` to reach
+    it: this function then leaves sccache alone.
+    """
+    server_variables = ('SCCACHE_SERVER_UDS', 'SCCACHE_SERVER_PORT')
+    if any(name in os.environ for name in server_variables):
+        # the caller picked the server
+        return
+    # a socket path must be short, keep it out of the source tree
+    socket_dir = tempfile.mkdtemp(prefix='hg-sccache-')
+    socket_path = os.path.join(socket_dir, 'server.sock')
+    if len(socket_path) > _UNIX_SOCKET_PATH_MAX:
+        # no server could start there (a long `TMPDIR`), leave sccache alone
+        os.rmdir(socket_dir)
+        return
+    os.environ['SCCACHE_SERVER_UDS'] = socket_path
+
+    base_dirs = [os.path.dirname(os.path.abspath(__file__))]
+    if 'SCCACHE_BASEDIRS' in os.environ:
+        base_dirs.append(os.environ['SCCACHE_BASEDIRS'])
+    os.environ['SCCACHE_BASEDIRS'] = os.pathsep.join(base_dirs)
+
+    atexit.register(_stop_sccache_server, socket_dir)
+
+
+def _stop_sccache_server(socket_dir):
+    """stop the server `_isolate_sccache_server` set up, if a build started it
+
+    Stopping it prints its statistics, the only report of what this build got
+    from the cache.
+    """
+    if os.path.exists(os.environ['SCCACHE_SERVER_UDS']):
+        sccache = os.environ.get('RUSTC_WRAPPER', '')
+        if os.path.basename(sccache) not in ('sccache', 'sccache.exe'):
+            # set up some other way, hopefully from the PATH
+            sccache = 'sccache'
+        try:
+            subprocess.run([sccache, '--stop-server'], check=False)
+        except FileNotFoundError:
+            # it stops by itself once idle (`SCCACHE_IDLE_TIMEOUT`)
+            pass
+    shutil.rmtree(socket_dir, ignore_errors=True)
+
+
 VALID_EXEC_TYPE = (
     # the default option (script)
     "default",
@@ -190,6 +263,9 @@ VALID_EXEC_TYPE = (
 )
 if exec_type == "default":
     exec_type = "script"
+
+# before the Rust builds are declared, as some copy the environment
+_isolate_sccache_server()
 
 scripts = []
 console_scripts = []

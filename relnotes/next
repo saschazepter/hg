@@ -72,3 +72,6 @@ Mercurial XXX.
 
 * The `--command` flag of the `hg debugshell` now accepts a multi-line script
   and no longer implicitly print the command result.
+* setup: each build now uses an sccache server of its own, so that sccache
+  reuses compilations made in another directory, like the temporary ones of
+  `pip`. Set `SCCACHE_SERVER_PORT` to keep using a running server instead.
