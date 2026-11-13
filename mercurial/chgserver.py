@@ -45,6 +45,7 @@ import importlib
 import inspect
 import os
 import re
+import signal
 import socket
 import stat
 import struct
@@ -607,6 +608,10 @@ class chgcmdserver(commandserver.server):
         # receive EOF.
         globaloldios = self._oldios
         self._oldios = []
+        # ui.pager() turns SIGPIPE into SignalInterrupt, and the client sends
+        # us SIGPIPE when its pager exits (issue5278), possibly after the
+        # command is over. So that handler must not outlive the session.
+        oldsigpipehandler = signal.getsignal(signal.SIGPIPE)
         # Drop CHG* environment variables set in chg.c whose only purpose is to
         # affect the confighash, to avoid leaking them to child processes.
         for var in (b'CHGCGROUP', b'CHGNAMESPACES'):
@@ -619,6 +624,10 @@ class chgcmdserver(commandserver.server):
         finally:
             self._restoreio()
             self._oldios = globaloldios
+            # signal.signal() first raises any SIGPIPE already received: this
+            # happens here, where the server handles SignalInterrupt, rather
+            # than later in cleanup(), where it would escape as a traceback.
+            signal.signal(signal.SIGPIPE, oldsigpipehandler)
 
     def setenv(self):
         """Clear and update os.environ
