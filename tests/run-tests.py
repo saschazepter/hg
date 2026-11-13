@@ -1696,6 +1696,13 @@ class Test(unittest.TestCase):
 
         if self._usechg:
             env['CHGSOCKNAME'] = os.path.join(self._chgsockdir, b'server')
+            # chg gives up on a starting server after $CHGTIMEOUT seconds (60
+            # by default), which overloaded CI runners sometimes exceed. Wait
+            # for half the test timeout instead: a server that never starts
+            # is still reported by chg before the test itself times out.
+            # Never go below chg's default, for short or disabled timeouts.
+            chg_timeout = max(60, self._timeout // 2)
+            env['CHGTIMEOUT'] = _bytes2sys(b"%d" % chg_timeout)
         if self._chgdebug:
             env['CHGDEBUG'] = 'true'
 

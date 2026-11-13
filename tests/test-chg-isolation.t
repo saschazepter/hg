@@ -1,9 +1,5 @@
 #require chg systemd-run linux-unshare
 
-Timeout copied from test-chg.t.
-  $ CHGTIMEOUT=`expr $HGTEST_TIMEOUT / 6`
-  $ export CHGTIMEOUT
-
 Install the `chg` wrapper around the rust front's daemonized mode:
 
   $ . "$TESTDIR/testlib/helpers-chg.sh"
