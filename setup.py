@@ -58,14 +58,17 @@ def read_argument(argument, default=None):
     return value
 
 
-def read_flag(argument, default=False):
-    """read a command line argument if it exists"""
+def read_flag(argument, default=False, *, keep=False):
+    """read a command line argument if it exists
+
+    With `keep`, the flag stays on the command line for setuptools to parse.
+    """
     exec_part, argv, suffix = _split_arguments()
 
     argument = '--' + argument
 
     value = argument in argv
-    if argument in argv:
+    if value and not keep:
         index = argv.index(argument)
         del argv[index]
     # update sys.argv arguments
@@ -1449,8 +1452,12 @@ extmodules = [
 ]
 
 # The Rust extension module
+#
+# `hgdist` parses `--rust` and `--rust-ready` only after `setup()` got the
+# extensions, so peek at them here: the other builds do not declare the module.
 RUST_EXT_MODULE = 'mercurial.pyo3_rustext'
-if os.name != 'nt':
+with_rust = read_flag('rust', keep=True) or read_flag('rust-ready', keep=True)
+if os.name != 'nt' and with_rust:
     extmodules += [
         RustStandaloneExtension(
             RUST_EXT_MODULE,
