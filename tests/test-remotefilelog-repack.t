@@ -144,10 +144,12 @@
 #endif
 
 # Run two repacks at once
-  $ hg repack --config "hooks.prerepack=sleep 3" &
-  $ sleep 1
+# (the first one holds the repack lock in its hook until we release it)
+  $ hg repack --config "hooks.prerepack=\"$RUNTESTDIR/testlib/wait-on-file\" 20 \"$TESTTMP/repack-release\" \"$TESTTMP/repack-started\"" &
+  $ "$RUNTESTDIR/testlib/wait-on-file" 20 "$TESTTMP/repack-started"
   $ hg repack
   skipping repack - another repack is already running
+  $ touch "$TESTTMP/repack-release"
   $ hg debugwaitonrepack >/dev/null 2>&1
 
 # Run repack in the background
