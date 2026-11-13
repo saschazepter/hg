@@ -1321,20 +1321,6 @@ class RustExtension(Extension):
 
     def rustbuild(self):
         env = os.environ.copy()
-        if 'HGTEST_RESTOREENV' in env:
-            # Mercurial tests change HOME to a temporary directory,
-            # but, if installed with rustup, the Rust toolchain needs
-            # HOME to be correct (otherwise the 'no default toolchain'
-            # error message is issued and the build fails).
-            # This happens currently with test-hghave.t, which does
-            # invoke this build.
-
-            # Unix only fix (os.path.expanduser not really reliable if
-            # HOME is shadowed like this)
-            import pwd
-
-            env['HOME'] = pwd.getpwuid(os.getuid()).pw_dir
-
         # PyO3 uses this environment variable as a re-compile trigger
         # It only concerns itself with compile-time info to get information
         # about the Python it's building against (like compilation flags, etc..
