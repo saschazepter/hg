@@ -166,10 +166,9 @@ trigger-nightly-build:
     # crates including a file their build script generates there, despite
     # `SCCACHE_BASEDIRS`. Use a fixed path instead.
     #
-    # In the checkout, a build left by a previous job of the runner can be
-    # reused: it was built from that same checkout, and the sdist keeps the
-    # mtimes Cargo checks, so the files the update changed get rebuilt.
-    CARGO_TARGET_DIR: "$CI_PROJECT_DIR/rust/target"
+    # Keep it out of the checkout: the builds directory of some runners is on
+    # network storage, slow for all the writing a Cargo build does.
+    CARGO_TARGET_DIR: "/tmp/hg-cargo-target"
   parallel:
     matrix:
       - BUILD_PY_ID:
