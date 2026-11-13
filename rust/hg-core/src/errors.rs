@@ -196,7 +196,9 @@ impl HgError {
             HgError::Abort { detailed_exit_code, .. } => *detailed_exit_code,
             HgError::ConfigValueParseError(_) => exit_codes::CONFIG_ERROR_ABORT,
             HgError::Config(config_error) => match **config_error {
-                ConfigError::Parse(_) => exit_codes::CONFIG_ERROR_ABORT,
+                ConfigError::Parse(_) | ConfigError::InvalidValue { .. } => {
+                    exit_codes::CONFIG_ERROR_ABORT
+                }
                 ConfigError::MalformedCliOption { .. } => {
                     exit_codes::CONFIG_PARSE_ERROR_ABORT
                 }
@@ -235,7 +237,8 @@ impl HgError {
                     "`mercurial/configitems.toml` is not valid",
                 )),
                 ConfigError::Parse(_)
-                | ConfigError::MalformedCliOption { .. } => None,
+                | ConfigError::MalformedCliOption { .. }
+                | ConfigError::InvalidValue { .. } => None,
             },
             HgError::Sparse(sparse_error) => match sparse_error {
                 SparseConfigError::InvalidNarrowPrefix(_) => {
@@ -374,6 +377,12 @@ impl fmt::Display for HgError {
                         item '{}.{}'",
                         String::from_utf8_lossy(section),
                         String::from_utf8_lossy(item)
+                    )
+                }
+                ConfigError::InvalidValue { item, expected, backtrace } => {
+                    write!(
+                        f,
+                        "{backtrace}{item} not valid, expected {expected}"
                     )
                 }
                 ConfigError::Items(items_error) => {

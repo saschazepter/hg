@@ -378,6 +378,14 @@ pub enum ConfigError {
         default_type: String,
         backtrace: HgBacktrace,
     },
+    /// The value for this item is not one of the expected ones
+    InvalidValue {
+        /// The full `section.name` of the config item
+        item: String,
+        /// A user-friendly description of the expected values
+        expected: &'static str,
+        backtrace: HgBacktrace,
+    },
     /// These contents for `mercurial/configitems.toml` are invalid
     #[from]
     Items(ConfigItemsError),

@@ -24,11 +24,13 @@ use crate::Revision;
 use crate::UncheckedRevision;
 use crate::checkexec::check_exec;
 use crate::checkexec::is_executable;
+use crate::config::ConfigError;
 use crate::dirstate::dirstate_map::DirstateEntryReset;
 use crate::dirstate::dirstate_map::DirstateMap;
 use crate::dirstate::entry::ParentFileData;
 use crate::dirstate::entry::TruncatedTimestamp;
 use crate::dirstate::owning::OwningDirstateMap;
+use crate::errors::HgBacktrace;
 use crate::errors::HgError;
 use crate::errors::HgIoError;
 use crate::errors::HgResultExt;
@@ -621,14 +623,12 @@ impl FileConflictConfig {
             Some("abort") => Ok(Self::Abort),
             Some("warn") => Ok(Self::Warn),
             Some("ignore") => Ok(Self::Ignore),
-            _ => Err(HgError::abort(
-                format!(
-                    "{} not valid, expected 'abort', 'ignore' or 'warn'",
-                    config
-                ),
-                exit_codes::CONFIG_ERROR_ABORT,
-                None,
-            )),
+            _ => Err(ConfigError::InvalidValue {
+                item: config.to_owned(),
+                expected: "'abort', 'ignore' or 'warn'",
+                backtrace: HgBacktrace::capture(),
+            }
+            .into()),
         }
     }
 }
