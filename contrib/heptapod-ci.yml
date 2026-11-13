@@ -164,6 +164,9 @@ trigger-nightly-build:
     # pack and unpack the cache with several files at a time, which helps the
     # runners whose builds directory is on network storage
     FF_USE_FASTZIP: "true"
+    # sccache already compresses its entries, compressing them again only
+    # costs time (this needs the fastzip archiver)
+    CACHE_COMPRESSION_LEVEL: "fastest"
     # By default, Cargo builds in the sdist the wheel is built from, unpacked
     # in a temporary directory with a random name. sccache then misses the
     # crates including a file their build script generates there, despite
