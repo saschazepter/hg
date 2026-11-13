@@ -161,6 +161,9 @@ trigger-nightly-build:
     # what one cache holds: only the entries left over by older builds get
     # evicted. The C wheel jobs, with much smaller caches, lower it.
     SCCACHE_CACHE_SIZE: "300M"
+    # pack and unpack the cache with several files at a time, which helps the
+    # runners whose builds directory is on network storage
+    FF_USE_FASTZIP: "true"
     # By default, Cargo builds in the sdist the wheel is built from, unpacked
     # in a temporary directory with a random name. sccache then misses the
     # crates including a file their build script generates there, despite
