@@ -745,7 +745,7 @@ class chgunixservicehandler:
             st = os.stat(self._realaddress)
             return (
                 st.st_ino == self._socketstat.st_ino
-                and st[stat.ST_MTIME] == self._socketstat[stat.ST_MTIME]
+                and st.st_mtime_ns == self._socketstat.st_mtime_ns
             )
         except OSError:
             return False
