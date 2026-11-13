@@ -156,6 +156,11 @@ trigger-nightly-build:
     WHEEL_TYPE: ""
     FLAVOR: ""
     CI_CLEVER_CLOUD_FLAVOR: "XS"
+    SCCACHE_DIR: "$CI_PROJECT_DIR/.sccache"
+    # each job downloads and uploads the whole directory, so keep it close to
+    # what one cache holds: only the entries left over by older builds get
+    # evicted. The C wheel jobs, with much smaller caches, lower it.
+    SCCACHE_CACHE_SIZE: "300M"
   parallel:
     matrix:
       - BUILD_PY_ID:
@@ -177,6 +182,26 @@ trigger-nightly-build:
     paths:
       - wheels/
     expire_in: 1 week
+  # Keep the compilations from one pipeline to the next with sccache.
+  # (when available in the CI image)
+  #
+  # The cache key uses the target architecture as nothing will be reusable from
+  # one ARCH to the next.
+  #
+  # At the time of writing this comment:
+  #
+  # - The C extensions and the pyo3 crates depend on the Python version. In a
+  #   cache shared by all versions, the job finishing last drops the entries
+  #   the other versions added, so each version gets its own through the
+  #   $BUILD_PY_ID key.
+  #
+  # - the C build writes about 5MB of cache, and a Rust one 300MB. So we keep
+  #   each cache isolated as the C one can remain much more compact.
+  #   This is done by the $WHEEL_IMG key
+  cache:
+    key: "sccache-$ARCH-$WHEEL_IMG-$BUILD_PY_ID"
+    paths:
+      - .sccache/
 
 .extra-builds-trigger:
   extends: .trigger
@@ -222,6 +247,7 @@ build-c-wheel-libc:
     ARCH: "x86_64"
     WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
+    SCCACHE_CACHE_SIZE: "10M"
 
 build-rust-wheel-libc:
   extends: .build-wheel
@@ -237,6 +263,7 @@ build-c-wheel-musl:
     ARCH: "x86_64-musl"
     WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
+    SCCACHE_CACHE_SIZE: "10M"
 
 build-rust-wheel-musl:
   extends: .extra-wheel
@@ -251,6 +278,7 @@ build-c-wheel-i686-libc:
     ARCH: "i686"
     WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
+    SCCACHE_CACHE_SIZE: "10M"
 
 build-c-wheel-i686-musl:
   extends: .extra-wheel
@@ -258,6 +286,7 @@ build-c-wheel-i686-musl:
     ARCH: "i686-musl"
     WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
+    SCCACHE_CACHE_SIZE: "10M"
 
 build-c-wheel-arm64-libc:
   extends: .extra-wheel
@@ -265,6 +294,7 @@ build-c-wheel-arm64-libc:
     ARCH: "arm64"
     WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
+    SCCACHE_CACHE_SIZE: "10M"
   tags:
     - arm64
 
@@ -274,6 +304,7 @@ build-c-wheel-arm64-musl:
     ARCH: "arm64-musl"
     WHEEL_IMG: "c"
     WHEEL_TYPE: "c"
+    SCCACHE_CACHE_SIZE: "10M"
   tags:
     - arm64
 
