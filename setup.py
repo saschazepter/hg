@@ -1335,14 +1335,6 @@ class RustExtension(Extension):
 
             env['HOME'] = pwd.getpwuid(os.getuid()).pw_dir
 
-        # Wildy shooting in the dark to make sure rust-pyo3 use the right
-        # python
-        if not sys.executable:
-            msg = "Cannot determine which Python to compile Rust for"
-            raise RustCompilationError(msg)
-        env['PYTHON_SYS_EXECUTABLE'] = sys.executable
-        env['PYTHONEXECUTABLE'] = sys.executable
-        env['PYTHON'] = sys.executable
         # PyO3 uses this environment variable as a re-compile trigger
         # It only concerns itself with compile-time info to get information
         # about the Python it's building against (like compilation flags, etc..
