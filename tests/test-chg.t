@@ -299,6 +299,11 @@ at polling cycle)
 
   $ ls chgsock/server-*
   chgsock/server-* (glob)
+
+(the server only compares the seconds of the mtime, so make sure the touch does
+not happen within the second the socket was created)
+
+  $ sleep 1
   $ touch chgsock/server-*
   $ wait_server_exit --all
   $ ls chgsock/server-*
