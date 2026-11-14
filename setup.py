@@ -537,31 +537,29 @@ class hgbuildext(build_ext):
         return build_ext.run(self)
 
     def build_extensions(self):
-        ruststandalones = [
-            e for e in self.extensions if isinstance(e, RustStandaloneExtension)
-        ]
-        self.extensions = [
-            e for e in self.extensions if e not in ruststandalones
-        ]
         # Filter out zstd if disabled via argument.
         if not self.zstd:
             self.extensions = [
                 e for e in self.extensions if e.name != 'mercurial.zstd'
             ]
 
-        # Build Rust standalone extensions if they are installed
-        # and their build is not explicitly disabled (for external build
-        # as Linux distributions would do)
+        # Build the Rust extension module if it is installed and its build is
+        # not explicitly disabled (for external build as Linux distributions
+        # would do)
         if self.distribution.ships_rust_extensions() and self.rust:
             if not sys.platform.startswith('linux'):
                 logging.warning(
                     "rust extensions have only been tested on Linux "
                     "and may not behave correctly on other platforms"
                 )
+        else:
+            # setuptools-rust builds what this list (the one given to
+            # `setup()`) holds, once this command is done
+            rust_extensions[:] = [
+                e for e in rust_extensions if e.name != RUST_EXT_MODULE
+            ]
 
-            for rustext in ruststandalones:
-                rustext.build('' if self.editable_mode else self.build_lib)
-        elif not self.distribution.ships_rust_extensions():
+        if not self.distribution.ships_rust_extensions():
             # a previous build may have left the Rust extension module in the
             # build directory (or in the source tree for an in-place build):
             # it must not be shipped.
@@ -577,12 +575,6 @@ class hgbuildext(build_ext):
         return build_ext.build_extensions(self)
 
     def build_extension(self, ext):
-        if (
-            self.distribution.ships_rust_extensions()
-            and self.rust
-            and isinstance(ext, RustExtension)
-        ):
-            ext.rustbuild()
         try:
             build_ext.build_extension(self, ext)
         except CCompilerError:
@@ -1451,20 +1443,37 @@ extmodules = [
     ),
 ]
 
-# The Rust extension module
+# The Rust extension module, built by setuptools-rust.
 #
 # `hgdist` parses `--rust` and `--rust-ready` only after `setup()` got the
-# extensions, so peek at them here: the other builds do not declare the module.
+# extensions, so peek at them here: the other builds then do not need
+# setuptools-rust. `hgbuildext` takes the module out if it is not to be built.
 RUST_EXT_MODULE = 'mercurial.pyo3_rustext'
 with_rust = read_flag('rust', keep=True) or read_flag('rust-ready', keep=True)
 if os.name != 'nt' and with_rust:
-    extmodules += [
-        RustStandaloneExtension(
+    from setuptools_rust import RustExtension
+
+    # setuptools-rust runs Cargo with this environment
+    rust_ext_env = os.environ.copy()
+    # PyO3 uses this environment variable as a re-compile trigger
+    # It only concerns itself with compile-time info to get information
+    # about the Python it's building against (like compilation flags, etc..
+    # None of this information can change in a virtualenv, so use the base
+    # interpreter path, otherwise we re-build PyO3 every single time, which
+    # can add tens of seconds to the build time for no reason.
+    rust_ext_env['PYO3_PYTHON'] = os.path.realpath(sys._base_executable)
+
+    rust_extensions.append(
+        RustExtension(
             RUST_EXT_MODULE,
-            'hg-pyo3',
-            'librusthgpyo3',
-        ),
-    ]
+            path='rust/hg-pyo3/Cargo.toml',
+            features=os.environ.get('HG_RUST_FEATURES', '').split(),
+            # setuptools-rust would make in-place builds (like editable
+            # installs) debug ones, too slow for the test suite
+            debug=False,
+            env=rust_ext_env,
+        )
+    )
 
 sys.path.insert(0, 'contrib/python-zstandard')
 import setup_zstd

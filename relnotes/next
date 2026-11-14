@@ -38,6 +38,11 @@ Mercurial XXX.
 
 == Backwards Compatibility Changes ==
 
+* setup: setuptools-rust now builds the Rust extension module, so `--rust` and
+  `--rust-ready` builds need it, as `pyproject.toml` already declares. That
+  build now honors the setuptools-rust and Cargo settings, like
+  `CARGO_TARGET_DIR`.
+
 * clonebundles: the server now honors the `store_fingerprint` argument of the
   `clonebundles_manifest` command, which it previously accepted and ignored.
   Clients from 6.5 to 7.1 do not send that argument and are no longer offered
