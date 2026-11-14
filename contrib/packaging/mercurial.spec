@@ -70,7 +70,7 @@ ln -s python python3
 # remove python reference
 sed -i 's|#!/usr/bin/env python|#!/usr/bin/env python3|' Lib/encodings/rot_13.py
 $PYTHON_FULLPATH -m ensurepip --default-pip
-$PYTHON_FULLPATH -m pip install setuptools setuptools-scm docutils
+$PYTHON_FULLPATH -m pip install setuptools setuptools-scm setuptools-rust docutils
 cd -
 
 # verify Python environment
@@ -84,7 +84,7 @@ export LD_LIBRARY_PATH=$PYPATH
 export CFLAGS="-L $PYPATH"
 %else
 PYTHON_FULLPATH=$(which %{pythonexe})
-$PYTHON_FULLPATH -m pip install pip setuptools setuptools-scm packaging --upgrade
+$PYTHON_FULLPATH -m pip install pip setuptools setuptools-scm setuptools-rust packaging --upgrade
 %endif
 
 make -C contrib/chg
