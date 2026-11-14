@@ -456,7 +456,12 @@ pypats = [
             "always assign an opened file to a variable, and close it afterwards",
         ),
         (r':\n(    )*( ){1,3}[^ ]', "must indent 4 spaces"),
-        (r'^import atexit', "don't use atexit, use ui.atexit"),
+        (
+            r'^import atexit',
+            "don't use atexit, use ui.atexit",
+            # for code outside of Mercurial, which has no ui (like setup.py)
+            "# *no-atexit-check",
+        ),
         # rules depending on implementation of repquote()
         (
             r' x+[xpqo%APM][\'"]\n\s+[\'"]x',
