@@ -36,6 +36,14 @@
 ## CI jobs use images from https://foss.heptapod.net/mercurial/ci-images. See
 ## the comments on `HG_CI_REG` and `HG_CI_IMAGE_TAG` below for more information.
 
+spec:
+  inputs:
+    ci_image_tag:
+      description: Tag of the CI images to use.
+      type: string
+      default: "v3.4"
+---
+
 # Don't run pipelines on branch "merge", since we're fast-forward only.
 # Gitlab sees a new branch (since e.g. `topic/stable/my-topic` becomes
 # `branch/stable`), but the hash hasn't changed. There is no reason to
@@ -94,7 +102,7 @@ variables:
     # Images are tagged with the name of the ci-images branch that built them.
     # For example, the v3.4 images are defined here:
     # https://foss.heptapod.net/mercurial/ci-images/-/blob/branch/v3.4/images.pkl
-    HG_CI_IMAGE_TAG: "v3.4"
+    HG_CI_IMAGE_TAG: "$[[ inputs.ci_image_tag ]]"
     # a directory dedicated to creating files and temporary clone
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
