@@ -109,10 +109,13 @@ impl From<&'_ NodeData> for Node {
 
 impl fmt::LowerHex for Node {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for &byte in &self.data {
-            write!(f, "{:02x}", byte)?
+        const DIGITS: &[u8; 16] = b"0123456789abcdef";
+        let mut hex = [0; HEX_NODE_LENGTH];
+        for (digits, byte) in hex.chunks_exact_mut(2).zip(self.data) {
+            digits[0] = DIGITS[usize::from(byte >> 4)];
+            digits[1] = DIGITS[usize::from(byte & 0xf)];
         }
-        Ok(())
+        f.write_str(std::str::from_utf8(&hex).expect("hex digits are ASCII"))
     }
 }
 
