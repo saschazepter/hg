@@ -99,6 +99,9 @@ variables:
     # with shell runner, its content is not cleaned from one call to the next,
     # so plan for it.
     TMP_WORK_DIR: "${CI_PROJECT_DIR}/../.."
+    # timestamp each line of the job logs, to see where the time goes inside
+    # a step
+    FF_TIMESTAMPS: "true"
 
 .all:
   # help changing all job at once when debugging
