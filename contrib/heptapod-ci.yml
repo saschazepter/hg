@@ -294,7 +294,7 @@ trigger-rpm-rockylinux:
   extends: .extra-builds-trigger
 
 build-rpm-rockylinux:
-  image: registry.heptapod.net:443/mercurial/ci-images/hg-rocky${RHELVERSION}-rpm-build:v3.4
+  image: "$HG_CI_REG/hg-rocky${RHELVERSION}-rpm-build:$HG_CI_IMAGE_TAG"
   stage: build
   variables:
     FF_DISABLE_UMASK_FOR_DOCKER_EXECUTOR: true
@@ -702,7 +702,7 @@ test-install-rpm-rockylinux:
 
 .test-run-rpm-rockylinux:
   extends: .runtests-no-check
-  image: registry.heptapod.net:443/mercurial/ci-images/hg-rocky${RHELVERSION}-rpm-test:v3.4
+  image: "$HG_CI_REG/hg-rocky${RHELVERSION}-rpm-test:$HG_CI_IMAGE_TAG"
   stage: platform-compat
   variables:
     PYTHON: python3.12
