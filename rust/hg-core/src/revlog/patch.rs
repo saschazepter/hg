@@ -1694,9 +1694,8 @@ mod tests {
             }
 
             fn from_rich(edit: &RichEdit) -> Self {
-                let inner = &edit.inner;
-                let (start, end) = (u32_u(inner.start), u32_u(inner.end));
-                TestEdit::new(edit.src, start, end, inner.data)
+                let (start, end) = (u32_u(edit.start()), u32_u(edit.end()));
+                TestEdit::new(edit.src(), start, end, edit.data())
             }
         }
 
