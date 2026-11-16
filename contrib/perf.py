@@ -3804,7 +3804,13 @@ def perfrevlogrevisions(
     revlogopts
     + formatteropts
     + [
-        (b'', b'target', [], b'target to diff against (prev, parents)'),
+        (
+            b'',
+            b'target',
+            [],
+            b'target to diff against'
+            b' (prev, parents, merge-parents, merge-p1-to-p2, merge-p2-to-p1)',
+        ),
         (
             b'',
             b'filter',
@@ -3818,7 +3824,18 @@ def perfrevlogrevisions(
 def perf_revlog_revdiff(
     ui, repo, file_=None, startrev=1000, stoprev=-1, **opts
 ):
-    """check how long it take to redelta a set of revision pair"""
+    """check how long it take to redelta a set of revision pair
+
+    The pairs to diff depend on ``--target``:
+
+    - ``prev``: each revision against the previous one,
+    - ``parents``: each revision against its parents,
+    - ``merge-parents``: each merge against its parents,
+    - ``merge-p1-to-p2``: from the first parent of each merge to the second,
+    - ``merge-p2-to-p1``: from the second parent of each merge to the first.
+
+    The default is ``prev`` and ``parents``.
+    """
     bopts = _byteskwargs(opts)
     rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, bopts)
     clear_caches = bopts[b'clear_caches']
@@ -3826,9 +3843,12 @@ def perf_revlog_revdiff(
     KNOWN_TARGET = {
         b'prev',
         b'parents',
+        b'merge-parents',
+        b'merge-p1-to-p2',
+        b'merge-p2-to-p1',
     }
     if not bopts[b'target']:
-        targets = KNOWN_TARGET
+        targets = {b'prev', b'parents'}
     else:
         targets = set()
         for t in bopts[b'target']:
@@ -3849,6 +3869,14 @@ def perf_revlog_revdiff(
             for p in (p1, p2):
                 if p > 0:
                     rev_pairs.add((p, rev))
+        if p1 >= 0 and p2 >= 0:
+            if b'merge-parents' in targets:
+                rev_pairs.add((p1, rev))
+                rev_pairs.add((p2, rev))
+            if b'merge-p1-to-p2' in targets:
+                rev_pairs.add((p1, p2))
+            if b'merge-p2-to-p1' in targets:
+                rev_pairs.add((p2, p1))
         if rev_pairs:
             gathered_revs += 1
             pairs.update(rev_pairs)

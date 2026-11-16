@@ -617,3 +617,33 @@ Diffing revisions
   revdiff 4 5
   revdiff 5 6
   revdiff 6 7
+
+Diffing merges
+--------------
+
+Each merge against its parents
+
+  $ hg perf::revlog-revdiff -m --target merge-parents --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 4 pairs gathered from 2 revisions
+  revdiff 2 4
+  revdiff 3 4
+  revdiff 5 7
+  revdiff 6 7
+
+From the first parent of each merge to the second (4 merges 3 with 2, 7 merges
+6 with 5)
+
+  $ hg perf::revlog-revdiff -m --target merge-p1-to-p2 --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 2 pairs gathered from 2 revisions
+  revdiff 3 2
+  revdiff 6 5
+
+From the second parent of each merge to the first
+
+  $ hg perf::revlog-revdiff -m --target merge-p2-to-p1 --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 2 pairs gathered from 2 revisions
+  revdiff 2 3
+  revdiff 5 6
