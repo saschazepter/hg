@@ -19,7 +19,23 @@
   3 files fetched over 1 fetches - (3 misses, 0.00% hit ratio) over *s (glob)
   $ cd shallow
 
-# status
+# The clone may leave mtimes ambiguous when it writes the files and the dirstate
+# within the same second, making the next status fetch the files to compare
+# them. Wait, then run a status while the files are still in the cache, so that
+# it records them as clean without fetching anything.
+  $ sleep 1
+  $ hg status
+  $ hg debugdirstate --no-dates
+  trk exp mode fb       size mtime path
+  w1- c    644 --          2 set   x
+  w1- c    644 --          2 set   y
+  w1- c    644 --          2 set   z
+
+Status without fetching
+-----------------------
+
+x and y get a new size, so status knows they are modified without comparing
+their content, and fetches nothing.
 
   $ clearcache
   $ echo xx > x
@@ -29,23 +45,52 @@
   M x
   M y
   ? a
-  1 files fetched over 1 fetches - (1 misses, 0.00% hit ratio) over *s (glob)
+  $ hg debugdirstate --no-dates
+  trk exp mode fb       size mtime path
+  w1- c    644 --          2 set   x
+  w1- c    644 --          2 set   y
+  w1- c    644 --          2 set   z
   $ hg add a
   $ hg status
   M x
   M y
   A a
+  $ hg debugdirstate --no-dates
+  trk exp mode fb       size mtime path
+  w-- c      - --          - -     a
+  w1- c    644 --          2 set   x
+  w1- c    644 --          2 set   y
+  w1- c    644 --          2 set   z
 
-# diff
+Status fetching a file to compare its content
+---------------------------------------------
 
-  $ hg debugrebuilddirstate # fixes dirstate non-determinism
-  $ hg add a
-  $ clearcache
+z keeps its size but gets a new mtime, so status has to compare its content
+with the parent revision and fetches it. We wait after touching z, so that the
+status can record its new mtime as clean.
 
-# z was written by the clone, maybe within the same second as the diff below.
-# Its mtime would then be ambiguous and the commit below would need a second
-# fetch to check it, so wait for the diff to be able to record z as clean.
+  $ touch z
   $ sleep 1
+
+  $ hg status
+  M x
+  M y
+  A a
+  1 files fetched over 1 fetches - (1 misses, 0.00% hit ratio) over *s (glob)
+  $ hg debugdirstate --no-dates
+  trk exp mode fb       size mtime path
+  w-- c      - --          - -     a
+  w1- c    644 --          2 set   x
+  w1- c    644 --          2 set   y
+  w1- c    644 --          2 set   z
+
+Diff fetching the parent content of modified files
+--------------------------------------------------
+
+z is recorded as clean, so the diff only fetches the parent content of x and y
+to display their changes.
+
+  $ clearcache
 
   $ hg diff
   diff -r f3d0bb0d1e48 x
@@ -60,7 +105,13 @@
   @@ -1,1 +1,1 @@
   -y
   +yy
-  3 files fetched over 1 fetches - (3 misses, 0.00% hit ratio) over *s (glob)
+  2 files fetched over 1 fetches - (2 misses, 0.00% hit ratio) over *s (glob)
+  $ hg debugdirstate --no-dates
+  trk exp mode fb       size mtime path
+  w-- c      - --          - -     a
+  w1- c    644 --          2 set   x
+  w1- c    644 --          2 set   y
+  w1- c    644 --          2 set   z
 
 # local commit
 
