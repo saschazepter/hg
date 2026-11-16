@@ -647,3 +647,22 @@ From the second parent of each merge to the first
   diffing 2 pairs gathered from 2 revisions
   revdiff 2 3
   revdiff 5 6
+
+Limiting the diffed pairs
+-------------------------
+
+With the merge targets, the limit is the number of merges, the most recent ones
+
+  $ hg perf::revlog-revdiff -m --target merge-parents --limit 1 --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 2 pairs gathered from 1 revisions
+  revdiff 5 7
+  revdiff 6 7
+
+With the other targets, every revision provides pairs
+
+  $ hg perf::revlog-revdiff -m --target prev --limit 2 --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 2 pairs gathered from 2 revisions
+  revdiff 5 6
+  revdiff 6 7

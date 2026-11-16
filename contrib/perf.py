@@ -3818,6 +3818,13 @@ def perfrevlogrevisions(
             b'restricting diffing to (storage, common-base, distinct-base)',
         ),
         (b'', b'clear-caches', False, b'clear revlog cache between calls'),
+        (
+            b'',
+            b'limit',
+            0,
+            b'diff pairs from at most N revisions, the most recent ones'
+            b' (0 means all)',
+        ),
     ],
     b'-c|-m|FILE',
 )
@@ -3835,10 +3842,15 @@ def perf_revlog_revdiff(
     - ``merge-p2-to-p1``: from the second parent of each merge to the first.
 
     The default is ``prev`` and ``parents``.
+
+    Use ``--limit`` to bound the runtime on large revlogs: pairs are only
+    gathered from the N most recent revisions providing some, so from the N
+    most recent merges with the ``merge-*`` targets.
     """
     bopts = _byteskwargs(opts)
     rl = cmdutil.openrevlog(repo, b'perfrevlogwrite', file_, bopts)
     clear_caches = bopts[b'clear_caches']
+    limit = bopts[b'limit']
 
     KNOWN_TARGET = {
         b'prev',
@@ -3859,8 +3871,10 @@ def perf_revlog_revdiff(
 
     pairs = set()
     gathered_revs = 0
-    # gather possible pairs
-    for rev in rl:
+    # gather possible pairs, starting with the most recent revisions
+    for rev in _xrange(len(rl) - 1, -1, -1):
+        if limit > 0 and gathered_revs >= limit:
+            break
         rev_pairs = set()
         if b'prev' in targets and rev > 0:
             rev_pairs.add((rev - 1, rev))
