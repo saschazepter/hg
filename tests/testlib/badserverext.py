@@ -42,6 +42,12 @@ close-after-send-patterns
    If defined, close the client socket after the configured regexp is seen.
    (The value is a list, multiple values can use used to close a series of requests
    request)
+
+close-done-file
+   If defined, create this file once the server is done with a request whose
+   socket got closed by one of the conditions above, after the resulting error
+   got logged. Useful when the client does not need the socket close to
+   complete, and the test has to wait for the server before killing it.
 """
 
 
@@ -86,6 +92,11 @@ configitem(
     b'badserver',
     b'close-before-accept',
     default=False,
+)
+configitem(
+    b'badserver',
+    b'close-done-file',
+    default=None,
 )
 
 
@@ -162,12 +173,15 @@ class ConditionTracker:
         test kills the server. So the close is deferred until the request
         handler is done, to make sure the server logged the error raised by
         the limit before the client can see the connection close.
+
+        Return True if a socket was closed.
         """
         close = self.pending_close
         if close is None:
-            return
+            return False
         self.pending_close = None
         close()
+        return True
 
     def forward_write(self, obj, method, data, *args, **kwargs):
         """call an underlying write function until condition are met
@@ -439,8 +453,14 @@ def extsetup(ui):
                 def finish(self):
                     # The request is done and its error logged: the socket
                     # can now be closed if a limit was reached.
-                    self.server._cond.close_pending()
+                    closed = self.server._cond.close_pending()
                     super().finish()
+                    done_file = self.server._ui.config(
+                        b'badserver',
+                        b'close-done-file',
+                    )
+                    if closed and done_file is not None:
+                        open(done_file, 'wb').close()
 
             self.RequestHandlerClass = badrequesthandler
 

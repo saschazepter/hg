@@ -861,8 +861,12 @@ Server stops sending after 0 part bundle part header (indicating end of bundle2 
 
 This is before the 0 size chunked transfer part that signals end of HTTP response.
 
+The client has the whole bundle and does not wait for the socket close, so wait
+for the server to be done before killing it.
+
   $ hg serve \
   > --config badserver.close-after-send-patterns='(.*4\r\n\0\0\0\0\r\n){5}' \
+  > --config badserver.close-done-file="$TESTTMP/close-done" \
   > -p $HGPORT -d --pid-file=hg.pid -E error.log
   $ cat hg.pid > $DAEMON_PIDS
 
@@ -876,6 +880,7 @@ This is before the 0 size chunked transfer part that signals end of HTTP respons
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
+  $ "$RUNTESTDIR/testlib/wait-on-file" 10 "$TESTTMP/close-done"
   $ killdaemons.py $DAEMON_PIDS
 
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -20
@@ -899,14 +904,18 @@ This is before the 0 size chunked transfer part that signals end of HTTP respons
   Traceback (most recent call last):
   Exception: connection closed after sending N bytes
   
-  $ rm -f error.log
+  $ rm -f error.log "$TESTTMP/close-done"
   $ rm -rf clone
 
 Server sends a size 0 chunked-transfer size without terminating \r\n
 --------------------------------------------------------------------
 
+The client has the whole bundle and does not wait for the socket close, so wait
+for the server to be done before killing it.
+
   $ hg serve \
   > --config badserver.close-after-send-patterns="(.*4\\r\\n\0\0\0\0\\r\\n0\r\n)" \
+  > --config badserver.close-done-file="$TESTTMP/close-done" \
   > -p $HGPORT -d --pid-file=hg.pid -E error.log
   $ cat hg.pid > $DAEMON_PIDS
 
@@ -920,6 +929,7 @@ Server sends a size 0 chunked-transfer size without terminating \r\n
   updating to branch default
   1 files updated, 0 files merged, 0 files removed, 0 files unresolved
 
+  $ "$RUNTESTDIR/testlib/wait-on-file" 10 "$TESTTMP/close-done"
   $ killdaemons.py $DAEMON_PIDS
 
   $ "$PYTHON" $TESTDIR/filtertraceback.py < error.log | tail -21
@@ -944,5 +954,5 @@ Server sends a size 0 chunked-transfer size without terminating \r\n
   Traceback (most recent call last):
   Exception: connection closed after sending N bytes
   
-  $ rm -f error.log
+  $ rm -f error.log "$TESTTMP/close-done"
   $ rm -rf clone
