@@ -601,3 +601,19 @@ The limited series is a subset of the full one (0, 3 and 6 here)
   $ hg perf::revlog-read-revisions -m -d 3 --limit 2 --verbose
   ! wall * comb * user * sys * (best of 1) (glob)
   reading 2 revisions from 3 to 6
+
+Diffing revisions
+-----------------
+
+`--verbose` reports the number of pairs, `--debug` lists them
+
+  $ hg perf::revlog-revdiff -m --target prev --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 7 pairs gathered from 7 revisions
+  revdiff 0 1
+  revdiff 1 2
+  revdiff 2 3
+  revdiff 3 4
+  revdiff 4 5
+  revdiff 5 6
+  revdiff 6 7

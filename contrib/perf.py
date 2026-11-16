@@ -3838,16 +3838,20 @@ def perf_revlog_revdiff(
     targets = sorted(targets)
 
     pairs = set()
-    prev = None
+    gathered_revs = 0
     # gather possible pairs
     for rev in rl:
-        if b'prev' in targets and prev is not None:
-            pairs.add((prev, rev))
+        rev_pairs = set()
+        if b'prev' in targets and rev > 0:
+            rev_pairs.add((rev - 1, rev))
+        p1, p2 = rl.parentrevs(rev)
         if b'parents' in targets:
-            for p in rl.parentrevs(rev):
+            for p in (p1, p2):
                 if p > 0:
-                    pairs.add((p, rev))
-        prev = rev
+                    rev_pairs.add((p, rev))
+        if rev_pairs:
+            gathered_revs += 1
+            pairs.update(rev_pairs)
 
     selected_filter = bopts[b'filter']
     if selected_filter:
@@ -3868,6 +3872,11 @@ def perf_revlog_revdiff(
                 continue
             pairs.append(p)
     pairs = sorted(pairs, key=lambda x: (x[1], x[0]))
+    msg = b'diffing %d pairs gathered from %d revisions\n'
+    ui.note(msg % (len(pairs), gathered_revs))
+    if ui.debug:
+        for rev_1, rev_2 in pairs:
+            ui.debug(b'revdiff %d %d\n' % (rev_1, rev_2))
 
     def setup():
         if clear_caches:
