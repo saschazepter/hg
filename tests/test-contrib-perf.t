@@ -686,10 +686,9 @@ Each merge (4 and 7) stores its delta against its first parent (3 and 6)
 
   $ hg perf::revlog-revdiff -m --target merge-parents --filter storage --debug
   ! wall * comb * user * sys * (best of 1) (glob)
-  diffing 0 pairs gathered from 2 revisions (known-bad-output !)
-  diffing 2 pairs gathered from 2 revisions (missing-correct-output !)
-  revdiff 3 4 (missing-correct-output !)
-  revdiff 6 7 (missing-correct-output !)
+  diffing 2 pairs gathered from 2 revisions
+  revdiff 3 4
+  revdiff 6 7
 
 `common-base` and `distinct-base` select the others, by the base of their delta
 chains

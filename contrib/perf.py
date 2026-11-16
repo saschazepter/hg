@@ -3904,15 +3904,19 @@ def perf_revlog_revdiff(
         pairs = []
         for p in old_pairs:
             rev_1, rev_2 = p
-            if skip_store and rl.deltaparent(rev_2) == rev_1:
-                continue
-            base_1 = rl._deltachain(rev_1)[0][0]
-            base_2 = rl._deltachain(rev_2)[0][0]
-            if skip_same and base_1 == base_2:
-                continue
-            if skip_other and base_1 != base_2:
-                continue
-            pairs.append(p)
+            if rl.deltaparent(rev_2) == rev_1:
+                # the delta chains of a stored pair always share their base,
+                # only `storage` decides
+                keep = not skip_store
+            else:
+                base_1 = rl._deltachain(rev_1)[0][0]
+                base_2 = rl._deltachain(rev_2)[0][0]
+                if base_1 == base_2:
+                    keep = not skip_same
+                else:
+                    keep = not skip_other
+            if keep:
+                pairs.append(p)
     pairs = sorted(pairs, key=lambda x: (x[1], x[0]))
     msg = b'diffing %d pairs gathered from %d revisions\n'
     ui.note(msg % (len(pairs), gathered_revs))
