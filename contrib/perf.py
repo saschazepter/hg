@@ -3725,6 +3725,12 @@ def perfrevlogindex(ui, repo, file_=None, **opts):
             False,
             b'reuse caches instead of clearing between runs',
         ),
+        (
+            b'',
+            b'limit',
+            0,
+            b'read at most N revisions, the most recent ones (0 means all)',
+        ),
     ],
     b'-c|-m|FILE',
 )
@@ -3743,6 +3749,9 @@ def perfrevlogrevisions(
     the specified revlog.
 
     The start revision can be defined via ``-s/--startrev``.
+
+    Use ``--limit`` to bound the runtime on large revlogs: only the N most
+    recent revisions of that series are read.
     """
     opts = _byteskwargs(opts)
     use_caches = opts[b'reuse_caches']
@@ -3762,6 +3771,13 @@ def perfrevlogrevisions(
         dist = -1 * dist
 
     revs = list(_xrange(beginrev, endrev, dist))
+    limit = opts[b'limit']
+    if limit > 0:
+        # keep the same revisions as without limit, the most recent ones
+        if reverse:
+            revs = revs[:limit]
+        else:
+            revs = revs[-limit:]
     if revs:
         msg = b'reading %d revisions from %d to %d\n'
         ui.note(msg % (len(revs), revs[0], revs[-1]))

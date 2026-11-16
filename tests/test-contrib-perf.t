@@ -584,3 +584,20 @@ In reverse, the series starts from the tip (7, 4 and 1 here)
   $ hg perf::revlog-read-revisions -m -d 3 --reverse --verbose
   ! wall * comb * user * sys * (best of 1) (glob)
   reading 3 revisions from 7 to 1
+
+`--limit` bounds the runtime on large repositories by only keeping the most
+recent ones, in both orders
+
+  $ hg perf::revlog-read-revisions -m -d 1 --limit 3 --verbose
+  ! wall * comb * user * sys * (best of 1) (glob)
+  reading 3 revisions from 5 to 7
+
+  $ hg perf::revlog-read-revisions -m -d 1 --limit 3 --reverse --verbose
+  ! wall * comb * user * sys * (best of 1) (glob)
+  reading 3 revisions from 7 to 5
+
+The limited series is a subset of the full one (0, 3 and 6 here)
+
+  $ hg perf::revlog-read-revisions -m -d 3 --limit 2 --verbose
+  ! wall * comb * user * sys * (best of 1) (glob)
+  reading 2 revisions from 3 to 6
