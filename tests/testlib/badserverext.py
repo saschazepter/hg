@@ -111,6 +111,10 @@ class ConditionTracker:
         self.send_pattern = None
         self.send_data = b''
 
+        # The socket close requested by a reached limit, waiting for the
+        # request handler to be done (see `close_pending`).
+        self.pending_close = None
+
     def start_next_request(self):
         """move to the next set of close condition"""
         if self._all_close_after_recv_bytes:
@@ -151,11 +155,31 @@ class ConditionTracker:
             return True
         return False
 
+    def close_pending(self):
+        """close the socket of a request that reached a limit
+
+        Closing the socket is what makes the client give up, after which the
+        test kills the server. So the close is deferred until the request
+        handler is done, to make sure the server logged the error raised by
+        the limit before the client can see the connection close.
+        """
+        close = self.pending_close
+        if close is None:
+            return
+        self.pending_close = None
+        close()
+
     def forward_write(self, obj, method, data, *args, **kwargs):
         """call an underlying write function until condition are met
 
         When the condition are met the socket is closed
         """
+        if self.pending_close is not None:
+            # From the client's point of view, the socket is already closed.
+            # Refuse writes like the closed socket would, so that the error
+            # response sent by the server does not reach the client.
+            raise BrokenPipeError('connection closed after reaching a limit')
+
         remaining = self.remaining_send_bytes
         pattern = self.send_pattern
 
@@ -194,7 +218,7 @@ class ConditionTracker:
 
         if remaining is not None and remaining <= 0:
             obj._writelog(b'write limit reached; closing socket')
-            object.__getattribute__(obj, '_cond_close')()
+            self.pending_close = object.__getattribute__(obj, '_cond_close')
             raise Exception('connection closed after sending N bytes')
 
         return result
@@ -246,7 +270,7 @@ class ConditionTracker:
 
         if remaining is not None and remaining <= 0:
             obj._writelog(b'read limit reached; closing socket')
-            obj._cond_close()
+            self.pending_close = obj._cond_close
 
             # This is the easiest way to abort the current request.
             raise Exception('connection closed after receiving N bytes')
@@ -411,6 +435,12 @@ def extsetup(ui):
                         value = 'badhttpserver'
 
                     return super().send_header(name, value)
+
+                def finish(self):
+                    # The request is done and its error logged: the socket
+                    # can now be closed if a limit was reached.
+                    self.server._cond.close_pending()
+                    super().finish()
 
             self.RequestHandlerClass = badrequesthandler
 
