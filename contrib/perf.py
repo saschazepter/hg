@@ -3753,19 +3753,24 @@ def perfrevlogrevisions(
     if startrev < 0:
         startrev = rllen + startrev
 
+    beginrev = startrev
+    endrev = rllen
+    dist = opts[b'dist']
+
+    if reverse:
+        beginrev, endrev = endrev - 1, beginrev - 1
+        dist = -1 * dist
+
+    revs = list(_xrange(beginrev, endrev, dist))
+    if revs:
+        msg = b'reading %d revisions from %d to %d\n'
+        ui.note(msg % (len(revs), revs[0], revs[-1]))
+
     def d():
         if not use_caches:
             rl.clearcaches()
 
-        beginrev = startrev
-        endrev = rllen
-        dist = opts[b'dist']
-
-        if reverse:
-            beginrev, endrev = endrev - 1, beginrev - 1
-            dist = -1 * dist
-
-        for x in _xrange(beginrev, endrev, dist):
+        for x in revs:
             # Old revisions don't support passing int.
             n = rl.node(x)
             if checksum:

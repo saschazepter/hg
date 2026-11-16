@@ -515,3 +515,72 @@ Check perf.py for historical portability
    >         vfs.options = getattr(orig.opener, 'options', None)
    use getvfs()/getsvfs() for early Mercurial
   [1]
+
+Selecting the benchmarked revisions
+===================================
+
+Some commands select the revisions they work on, `--verbose` reports that
+selection. The stub mode only uses the first revision, so these cases do real
+runs.
+
+  $ hg init "$TESTTMP/selection"
+  $ cd "$TESTTMP/selection"
+  $ cat >> $HGRCPATH << EOF
+  > [perf]
+  > stub = no
+  > run-limits = 0.000000001-1
+  > all-timing = no
+  > EOF
+
+A stack with two merges:
+
+  $ echo babar > babar
+  $ hg commit -Aqm babar
+  $ echo celeste > celeste
+  $ hg commit -Aqm celeste
+  $ echo zephir > zephir
+  $ hg commit -Aqm zephir
+  $ hg update -q 0
+  $ echo arthur > arthur
+  $ hg commit -Aqm arthur
+  $ hg merge -q 2
+  $ hg commit -m 'first merge'
+  $ echo pom > pom
+  $ hg commit -Aqm pom
+  $ hg update -q 3
+  $ echo flore > flore
+  $ hg commit -Aqm flore
+  $ hg merge -q 5
+  $ hg commit -m 'second merge'
+  $ hg log -G -T '{rev} {desc}\n'
+  @    7 second merge
+  |\
+  | o  6 flore
+  | |
+  o |  5 pom
+  | |
+  o |  4 first merge
+  |\|
+  | o  3 arthur
+  | |
+  o |  2 zephir
+  | |
+  o |  1 celeste
+  |/
+  o  0 babar
+  
+
+Reading revisions
+-----------------
+
+By default, every `--dist` revision is read
+
+  $ hg perf::revlog-read-revisions -m -d 1 --verbose
+  ! wall * comb * user * sys * (best of 1) (glob)
+  reading 8 revisions from 0 to 7
+
+In reverse, the series starts from the tip (7, 4 and 1 here)
+
+  $ hg perf::revlog-read-revisions -m -d 3 --reverse --verbose
+  ! wall * comb * user * sys * (best of 1) (glob)
+  reading 3 revisions from 7 to 1
