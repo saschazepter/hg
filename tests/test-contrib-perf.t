@@ -666,3 +666,36 @@ With the other targets, every revision provides pairs
   diffing 2 pairs gathered from 2 revisions
   revdiff 5 6
   revdiff 6 7
+
+Filtering the diffed pairs
+--------------------------
+
+Each merge (4 and 7) stores its delta against its first parent (3 and 6)
+
+  $ hg debugdeltachain -m -T '{rev} {deltatype}\n'
+  0 base
+  1 p1
+  2 p1
+  3 p1
+  4 p1
+  5 p1
+  6 p1
+  7 p1
+
+`storage` selects the pairs whose delta is stored as is, they compute nothing
+
+  $ hg perf::revlog-revdiff -m --target merge-parents --filter storage --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 0 pairs gathered from 2 revisions (known-bad-output !)
+  diffing 2 pairs gathered from 2 revisions (missing-correct-output !)
+  revdiff 3 4 (missing-correct-output !)
+  revdiff 6 7 (missing-correct-output !)
+
+`common-base` and `distinct-base` select the others, by the base of their delta
+chains
+
+  $ hg perf::revlog-revdiff -m --target merge-parents --filter common-base --filter distinct-base --debug
+  ! wall * comb * user * sys * (best of 1) (glob)
+  diffing 2 pairs gathered from 2 revisions
+  revdiff 2 4
+  revdiff 5 7
