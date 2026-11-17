@@ -2583,7 +2583,7 @@ To check the integrity of incoming content, see
 For historical reason enabling the option changes
 `storage.revlog.validate-incoming-content` default to true.
 
-Enabling this option disables most optimizations used when re-encoding incoming
+Enabling this option disables some optimizations used when re-encoding incoming
 deltas, which impacts performance significantly.
 """
 experimental = true

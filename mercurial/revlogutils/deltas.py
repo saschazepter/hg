@@ -1909,13 +1909,25 @@ class deltacomputer:
             self._validated_revs.add(base)
         return text
 
+    def _trusts_base(self, rev: RevnumT) -> bool:
+        """can we use `rev` as a delta base without reading its text?
+
+        This is needed to build a delta from stored deltas only. With
+        `storage.revlog.validate-delta-base`, only revisions already checked
+        qualify.
+
+        XXX we could use that shortcut in more cases, for example by checking
+        the bases when it is cheaper than computing the delta from full texts.
+        """
+        if not self.revlog.delta_config.validate_base:
+            return True
+        return rev in self._validated_revs
+
     def _builddeltadiff(self, base: RevnumT, revinfo: RevisionInfoT) -> bytes:
         revlog = self.revlog
-        validate = self.revlog.delta_config.validate_base
         # initialize the cache from the revinfo if it is empty
         if (
-            not validate
-            and revinfo.cache is None
+            revinfo.cache is None
             and revinfo.has_cached_delta
             and self.revlog.has_revdiff_extra
         ):
@@ -1931,9 +1943,10 @@ class deltacomputer:
             header = mdiff.replacediffheader(revlog.rawsize(base), len(t))
             delta = header + t
         elif (
-            not validate
-            and revinfo.cache is not None
+            revinfo.cache is not None
+            and self._trusts_base(base)
             and (reusable := revinfo.cache.best_for(base)) is not None
+            and self._trusts_base(reusable[0])
         ):
             delta_base, u_delta = reusable
             delta = revlog.revdiff(
