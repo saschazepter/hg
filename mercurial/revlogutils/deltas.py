@@ -1743,6 +1743,12 @@ class deltacomputer:
 
     This object is meant to compute and find multiple delta applied to the same
     revlog.
+
+    Set `external_incoming` when this object stores revisions received from an
+    external source, like in `revlog.addgroup`. It enables the checks that the
+    revlog's `delta_config` requires for such revisions. Code pre-processing
+    these revisions with its own deltacomputer, like the issue6528 filter, must
+    not set it: the deltacomputer storing them checks them already.
     """
 
     def __init__(
@@ -1751,8 +1757,13 @@ class deltacomputer:
         write_debug: Callable[[bytes], None] | None = None,
         debug_search: bool = False,
         debug_info: list[dict] | None = None,
+        external_incoming: bool = False,
     ):
         self.revlog = revlog
+        # check the revisions we add, they come from an untrusted source
+        self._validate_content = (
+            external_incoming and revlog.delta_config.validate_incoming_content
+        )
         self._write_debug = write_debug
         if write_debug is None:
             self._debug_search = False

@@ -144,6 +144,9 @@ class DeltaConfig(_Config):
     filter_suspicious_delta = attr.ib(default=False, type=bool)
     # check integrity of candidate bases before computing a delta against them
     validate_base = attr.ib(default=False, type=bool)
+    # check integrity of every revision added from an external source
+    # (i.e. bundle)
+    validate_incoming_content = attr.ib(default=False, type=bool)
     # A theoretical maximum compression ratio for file content
     # Used to estimate delta size before compression. value <= 0 disable such
     # estimate.

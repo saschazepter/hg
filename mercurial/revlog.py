@@ -3824,6 +3824,7 @@ class revlog:
                     self,
                     write_debug=write_debug,
                     debug_info=debug_info,
+                    external_incoming=True,
                 )
                 # loop through our set of deltas
                 for data in deltas:
