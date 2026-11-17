@@ -142,6 +142,33 @@ Without explicit configuration, the incoming revision is checked too.
   [50]
   $ hg -R dst-delta-default log -T '{desc}\n'
 
+Validating with `server.validate`
+=================================
+
+`server.validate` enables `storage.revlog.validate-incoming-content`.
+
+Test a corrupt delta
+--------------------
+
+  $ hg init dst-server
+  $ hg -R dst-server unbundle -q bad-delta.hg \
+  >   --config server.validate=yes
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:11f271f9a74d
+  [50]
+  $ hg -R dst-server log -T '{desc}\n'
+
+Test disabling content validation explicitly
+--------------------------------------------
+
+  $ hg -R dst-server unbundle -q bad-delta.hg \
+  >   --config server.validate=yes \
+  >   --config storage.revlog.validate-incoming-content=no
+  $ hg -R dst-server log -T '{desc}\n'
+  cBc
+  cAc
+
 Validating incoming content
 ===========================
 

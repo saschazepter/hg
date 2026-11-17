@@ -2,6 +2,11 @@
 
 == New Features ==
 
+* validation: `server.validate` now enables
+  `storage.revlog.validate-incoming-content` by default.
+
+  This might futher impact unbundle performance when using `server.validate.
+
 * validation: the new `storage.revlog.validate-incoming-content` option checks
   the content of every incoming revision against its node id.
   (This only apply to incoming bundle, stream clone or some extensions may
@@ -10,7 +15,8 @@
 * validation: `storage.revlog.validate-delta-base` is refocused on validating
   the local content used during bundle ingestion, as initially intended. For
   historical reason, it still enables `storage.revlog.validate-incoming-content`
-  unless that option is set explicitly.
+  unless that option is set explicitly. Use `server.validate` to ensure the
+  integrity of incoming content.
 
 == Default Format Change ==
 

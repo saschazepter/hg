@@ -2598,7 +2598,8 @@ The hash of each revision received in a changegroup is checked before storing
 it, whether it comes as a full text or as a delta, and whether that delta is
 stored as is or not.
 
-Enabled by default when `storage.revlog.validate-delta-base` is set."""
+Enabled by default when `server.validate` or
+`storage.revlog.validate-delta-base` is set."""
 
 [[items]]
 section = "storage"

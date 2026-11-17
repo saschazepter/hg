@@ -2511,9 +2511,9 @@ Controls generic server settings.
     4.3 and later). Older clients will use 'strict'.
 
 ``validate``
-    Whether to validate the completeness of pushed changesets by
+    Whether to validate pushed changesets: their completeness, by
     checking that all new file revisions specified in manifests are
-    present. (default: False)
+    present, and the integrity of every new revision. (default: False)
 
 ``maxhttpheaderlen``
     Instruct HTTP clients not to send request headers longer than this
