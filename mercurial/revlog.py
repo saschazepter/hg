@@ -3704,11 +3704,14 @@ class revlog:
             sidedata_offset,
         )
 
-        if alwayscache and revinfo.btext is None:
+        # the full text may have been built while searching for a delta
+        rawtext = revinfo.btext
+        if alwayscache and rawtext is None:
             rawtext = deltacomputer.buildtext(revinfo)
 
         if type(rawtext) is bytes:  # only accept immutable objects
-            self._inner.cache_revision_text(curr, rawtext, False)
+            validated = revinfo.btext_validated
+            self._inner.cache_revision_text(curr, rawtext, validated)
         self._chainbasecache[curr] = deltainfo.chainbase
         self._inner.seen_file_size(textlen)
         if deltainfo.u_data is not None:
