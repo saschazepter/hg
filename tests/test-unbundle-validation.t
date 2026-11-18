@@ -180,13 +180,11 @@ Test a corrupt full text
 
   $ hg init dst-incoming-full
   $ hg -R dst-incoming-full unbundle -q bad-full.hg
-  transaction abort! (missing-correct-output !)
-  rollback completed (missing-correct-output !)
-  abort: integrity check failed on f:11f271f9a74d (missing-correct-output !)
-  [50] (missing-correct-output !)
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:11f271f9a74d
+  [50]
   $ hg -R dst-incoming-full log -T '{desc}\n'
-  cBc (known-bad-output !)
-  cAc (known-bad-output !)
 
 Test a corrupt full text with changegroup v4
 --------------------------------------------
@@ -197,13 +195,11 @@ it.
   $ hg init dst-incoming-full-v4
   $ hg -R dst-incoming-full-v4 unbundle -q bad-full-v4.hg \
   >   --config storage.revlog.reuse-external-delta=no
-  transaction abort! (missing-correct-output !)
-  rollback completed (missing-correct-output !)
-  abort: integrity check failed on f:11f271f9a74d (missing-correct-output !)
-  [50] (missing-correct-output !)
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:11f271f9a74d
+  [50]
   $ hg -R dst-incoming-full-v4 log -T '{desc}\n'
-  cBc (known-bad-output !)
-  cAc (known-bad-output !)
 
 Test a corrupt delta base
 -------------------------
@@ -214,11 +210,10 @@ does not match its hash.
   $ hg clone -q -U dst-corrupt dst-incoming-base
   $ hg -R dst-incoming-base unbundle -q next.hg \
   >   --config storage.revlog.reuse-external-delta=no
-  transaction abort! (missing-correct-output !)
-  rollback completed (missing-correct-output !)
-  abort: integrity check failed on f:fa2fed0b15ce (missing-correct-output !)
-  [50] (missing-correct-output !)
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:fa2fed0b15ce
+  [50]
   $ hg -R dst-incoming-base log -T '{desc}\n'
-  cCc (known-bad-output !)
   cBc
   cAc

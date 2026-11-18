@@ -236,6 +236,12 @@ class revisioninfo:
     best option.
     """
 
+    btext_validated = attr.ib(type=bool, default=False)
+    """True if the hash of `btext` was checked against `node`
+
+    Censored content, or flags making the hash uncheckable, leave it False.
+    """
+
     @property
     def has_cached_delta(self):
         """True if an compressed or uncompressed delta is available"""

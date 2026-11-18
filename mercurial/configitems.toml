@@ -2594,8 +2594,9 @@ name = "revlog.validate-incoming-content"
 default = false
 documentation = """Validate the integrity of incoming revisions.
 
-The hash of the revisions received in a changegroup as a delta is checked,
-whether that delta is stored as is or not.
+The hash of each revision received in a changegroup is checked before storing
+it, whether it comes as a full text or as a delta, and whether that delta is
+stored as is or not.
 
 Enabled by default when `storage.revlog.validate-delta-base` is set."""
 

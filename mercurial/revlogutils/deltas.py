@@ -1871,7 +1871,8 @@ class deltacomputer:
     ) -> None:
         """check the flags and censorship of the full text of `revinfo`
 
-        If this deltacomputer validates content, its hash is checked too.
+        If this deltacomputer validates content, its hash is checked too, and
+        `revinfo.btext_validated` is set.
         """
         revlog = self.revlog
         flags = revinfo.flags
@@ -1886,6 +1887,7 @@ class deltacomputer:
                 p1=revinfo.p1,
                 p2=revinfo.p2,
             )
+            revinfo.btext_validated = True
 
     def _base_text(self, base: RevnumT, raw: bool) -> bytes:
         """return the text of a stored revision used as a delta base
@@ -2295,7 +2297,12 @@ class deltacomputer:
         if self._validate_content:
             # build the full text now, so that it gets checked even if the
             # incoming delta ends up stored as is
-            self.buildtext(revinfo)
+            fulltext = self.buildtext(revinfo)
+            if not revinfo.btext_validated:
+                # `buildtext` only checks the texts it rebuilds from a delta,
+                # not the full texts we received (or that pre-processing
+                # rebuilt).
+                self._check_full_text(revinfo, fulltext)
 
         gather_debug = self._gather_debug
         cachedelta = revinfo.cachedelta
