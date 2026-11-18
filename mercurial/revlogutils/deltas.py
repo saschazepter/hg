@@ -610,18 +610,21 @@ def _textfromdelta(
     p2: NodeIdT,
     flags: int,
     expectednode: NodeIdT,
+    base_text: Callable[[], bytes],
     validate: bool = True,
 ) -> bytes:
-    """build full text from a (base, delta) pair and other metadata"""
+    """build full text from a (base, delta) pair and other metadata
+
+    `base_text` returns the text of `baserev`, it is only called if needed.
+    If `validate` is set, the hash of the resulting text is checked.
+    """
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
     # they're decoded.
     fulltext = mdiff.full_text_from_delta(
         delta,
         revlog.rawsize(baserev),
-        # deltabase is rawtext before changed by flag processors, which is
-        # equivalent to non-raw text
-        lambda: revlog._revisiondata(baserev, validate=validate),
+        base_text,
     )
 
     try:
@@ -1844,9 +1847,20 @@ class deltacomputer:
             revinfo.p2,
             revinfo.flags,
             revinfo.node,
+            # deltabase is rawtext before changed by flag processors, which is
+            # equivalent to non-raw text
+            lambda: self._base_text(baserev, raw=False),
             validate=self.revlog.delta_config.validate_base,
         )
         return fulltext
+
+    def _base_text(self, base: RevnumT, raw: bool) -> bytes:
+        """return the text of a stored revision used as a delta base
+
+        Its hash is checked if `storage.revlog.validate-delta-base` is set.
+        """
+        validate = self.revlog.delta_config.validate_base
+        return self.revlog._revisiondata(base, raw=raw, validate=validate)
 
     def _builddeltadiff(self, base: RevnumT, revinfo: RevisionInfoT) -> bytes:
         revlog = self.revlog
@@ -1883,7 +1897,7 @@ class deltacomputer:
 
         else:
             t = self.buildtext(revinfo)
-            ptext = revlog.rawdata(base, validate=validate)
+            ptext = self._base_text(base, raw=True)
             delta = revlog._diff_fn(ptext, t)
         if revinfo.cache is not None:
             revinfo.cache.add(base, delta)
