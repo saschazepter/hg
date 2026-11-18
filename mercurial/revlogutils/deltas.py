@@ -606,33 +606,21 @@ def _textfromdelta(
     revlog: RevlogT,
     baserev: RevnumT,
     delta: bytes,
-    p1: NodeIdT,
-    p2: NodeIdT,
-    flags: int,
-    expectednode: NodeIdT,
     base_text: Callable[[], bytes],
-    validate: bool = True,
 ) -> bytes:
-    """build full text from a (base, delta) pair and other metadata
+    """build full text from a (base, delta) pair
 
     `base_text` returns the text of `baserev`, it is only called if needed.
-    If `validate` is set, the hash of the resulting text is checked.
+    Nothing is checked about the resulting text.
     """
     # special case deltas which replace entire base; no need to decode
     # base revision. this neatly avoids censored bases, which throw when
     # they're decoded.
-    fulltext = mdiff.full_text_from_delta(
+    return mdiff.full_text_from_delta(
         delta,
         revlog.rawsize(baserev),
         base_text,
     )
-    # processflagsraw will also rejects unknown flags
-    hash_checkable = flagutil.processflagsraw(revlog, fulltext, flags)
-
-    censored = _check_censorship(revlog, fulltext, flags, expectednode)
-    if validate and hash_checkable and not censored:
-        revlog.checkhash(fulltext, expectednode, p1=p1, p2=p2)
-    return fulltext
 
 
 def _check_censorship(
@@ -1853,20 +1841,41 @@ class deltacomputer:
         delta = cachedelta.u_delta
         assert delta is not None
 
-        fulltext = revinfo.btext = _textfromdelta(
+        fulltext = _textfromdelta(
             revlog,
             baserev,
             delta,
-            revinfo.p1,
-            revinfo.p2,
-            revinfo.flags,
-            revinfo.node,
             # deltabase is rawtext before changed by flag processors, which is
             # equivalent to non-raw text
             lambda: self._base_text(baserev, raw=False),
-            validate=self.revlog.delta_config.validate_base,
         )
+        self._check_full_text(revinfo, fulltext)
+        revinfo.btext = fulltext
         return fulltext
+
+    def _check_full_text(
+        self,
+        revinfo: RevisionInfoT,
+        fulltext: bytes,
+    ) -> None:
+        """check the flags and censorship of the full text of `revinfo`
+
+        With `storage.revlog.validate-delta-base`, its hash is checked too.
+        """
+        revlog = self.revlog
+        flags = revinfo.flags
+        # processflagsraw will also rejects unknown flags
+        hash_checkable = flagutil.processflagsraw(revlog, fulltext, flags)
+
+        censored = _check_censorship(revlog, fulltext, flags, revinfo.node)
+        validate = revlog.delta_config.validate_base
+        if validate and hash_checkable and not censored:
+            revlog.checkhash(
+                fulltext,
+                revinfo.node,
+                p1=revinfo.p1,
+                p2=revinfo.p2,
+            )
 
     def _base_text(self, base: RevnumT, raw: bool) -> bytes:
         """return the text of a stored revision used as a delta base
