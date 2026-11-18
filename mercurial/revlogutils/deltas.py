@@ -25,7 +25,7 @@ from typing import (
 )
 
 # import stuff from node for others to import from revlog
-from ..node import nullrev
+from ..node import nullrev, short
 from ..i18n import _
 
 from .constants import (
@@ -626,27 +626,41 @@ def _textfromdelta(
         revlog.rawsize(baserev),
         base_text,
     )
+    # processflagsraw will also rejects unknown flags
+    hash_checkable = flagutil.processflagsraw(revlog, fulltext, flags)
 
-    try:
-        validatehash = flagutil.processflagsraw(revlog, fulltext, flags)
-        if validate and validatehash:
-            revlog.checkhash(fulltext, expectednode, p1=p1, p2=p2)
-        elif validatehash and storageutil.iscensoredtext(fulltext):
-            raise error.CensoredNodeError(
-                revlog.display_id,
-                expectednode,
-                fulltext,
-            )
-
-        if flags & REVIDX_ISCENSORED:
-            raise error.StorageError(
-                _(b'node %s is not censored') % expectednode
-            )
-    except error.CensoredNodeError:
-        # must pass the censored index flag to add censored revisions
-        if not flags & REVIDX_ISCENSORED:
-            raise
+    censored = _check_censorship(revlog, fulltext, flags, expectednode)
+    if validate and hash_checkable and not censored:
+        revlog.checkhash(fulltext, expectednode, p1=p1, p2=p2)
     return fulltext
+
+
+def _check_censorship(
+    revlog: RevlogT,
+    fulltext: bytes,
+    flags: int,
+    node: NodeIdT,
+) -> bool:
+    """check that `fulltext` is censored if and only if `flags` says so
+
+    Raise `CensoredNodeError` for censored content without the censored flag,
+    and `StorageError` for a censored flag without censored content or in a
+    revlog that cannot be censored.
+
+    Return True if the content is censored, its hash cannot match then.
+    """
+    if flags & REVIDX_ISCENSORED and not revlog.feature_config.censorable:
+        # censored content is exempt from the hash check, only accept it
+        # where censorship is legitimate
+        msg = _(b'%s does not support censored revisions: %s')
+        raise error.StorageError(msg % (revlog.display_id, short(node)))
+    censored = storageutil.iscensoredtext(fulltext)
+    if censored and not flags & REVIDX_ISCENSORED:
+        # must pass the censored index flag to add censored revisions
+        raise error.CensoredNodeError(revlog.display_id, node, fulltext)
+    if not censored and flags & REVIDX_ISCENSORED:
+        raise error.StorageError(_(b'node %s is not censored') % short(node))
+    return censored
 
 
 @attr.s(slots=True)
