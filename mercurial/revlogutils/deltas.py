@@ -1772,6 +1772,11 @@ class deltacomputer:
         self._debug_info = debug_info
         self._snapshot_cache = SnapshotCache()
         self._decompressors = {}
+        # revisions whose hash this deltacomputer already checked
+        #
+        # Stored revisions do not change during the life of a deltacomputer,
+        # so they do not need to be checked again.
+        self._validated_revs: set[RevnumT] = set()
 
     def _get_decompressor(
         self,
@@ -1892,10 +1897,17 @@ class deltacomputer:
     def _base_text(self, base: RevnumT, raw: bool) -> bytes:
         """return the text of a stored revision used as a delta base
 
-        Its hash is checked if `storage.revlog.validate-delta-base` is set.
+        Its hash is checked if `storage.revlog.validate-delta-base` is set,
+        unless this deltacomputer already checked it.
         """
-        validate = self.revlog.delta_config.validate_base
-        return self.revlog._revisiondata(base, raw=raw, validate=validate)
+        validate = (
+            self.revlog.delta_config.validate_base
+            and base not in self._validated_revs
+        )
+        text = self.revlog._revisiondata(base, raw=raw, validate=validate)
+        if validate:
+            self._validated_revs.add(base)
+        return text
 
     def _builddeltadiff(self, base: RevnumT, revinfo: RevisionInfoT) -> bytes:
         revlog = self.revlog
@@ -2303,6 +2315,9 @@ class deltacomputer:
                 # not the full texts we received (or that pre-processing
                 # rebuilt).
                 self._check_full_text(revinfo, fulltext)
+            if revinfo.btext_validated:
+                # the revision is about to be stored as `target_rev`
+                self._validated_revs.add(target_rev)
 
         gather_debug = self._gather_debug
         cachedelta = revinfo.cachedelta
