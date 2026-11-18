@@ -54,3 +54,15 @@ Test a corrupt delta
   abort: integrity check failed on f:11f271f9a74d
   [50]
   $ hg -R dst-delta log -T '{desc}\n'
+
+Test a corrupt delta stored as is
+---------------------------------
+
+Nothing rebuilds the full text of a delta stored as is, so nothing is checked.
+
+  $ hg init dst-delta-as-is
+  $ hg -R dst-delta-as-is unbundle -q bad-delta.hg \
+  >   --config storage.revlog.validate-delta-base=yes
+  $ hg -R dst-delta-as-is log -T '{desc}\n'
+  cBc
+  cAc
