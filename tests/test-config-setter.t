@@ -44,8 +44,6 @@ no repo
   read config from: *\python*\mercurial.ini (glob)
   read config from: $TESTTMP\home\mercurial.ini
   read config from: $TESTTMP\home\.hgrc
-  read config from: $TESTTMP\home\mercurial.ini
-  read config from: $TESTTMP\home\.hgrc
   [1]
 #else
   $ hg config --debug no.item | filter_hgrcd
@@ -74,8 +72,6 @@ with repo
   read config from: *\python*\mercurial.ini (glob)
   read config from: $TESTTMP\home\mercurial.ini
   read config from: $TESTTMP\home\.hgrc
-  read config from: $TESTTMP\home\mercurial.ini
-  read config from: $TESTTMP\home\.hgrc
   read config from: $TESTTMP\repo\.hg\hgrc
   read config from: $TESTTMP\repo\.hg\hgrc-not-shared
   [1]
@@ -100,8 +96,6 @@ with share
   $ hg -R share config --debug no.item
   read config from: resource:mercurial.defaultrc.mergetools.rc
   read config from: *\python*\mercurial.ini (glob)
-  read config from: $TESTTMP\home\mercurial.ini
-  read config from: $TESTTMP\home\.hgrc
   read config from: $TESTTMP\home\mercurial.ini
   read config from: $TESTTMP\home\.hgrc
   read config from: $TESTTMP\repo\.hg/hgrc
