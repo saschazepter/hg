@@ -1280,7 +1280,14 @@ class Test(unittest.TestCase):
         # 2026, during the Mercurial 7.3 cycle. This tradeoff can be challenged
         # in the far future when all test (core and 3rd party extensions) would
         # have hypothetically migrated.
-        self._hgrcpath = os.path.join(self._testtmp, b'.hgrc')
+        #
+        # Windows has two user level files and `mercurial.ini` comes first, so
+        # that is the one commands like `hg config --set` write in.
+        if WINDOWS:
+            user_rc = b'mercurial.ini'
+        else:
+            user_rc = b'.hgrc'
+        self._hgrcpath = os.path.join(self._testtmp, user_rc)
         os.mkdir(self._testtmp)
 
         # Remove any previous output files.
