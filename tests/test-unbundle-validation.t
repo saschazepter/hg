@@ -51,20 +51,23 @@ Validating delta bases
 ======================
 
 `storage.revlog.validate-delta-base` checks the bases deltas are computed
-against.
+against. For historical reason, it also enables
+`storage.revlog.validate-incoming-content` by default, the cases below disable
+it to only show the checks of the delta bases.
 
 Test a corrupt delta
 --------------------
 
+Only the base is checked, not the incoming revision.
+
   $ hg init dst-delta
   $ hg -R dst-delta unbundle -q bad-delta.hg \
   >   --config storage.revlog.reuse-external-delta=no \
-  >   --config storage.revlog.validate-delta-base=yes
-  transaction abort!
-  rollback completed
-  abort: integrity check failed on f:11f271f9a74d
-  [50]
+  >   --config storage.revlog.validate-delta-base=yes \
+  >   --config storage.revlog.validate-incoming-content=no
   $ hg -R dst-delta log -T '{desc}\n'
+  cBc
+  cAc
 
 Test a corrupt delta stored as is
 ---------------------------------
@@ -73,7 +76,8 @@ Nothing rebuilds the full text of a delta stored as is, so nothing is checked.
 
   $ hg init dst-delta-as-is
   $ hg -R dst-delta-as-is unbundle -q bad-delta.hg \
-  >   --config storage.revlog.validate-delta-base=yes
+  >   --config storage.revlog.validate-delta-base=yes \
+  >   --config storage.revlog.validate-incoming-content=no
   $ hg -R dst-delta-as-is log -T '{desc}\n'
   cBc
   cAc
@@ -83,12 +87,11 @@ Test a corrupt full text
 
   $ hg init dst-full
   $ hg -R dst-full unbundle -q bad-full.hg \
-  >   --config storage.revlog.validate-delta-base=yes
-  transaction abort!
-  rollback completed
-  abort: integrity check failed on f:11f271f9a74d
-  [50]
+  >   --config storage.revlog.validate-delta-base=yes \
+  >   --config storage.revlog.validate-incoming-content=no
   $ hg -R dst-full log -T '{desc}\n'
+  cBc
+  cAc
 
 Test a corrupt full text with changegroup v4
 --------------------------------------------
@@ -102,7 +105,8 @@ it.
   $ hg init dst-full-v4
   $ hg -R dst-full-v4 unbundle -q bad-full-v4.hg \
   >   --config storage.revlog.reuse-external-delta=no \
-  >   --config storage.revlog.validate-delta-base=yes
+  >   --config storage.revlog.validate-delta-base=yes \
+  >   --config storage.revlog.validate-incoming-content=no
   $ hg -R dst-full-v4 log -T '{desc}\n'
   cBc
   cAc
@@ -113,11 +117,110 @@ Test a corrupt delta base
   $ hg clone -q -U dst-corrupt dst-base
   $ hg -R dst-base unbundle -q next.hg \
   >   --config storage.revlog.reuse-external-delta=no \
-  >   --config storage.revlog.validate-delta-base=yes
+  >   --config storage.revlog.validate-delta-base=yes \
+  >   --config storage.revlog.validate-incoming-content=no
   transaction abort!
   rollback completed
   abort: integrity check failed on f:1
   [50]
   $ hg -R dst-base log -T '{desc}\n'
+  cBc
+  cAc
+
+Test the default of incoming validation
+---------------------------------------
+
+Without explicit configuration, the incoming revision is checked too.
+
+  $ hg init dst-delta-default
+  $ hg -R dst-delta-default unbundle -q bad-delta.hg \
+  >   --config storage.revlog.reuse-external-delta=no \
+  >   --config storage.revlog.validate-delta-base=yes
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:11f271f9a74d
+  [50]
+  $ hg -R dst-delta-default log -T '{desc}\n'
+
+Validating incoming content
+===========================
+
+`storage.revlog.validate-incoming-content` checks the incoming revisions.
+
+  $ cat >> $HGRCPATH <<EOF
+  > [storage]
+  > revlog.validate-incoming-content = yes
+  > EOF
+
+Test a corrupt delta
+--------------------
+
+  $ hg init dst-incoming-delta
+  $ hg -R dst-incoming-delta unbundle -q bad-delta.hg \
+  >   --config storage.revlog.reuse-external-delta=no
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:11f271f9a74d
+  [50]
+  $ hg -R dst-incoming-delta log -T '{desc}\n'
+
+Test a corrupt delta stored as is
+---------------------------------
+
+  $ hg init dst-incoming-as-is
+  $ hg -R dst-incoming-as-is unbundle -q bad-delta.hg
+  transaction abort! (missing-correct-output !)
+  rollback completed (missing-correct-output !)
+  abort: integrity check failed on f:11f271f9a74d (missing-correct-output !)
+  [50] (missing-correct-output !)
+  $ hg -R dst-incoming-as-is log -T '{desc}\n'
+  cBc (known-bad-output !)
+  cAc (known-bad-output !)
+
+Test a corrupt full text
+------------------------
+
+  $ hg init dst-incoming-full
+  $ hg -R dst-incoming-full unbundle -q bad-full.hg
+  transaction abort! (missing-correct-output !)
+  rollback completed (missing-correct-output !)
+  abort: integrity check failed on f:11f271f9a74d (missing-correct-output !)
+  [50] (missing-correct-output !)
+  $ hg -R dst-incoming-full log -T '{desc}\n'
+  cBc (known-bad-output !)
+  cAc (known-bad-output !)
+
+Test a corrupt full text with changegroup v4
+--------------------------------------------
+
+XXX: reusing the incoming deltas crashes on such full texts, so this disables
+it.
+
+  $ hg init dst-incoming-full-v4
+  $ hg -R dst-incoming-full-v4 unbundle -q bad-full-v4.hg \
+  >   --config storage.revlog.reuse-external-delta=no
+  transaction abort! (missing-correct-output !)
+  rollback completed (missing-correct-output !)
+  abort: integrity check failed on f:11f271f9a74d (missing-correct-output !)
+  [50] (missing-correct-output !)
+  $ hg -R dst-incoming-full-v4 log -T '{desc}\n'
+  cBc (known-bad-output !)
+  cAc (known-bad-output !)
+
+Test a corrupt delta base
+-------------------------
+
+The delta base itself is not checked, but the incoming revision rebuilt from it
+does not match its hash.
+
+  $ hg clone -q -U dst-corrupt dst-incoming-base
+  $ hg -R dst-incoming-base unbundle -q next.hg \
+  >   --config storage.revlog.reuse-external-delta=no
+  transaction abort! (missing-correct-output !)
+  rollback completed (missing-correct-output !)
+  abort: integrity check failed on f:fa2fed0b15ce (missing-correct-output !)
+  [50] (missing-correct-output !)
+  $ hg -R dst-incoming-base log -T '{desc}\n'
+  cCc (known-bad-output !)
   cBc
   cAc

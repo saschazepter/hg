@@ -1871,7 +1871,7 @@ class deltacomputer:
     ) -> None:
         """check the flags and censorship of the full text of `revinfo`
 
-        With `storage.revlog.validate-delta-base`, its hash is checked too.
+        If this deltacomputer validates content, its hash is checked too.
         """
         revlog = self.revlog
         flags = revinfo.flags
@@ -1879,8 +1879,7 @@ class deltacomputer:
         hash_checkable = flagutil.processflagsraw(revlog, fulltext, flags)
 
         censored = _check_censorship(revlog, fulltext, flags, revinfo.node)
-        validate = revlog.delta_config.validate_base
-        if validate and hash_checkable and not censored:
+        if self._validate_content and hash_checkable and not censored:
             revlog.checkhash(
                 fulltext,
                 revinfo.node,

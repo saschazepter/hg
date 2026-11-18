@@ -2,6 +2,16 @@
 
 == New Features ==
 
+* validation: the new `storage.revlog.validate-incoming-content` option checks
+  the content of every incoming revision against its node id.
+  (This only apply to incoming bundle, stream clone or some extensions may
+  still prevent validation at unbundle time)
+
+* validation: `storage.revlog.validate-delta-base` is refocused on validating
+  the local content used during bundle ingestion, as initially intended. For
+  historical reason, it still enables `storage.revlog.validate-incoming-content`
+  unless that option is set explicitly.
+
 == Default Format Change ==
 
 These changes affect newly created repositories (or new clones) done with

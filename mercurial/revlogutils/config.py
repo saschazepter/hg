@@ -142,7 +142,7 @@ class DeltaConfig(_Config):
     lazy_compression = attr.ib(default=True, type=bool)
     # don't used incoming delta if they don't look optimal
     filter_suspicious_delta = attr.ib(default=False, type=bool)
-    # check integrity of candidate bases before computing a delta against them
+    # check integrity of the stored revisions read as delta bases
     validate_base = attr.ib(default=False, type=bool)
     # check integrity of every revision added from an external source
     # (i.e. bundle)

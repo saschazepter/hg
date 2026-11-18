@@ -360,5 +360,13 @@ def resolve_revlog_store_vfs_options(ui, requirements, features):
     delta_config.validate_base = ui.configbool(
         b'storage', b'revlog.validate-delta-base'
     )
+    if ui.config_is_set(b'storage', b'revlog.validate-incoming-content'):
+        validate_incoming = ui.configbool(
+            b'storage', b'revlog.validate-incoming-content'
+        )
+    else:
+        # `validate-delta-base` used to check incoming revisions too
+        validate_incoming = delta_config.validate_base
+    delta_config.validate_incoming_content = validate_incoming
 
     return options

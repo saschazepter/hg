@@ -2572,12 +2572,32 @@ revlog using delta-info-flags).
 section = "storage"
 name = "revlog.validate-delta-base"
 default = false
-documentation = """Validate the integrity of bases when computing deltas.
+documentation = """Validate the integrity of the locally stored revisions used
+as delta bases for incoming revision.
 
-Since the base of reused deltas is not validated either, we recommend using the
-`server.validate` option if you want to guarantee the integrity of inbound
-content."""
+Use this option if you don't trust the integrity of your local storage.
+
+To check the integrity of incoming content, see
+`storage.revlog.validate-incoming-content`.
+
+For historical reason enabling the option changes
+`storage.revlog.validate-incoming-content` default to true.
+
+Enabling this option disables most optimizations used when re-encoding incoming
+deltas, which impacts performance significantly.
+"""
 experimental = true
+
+[[items]]
+section = "storage"
+name = "revlog.validate-incoming-content"
+default = false
+documentation = """Validate the integrity of incoming revisions.
+
+The hash of the revisions received in a changegroup is checked when their full
+text is rebuilt from a delta.
+
+Enabled by default when `storage.revlog.validate-delta-base` is set."""
 
 [[items]]
 section = "storage"
