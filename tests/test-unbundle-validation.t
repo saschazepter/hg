@@ -15,6 +15,8 @@ The file is large enough for incoming deltas to be stored as is.
   $ hg commit -qAm cAc
   $ ("$PYTHON" $TESTDIR/seq.py 1 499; echo world; "$PYTHON" $TESTDIR/seq.py 501 1000) > f
   $ hg commit -qm cBc
+  $ ("$PYTHON" $TESTDIR/seq.py 1 499; echo world; "$PYTHON" $TESTDIR/seq.py 501 799; echo babar; "$PYTHON" $TESTDIR/seq.py 801 1000) > f
+  $ hg commit -qm cCc
   $ cd ..
 
   $ cat > corrupt.py <<EOF
@@ -25,14 +27,17 @@ The file is large enough for incoming deltas to be stored as is.
   > open(dst, 'wb').write(data.replace(b'world', b'wurld'))
   > EOF
 
-  $ hg -R src bundle -q -a -t 'none-v2;cg.version=03' delta.hg
+  $ hg -R src bundle -q --base null -r 'desc("cBc")' \
+  >   -t 'none-v2;cg.version=03' delta.hg
   $ "$PYTHON" corrupt.py delta.hg bad-delta.hg
-  $ hg -R src bundle -q -a -t 'none-v2;cg.version=03' full.hg \
-  >   --config devel.bundle.delta=full
+  $ hg -R src bundle -q --base null -r 'desc("cBc")' \
+  >   -t 'none-v2;cg.version=03' full.hg --config devel.bundle.delta=full
   $ "$PYTHON" corrupt.py full.hg bad-full.hg
-  $ hg -R src bundle -q -a -t 'none-v2;cg.version=04' full-v4.hg \
-  >   --config devel.bundle.delta=full
+  $ hg -R src bundle -q --base null -r 'desc("cBc")' \
+  >   -t 'none-v2;cg.version=04' full-v4.hg --config devel.bundle.delta=full
   $ "$PYTHON" corrupt.py full-v4.hg bad-full-v4.hg
+  $ hg -R src bundle -q --base 'desc("cBc")' -r 'desc("cCc")' \
+  >   -t 'none-v2;cg.version=03' next.hg
 
 Without validation, the corruption is stored silently.
 
@@ -99,5 +104,20 @@ it.
   >   --config storage.revlog.reuse-external-delta=no \
   >   --config storage.revlog.validate-delta-base=yes
   $ hg -R dst-full-v4 log -T '{desc}\n'
+  cBc
+  cAc
+
+Test a corrupt delta base
+-------------------------
+
+  $ hg clone -q -U dst-corrupt dst-base
+  $ hg -R dst-base unbundle -q next.hg \
+  >   --config storage.revlog.reuse-external-delta=no \
+  >   --config storage.revlog.validate-delta-base=yes
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:1
+  [50]
+  $ hg -R dst-base log -T '{desc}\n'
   cBc
   cAc
