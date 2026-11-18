@@ -211,8 +211,7 @@ is unsupported and will likely result in unexpected client breakage.
 
 The format is the following::
 
-  * ``version`` (required): its value must be ``1``. Version ``0`` is still
-      accepted and read the same way.
+  * ``version`` (required): its value must be ``1``
   * ``[[shards]]`` (required): a list of <shardconfig>
   * ``[[profiles]]`` (optional): a list of <profileconfig>
   * <shardconfig>:

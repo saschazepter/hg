@@ -844,11 +844,11 @@ struct ProfilesEntry {
 
 /// Matches the on-disk format for admins to define their repo's shards and
 /// profiles
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ShapesConfig {
     // XXX should there be a `[meta]` section?
-    /// The version of this config. For now only versions `0` and `1` exist.
+    /// The version of this config. For now only version `1` exists.
     version: u32,
     /// The shards defined by the repo's admins.
     shards: Vec<ShardsEntry>,
@@ -857,9 +857,15 @@ pub struct ShapesConfig {
     profiles: Vec<ProfilesEntry>,
 }
 
+impl Default for ShapesConfig {
+    fn default() -> Self {
+        Self { version: 1, shards: vec![], profiles: vec![] }
+    }
+}
+
 impl ShapesConfig {
     fn is_known_version(version: u32) -> bool {
-        version == 0 || version == 1
+        version == 1
     }
 }
 
