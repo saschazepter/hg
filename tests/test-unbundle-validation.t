@@ -7,11 +7,13 @@ This file tests that hg validates incoming bundles when configured correctly.
 Set up repo and corruption script
 ---------------------------------
 
+The file is large enough for incoming deltas to be stored as is.
+
   $ hg init src
   $ cd src
-  $ echo hello > f
+  $ "$PYTHON" $TESTDIR/seq.py 1 1000 > f
   $ hg commit -qAm cAc
-  $ echo world >> f
+  $ ("$PYTHON" $TESTDIR/seq.py 1 499; echo world; "$PYTHON" $TESTDIR/seq.py 501 1000) > f
   $ hg commit -qm cBc
   $ cd ..
 
@@ -49,6 +51,6 @@ Test a corrupt delta
   >   --config storage.revlog.validate-delta-base=yes
   transaction abort!
   rollback completed
-  abort: integrity check failed on f:f57bae649f6e
+  abort: integrity check failed on f:11f271f9a74d
   [50]
   $ hg -R dst-delta log -T '{desc}\n'
