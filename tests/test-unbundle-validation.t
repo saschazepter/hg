@@ -27,6 +27,9 @@ The file is large enough for incoming deltas to be stored as is.
 
   $ hg -R src bundle -q -a -t 'none-v2;cg.version=03' delta.hg
   $ "$PYTHON" corrupt.py delta.hg bad-delta.hg
+  $ hg -R src bundle -q -a -t 'none-v2;cg.version=03' full.hg \
+  >   --config devel.bundle.delta=full
+  $ "$PYTHON" corrupt.py full.hg bad-full.hg
 
 Without validation, the corruption is stored silently.
 
@@ -66,3 +69,15 @@ Nothing rebuilds the full text of a delta stored as is, so nothing is checked.
   $ hg -R dst-delta-as-is log -T '{desc}\n'
   cBc
   cAc
+
+Test a corrupt full text
+------------------------
+
+  $ hg init dst-full
+  $ hg -R dst-full unbundle -q bad-full.hg \
+  >   --config storage.revlog.validate-delta-base=yes
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:11f271f9a74d
+  [50]
+  $ hg -R dst-full log -T '{desc}\n'
