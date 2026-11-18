@@ -169,13 +169,11 @@ Test a corrupt delta stored as is
 
   $ hg init dst-incoming-as-is
   $ hg -R dst-incoming-as-is unbundle -q bad-delta.hg
-  transaction abort! (missing-correct-output !)
-  rollback completed (missing-correct-output !)
-  abort: integrity check failed on f:11f271f9a74d (missing-correct-output !)
-  [50] (missing-correct-output !)
+  transaction abort!
+  rollback completed
+  abort: integrity check failed on f:11f271f9a74d
+  [50]
   $ hg -R dst-incoming-as-is log -T '{desc}\n'
-  cBc (known-bad-output !)
-  cAc (known-bad-output !)
 
 Test a corrupt full text
 ------------------------

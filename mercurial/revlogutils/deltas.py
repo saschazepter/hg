@@ -2292,6 +2292,10 @@ class deltacomputer:
         """
         if target_rev is None:
             target_rev = len(self.revlog)
+        if self._validate_content:
+            # build the full text now, so that it gets checked even if the
+            # incoming delta ends up stored as is
+            self.buildtext(revinfo)
 
         gather_debug = self._gather_debug
         cachedelta = revinfo.cachedelta
