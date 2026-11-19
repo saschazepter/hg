@@ -160,94 +160,44 @@ pub struct EditImpl<D> {
     data: D,
 }
 
-/// A piece of data to insert, delete or replace in a Delta
-///
-/// A Edit is:
-/// - an insertion when `!data.is_empty() && start == end`
-/// - an deletion when `data.is_empty() && start < end`
-/// - a replacement when `!data.is_empty() && start < end`
-/// - not doing anything when `data.is_empty() && start == end`
-#[derive(Clone)]
-pub struct PlainEdit<'a> {
-    /// The start position of the chunk of data to replace
-    start: u32,
-    /// The end position of the chunk of data to replace (open end interval)
-    end: u32,
-    /// The data replacing the chunk
-    data: &'a [u8],
-}
+/// A simple Edit with only data bytes
+pub type PlainEdit<'a> = EditImpl<&'a [u8]>;
 
-impl<'a> Edit<'a> for PlainEdit<'a> {
-    fn new_rich(
-        _src: SrcToken,
-        start: u32,
-        end: u32,
-        _data_pos: u32,
-        data: &'a [u8],
-    ) -> Self {
-        Self { start, end, data }
-    }
-
-    /// The start position of the chunk of data to replace
-    fn start(&self) -> u32 {
-        self.start
-    }
-
-    /// The end position of the chunk of data to replace (open end interval)
-    fn end(&self) -> u32 {
-        self.end
-    }
-
-    /// The data replacing the chunk
-    fn data(&self) -> &'a [u8] {
-        self.data
-    }
-
-    /// Length of the replacing data.
-    fn size(&self) -> u32 {
-        u_u32(self.data.len())
+/// EditData implementation for PlainEdit (data is slice of u8)
+impl<'a> EditData<'a> for &'a [u8] {
+    /// Build an Edit from extra information
+    #[inline(always)]
+    fn new_rich(_src: SrcToken, _data_pos: u32, data: &'a [u8]) -> Self {
+        data
     }
 
     /// cut this Edit into two
     ///
     /// The `cut_start` argument refer to the first index in `self.data()` that
     /// remains in self. The part before cut_start is returned as a new Edit.
+    #[inline(always)]
     fn cut_at(&mut self, cut_start: u32) -> Self {
-        assert!(cut_start > 0);
-        assert!(cut_start < self.size());
-
-        let (left_data, right_data) = self.data.split_at(u32_u(cut_start));
-        self.data = right_data;
-        PlainEdit {
-            // there is no need to think too hard about which section of the
-            // replaced part goes in the prefix and which goes in
-            // the suffix. So lets use a zero size replacement for
-            // the suffix
-            start: self.start,
-            end: self.start,
-            data: left_data,
-        }
+        let (left_data, right_data) = self.split_at(u32_u(cut_start));
+        *self = right_data;
+        left_data
     }
 
-    fn trim_prefix(&mut self, size: u32) -> i32 {
-        assert!(size < self.size());
-        self.data = &self.data[u32_u(size)..];
-        let old_replace = self.replaced_len();
-        if old_replace < size {
-            self.start = self.end;
-            size as i32 - old_replace as i32
-        } else {
-            self.start += size;
-            0
-        }
+    /// The data replacing the chunk
+    #[inline(always)]
+    fn data(&self) -> &'a [u8] {
+        self
     }
 
-    fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self {
-        Self {
-            start: (self.start as i32 - start_offset) as u32,
-            end: (self.end as i32 - end_offset) as u32,
-            data: self.data,
-        }
+    /// Length of the replacing data.
+    #[inline(always)]
+    fn size(&self) -> u32 {
+        u_u32(self.len())
+    }
+
+    /// remove the `size` first bytes from the this Edit
+    #[inline(always)]
+    fn trim_prefix(&mut self, size: u32) {
+        *self = &self[u32_u(size)..];
     }
 }
 
