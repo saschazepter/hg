@@ -114,6 +114,53 @@ pub trait Edit<'a>: Clone {
     }
 }
 
+/// Trait defining how to handle the data associated with an Edit
+/// Is used by the EditImpl structure
+/// Allows abstraction for Rich or Plain Edits
+///
+/// We requires Copy on this trait as it just meant as a small and fast
+/// implementation details.  We do not want complicated types that would
+/// increase the complexity of the generated code.
+trait EditData<'a>: Copy {
+    /// build an Edit from extra information
+    fn new_rich(src: SrcToken, data_pos: u32, data: &'a [u8]) -> Self;
+
+    /// The data replacing the chunk
+    fn data(&self) -> &'a [u8];
+
+    /// Length of the replacing data.
+    fn size(&self) -> u32;
+
+    /// cut this Edit into two
+    /// The `cut_start` argument refer to the first index in `self.data()` that
+    /// remains in self. The part before cut_start is returned as a new Edit.
+    fn cut_at(&mut self, cut_start: u32) -> Self;
+
+    /// remove the `size` first bytes from this Edit
+    fn trim_prefix(&mut self, size: u32);
+}
+
+/// A piece of data to insert, delete or replace in a Delta
+///
+/// An Edit is:
+/// - an insertion when `!data.is_empty() && start == end`
+/// - an deletion when `data.is_empty() && start < end`
+/// - a replacement when `!data.is_empty() && start < end`
+/// - not doing anything when `data.is_empty() && start == end`
+///
+/// EditImpl implements the Edit trait, stores position of the Edit
+/// and delegates the data management logic to data, which implements
+/// the EditData trait.
+#[derive(Clone)]
+pub struct EditImpl<D> {
+    /// The start position of the chunk of data to replace
+    start: u32,
+    /// The end position of the chunk of data to replace (open end interval)
+    end: u32,
+    /// The data replacing the chunk
+    data: D,
+}
+
 /// A piece of data to insert, delete or replace in a Delta
 ///
 /// A Edit is:
@@ -231,23 +278,15 @@ impl<'a> PlainEdit<'a> {
 /// The 0 value is usually reserved for the base-text
 pub type SrcToken = u32;
 
+/// An Edit with information about  source and position within that source
 #[derive(Debug, Copy, Clone)]
-struct RichData<'a> {
+pub struct RichData<'a> {
     src: SrcToken,
     data_pos: u32,
     data: &'a [u8],
 }
 
-/// A Edit with information about  source and position within that source
-#[derive(Clone, Debug)]
-pub struct RichEdit<'a> {
-    /// The start position of the chunk of data to replace
-    start: u32,
-    /// The end position of the chunk of data to replace (open end interval)
-    end: u32,
-    /// The data replacing the chunk
-    data: RichData<'a>,
-}
+pub type RichEdit<'a> = EditImpl<RichData<'a>>;
 
 impl RichEdit<'_> {
     pub(super) fn data_start(&self) -> u32 {
@@ -263,7 +302,11 @@ impl RichEdit<'_> {
     }
 }
 
-impl<'a> Edit<'a> for RichEdit<'a> {
+impl<'a, D> Edit<'a> for EditImpl<D>
+where
+    D: EditData<'a>,
+{
+    /// Build an Edit from extra information
     fn new_rich(
         src: SrcToken,
         start: u32,
@@ -271,7 +314,7 @@ impl<'a> Edit<'a> for RichEdit<'a> {
         data_pos: u32,
         data: &'a [u8],
     ) -> Self {
-        Self { start, end, data: RichData::new_rich(src, data_pos, data) }
+        Self { start, end, data: D::new_rich(src, data_pos, data) }
     }
 
     /// The start position of the chunk of data to replace
@@ -340,7 +383,7 @@ impl<'a> Edit<'a> for RichEdit<'a> {
     }
 }
 
-impl<'a> RichData<'a> {
+impl<'a> EditData<'a> for RichData<'a> {
     /// Build an Edit from extra information
     #[inline(always)]
     fn new_rich(src: SrcToken, data_pos: u32, data: &'a [u8]) -> Self {
