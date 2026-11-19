@@ -2457,10 +2457,8 @@ class ui:
         >>> with u.configoverride({(b'ui', b'verbose'): True}):
         ...     u.verbose
         True
-
-        XXX the attribute should be back to False here
         >>> u.verbose
-        True
+        False
         """
         backups = {}
         try:
@@ -2471,9 +2469,9 @@ class ui:
         finally:
             for __, backup in backups.items():
                 self.restoreconfig(backup)
-            # just restoring ui.quiet config to the previous value is not enough
-            # as it does not update ui.quiet class member
-            if (b'ui', b'quiet') in overrides:
+            # restoring the config values does not update the attributes
+            # derived from the `ui` section (ui.quiet, ui.verbose, ...)
+            if any(section == b'ui' for section, __ in overrides):
                 self.fixconfig(section=b'ui')
 
     def estimatememory(self) -> int | None:
