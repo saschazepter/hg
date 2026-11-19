@@ -231,6 +231,13 @@ impl<'a> PlainEdit<'a> {
 /// The 0 value is usually reserved for the base-text
 pub type SrcToken = u32;
 
+#[derive(Debug, Copy, Clone)]
+struct RichData<'a> {
+    src: SrcToken,
+    data_pos: u32,
+    data: &'a [u8],
+}
+
 /// A Edit with information about  source and position within that source
 #[derive(Clone, Debug)]
 pub struct RichEdit<'a> {
@@ -239,15 +246,12 @@ pub struct RichEdit<'a> {
     /// The end position of the chunk of data to replace (open end interval)
     end: u32,
     /// The data replacing the chunk
-    data: &'a [u8],
-
-    src: SrcToken,
-    data_pos: u32,
+    data: RichData<'a>,
 }
 
 impl RichEdit<'_> {
     pub(super) fn data_start(&self) -> u32 {
-        self.data_pos
+        self.data.data_pos
     }
 
     pub(super) fn data_end(&self) -> u32 {
@@ -255,11 +259,7 @@ impl RichEdit<'_> {
     }
 
     pub fn src(&self) -> SrcToken {
-        self.src
-    }
-
-    pub fn data_pos(&self) -> u32 {
-        self.data_pos
+        self.data.src
     }
 }
 
@@ -271,7 +271,7 @@ impl<'a> Edit<'a> for RichEdit<'a> {
         data_pos: u32,
         data: &'a [u8],
     ) -> Self {
-        Self { start, end, data, src, data_pos }
+        Self { start, end, data: RichData::new_rich(src, data_pos, data) }
     }
 
     /// The start position of the chunk of data to replace
@@ -286,27 +286,21 @@ impl<'a> Edit<'a> for RichEdit<'a> {
 
     /// The data replacing the chunk
     fn data(&self) -> &'a [u8] {
-        self.data
+        self.data.data()
     }
 
     /// Length of the replacing data.
     fn size(&self) -> u32 {
-        u_u32(self.data.len())
+        self.data.size()
     }
 
     /// cut this Edit into two
     ///
     /// The `cut_start` argument refer to the first index in `self.data()` that
-    /// needs to go in the second Edit
+    /// remains in self. The part before cut_start is returned as a new
+    /// Edit.
     fn cut_at(&mut self, cut_start: u32) -> Self {
-        let old_pos = self.data_pos;
-        self.data_pos += cut_start;
-
-        assert!(cut_start > 0);
-        assert!(cut_start < self.size());
-        let (left_data, right_data) = self.data.split_at(u32_u(cut_start));
-        self.data = right_data;
-
+        let left_data = self.data.cut_at(cut_start);
         Self {
             // there is no need to think too hard about which section of the
             // replaced part goes in the prefix and which goes in
@@ -314,17 +308,16 @@ impl<'a> Edit<'a> for RichEdit<'a> {
             // the suffix
             start: self.start,
             end: self.start,
-            src: self.src,
-            data_pos: old_pos,
             data: left_data,
         }
     }
 
+    /// remove the `size` first bytes from the this Edit
     fn trim_prefix(&mut self, size: u32) -> i32 {
         assert!(size < self.size());
 
-        self.data_pos += size;
-        self.data = &self.data[u32_u(size)..];
+        self.data.trim_prefix(size);
+
         let old_replace = self.replaced_len();
         if old_replace < size {
             self.start = self.end;
@@ -335,14 +328,59 @@ impl<'a> Edit<'a> for RichEdit<'a> {
         }
     }
 
+    /// adjust this Edit by the given offset
+    ///
+    /// (the offset is substracted to the piece `start` and `end`).
     fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self {
         Self {
             start: (self.start as i32 - start_offset) as u32,
             end: (self.end as i32 - end_offset) as u32,
             data: self.data,
-            src: self.src,
-            data_pos: self.data_pos,
         }
+    }
+}
+
+impl<'a> RichData<'a> {
+    /// Build an Edit from extra information
+    #[inline(always)]
+    fn new_rich(src: SrcToken, data_pos: u32, data: &'a [u8]) -> Self {
+        Self { src, data_pos, data }
+    }
+
+    /// The data replacing the chunk
+    #[inline(always)]
+    fn data(&self) -> &'a [u8] {
+        self.data
+    }
+
+    /// Length of the replacing data.
+    #[inline(always)]
+    fn size(&self) -> u32 {
+        u_u32(self.data.len())
+    }
+
+    /// cut this Edit into two
+    ///
+    /// The `cut_start` argument refer to the first index in `self.data()` that
+    /// remains in self. The part before cut_start is returned as a new Edit.
+    #[inline(always)]
+    fn cut_at(&mut self, cut_start: u32) -> Self {
+        assert!(cut_start > 0);
+        assert!(cut_start < self.size());
+        let old_pos = self.data_pos;
+        self.data_pos += cut_start;
+
+        let (left_data, right_data) = self.data.split_at(u32_u(cut_start));
+        self.data = right_data;
+
+        Self { src: self.src, data_pos: old_pos, data: left_data }
+    }
+
+    /// remove the `size` first bytes from the this Edit
+    #[inline(always)]
+    fn trim_prefix(&mut self, size: u32) {
+        self.data_pos += size;
+        self.data = &self.data[u32_u(size)..];
     }
 }
 
