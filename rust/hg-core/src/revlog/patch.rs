@@ -27,7 +27,7 @@ use crate::utils::u32_u;
 
 /// A piece of data to insert, delete or replace in a Delta
 pub trait Edit<'a>: Clone {
-    /// build a Edit from extra information
+    /// build an Edit from extra information
     ///
     /// The implementation is free to discard the information it doesn't need.
     fn new_rich(
@@ -86,14 +86,13 @@ pub trait Edit<'a>: Clone {
     /// cut this Edit into two
     ///
     /// The `cut_start` argument refer to the first index in `self.data()` that
-    /// goes in the first Edit. self is modified in place to contains
-    /// the second Edit.
+    /// remains in self. The part before cut_start is returned as a new Edit.
     fn cut_at(&mut self, cut_start: u32) -> Self;
 
     /// remove the `size` first bytes from the this Edit
     fn trim_prefix(&mut self, size: u32) -> i32;
 
-    /// adjust this Edit by the given offset
+    /// return a copy of this Edit adjusted by the given offset.
     ///
     /// (the offset is substracted to the piece `start` and `end`).
     fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self;
@@ -212,7 +211,7 @@ impl<'a> Edit<'a> for PlainEdit<'a> {
     /// cut this Edit into two
     ///
     /// The `cut_start` argument refer to the first index in `self.data()` that
-    /// needs to go in the second Edit
+    /// remains in self. The part before cut_start is returned as a new Edit.
     fn cut_at(&mut self, cut_start: u32) -> Self {
         assert!(cut_start > 0);
         assert!(cut_start < self.size());
@@ -271,7 +270,7 @@ impl<'a> PlainEdit<'a> {
     }
 }
 
-/// An identifier for which Chunk a Edit comes from.
+/// An identifier for which Chunk an Edit comes from.
 ///
 /// Used within RichEdit
 ///
@@ -371,7 +370,7 @@ where
         }
     }
 
-    /// adjust this Edit by the given offset
+    /// return a copy of this Edit adjusted by the given offset.
     ///
     /// (the offset is substracted to the piece `start` and `end`).
     fn apply_offset(&self, start_offset: i32, end_offset: i32) -> Self {
