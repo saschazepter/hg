@@ -1523,14 +1523,14 @@ pgup/K: move patch up, pgdn/J: move patch down, c: commit, q: abort
     def patch_contents(self):
         repo = self.repo
         rule = self.rules[self.display_pos_to_rule_pos(self.pos)]
-        displayer = logcmdutil.changesetdisplayer(
-            repo.ui,
-            repo,
-            {b"patch": True, b"template": b"status"},
-            buffered=True,
-        )
         overrides = {(b'ui', b'verbose'): True}
         with repo.ui.configoverride(overrides, source=b'histedit'):
+            displayer = logcmdutil.changesetdisplayer(
+                repo.ui,
+                repo,
+                {b"patch": True, b"template": b"status"},
+                buffered=True,
+            )
             displayer.show(rule.ctx)
             displayer.close()
         return displayer.hunk[rule.ctx.rev()].splitlines()
