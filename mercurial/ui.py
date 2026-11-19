@@ -2451,7 +2451,17 @@ class ui:
     def configoverride(self, overrides: _ConfigItems, source: bytes = b""):
         """Context manager for temporary config overrides
         `overrides` must be a dict of the following structure:
-        {(section, name) : value}"""
+        {(section, name) : value}
+
+        >>> u = ui()
+        >>> with u.configoverride({(b'ui', b'verbose'): True}):
+        ...     u.verbose
+        True
+
+        XXX the attribute should be back to False here
+        >>> u.verbose
+        True
+        """
         backups = {}
         try:
             for (section, name), value in overrides.items():
