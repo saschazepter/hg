@@ -28,6 +28,7 @@ from typing import (
 
 from ..interfaces.types import (
     HgPathT,
+    RevnumT,
     VfsT,
 )
 
@@ -266,6 +267,14 @@ class RevlogDocket:
     def docket_path(self) -> HgPathT:
         """file path of that docket"""
         return self._path
+
+    def get_index_block(self, file_type: FileType, rev: RevnumT) -> BlockInfo:
+        """return the block holding the `file_type` index entry for `rev`
+
+        There is a single block per file type for now, so `rev` is ignored.
+        """
+        assert file_type.is_index, file_type
+        return self._current[file_type]
 
     def filepath(self, file_type: FileType) -> bytes:
         if self._current.get(file_type) is None:
