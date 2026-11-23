@@ -276,6 +276,11 @@ class RevlogDocket:
         assert file_type.is_index, file_type
         return self._current[file_type]
 
+    def get_data_block(self, file_type: FileType) -> BlockInfo:
+        """return the block new `file_type` data get appended to"""
+        assert not file_type.is_index, file_type
+        return self._current[file_type]
+
     def filepath(self, file_type: FileType) -> bytes:
         if self._current.get(file_type) is None:
             self._current[file_type] = BlockInfo(
