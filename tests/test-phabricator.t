@@ -511,7 +511,7 @@ A bad .arcconfig doesn't error out
   $ echo 'garbage' > .arcconfig
   $ hg config phabricator --source
   invalid JSON in $TESTTMP/repo/.arcconfig
-  */.hgrc:*: phabricator.debug=True (glob)
+  $HGRCPATH:*: phabricator.debug=True (glob)
   $TESTTMP/repo/.hg/hgrc:*: phabricator.url=https://phab.mercurial-scm.org/ (glob)
   $TESTTMP/repo/.hg/hgrc:*: phabricator.callsign=HG (glob)
 
@@ -524,7 +524,7 @@ The .arcconfig content overrides global config
   $ cp $TESTDIR/../.arcconfig .
   $ mv .hg/hgrc .hg/hgrc.bak
   $ hg config phabricator --source
-  */.hgrc:*: phabricator.debug=True (glob)
+  $HGRCPATH:*: phabricator.debug=True (glob)
   $TESTTMP/repo/.arcconfig: phabricator.callsign=HG
   $TESTTMP/repo/.arcconfig: phabricator.url=https://phab.mercurial-scm.org/
 
@@ -535,7 +535,7 @@ But it doesn't override local config
   > callsign = local
   > EOF
   $ hg config phabricator --source
-  */.hgrc:*: phabricator.debug=True (glob)
+  $HGRCPATH:*: phabricator.debug=True (glob)
   $TESTTMP/repo/.hg/hgrc:*: phabricator.url=local (glob)
   $TESTTMP/repo/.hg/hgrc:*: phabricator.callsign=local (glob)
   $ mv .hg/hgrc.bak .hg/hgrc
