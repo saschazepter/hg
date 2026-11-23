@@ -299,6 +299,28 @@ def vcrcommand(name, flags, spec, helpcategory=None, optionalrepo=False):
 
                     # pytype: enable=import-error
 
+                    class _vcrhttpsconnection(stubs.VCRHTTPSConnection):
+                        """VCR stub matching ``url.httpsconnection``'s signature
+
+                        ``url._makeconnection`` passes ``key_file`` and
+                        ``cert_file`` positionally, but the stub forwards
+                        everything to ``http.client.HTTPSConnection``,
+                        which no longer accepts them (Python 3.12+).
+                        They are dropped: replaying needs no connection, and
+                        recording ignores `auth.*.key`/`auth.*.cert`.
+                        """
+
+                        def __init__(
+                            self,
+                            host,
+                            port=None,
+                            key_file=None,
+                            cert_file=None,
+                            *args,
+                            **kwargs,
+                        ):
+                            super().__init__(host, port, *args, **kwargs)
+
                     vcr = vcrmod.VCR(
                         serializer='json',
                         before_record_request=sanitiserequest,
@@ -312,7 +334,7 @@ def vcrcommand(name, flags, spec, helpcategory=None, optionalrepo=False):
                             (
                                 urlmod,
                                 'httpsconnection',
-                                stubs.VCRHTTPSConnection,
+                                _vcrhttpsconnection,
                             ),
                         ],
                     )
