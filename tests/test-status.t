@@ -1142,6 +1142,8 @@ and the modified one gets the mode and size it has in the parent, plus, in
 dirstate-v2, the mtime it was found modified at:
 
   $ echo more >> celeste
+(make sure the status doesn't see an ambiguous mtime.)
+  $ sleep 1
   $ hg status
   lookup: babar
   lookup: celeste
@@ -1200,6 +1202,8 @@ The modified file is looked up and gets the mode and size it has in the parent,
 so the next status does not need to:
 
   $ echo more >> zephir
+(make sure the status doesn't see an ambiguous mtime.)
+  $ sleep 1
   $ hg status
   lookup: zephir
   M zephir
@@ -1243,6 +1247,8 @@ in the parent:
 
   $ rm arthur
   $ ln -s celeste arthur
+(make sure the status doesn't see an ambiguous mtime.)
+  $ sleep 1
   $ hg status
   lookup: arthur
   M arthur
