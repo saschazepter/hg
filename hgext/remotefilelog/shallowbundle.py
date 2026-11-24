@@ -143,6 +143,14 @@ def makechangegroup(orig, repo, outgoing, version, source, *args, **kwargs):
         repo.shallowmatch = original
 
 
+def allsupportedversions(orig, repo):
+    """Remove the changegroup versions that shallow repositories cannot use"""
+    versions = orig(repo)
+    if shallowutil.isenabled(repo):
+        versions.discard(b'04')
+    return versions
+
+
 def wrap_bundler(orig, *args, **kwargs):
     cg = orig(*args, **kwargs)
 

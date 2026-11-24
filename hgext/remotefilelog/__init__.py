@@ -332,6 +332,9 @@ def uisetup(ui):
     extensions.wrapfunction(
         changegroup, 'getbundler', shallowbundle.wrap_bundler
     )
+    extensions.wrapfunction(
+        changegroup, 'allsupportedversions', shallowbundle.allsupportedversions
+    )
     extensions.wrapfunction(localrepo, 'makestore', storewrapper)
     extensions.wrapfunction(exchange, 'pull', exchangepull)
     extensions.wrapfunction(update_util, 'apply_updates', apply_updates)
