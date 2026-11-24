@@ -1500,6 +1500,8 @@ class InnerRevlogV2(BaseInnerRevlog):
                 pos,
                 stripping=stripping,
             )
+            # `_prepare_update` might have replaced the block
+            block = self.docket.get_index_block(file_type, rev)
         elif not self.docket.is_pending_offset(file_type, pos):
             msg = "invalid rewrite of a non-pending revision"
             raise error.ProgrammingError(msg)
@@ -1512,7 +1514,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         fh.seek(pos, os.SEEK_SET)
         fh.write(data)
         if end < new_end:
-            self.docket.set_end(file_type, new_end)
+            block.set_end(self.docket, new_end)
 
     @util.propertycache
     def _index_entry_sizes(self) -> dict[V2FileType, int]:
