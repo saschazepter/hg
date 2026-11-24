@@ -65,6 +65,8 @@ def allsupportedversions(
     versions = orig(repo)
     if hasattr(repo.svfs, 'lfslocalblobstore'):
         versions.add(b'03')
+        # The flags of v04 revisions are not checked when stored as they come.
+        versions.discard(b'04')
     return versions
 
 
