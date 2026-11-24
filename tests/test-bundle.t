@@ -1137,6 +1137,8 @@ stored.
   $ "$PYTHON" "$TESTDIR/seq.py" 3000 | sed 's/0$/zero/' > big
   $ hg commit -qm 'big modified'
   $ cd ../cg4-dest
-  $ hg incoming -T '{desc} {diffstat}\n' ssh://user@dummy/cg4-source 2>&1 | tail -1
-  abort: integrity check failed on big:0 (known-bad-output !)
-  big modified 1: +300/-300 (missing-correct-output !)
+  $ hg incoming -T '{desc} {diffstat}\n' ssh://user@dummy/cg4-source
+  comparing with ssh://user@dummy/cg4-source
+  searching for changes
+  big 1: +3000/-0
+  big modified 1: +300/-300

@@ -100,9 +100,11 @@ class bundlerevlog(revlog.revlog):
         n = len(self)
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
-        # Changegroup v4 can send a full text instead of a delta. This tracks
-        # the bundle revisions whose chunk is a full text.
+        # Changegroup v4 can send a full text instead of a delta, and can send
+        # either of them compressed. These track the bundle revisions whose
+        # chunk is a full text, and the compression of compressed chunks.
         self._bundle_full_text_revs: set[RevnumT] = set()
+        self._bundle_compression: dict[RevnumT, i_comp.RevlogCompHeader] = {}
         for deltadata in cgunpacker.deltaiter():
             baserev = self.rev(deltadata.delta_base)
             chunk = deltadata.delta
@@ -158,6 +160,12 @@ class bundlerevlog(revlog.revlog):
             self.bundlerevs.add(n)
             if is_full_text:
                 self._bundle_full_text_revs.add(n)
+            compression = deltadata.compression
+            if (
+                compression is not None
+                and compression != i_comp.REVLOG_COMP_NONE
+            ):
+                self._bundle_compression[n] = compression
             n += 1
 
     @contextlib.contextmanager
@@ -172,7 +180,8 @@ class bundlerevlog(revlog.revlog):
         if rev <= self.repotiprev:
             return super().raw_comp_chunk(rev)
         self.bundle.seek(self.start(rev))
-        return (i_comp.REVLOG_COMP_NONE, self.bundle.read(self.length(rev)))
+        compression = self._bundle_compression.get(rev, i_comp.REVLOG_COMP_NONE)
+        return (compression, self.bundle.read(self.length(rev)))
 
     def _chunk(self, rev):
         # Warning: in case of bundle, the diff is against what we stored as
@@ -181,7 +190,12 @@ class bundlerevlog(revlog.revlog):
         if rev <= self.repotiprev:
             return super()._inner._chunk(rev)
         self.bundle.seek(self.start(rev))
-        return self.bundle.read(self.length(rev))
+        chunk = self.bundle.read(self.length(rev))
+        compression = self._bundle_compression.get(rev)
+        if compression is not None:
+            engine = util.compengines.forrevlogheader(compression)
+            chunk = engine.revlogcompressor().decompress(chunk)
+        return chunk
 
     def revdiff(
         self,
