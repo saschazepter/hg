@@ -1016,15 +1016,15 @@ def has_dev_full():
     return os.path.exists('/dev/full')
 
 
-@check("ensurepip", "ensurepip module")
+@check("ensurepip", "ensurepip module bundling pip >= 22.1")
 def has_ensurepip():
     try:
         import ensurepip
-
-        del ensurepip
-        return True
     except ImportError:
         return False
+    # pip < 22.1 does not support `--config-settings`
+    major, minor = ensurepip.version().split(".")[0:2]
+    return (int(major), int(minor)) >= (22, 1)
 
 
 @check("virtualenv", "virtualenv support")

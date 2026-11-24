@@ -196,6 +196,8 @@ On Python 3, we use the venv module, which is part of the standard library.
 But some Linux distros strip out this module's functionality involving pip,
 so we have to look for the ensurepip module, which these distros strip out
 completely.
+The pip bundled with ensurepip must also be recent enough (>= 22.1) to support
+`--config-settings`; some older Pythons bundle an older one.
 On Python 2, we use the 3rd party virtualenv module, if available.
 
   $ cd $TESTTMP
