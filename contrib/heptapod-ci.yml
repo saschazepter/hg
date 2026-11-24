@@ -47,6 +47,7 @@ variables:
     RE_TOPIC: '/^topic/.+/.+$/'
     WHEEL_MACOS_TAG: "macos"
     WHEEL_WINDOWS_TAG: "windows"
+    WHEEL_LINUX_ARM64_TAG: "arm64"
     PYTHON: python
     HG_CI_REG: "registry.heptapod.net/mercurial/ci-images"
     HG_CI_IMAGE_TAG: "v3.3"
@@ -215,7 +216,7 @@ build-c-wheel-arm64-libc:
     ARCH: "arm64"
     WHEEL_TYPE: "c"
   tags:
-    - arm64
+    - $WHEEL_LINUX_ARM64_TAG
 
 build-c-wheel-arm64-musl:
   extends: .extra-wheel
@@ -223,7 +224,7 @@ build-c-wheel-arm64-musl:
     ARCH: "arm64-musl"
     WHEEL_TYPE: "c"
   tags:
-    - arm64
+    - $WHEEL_LINUX_ARM64_TAG
 
 .runtests:
     extends: .all
