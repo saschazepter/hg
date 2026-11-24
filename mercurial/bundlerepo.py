@@ -100,11 +100,25 @@ class bundlerevlog(revlog.revlog):
         n = len(self)
         self.repotiprev = n - 1
         self.bundlerevs = set()  # used by 'bundle()' revset expression
+        # Changegroup v4 can send a full text instead of a delta. This tracks
+        # the bundle revisions whose chunk is a full text.
+        self._bundle_full_text_revs: set[RevnumT] = set()
         for deltadata in cgunpacker.deltaiter():
             baserev = self.rev(deltadata.delta_base)
-            base_size = self.rawsize(baserev)
-            full_size = mdiff.patchedsize(base_size, deltadata.delta)
-            size = len(deltadata.delta)
+            chunk = deltadata.delta
+            is_full_text = chunk is None
+            if is_full_text:
+                chunk = deltadata.raw_text
+                # the chunk does not depend on any other revision
+                baserev = nullrev
+            if deltadata.raw_text_size is not None:
+                full_size = deltadata.raw_text_size
+            elif is_full_text:
+                full_size = len(chunk)
+            else:
+                base_size = self.rawsize(baserev)
+                full_size = mdiff.patchedsize(base_size, chunk)
+            size = len(chunk)
             start = cgunpacker.tell() - size
 
             if self.index.has_node(deltadata.node):
@@ -142,6 +156,8 @@ class bundlerevlog(revlog.revlog):
             )
             self.index.append(e)
             self.bundlerevs.add(n)
+            if is_full_text:
+                self._bundle_full_text_revs.add(n)
             n += 1
 
     @contextlib.contextmanager
@@ -206,6 +222,9 @@ class bundlerevlog(revlog.revlog):
             cached = self._inner.get_cached_text(iterrev)
             if cached is not None:
                 rawtext = cached[1]
+                break
+            if iterrev in self._bundle_full_text_revs:
+                rawtext = self._chunk(iterrev)
                 break
             chain.append(iterrev)
             iterrev = self.index[iterrev][3]

@@ -1105,9 +1105,9 @@ compressed.
 Reading a file revision through the strip backup
 ------------------------------------------------
 
-  $ hg cat -R .hg/strip-backup/*.hg -r 'desc(b)' a 2>&1 | tail -1
-  TypeError: * (glob) (known-bad-output !)
-  b (missing-correct-output !)
+  $ hg cat -R .hg/strip-backup/*.hg -r 'desc(b)' a
+  a
+  b
 
 Pulling from the strip backup
 -----------------------------
@@ -1115,10 +1115,9 @@ Pulling from the strip backup
 Pulling from a strip backup reads it as a repository. This is deprecated and
 not encouraged: `hg unbundle` is the way to restore a strip backup.
 
-  $ hg pull -q .hg/strip-backup/*.hg 2>&1 | tail -1
-  TypeError: * (glob) (known-bad-output !)
+  $ hg pull -q .hg/strip-backup/*.hg
   $ hg log -T '{desc}\n'
-  b (missing-correct-output !)
+  b
   a
 
 Compressed full texts and deltas sent over the wire
@@ -1139,5 +1138,5 @@ stored.
   $ hg commit -qm 'big modified'
   $ cd ../cg4-dest
   $ hg incoming -T '{desc} {diffstat}\n' ssh://user@dummy/cg4-source 2>&1 | tail -1
-  TypeError: * (glob) (known-bad-output !)
+  abort: integrity check failed on big:0 (known-bad-output !)
   big modified 1: +300/-300 (missing-correct-output !)
