@@ -192,7 +192,8 @@ def _rewrite_v2(revlog, tr, censor_revs, tombstone=b''):
     new_data_path = vfs.join(new_data)
     util.copyfile(old_data_path, new_data_path, nb_bytes=data_cutoff)
     tr.add(new_data, 0)
-    docket.set_end(docket.FT.DATA, data_cutoff)
+    data_block = docket.get_data_block(docket.FT.DATA)
+    data_block.set_end(docket, data_cutoff)
 
     # open the new file and start writing the missing data.
     with revlog._writing(tr), vfs(old_data) as old_data_fh:

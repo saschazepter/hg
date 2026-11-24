@@ -1910,7 +1910,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             sdfh.write(serialized_sidedata)
             new_entries.append(entry_update)
             current_offset += len(serialized_sidedata)
-            self.docket.set_end(self.docket.FT.SIDEDATA, sdfh.tell())
+            sidedata_block.set_end(self.docket, sdfh.tell())
 
         # rewrite the new index entries
         for i, e in enumerate(new_entries):
@@ -2199,7 +2199,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         _path, fh = self._writinghandles[docket.FT.DATA]
         fh.seek(offset, os.SEEK_SET)
         fh.write(delta_data)
-        docket.set_end(docket.FT.DATA, offset + len(delta_data))
+        data_block.set_end(docket, offset + len(delta_data))
         idx_bin = index.update_data(
             rev=rev,
             offset=offset,
@@ -2254,7 +2254,7 @@ class InnerRevlogV2(BaseInnerRevlog):
                 pending_only=True,
             )
             pos += size
-            docket.set_end(ft, pos)
+            cf_block.set_end(docket, pos)
             assert self.changed_files_bytes(rev) == cfg_bin, (
                 self.changed_files_bytes(rev),
                 cfg_bin,
