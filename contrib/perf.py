@@ -2907,14 +2907,26 @@ def perfcca(ui, repo, **opts):
     fm.end()
 
 
+def _getfncache(repo):
+    """Return the fncache of a repository, aborting if it has none
+
+    Stores without fncache, like the ones using the file index, have either no
+    `fncache` attribute or a None one.
+    """
+    fncache = getattr(repo.store, 'fncache', None)
+    if fncache is None:
+        raise error.Abort(b"repository does not support fncache")
+    return fncache
+
+
 @command(b'perf::fncacheload|perffncacheload', formatteropts)
 def perffncacheload(ui, repo, **opts):
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
-    s = repo.store
+    fncache = _getfncache(repo)
 
     def d():
-        s.fncache._load()
+        fncache._load()
 
     timer(d)
     fm.end()
@@ -2924,15 +2936,15 @@ def perffncacheload(ui, repo, **opts):
 def perffncachewrite(ui, repo, **opts):
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
-    s = repo.store
+    fncache = _getfncache(repo)
     lock = repo.lock()
-    s.fncache._load()
+    fncache._load()
     tr = repo.transaction(b'perffncachewrite')
     tr.addbackup(b'fncache')
 
     def d():
-        s.fncache._dirty = True
-        s.fncache.write(tr)
+        fncache._dirty = True
+        fncache.write(tr)
 
     timer(d)
     tr.close()
@@ -2945,10 +2957,11 @@ def perffncacheencode(ui, repo, **opts):
     opts = _byteskwargs(opts)
     timer, fm = gettimer(ui, opts)
     s = repo.store
-    s.fncache._load()
+    fncache = _getfncache(repo)
+    fncache._load()
 
     def d():
-        for p in s.fncache.entries:
+        for p in fncache.entries:
             s.encode(p)
 
     timer(d)
