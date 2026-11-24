@@ -1718,7 +1718,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         this_idx = offset // S_LINK_REVS.size
         data = S_LINK_REVS.pack(linkrev, prev_idx)
         fh.write(data)
-        self.docket.set_end(FT_LR, offset + S_LINK_REVS.size)
+        lr_block.set_end(self.docket, offset + S_LINK_REVS.size)
         idx_bins = self.index.update_link_revs_last_idx(rev, this_idx)
         self._rewrite_index(transaction, rev, idx_bins)
 
@@ -1744,7 +1744,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         data = S_LINK_REVS.pack(linkrev, this_idx)
         fh.write(data)
         entry.link_revs_last_idx = this_idx
-        self.docket.set_end(FT_LR, offset + S_LINK_REVS.size)
+        lr_block.set_end(self.docket, offset + S_LINK_REVS.size)
 
     def apply_link_revs_post_process(
         self,
@@ -1797,7 +1797,7 @@ class InnerRevlogV2(BaseInnerRevlog):
         seen = set()
         current_idx = index.link_revs_last_idx(first_affected)
         offset = S_LINK_REVS.size * current_idx
-        self.docket.set_end(FT_LR, offset)
+        lr_block.set_end(docket, offset)
         _path, fh = self._writinghandles[FT_LR]
         fh.seek(offset, os.SEEK_SET)
 
@@ -1814,7 +1814,7 @@ class InnerRevlogV2(BaseInnerRevlog):
             idx_bins = self.index.update_link_revs_last_idx(rev, current_idx)
             self._rewrite_index(transaction, rev, idx_bins)
             current_idx += 1
-        self.docket.set_end(FT_LR, current_idx * S_LINK_REVS.size)
+        lr_block.set_end(docket, current_idx * S_LINK_REVS.size)
 
     def link_revs(self, rev: RevnumT) -> list[RevnumT] | None:
         """return all known changelog revision that introduce this rev
