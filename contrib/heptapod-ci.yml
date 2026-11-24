@@ -47,6 +47,9 @@ variables:
     RE_TOPIC: '/^topic/.+/.+$/'
     WHEEL_MACOS_TAG: "macos"
     WHEEL_WINDOWS_TAG: "windows"
+    # The x86 Linux wheels (x86_64 and i686) run on untagged runners outside of
+    # protected branches, an empty tag keeps them untagged.
+    WHEEL_LINUX_TAG: ""
     WHEEL_LINUX_ARM64_TAG: "arm64"
     PYTHON: python
     HG_CI_REG: "registry.heptapod.net/mercurial/ci-images"
@@ -160,6 +163,8 @@ build-c-wheel-libc:
   variables:
     ARCH: "x86_64"
     WHEEL_TYPE: "c"
+  tags:
+    - $WHEEL_LINUX_TAG
 
 build-rust-wheel-libc:
   extends: .build-wheel
@@ -182,6 +187,8 @@ build-c-wheel-musl:
   variables:
     ARCH: "x86_64-musl"
     WHEEL_TYPE: "c"
+  tags:
+    - $WHEEL_LINUX_TAG
 
 build-rust-wheel-musl:
   extends: .extra-wheel
@@ -203,12 +210,16 @@ build-c-wheel-i686-libc:
   variables:
     ARCH: "i686"
     WHEEL_TYPE: "c"
+  tags:
+    - $WHEEL_LINUX_TAG
 
 build-c-wheel-i686-musl:
   extends: .extra-wheel
   variables:
     ARCH: "i686-musl"
     WHEEL_TYPE: "c"
+  tags:
+    - $WHEEL_LINUX_TAG
 
 build-c-wheel-arm64-libc:
   extends: .extra-wheel
@@ -873,6 +884,8 @@ test-result-windows:
 
 wheel-result-linux:
   extends: .sink
+  tags:
+    - $WHEEL_LINUX_TAG
   needs:
     - build-c-wheel-libc
     - build-c-wheel-musl
