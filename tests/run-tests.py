@@ -2483,6 +2483,42 @@ class TestResult(base_class):
             self.stream.write(f' [{self._dot_printed}]\n'.rjust(8))
         self.stream.flush()
 
+    def _write_verbose_status(
+        self,
+        test: Test,
+        outcome: _TestOutcome,
+        reason: typing.Optional[str],
+    ) -> None:
+        """write the status of a finished test in verbose mode"""
+        if outcome is _TestOutcome.SUCCESS:
+            self._write_status(test, "ok")
+        elif outcome is _TestOutcome.ERROR:
+            self._write_status(test, "ERROR")
+        elif outcome is _TestOutcome.SKIPPED:
+            self.stream.writeln('skipped %s' % reason)
+        elif outcome is _TestOutcome.IGNORED:
+            self.stream.writeln('ignored %s' % reason)
+        else:
+            # failures and timeouts keep their dot in verbose mode
+            self._write_dot(outcome)
+
+    def _report_progress(
+        self,
+        test: Test,
+        outcome: _TestOutcome,
+        reason: typing.Optional[str] = None,
+    ) -> None:
+        """Report a finished test in the progress output.
+
+        ``reason`` explains skips and ignores.
+        """
+        with iolock:
+            if self.showAll:
+                self._write_verbose_status(test, outcome, reason)
+            elif self.dots:
+                self._write_dot(outcome)
+            # verbosity 0 is --list-tests, which reports no progress
+
     def onStart(self, test):
         """Can be overriden by custom TestResult"""
 
@@ -2497,14 +2533,14 @@ class TestResult(base_class):
         else:
             with iolock:
                 if reason == "timed out":
-                    self._write_dot(_TestOutcome.TIMEOUT)
+                    self._report_progress(test, _TestOutcome.TIMEOUT)
                 else:
                     if not self._options.nodiff:
                         self.stream.write('\n')
                         # Exclude the '\n' from highlighting to lex correctly
                         formatted = 'ERROR: %s output changed\n' % test
                         self.stream.write(highlightmsg(formatted, self.color))
-                    self._write_dot(_TestOutcome.FAILED)
+                    self._report_progress(test, _TestOutcome.FAILED)
 
                 self.stream.flush()
 
@@ -2512,10 +2548,7 @@ class TestResult(base_class):
         with iolock:
             # bypass the TextTestResult method as do deal with the output ourself
             super(base_class, self).addSuccess(test)
-            if self.showAll:
-                self._write_status(test, "ok")
-            elif self.dots:
-                self._write_dot(_TestOutcome.SUCCESS)
+            self._report_progress(test, _TestOutcome.SUCCESS)
         self.successes.append(test)
 
     def addError(self, test, err=None, message=None):
@@ -2524,32 +2557,23 @@ class TestResult(base_class):
         else:
             assert err is not None
             super(base_class, self).addError(test, err)
-        if self.showAll:
-            self._write_status(test, "ERROR")
-        elif self.dots:
-            self._write_dot(_TestOutcome.ERROR)
+        self._report_progress(test, _TestOutcome.ERROR)
         if self._options.first:
             self.stop()
 
     # Polyfill.
     def addSkip(self, test, reason):
         self.skipped.append((test, reason))
-        with iolock:
-            if self.showAll:
-                self.stream.writeln('skipped %s' % reason)
-            else:
-                self._write_dot(_TestOutcome.SKIPPED)
+        self._report_progress(test, _TestOutcome.SKIPPED, reason)
 
     def addIgnore(self, test, reason):
         self.ignored.append((test, reason))
+        silent = reason in ('not retesting', "doesn't match keyword")
         with iolock:
-            if self.showAll:
-                self.stream.writeln('ignored %s' % reason)
+            if self.showAll or not silent:
+                self._report_progress(test, _TestOutcome.IGNORED, reason)
             else:
-                if reason not in ('not retesting', "doesn't match keyword"):
-                    self._write_dot(_TestOutcome.IGNORED)
-                else:
-                    self.testsRun += 1
+                self.testsRun += 1
 
     def addOutputMismatch(self, test, ret, got, expected):
         """Record a mismatch in test output for a particular test."""
