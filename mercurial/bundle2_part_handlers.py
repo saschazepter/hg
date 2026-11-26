@@ -91,7 +91,12 @@ def handlechangegroup(op: UnbundleOpT, inpart):
     """apply a changegroup part on the repo"""
     tr = op.gettransaction()
     unpackerversion = inpart.params.get(b'version', b'01')
-    # We should raise an appropriate exception here
+    if unpackerversion not in changegroup.allsupportedversions(op.repo):
+        raise error.BundleUnknownFeatureError(
+            parttype=b'changegroup',
+            params=(b'version',),
+            values=(unpackerversion,),
+        )
     cg = changegroup.getunbundler(unpackerversion, inpart, None)
     # the source and url passed here are overwritten by the one contained in
     # the transaction.hookargs argument. So 'bundle2' is a placeholder
