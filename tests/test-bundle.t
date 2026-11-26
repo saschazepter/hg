@@ -1078,3 +1078,66 @@ Test the debug statistic when applying a bundle
   added 3 changesets with 3 changes to 3 files
   new changesets 4fe08cd4693e:4652c276ac4f (3 drafts)
   (run 'hg update' to get a working copy)
+
+Changegroup version 04
+======================
+
+Repositories using the delta-info format create changegroup-v4 bundles, whose
+revisions can be full texts instead of deltas, either of them possibly
+compressed.
+
+  $ cd $TESTTMP
+  $ hg init cg4-source --config format.use-delta-info-flags=yes
+  $ hg debugformat -R cg4-source delta-info-flags
+  format-variant                 repo
+  delta-info-flags:               yes
+  $ cd cg4-source
+  $ echo a > a
+  $ hg commit -qAm a
+  $ echo b >> a
+  $ hg commit -qm b
+  $ hg strip -q --config extensions.strip= -r 'desc(b)'
+  $ hg debugbundle --part-type changegroup .hg/strip-backup/*.hg
+  Stream params: {Compression: BZ}
+  changegroup -- {nbchanges: 1, version: 04} (mandatory: True)
+      1846eede8b6886d8cc8a88c96a687b7fe8f3b9d1
+
+Reading a file revision through the strip backup
+------------------------------------------------
+
+  $ hg cat -R .hg/strip-backup/*.hg -r 'desc(b)' a 2>&1 | tail -1
+  TypeError: * (glob) (known-bad-output !)
+  b (missing-correct-output !)
+
+Pulling from the strip backup
+-----------------------------
+
+Pulling from a strip backup reads it as a repository. This is deprecated and
+not encouraged: `hg unbundle` is the way to restore a strip backup.
+
+  $ hg pull -q .hg/strip-backup/*.hg 2>&1 | tail -1
+  TypeError: * (glob) (known-bad-output !)
+  $ hg log -T '{desc}\n'
+  b (missing-correct-output !)
+  a
+
+Compressed full texts and deltas sent over the wire
+---------------------------------------------------
+
+The revisions of a large file are stored compressed, and sent as they are
+stored.
+
+  $ cd ..
+  $ hg clone -q cg4-source cg4-dest
+  $ hg debugformat -R cg4-dest delta-info-flags
+  format-variant                 repo
+  delta-info-flags:               yes
+  $ cd cg4-source
+  $ "$PYTHON" "$TESTDIR/seq.py" 3000 > big
+  $ hg commit -qAm big
+  $ "$PYTHON" "$TESTDIR/seq.py" 3000 | sed 's/0$/zero/' > big
+  $ hg commit -qm 'big modified'
+  $ cd ../cg4-dest
+  $ hg incoming -T '{desc} {diffstat}\n' ssh://user@dummy/cg4-source 2>&1 | tail -1
+  TypeError: * (glob) (known-bad-output !)
+  big modified 1: +300/-300 (missing-correct-output !)
