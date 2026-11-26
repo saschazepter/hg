@@ -63,7 +63,8 @@ def allsupportedversions(
     orig: Callable[[RepoT], set[bytes]], repo: RepoT
 ) -> set[bytes]:
     versions = orig(repo)
-    versions.add(b'03')
+    if hasattr(repo.svfs, 'lfslocalblobstore'):
+        versions.add(b'03')
     return versions
 
 
