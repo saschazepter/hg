@@ -1062,6 +1062,20 @@ timeouts
   # Ran 2 tests, 0 skipped, 1 failed.
   python hash seed: * (glob)
   [1]
+
+Timeouts in line progress mode
+------------------------------
+
+A timed out test gets a `TIMEOUT` line (see "Line progress output" below).
+
+  $ rt --timeout=1 --progress-mode line test-timeout.t
+  running 1 tests using 1 parallel processes 
+  [1/1] TIMEOUT *s test-timeout.t (glob)
+  
+  Failed test-timeout.t: timed out
+  # Ran 1 tests, 0 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
   $ rm test-timeout.t test-slow-timeout.t
 
 test for --time
@@ -1245,6 +1259,149 @@ Successful test
   ok
   
   # Ran 1 tests, 0 skipped, 0 failed.
+
+Line progress output
+====================
+
+`--progress-mode line` reports each finished test on its own line, with a
+counter, its result and the time it took, which reads better in CI logs.
+
+Basic usage
+-----------
+
+The diff of a failed test comes before its line.
+
+  $ rt --progress-mode line
+  running 3 tests using 1 parallel processes 
+  
+  --- $TESTTMP/test-failure.t
+  +++ $TESTTMP/test-failure.t.err
+  @@ -1,5 +1,5 @@
+     $ echo babar
+  -  rataxes
+  +  babar
+   This is a noop statement so that
+   this test is still more bytes than success.
+   pad pad pad pad............................................................
+  
+  [1/3] FAILED  *s test-failure.t (glob)
+  [2/3] ok      *s test-success.t (glob)
+  [3/3] skipped *s test-skip.t (missing feature: nail clipper) (glob)
+  
+  Skipped test-skip.t: missing feature: nail clipper
+  Failed test-failure.t: output changed
+  # Ran 2 tests, 1 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
+
+Filtered tests
+--------------
+
+Tests ignored by keyword are not reported, like with dots, and do not count in
+the total. Missing and blacklisted tests are reported once, even with several
+runs per test, and without a duration.
+
+  $ rt --progress-mode line -k xyzzy
+  running 2 tests using 1 parallel processes 
+  [1/2] ok      *s test-success.t (glob)
+  [2/2] skipped *s test-skip.t (missing feature: nail clipper) (glob)
+  
+  Skipped test-skip.t: missing feature: nail clipper
+  # Ran 2 tests, 2 skipped, 0 failed.
+
+  $ rt --progress-mode line --runs-per-test 2 --blacklist=blacklist \
+  >   test-failure.t test-bogus.t test-success.t
+  running 4 tests using 1 parallel processes 
+  [1/4] skipped         test-bogus.t (Doesn't exist)
+  [2/4] skipped         test-failure.t (blacklisted)
+  [3/4] ok      *s test-success.t (glob)
+  [4/4] ok      *s test-success.t (glob)
+  
+  Skipped test-bogus.t: Doesn't exist
+  Skipped test-failure.t: blacklisted
+  # Ran 2 tests, 2 skipped, 0 failed.
+
+Verbose mode
+------------
+
+The lines replace the status that `-v` prints for each test (see "Verbose
+output" above).
+
+  $ rt --progress-mode line -v test-success.t 2>&1 | filterverbose
+  running 1 tests using 1 parallel processes 
+  # Test test-success.t 
+  # Ret was: 0 (test-success.t) 
+  [1/1] ok      *s test-success.t (glob)
+  
+  # Ran 1 tests, 0 skipped, 0 failed.
+
+Interactive mode
+----------------
+
+The line of a refused fix comes after the prompt.
+
+  $ echo 'n' | rt -i --progress-mode line test-failure.t
+  running 1 tests using 1 parallel processes 
+  
+  --- $TESTTMP/test-failure.t
+  +++ $TESTTMP/test-failure.t.err
+  @@ -1,5 +1,5 @@
+     $ echo babar
+  -  rataxes
+  +  babar
+   This is a noop statement so that
+   this test is still more bytes than success.
+   pad pad pad pad............................................................
+  Accept this change? [y/N] 
+  [1/1] FAILED  *s test-failure.t (glob)
+  
+  Failed test-failure.t: output changed
+  # Ran 1 tests, 0 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
+
+Loop mode
+---------
+
+With `--loop`, the tests run until stopped, so the counter has no total. This
+test passes once, then fails and `--first` stops the loop.
+
+(the marker path is written in the test file, where Windows backslashes would
+be read as escapes)
+
+  $ cat > test-flaky.t << EOF
+  >   $ test -f $TESTTMP_FORWARD_SLASH/flaky-marker || echo first
+  >   first
+  >   $ touch $TESTTMP_FORWARD_SLASH/flaky-marker
+  > EOF
+  $ rt --progress-mode line --loop --first --nodiff test-flaky.t
+  running 1 tests using 1 parallel processes 
+  [1] ok      *s test-flaky.t (glob)
+  
+  Failed test-flaky.t: output changed
+  # Ran 2 tests, 0 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
+  $ rm test-flaky.t $TESTTMP/flaky-marker
+
+#if pygments
+
+Colors
+------
+
+The result is colored like the matching dot.
+
+  $ rt --progress-mode line --nodiff --color=always test-success.t test-failure.t
+  running 2 tests using 1 parallel processes 
+  [1/2] \x1b[38;5;88mFAILED\x1b[39m  *s test-failure.t (glob) (esc)
+  [2/2] \x1b[38;5;2mok\x1b[39m      *s test-success.t (glob) (esc)
+  
+  \x1b[38;5;88mFailed \x1b[39m\x1b[38;5;9mtest-failure.t\x1b[39m\x1b[38;5;88m: output changed\x1b[39m (esc)
+  # Ran 2 tests, 0 skipped, 1 failed.
+  python hash seed: * (glob)
+  [1]
+
+#endif
 
 test for --json
 ==================
@@ -2185,6 +2342,22 @@ Errors in verbose mode
   ERROR: test-cases-ab.t#B: broken hghave
   # Ran 2 tests, 0 skipped, 0 failed, 2 errors.
   python hash seed: * (glob)
+
+Errors in line progress mode
+----------------------------
+
+Each errored test gets an `ERROR` line, test cases included.
+
+  $ DEVEL_HGHAVE_CRASH=1 rt --progress-mode line test-cases-ab.t
+  running 2 tests using 1 parallel processes 
+  [1/2] ERROR   *s test-cases-ab.t#A (glob)
+  [2/2] ERROR   *s test-cases-ab.t#B (glob)
+  
+  ERROR: test-cases-ab.t#A: broken hghave
+  ERROR: test-cases-ab.t#B: broken hghave
+  # Ran 2 tests, 0 skipped, 0 failed, 2 errors.
+  python hash seed: * (glob)
+  [1]
   $ unset DEVEL_HGHAVE_CRASH
 
 Skipping test (and forbidding it)

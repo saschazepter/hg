@@ -152,6 +152,19 @@ class _TestOutcome(enum.Enum):
     TIMEOUT = 't'
 
 
+# The status word of each test outcome in `--progress-mode line`
+_PROGRESS_LINE_STATUS = {
+    _TestOutcome.SUCCESS: 'ok',
+    _TestOutcome.SKIPPED: 'skipped',
+    _TestOutcome.IGNORED: 'ignored',
+    _TestOutcome.FAILED: 'FAILED',
+    _TestOutcome.ERROR: 'ERROR',
+    _TestOutcome.TIMEOUT: 'TIMEOUT',
+}
+_PROGRESS_LINE_STATUS_WIDTH = max(
+    len(s) for s in _PROGRESS_LINE_STATUS.values()
+)
+
 progress_type = {}
 
 if pygmentspresent:
@@ -710,6 +723,13 @@ def getparser():
         choices=["always", "auto", "never"],
         default=os.environ.get('HGRUNTESTSCOLOR', 'auto'),
         help="colorisation: always|auto|never (default: auto)",
+    )
+    reporting.add_argument(
+        "--progress-mode",
+        choices=["dots", "line"],
+        default="dots",
+        help="progress output: dots|line, line reports each finished test on"
+        " its own line (default: dots)",
     )
     reporting.add_argument(
         "-c",
@@ -2448,6 +2468,9 @@ class TestResult(base_class):
 
         # The number of finished tests reported by the progress output so far
         self._tests_reported = 0
+        # The number of tests the progress output will report, None when
+        # unknown (e.g. with --loop). Set by TextTestRunner.
+        self.progress_total: typing.Optional[int] = None
         self.times = []
         self._firststarttime = None
         # Data stored for the benefit of generating xunit reports.
@@ -2501,6 +2524,37 @@ class TestResult(base_class):
             # failures and timeouts keep their dot in verbose mode
             self._write_dot(outcome)
 
+    def _write_progress_line(
+        self,
+        test: Test,
+        outcome: _TestOutcome,
+        reason: typing.Optional[str],
+    ) -> None:
+        """write the line of a finished test in `--progress-mode line`"""
+        reported = self._tests_reported
+        total = self.progress_total
+        if total is None:
+            counter = '[%d]' % reported
+        else:
+            counter = '[%*d/%d]' % (len(str(total)), reported, total)
+
+        status = _PROGRESS_LINE_STATUS[outcome]
+        padding = ' ' * (_PROGRESS_LINE_STATUS_WIDTH - len(status))
+        status = highlight_progress(status, outcome, self.color) + padding
+
+        # tests filtered out before the run never started
+        started_time = getattr(test, 'started_time', None)
+        if started_time is None:
+            duration = ''
+        else:
+            duration = '%.1fs' % (time.time() - started_time)
+
+        line = '%s %s %7s %s' % (counter, status, duration, test.name)
+        if reason is not None:
+            line += ' (%s)' % reason
+        self.stream.writeln(line)
+        self.stream.flush()
+
     def _report_progress(
         self,
         test: Test,
@@ -2515,6 +2569,8 @@ class TestResult(base_class):
             self._tests_reported += 1
             if self.showAll:
                 self._write_verbose_status(test, outcome, reason)
+            elif self.dots and self._options.progress_mode == 'line':
+                self._write_progress_line(test, outcome, reason)
             elif self.dots:
                 self._write_dot(outcome)
             # verbosity 0 is --list-tests, which reports no progress
@@ -2536,10 +2592,14 @@ class TestResult(base_class):
                     self._report_progress(test, _TestOutcome.TIMEOUT)
                 else:
                     if not self._options.nodiff:
+                        # also ends the line of an interactive prompt
                         self.stream.write('\n')
-                        # Exclude the '\n' from highlighting to lex correctly
-                        formatted = 'ERROR: %s output changed\n' % test
-                        self.stream.write(highlightmsg(formatted, self.color))
+                        # in line mode, the progress line reports the failure
+                        if self._options.progress_mode != 'line':
+                            # Exclude the '\n' from highlighting to lex correctly
+                            formatted = 'ERROR: %s output changed\n' % test
+                            msg = highlightmsg(formatted, self.color)
+                            self.stream.write(msg)
                     self._report_progress(test, _TestOutcome.FAILED)
 
                 self.stream.flush()
@@ -2956,7 +3016,13 @@ def get_site_packages_dir(python_exe):
 class TextTestRunner(unittest.TextTestRunner):
     """Custom unittest test runner that uses appropriate settings."""
 
-    def __init__(self, runner, *args, **kwargs):
+    def __init__(
+        self,
+        runner: "TestRunner",
+        *args,
+        progress_total: typing.Optional[int] = None,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         self._runner = runner
@@ -2964,6 +3030,7 @@ class TextTestRunner(unittest.TextTestRunner):
         self._result = getTestResult()(
             self._runner.options, self.stream, self.descriptions, self.verbosity
         )
+        self._result.progress_total = progress_total
 
     def listtests(self, test):
         test = sorted(test, key=lambda t: t.name)
@@ -3739,9 +3806,16 @@ class TestRunner:
             verbosity = 1
             if self.options.list_tests:
                 verbosity = 0
-            elif self.options.verbose:
+            elif self.options.verbose and self.options.progress_mode == 'dots':
+                # line mode replaces the verbose status of each test
                 verbosity = 2
-            runner = TextTestRunner(self, verbosity=verbosity)
+            # --loop runs the tests over and over: there is no total
+            progress_total = None if self.options.loop else num_tests
+            runner = TextTestRunner(
+                self,
+                verbosity=verbosity,
+                progress_total=progress_total,
+            )
 
             osenvironb.pop(b'PYOXIDIZED_IN_MEMORY_RSRC', None)
             osenvironb.pop(b'PYOXIDIZED_FILESYSTEM_RSRC', None)
