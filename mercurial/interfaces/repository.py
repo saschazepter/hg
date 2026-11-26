@@ -607,6 +607,9 @@ class IInboundRevision(Protocol):
     raw_text_size: int | None
     """full text of that revision (if available)"""
 
+    compression: i_comp.RevlogCompHeader | None
+    """When set, the delta/raw_text received is compressed"""
+
     has_censor_flag: bool
     """set when the incoming data has censor information available"""
 
