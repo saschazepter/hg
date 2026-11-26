@@ -16,9 +16,9 @@ Set up repo and corruption script
   $ hg init src
   $ cd src
   $ echo hello > f
-  $ hg commit -qAm 0
+  $ hg commit -qAm cAc
   $ echo world >> f
-  $ hg commit -qm 1
+  $ hg commit -qm cBc
   $ cd ..
 
   $ cat > corrupt.py <<EOF
@@ -40,4 +40,4 @@ Test a corrupt delta
   rollback completed
   abort: integrity check failed on f:f57bae649f6e
   [50]
-  $ hg -R dst-delta log -T '{rev}\n'
+  $ hg -R dst-delta log -T '{desc}\n'
