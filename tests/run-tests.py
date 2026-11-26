@@ -3670,8 +3670,14 @@ class TestRunner:
             # --list-tests lists the selected tests without filtering them
             if not self.options.list_tests:
                 tests, filtered = self._filtertests(tests)
-            selected_count = len(tests) + len(filtered)
-            num_tests = selected_count * self.options.runs_per_test
+            # Count the tests the progress output reports: filtered tests are
+            # reported once, except keyword mismatches that print no dot.
+            num_tests = len(tests) * self.options.runs_per_test
+            num_tests += sum(
+                1
+                for _test, verdict, _reason in filtered
+                if verdict is _FilterVerdict.SKIP
+            )
 
             jobs = min(num_tests, self.options.jobs)
 

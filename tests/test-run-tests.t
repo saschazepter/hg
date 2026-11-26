@@ -572,7 +572,7 @@ successful
 
 success w/ keyword
   $ rt -k xyzzy
-  running 2 tests using 1 parallel processes 
+  running 1 tests using 1 parallel processes 
   .
   # Ran 2 tests, 1 skipped, 0 failed.
 
@@ -600,7 +600,7 @@ failed
 
 failure w/ keyword
   $ rt -k rataxes
-  running 2 tests using 1 parallel processes 
+  running 1 tests using 1 parallel processes 
   
   --- $TESTTMP/test-failure.t
   +++ $TESTTMP/test-failure.t.err
@@ -1126,7 +1126,7 @@ Skips
 
   $ rm test-noskip.t
   $ rt --keyword xyzzy
-  running 3 tests using 1 parallel processes 
+  running 2 tests using 1 parallel processes 
   .s
   Skipped test-skip.t: missing feature: nail clipper
   # Ran 2 tests, 2 skipped, 0 failed.
@@ -1134,7 +1134,7 @@ Skips
 Skips with xml
   $ rt --keyword xyzzy \
   >  --xunit=xunit.xml
-  running 3 tests using 1 parallel processes 
+  running 2 tests using 1 parallel processes 
   .s
   Skipped test-skip.t: missing feature: nail clipper
   # Ran 2 tests, 2 skipped, 0 failed.
@@ -1169,6 +1169,19 @@ Missing skips or blacklisted skips don't count as executed:
   } (no-eol)
   $ rm -r tests
   $ echo test-failure.t > blacklist
+
+Filtered tests with multiple runs per test
+------------------------------------------
+
+Missing and blacklisted tests are reported once, so the header counts them once.
+
+  $ rt --runs-per-test 2 --blacklist=blacklist \
+  >   test-failure.t test-bogus.t test-success.t
+  running 4 tests using 1 parallel processes 
+  ss..
+  Skipped test-bogus.t: Doesn't exist
+  Skipped test-failure.t: blacklisted
+  # Ran 2 tests, 2 skipped, 0 failed.
 
 Whitelist trumps blacklist
   $ echo test-failure.t > whitelist
