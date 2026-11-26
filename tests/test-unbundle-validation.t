@@ -30,6 +30,9 @@ The file is large enough for incoming deltas to be stored as is.
   $ hg -R src bundle -q -a -t 'none-v2;cg.version=03' full.hg \
   >   --config devel.bundle.delta=full
   $ "$PYTHON" corrupt.py full.hg bad-full.hg
+  $ hg -R src bundle -q -a -t 'none-v2;cg.version=04' full-v4.hg \
+  >   --config devel.bundle.delta=full
+  $ "$PYTHON" corrupt.py full-v4.hg bad-full-v4.hg
 
 Without validation, the corruption is stored silently.
 
@@ -81,3 +84,20 @@ Test a corrupt full text
   abort: integrity check failed on f:11f271f9a74d
   [50]
   $ hg -R dst-full log -T '{desc}\n'
+
+Test a corrupt full text with changegroup v4
+--------------------------------------------
+
+Changegroup v4 sends full texts as is, instead of deltas against the null
+revision, so nothing rebuilds them and nothing is checked.
+
+XXX: reusing the incoming deltas crashes on such full texts, so this disables
+it.
+
+  $ hg init dst-full-v4
+  $ hg -R dst-full-v4 unbundle -q bad-full-v4.hg \
+  >   --config storage.revlog.reuse-external-delta=no \
+  >   --config storage.revlog.validate-delta-base=yes
+  $ hg -R dst-full-v4 log -T '{desc}\n'
+  cBc
+  cAc
