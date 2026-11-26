@@ -61,6 +61,10 @@ from .interfaces import (
     compression as i_comp,
 )
 
+# The changegroup versions whose list of tree manifests, between the manifests
+# and the files, the bundle manifest skips to find the files.
+_TREE_MANIFEST_LIST_VERSIONS = {b"03"}
+
 
 class bundlerevlog(revlog.revlog):
     # XXX this work around the buggy baserev in bundle revlog,
@@ -270,7 +274,7 @@ class bundlemanifest(bundlerevlog, manifest.manifestrevlog):
         )
         if dirlogstarts is None:
             dirlogstarts = {}
-            if self.bundle.version == b"03":
+            if self.bundle.version in _TREE_MANIFEST_LIST_VERSIONS:
                 dirlogstarts = _getfilestarts(self.bundle)
         self._dirlogstarts = dirlogstarts
         self._linkmapper = linkmapper
