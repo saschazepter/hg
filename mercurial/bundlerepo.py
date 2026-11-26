@@ -63,7 +63,7 @@ from .interfaces import (
 
 # The changegroup versions whose list of tree manifests, between the manifests
 # and the files, the bundle manifest skips to find the files.
-_TREE_MANIFEST_LIST_VERSIONS = {b"03"}
+_TREE_MANIFEST_LIST_VERSIONS = {b"03", b"04"}
 
 
 class bundlerevlog(revlog.revlog):
