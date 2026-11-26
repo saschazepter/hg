@@ -48,6 +48,7 @@ import argparse
 import collections
 import contextlib
 import difflib
+import enum
 
 import errno
 import functools
@@ -68,6 +69,7 @@ import sysconfig
 import tempfile
 import threading
 import time
+import typing
 import unittest
 import uuid
 import xml.dom.minidom as minidom
@@ -2647,6 +2649,17 @@ def getTestResult():
         return TestResult
 
 
+class _FilterVerdict(enum.Enum):
+    """How a test filtered out before the run is reported"""
+
+    SKIP = enum.auto()
+    IGNORE = enum.auto()
+
+
+# A test filtered out before the run, with its verdict and the reason given
+_FilteredTestT = typing.Tuple[Test, _FilterVerdict, str]
+
+
 class TestSuite(unittest.TestSuite):
     """Custom unittest TestSuite that knows how to execute Mercurial tests."""
 
@@ -2654,9 +2667,7 @@ class TestSuite(unittest.TestSuite):
         self,
         testdir,
         jobs=1,
-        whitelist=None,
-        blacklist=None,
-        keywords=None,
+        filtered: typing.Sequence[_FilteredTestT] = (),
         loop=False,
         runs_per_test=1,
         loadtest=None,
@@ -2677,24 +2688,17 @@ class TestSuite(unittest.TestSuite):
 
         If there is only one job, it will use the main thread.
 
-        whitelist and blacklist denote tests that have been whitelisted and
-        blacklisted, respectively. These arguments don't belong in TestSuite.
-        Instead, whitelist and blacklist should be handled by the thing that
-        populates the TestSuite with tests. They are present to preserve
-        backwards compatible behavior which reports skipped tests as part
-        of the results.
-
-        keywords denotes key words that will be used to filter which tests
-        to execute. This arguably belongs outside of TestSuite.
+        filtered lists the tests excluded before the run (see
+        ``TestRunner._filtertests``). They are reported as skipped or ignored
+        when the run starts, to preserve backwards compatible behavior which
+        reports them as part of the results.
 
         loop denotes whether to loop over tests forever.
         """
         super().__init__(*args, **kwargs)
 
         self._jobs = jobs
-        self._whitelist = whitelist
-        self._blacklist = blacklist
-        self._keywords = keywords
+        self._filtered = filtered
         self._loop = loop
         self._runs_per_test = runs_per_test
         self._loadtest = loadtest
@@ -2702,9 +2706,12 @@ class TestSuite(unittest.TestSuite):
         self._tail_report = tail_report
 
     def run(self, result):
-        # We have a number of filters that need to be applied. We do this
-        # here instead of inside Test because it makes the running logic for
-        # Test simpler.
+        for test, verdict, reason in self._filtered:
+            if verdict is _FilterVerdict.SKIP:
+                result.addSkip(test, reason)
+            else:
+                result.addIgnore(test, reason)
+
         tests = []
         num_tests = [0]
         for test in self._tests:
@@ -2715,33 +2722,6 @@ class TestSuite(unittest.TestSuite):
                     return self._loadtest(test, num_tests[0])
                 return test
 
-            if not os.path.exists(test.path):
-                result.addSkip(test, "Doesn't exist")
-                continue
-
-            is_whitelisted = self._whitelist and (
-                test.relpath in self._whitelist or test.bname in self._whitelist
-            )
-            if not is_whitelisted:
-                is_blacklisted = self._blacklist and (
-                    test.relpath in self._blacklist
-                    or test.bname in self._blacklist
-                )
-                if is_blacklisted:
-                    result.addSkip(test, 'blacklisted')
-                    continue
-                if self._keywords:
-                    with open(test.path, 'rb') as f:
-                        t = f.read().lower() + test.bname.lower()
-                    ignored = False
-                    for k in self._keywords.lower().split():
-                        if k not in t:
-                            result.addIgnore(test, "doesn't match keyword")
-                            ignored = True
-                            break
-
-                    if ignored:
-                        continue
             for _ in range(self._runs_per_test):
                 tests.append(get())
 
@@ -3686,21 +3666,21 @@ class TestRunner:
                     testdescs = orig
 
             tests = [self._gettest(d, i) for i, d in enumerate(testdescs)]
-            num_tests = len(tests) * self.options.runs_per_test
+            filtered = []
+            # --list-tests lists the selected tests without filtering them
+            if not self.options.list_tests:
+                tests, filtered = self._filtertests(tests)
+            selected_count = len(tests) + len(filtered)
+            num_tests = selected_count * self.options.runs_per_test
 
             jobs = min(num_tests, self.options.jobs)
 
             failed = False
-            kws = self.options.keywords
-            if kws is not None:
-                kws = kws.encode('utf-8')
 
             suite = TestSuite(
                 self._testdir,
                 jobs=jobs,
-                whitelist=self.options.whitelisted,
-                blacklist=self.options.blacklist,
-                keywords=kws,
+                filtered=filtered,
                 loop=self.options.loop,
                 runs_per_test=self.options.runs_per_test,
                 showchannels=self.options.showchannels,
@@ -3761,6 +3741,51 @@ class TestRunner:
 
         if failed:
             return 1
+
+    def _filtertests(
+        self,
+        tests: typing.List[Test],
+    ) -> typing.Tuple[typing.List[Test], typing.List[_FilteredTestT]]:
+        """Split tests between the ones to run and the ones filtered out.
+
+        A test is filtered out when its file does not exist, when it is
+        blacklisted, or when it does not match the keywords. Whitelisted tests
+        escape the last two filters.
+        """
+        whitelist = self.options.whitelisted
+        blacklist = self.options.blacklist
+        keywords = self.options.keywords
+        if keywords is not None:
+            keywords = keywords.encode('utf-8')
+
+        kept = []
+        filtered = []
+        for test in tests:
+            if not os.path.exists(test.path):
+                filtered.append((test, _FilterVerdict.SKIP, "Doesn't exist"))
+                continue
+
+            is_whitelisted = whitelist and (
+                test.relpath in whitelist or test.bname in whitelist
+            )
+            if not is_whitelisted:
+                is_blacklisted = blacklist and (
+                    test.relpath in blacklist or test.bname in blacklist
+                )
+                if is_blacklisted:
+                    filtered.append((test, _FilterVerdict.SKIP, 'blacklisted'))
+                    continue
+                if keywords:
+                    with open(test.path, 'rb') as f:
+                        content = f.read().lower() + test.bname.lower()
+                    words = keywords.lower().split()
+                    if any(word not in content for word in words):
+                        verdict = _FilterVerdict.IGNORE
+                        reason = "doesn't match keyword"
+                        filtered.append((test, verdict, reason))
+                        continue
+            kept.append(test)
+        return kept, filtered
 
     def _geterrpath(self, test):
         # test['path'] is a relative path
