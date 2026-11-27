@@ -138,6 +138,20 @@ except ImportError:
         return text
 
 
+class _TestOutcome(enum.Enum):
+    """How a finished test ended, as reported by the progress output
+
+    The value of each member is the character printed in the dots output.
+    """
+
+    SUCCESS = '.'
+    SKIPPED = 's'
+    IGNORED = 'i'
+    FAILED = '!'
+    ERROR = 'E'
+    TIMEOUT = 't'
+
+
 progress_type = {}
 
 if pygmentspresent:
@@ -183,12 +197,12 @@ if pygmentspresent:
             ],
         }
 
-    progress_type['.'] = _T_SUCCESS
-    progress_type['s'] = _T_SKIPPED_DOT
-    progress_type['i'] = _T_IGNORED
-    progress_type['!'] = _T_FAILED
-    progress_type['E'] = _T_ERROR
-    progress_type['t'] = _T_TIMEDOUT
+    progress_type[_TestOutcome.SUCCESS] = _T_SUCCESS
+    progress_type[_TestOutcome.SKIPPED] = _T_SKIPPED_DOT
+    progress_type[_TestOutcome.IGNORED] = _T_IGNORED
+    progress_type[_TestOutcome.FAILED] = _T_FAILED
+    progress_type[_TestOutcome.ERROR] = _T_ERROR
+    progress_type[_TestOutcome.TIMEOUT] = _T_TIMEDOUT
 
     class progressLexer(lexer.RegexLexer):
         testpattern = r'[\w-]+\.(t|py)(#[a-zA-Z0-9_\-\.]+)?'
@@ -1061,13 +1075,13 @@ def highlightmsg(msg, color):
     return pygments.highlight(msg, runnerlexer, runnerformatter)
 
 
-def highlight_progress(progress, color):
+def highlight_progress(outcome: _TestOutcome, color: bool) -> str:
+    """return the progress character of ``outcome``, colored if requested"""
+    progress = outcome.value
     if not color:
         return progress
     assert pygmentspresent
-    token = progress_type.get(progress)
-    if token is None:
-        return progress
+    token = progress_type[outcome]
     style = runnerformatter.style_string.get(str(token))
     if style is None:
         return progress
@@ -2460,9 +2474,9 @@ class TestResult(base_class):
             self.stream.writeln(status)
             self.stream.flush()
 
-    def _write_dot(self, progress):
+    def _write_dot(self, outcome: _TestOutcome) -> None:
         """write an item of the "dot" progress"""
-        formated = highlight_progress(progress, self.color)
+        formated = highlight_progress(outcome, self.color)
         self.stream.write(formated)
         self._dot_printed += 1
         if not self._dot_printed % 75:
@@ -2483,14 +2497,14 @@ class TestResult(base_class):
         else:
             with iolock:
                 if reason == "timed out":
-                    self._write_dot('t')
+                    self._write_dot(_TestOutcome.TIMEOUT)
                 else:
                     if not self._options.nodiff:
                         self.stream.write('\n')
                         # Exclude the '\n' from highlighting to lex correctly
                         formatted = 'ERROR: %s output changed\n' % test
                         self.stream.write(highlightmsg(formatted, self.color))
-                    self._write_dot('!')
+                    self._write_dot(_TestOutcome.FAILED)
 
                 self.stream.flush()
 
@@ -2501,7 +2515,7 @@ class TestResult(base_class):
             if self.showAll:
                 self._write_status(test, "ok")
             elif self.dots:
-                self._write_dot('.')
+                self._write_dot(_TestOutcome.SUCCESS)
         self.successes.append(test)
 
     def addError(self, test, err=None, message=None):
@@ -2513,7 +2527,7 @@ class TestResult(base_class):
         if self.showAll:
             self._write_status(test, "ERROR")
         elif self.dots:
-            self._write_dot('E')
+            self._write_dot(_TestOutcome.ERROR)
         if self._options.first:
             self.stop()
 
@@ -2524,7 +2538,7 @@ class TestResult(base_class):
             if self.showAll:
                 self.stream.writeln('skipped %s' % reason)
             else:
-                self._write_dot('s')
+                self._write_dot(_TestOutcome.SKIPPED)
 
     def addIgnore(self, test, reason):
         self.ignored.append((test, reason))
@@ -2533,7 +2547,7 @@ class TestResult(base_class):
                 self.stream.writeln('ignored %s' % reason)
             else:
                 if reason not in ('not retesting', "doesn't match keyword"):
-                    self._write_dot('i')
+                    self._write_dot(_TestOutcome.IGNORED)
                 else:
                     self.testsRun += 1
 
@@ -2748,7 +2762,11 @@ class TestSuite(unittest.TestSuite):
             except KeyboardInterrupt:
                 pass
             except:  # re-raises
-                r = ('!', test, 'run-test raised an error, see traceback')
+                r = (
+                    _TestOutcome.FAILED,
+                    test,
+                    'run-test raised an error, see traceback',
+                )
                 raise
             finally:
                 try:
