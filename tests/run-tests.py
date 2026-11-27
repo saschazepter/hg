@@ -2451,6 +2451,13 @@ class TestResult(base_class):
         else:  # 'always', for testing purposes
             self.color = pygmentspresent
 
+    if not hasattr(base_class, '_write_status'):
+        # TextTestResult only has `_write_status` since Python 3.11
+        def _write_status(self, test: Test, status: str) -> None:
+            """write the status of a finished test in verbose mode"""
+            self.stream.writeln(status)
+            self.stream.flush()
+
     def _write_dot(self, progress):
         """write an item of the "dot" progress"""
         formated = highlight_progress(progress, self.color)

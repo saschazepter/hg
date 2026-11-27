@@ -1209,6 +1209,30 @@ be executed.
   # Ran 1 tests, 1 skipped, 0 failed.
   $ rm onlytest anothertest
 
+Verbose output
+==============
+
+`-v` prints the status of each finished test on its own line.
+
+(hide the verbose lines that depend on the environment)
+
+  $ filterverbose() {
+  >   grep -v -e '^# Found' -e '^# Writing' -e '^# Making' -e '^# Using' \
+  >     -e '^# Running' -e '^# Cleaning'
+  > }
+
+Successful test
+---------------
+
+  $ rt -v test-success.t 2>&1 | filterverbose
+  running 1 tests using 1 parallel processes 
+  test-success.t
+  test-success.t ... # Test test-success.t 
+  # Ret was: 0 (test-success.t) 
+  ok
+  
+  # Ran 1 tests, 0 skipped, 0 failed.
+
 test for --json
 ==================
 
@@ -2129,6 +2153,25 @@ broken hghave
   # Ran 3 tests, 0 skipped, 0 failed, 3 errors.
   python hash seed: * (glob)
   [1]
+
+Errors in verbose mode
+----------------------
+
+  $ DEVEL_HGHAVE_CRASH=1 rt -v test-cases-ab.t 2>&1 | filterverbose
+  running 2 tests using 1 parallel processes 
+  test-cases-ab.t#A
+  test-cases-ab.t#A ... # Test test-cases-ab.t#A 
+  ERROR
+  # Ret was: None (test-cases-ab.t#A) 
+  test-cases-ab.t#B
+  test-cases-ab.t#B ... # Test test-cases-ab.t#B 
+  ERROR
+  # Ret was: None (test-cases-ab.t#B) 
+  
+  ERROR: test-cases-ab.t#A: broken hghave
+  ERROR: test-cases-ab.t#B: broken hghave
+  # Ran 2 tests, 0 skipped, 0 failed, 2 errors.
+  python hash seed: * (glob)
   $ unset DEVEL_HGHAVE_CRASH
 
 Skipping test (and forbidding it)
