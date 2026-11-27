@@ -609,7 +609,6 @@ check-pytype:
 
 .windows:
     extends: .all
-    when: manual  # we don't have any Windows runners anymore at the moment
     tags:
       - windows
     variables:
