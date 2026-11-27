@@ -1075,18 +1075,17 @@ def highlightmsg(msg, color):
     return pygments.highlight(msg, runnerlexer, runnerformatter)
 
 
-def highlight_progress(outcome: _TestOutcome, color: bool) -> str:
-    """return the progress character of ``outcome``, colored if requested"""
-    progress = outcome.value
+def highlight_progress(text: str, outcome: _TestOutcome, color: bool) -> str:
+    """return ``text`` in the color of ``outcome``, if requested"""
     if not color:
-        return progress
+        return text
     assert pygmentspresent
     token = progress_type[outcome]
     style = runnerformatter.style_string.get(str(token))
     if style is None:
-        return progress
+        return text
     else:
-        return style[0] + progress + style[1]
+        return style[0] + text + style[1]
 
 
 def terminate(proc):
@@ -2476,7 +2475,7 @@ class TestResult(base_class):
 
     def _write_dot(self, outcome: _TestOutcome) -> None:
         """write an item of the "dot" progress"""
-        formated = highlight_progress(outcome, self.color)
+        formated = highlight_progress(outcome.value, outcome, self.color)
         self.stream.write(formated)
         self._dot_printed += 1
         if not self._dot_printed % 75:
