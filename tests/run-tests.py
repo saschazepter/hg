@@ -2446,7 +2446,8 @@ class TestResult(base_class):
         # sense to map it into skip some day.
         self.ignored = []
 
-        self._dot_printed = 0
+        # The number of finished tests reported by the progress output so far
+        self._tests_reported = 0
         self.times = []
         self._firststarttime = None
         # Data stored for the benefit of generating xunit reports.
@@ -2477,9 +2478,8 @@ class TestResult(base_class):
         """write an item of the "dot" progress"""
         formated = highlight_progress(outcome.value, outcome, self.color)
         self.stream.write(formated)
-        self._dot_printed += 1
-        if not self._dot_printed % 75:
-            self.stream.write(f' [{self._dot_printed}]\n'.rjust(8))
+        if not self._tests_reported % 75:
+            self.stream.write(f' [{self._tests_reported}]\n'.rjust(8))
         self.stream.flush()
 
     def _write_verbose_status(
@@ -2512,6 +2512,7 @@ class TestResult(base_class):
         ``reason`` explains skips and ignores.
         """
         with iolock:
+            self._tests_reported += 1
             if self.showAll:
                 self._write_verbose_status(test, outcome, reason)
             elif self.dots:
