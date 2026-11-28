@@ -289,10 +289,11 @@ build-c-wheel-arm64-musl:
             echo "sharding... $SHARDING_ARGS";
           fi
         - echo HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO" "$PYTHON" tests/run-tests.py
-            --color=always --tail-report $PORT_ARG $WHEEL_ARG $FLAVOR $SHARDING_ARGS $FILTER $RUNTEST_ARGS;
+            --color=always --progress-mode line --tail-report $PORT_ARG $WHEEL_ARG $FLAVOR $SHARDING_ARGS $FILTER $RUNTEST_ARGS;
         - HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
           "$PYTHON" tests/run-tests.py
             --color=always
+            --progress-mode line
             --tail-report
             $PORT_ARG
             $WHEEL_ARG
@@ -713,6 +714,7 @@ build-c-wheel-windows:
             && HGTESTS_ALLOW_NETIO="$TEST_HGTESTS_ALLOW_NETIO"
                $PYTHON tests/run-tests.py
                --color=always
+               --progress-mode line
                --tail-report
                $WHEEL_ARG
                $FLAVOR
@@ -724,6 +726,7 @@ build-c-wheel-windows:
                $PYTHON tests/run-tests.py
                --retest
                --color=always
+               --progress-mode line
                --tail-report
                $WHEEL_ARG
                $FLAVOR
